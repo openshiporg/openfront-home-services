@@ -1,7 +1,7 @@
 import { Transforms, type Editor } from 'slate'
 
 export function withSoftBreaks(editor: Editor): Editor {
-  // TODO: should soft breaks only work in particular places
+  // Soft breaks work in every block.
   editor.insertSoftBreak = () => {
     Transforms.insertText(editor, '\n')
   }

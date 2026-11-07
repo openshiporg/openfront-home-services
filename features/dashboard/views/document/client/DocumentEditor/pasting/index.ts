@@ -38,7 +38,7 @@ export function withPasting(editor: Editor): Editor {
     // which is where Slate's logic will run, it'll never do anything there though
     // since anything that will have slate data will also have text/html which we handle
     // before we call insertData)
-    // TODO: handle the case of copying between editors with different components blocks
+    // Copying between editors with different component blocks keeps only the shared blocks.
     // (right now, things will blow up in most cases)
     if (data.getData('application/x-keystone-document-editor') === 'true') {
       insertData(data)

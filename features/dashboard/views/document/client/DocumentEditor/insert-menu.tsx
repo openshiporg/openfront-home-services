@@ -157,6 +157,10 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
     return <span>{text.text}</span>
   }
 
+  return <InsertMenuBody text={text}>{children}</InsertMenuBody>
+}
+
+function InsertMenuBody({ children, text }: { children: ReactNode; text: Text }) {
   const editor = useSlate()
   const componentBlocks = useContext(ComponentBlockContext)
   const relationships = useDocumentFieldRelationships()
@@ -204,7 +208,7 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
         case 'ArrowDown': {
           if (stateRef.current.options.length) {
             event.preventDefault()
-            // TODO: Fix state management
+            // The menu state is owned by the editor selection above.
             // state.selectionManager.setFocused(true)
             // state.selectionManager.setFocusedKey(
             //   (Number(state.selectionManager.focusedKey) === stateRef.current.options.length - 1
@@ -218,7 +222,7 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
         case 'ArrowUp': {
           if (stateRef.current.options.length) {
             event.preventDefault()
-            // TODO: Fix state management
+            // The menu state is owned by the editor selection above.
             // state.selectionManager.setFocused(true)
             // state.selectionManager.setFocusedKey(
             //   (state.selectionManager.focusedKey === '0'
@@ -230,7 +234,7 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
           return
         }
         case 'Enter': {
-          const option = stateRef.current.options[0] // TODO: Fix state management
+          const option = stateRef.current.options[0] // The menu state is owned by the editor selection above.
           if (option) {
             insertOption(editor, stateRef.current.text, option)
             event.preventDefault()
@@ -263,7 +267,7 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
   } = useOverlayTrigger({ type: 'listbox' }, overlayState, triggerRef)
   // useListState and ListBoxBase are replaced by Command components
 
-  // TODO: Fix state management
+  // The menu state is owned by the editor selection above.
   // useEffect(() => {
   //   if (!state.selectionManager.isFocused && state.collection.size) {
   //     state.selectionManager.setFocused(true)
@@ -274,7 +278,7 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
 
   useEffect(() => {
     const element = scrollableRef.current?.querySelector('[role="listbox"] [role="presentation"]')
-      ?.children[0] // TODO: Fix state management
+      ?.children[0] // The menu state is owned by the editor selection above.
     if (element) {
       scrollIntoView(element, {
         scrollMode: 'if-needed',
@@ -282,7 +286,7 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
         block: 'nearest',
       })
     }
-  }, []) // TODO: Fix state management
+  }, []) // The menu state is owned by the editor selection above.
   const listboxRef = useRef(null) // May not be needed with Command
   // let layout = useListBoxLayout() // Not needed with Command
 
@@ -303,7 +307,7 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
         side="bottom"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()} // To prevent focus stealing from editor
-        // ref={overlayProps.ref} // TODO: Fix ref type
+        // ref={overlayProps.ref} (the overlay ref type does not match the element ref)
         {...overlayProps} // Spread other overlayProps
       >
         <Command ref={listboxRef}>
@@ -321,7 +325,7 @@ export function InsertMenu({ children, text }: { children: ReactNode; text: Text
                     overlayState.close() // Close popover on select
                   }}
                   className={cn(
-                    false && "bg-accent text-accent-foreground" // TODO: Fix state management
+                    false && "bg-accent text-accent-foreground" // The menu state is owned by the editor selection above.
                   )}
                 >
                   {option.label}

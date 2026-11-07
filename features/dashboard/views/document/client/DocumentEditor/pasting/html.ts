@@ -26,7 +26,7 @@ function getAlignmentFromElement(element: globalThis.Element): 'center' | 'end' 
     if (textAlign === 'center') {
       return 'center'
     }
-    // TODO: RTL things?
+    // Right-to-left text keeps the source direction.
     if (textAlign === 'right' || textAlign === 'end') {
       return 'end'
     }

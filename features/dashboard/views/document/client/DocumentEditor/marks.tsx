@@ -114,7 +114,7 @@ export function withMarks(
               0,
               -shortcutText.length - 1
             )
-            // TODO: use regex probs
+            // A regex would be shorter; this loop is explicit.
             for (const [offsetFromStartOfBlock] of [...strToMatchOn].reverse().entries()) {
               const expectedShortcutText = strToMatchOn.slice(
                 offsetFromStartOfBlock,

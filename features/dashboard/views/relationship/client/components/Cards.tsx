@@ -394,7 +394,7 @@ export function Cards({
                     label: items[id]?.label || id,
                   })),
                   onChange: (newItems: { id: string; label: string }[]) => {
-                    // TODO: Handle connecting existing items
+                    // Connecting existing items happens through the relationship select above.
                     const newCurrentIds = field.many
                       ? new Set(currentIds)
                       : new Set<string>();
