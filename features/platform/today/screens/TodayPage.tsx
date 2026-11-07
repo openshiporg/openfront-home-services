@@ -78,7 +78,7 @@ export default async function TodayPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="In the field now">
           {d.inField.length ? d.inField.map((v, i) => (
-            <Row key={i}><span className="text-sm">{v.assignments.map(a => a.employee?.displayName).join(', ') || '—'} <Meta>· {v.job?.jobType?.name} · {v.job?.location?.city}</Meta></span><Status value={v.status} /></Row>
+            <Row key={i}><span className="flex flex-wrap items-center gap-2 text-sm"><span>{v.assignments.map(a => a.employee?.displayName).join(', ') || '—'}</span><Status value={v.status} /><Meta>{v.job?.jobType?.name} · {v.job?.location?.city}</Meta></span></Row>
           )) : <Empty>Nobody is out on a visit right now.</Empty>}
         </Section>
         <Section title="Waiting on someone">

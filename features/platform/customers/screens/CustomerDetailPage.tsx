@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { q, companyTimeZone } from '../../lib/server';
-import { label, when } from '../../lib/format';
+import { label, phoneText, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
 import { CommandForm } from '../../components/CommandForm';
@@ -55,18 +55,18 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <Section title="Contacts and consent">
         {c.contacts.map(ct => (
           <div key={ct.id} className="space-y-2 border-b py-3 last:border-b-0">
-            <p className="text-sm font-medium">{ct.firstName} {ct.lastName} <span className="text-xs text-muted-foreground">{label(ct.role)}</span></p>
+            <p className="text-sm font-medium">{ct.firstName} {ct.lastName} <span className="text-xs text-muted-foreground">{label(ct.role, 'contactRole')}</span></p>
             {ct.points.map(p => {
               const eff = effective(p);
               return (
                 <Row key={p.id} className="pl-3">
                   <div className="min-w-0 flex-1 space-y-1">
-                    <span className="font-mono text-sm">{p.value ?? 'hidden'}</span> <Meta>{label(p.kind)}{p.isPrimary ? ' · primary' : ''}</Meta>
+                    <span className="font-mono text-sm">{p.value ? (p.kind === 'email' ? p.value : phoneText(p.value)) : 'hidden'}</span> <Meta>{label(p.kind)}{p.isPrimary ? ' · primary' : ''}</Meta>
                     {p.kind !== 'email' ? (
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
                         {PURPOSES.filter(x => !x.endsWith('email')).map(purpose => {
                           const e = eff.get(purpose);
-                          return <span key={purpose} className="text-xs"><Status value={e?.action ?? 'none'} /> <span className="text-muted-foreground">{label(purpose)}{e ? ` · ${label(e.channel)} ${when(e.recordedAt, tz)}` : ''}</span></span>;
+                          return <span key={purpose} className="inline-flex items-center gap-1.5 text-xs"><span className={`size-2 shrink-0 rounded-full ${e?.action === 'grant' ? 'bg-emerald-500' : e?.action === 'revoke' ? 'bg-red-500' : 'bg-muted-foreground/40'}`} /><span>{label(purpose)}: {e?.action === 'grant' ? 'yes' : e?.action === 'revoke' ? 'no' : 'not asked'}</span><span className="text-muted-foreground">{e ? ` · ${label(e.channel).toLowerCase()}, ${when(e.recordedAt, tz)}` : ''}</span></span>;
                         })}
                       </div>
                     ) : null}
@@ -116,8 +116,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <Section title="Jobs" aside={<Link className="text-xs underline" href="/dashboard/platform/book">Book a job</Link>}>
         {c.jobs.length ? c.jobs.map(j => (
           <Row key={j.id} href={`/dashboard/platform/jobs/${j.id}`}>
-            <span className="font-medium">{j.jobType?.name ?? 'Job'} <span className="font-mono text-xs text-muted-foreground">{j.ref}</span></span>
-            <span className="flex items-center gap-3"><Meta>{when(j.createdAt, tz)}</Meta><Status value={j.status} /></span>
+            <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{j.jobType?.name ?? 'Job'}</span><span className="font-mono text-xs text-muted-foreground">{j.ref}</span><Status value={j.status} /></span>
+            <Meta>{when(j.createdAt, tz)}</Meta>
           </Row>
         )) : <Empty>No jobs yet.</Empty>}
       </Section>

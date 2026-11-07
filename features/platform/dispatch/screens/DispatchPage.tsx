@@ -92,15 +92,15 @@ export default async function DispatchPage({ searchParams }: { searchParams?: Pr
                       <div className="flex flex-wrap items-center gap-2">
                         <Link className="font-medium underline-offset-2 hover:underline" href={`/dashboard/platform/jobs/${v.job?.id}`}>{v.job?.jobType?.name ?? 'Visit'}</Link>
                         <span className="font-mono text-xs text-muted-foreground">{v.ref}</span>
+                        <Status value={v.status} />
                         {v.job?.priority === 'emergency' ? <Status value="emergency" /> : null}
-                        {v.needsReview ? <span className="text-xs text-amber-600">device event needs review</span> : null}
+                        {v.needsReview ? <span className="text-xs text-amber-600">status sent out of order; check the job</span> : null}
                       </div>
                       <Meta>{v.job?.customer?.displayName ?? ''}{v.job?.location ? ` · ${v.job.location.city} ${v.job.location.postalCode}` : ''} · {quantity(v.capacityHours)} h{v.job?.summary ? ` · ${v.job.summary}` : ''}</Meta>
-                      {v.assignments.length ? <Meta><br />{v.assignments.map(a => `${a.employee?.displayName} (${label(a.role)})`).join(', ')}</Meta> : null}
+                      {v.assignments.length ? <Meta><br />{v.assignments.map(a => `${a.employee?.displayName} (${label(a.role, 'crewRole').toLowerCase()})`).join(', ')}</Meta> : null}
                       {v.status === 'unassigned' ? <AssignControl visitId={v.id} version={v.version} techs={techs} path={path} /> : null}
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-2">
-                      <Status value={v.status} />
                       {(NEXT[v.status] ?? []).map(n => <ActionButton key={n.to} op="setVisitStatus" vars={{ visitId: v.id, to: n.to, expectedVersion: v.version }} paths={[path]}>{n.label}</ActionButton>)}
                       {['scheduled', 'dispatched'].includes(v.status) ? <ActionButton op="unassignVisit" vars={{ visitId: v.id, expectedVersion: v.version }} ask="Why take it off this tech?" paths={[path]}>Unassign</ActionButton> : null}
                     </div>

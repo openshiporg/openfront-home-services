@@ -1,5 +1,6 @@
 import { q, companyTimeZone, localToday, plusDays } from '../../lib/server';
 import { Page, Row, Empty, Meta, Section, Status } from '../../components/ui';
+import { dayText } from '../../lib/format';
 
 type Visit = {
   id: string; ref: string; status: string;
@@ -26,15 +27,14 @@ export default async function FieldTodayPage() {
       {days.map(day => {
         const rows = d.visits.filter(v => v.window?.date === day).sort((a, b) => (a.window?.startsAt ?? '').localeCompare(b.window?.startsAt ?? ''));
         return (
-          <Section key={day} title={day === today ? 'Today' : 'Tomorrow'}>
+          <Section key={day} title={`${day === today ? 'Today' : 'Tomorrow'} · ${dayText(day)}`}>
             {rows.length ? rows.map(v => (
               <Row key={v.id} href={`/dashboard/field/visits/${v.id}`} className="py-4">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2"><span className="text-base font-medium">{v.window?.label}</span>{v.job?.priority === 'emergency' ? <Status value="emergency" /> : null}</div>
+                  <div className="flex flex-wrap items-center gap-2"><span className="text-base font-medium">{v.window?.label}</span><Status value={v.status} />{v.job?.priority === 'emergency' ? <Status value="emergency" /> : null}</div>
                   <p className="text-sm">{v.job?.jobType?.name} · {v.job?.customer?.displayName}</p>
                   <Meta>{v.job?.location ? `${v.job.location.address1}, ${v.job.location.city}` : ''}{v.job?.summary ? ` · ${v.job.summary}` : ''}</Meta>
                 </div>
-                <Status value={v.status} />
               </Row>
             )) : <Empty>No visits.</Empty>}
           </Section>

@@ -1,5 +1,5 @@
 import { q, companyTimeZone, localToday, plusDays, requestTime } from '../../lib/server';
-import { label, when } from '../../lib/format';
+import { dateText, label, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Tabs } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
 
@@ -45,12 +45,11 @@ export default async function TeamPage({ searchParams }: { searchParams?: Promis
                 return (
                   <Row key={c.id} className="pl-3">
                     <div className="min-w-0 flex-1">
-                      <span className="text-sm">{label(c.kind)}{c.licenseClass ? ` · ${label(c.licenseClass)}` : ''}{c.epaType ? ` · EPA ${label(c.epaType)}` : ''}</span>
-                      <Meta> · {c.issuer} {c.number}{c.expiresOn ? ` · ${expiring ? 'expires' : 'valid to'} ${c.expiresOn}` : ''}{c.verifiedBy ? ` · verified by ${c.verifiedBy.name} ${when(c.verifiedAt, tz)}` : ''}</Meta>
+                      <span className="inline-flex flex-wrap items-center gap-2 text-sm"><span>{label(c.kind)}{c.licenseClass ? ` · ${label(c.licenseClass)}` : ''}{c.epaType && c.epaType !== 'none' ? ` · ${label(c.epaType)}` : ''}</span><Status value={c.status} /></span>
+                      <Meta> · {c.issuer} {c.number}{c.expiresOn ? ` · ${expiring ? 'expires' : 'valid to'} ${dateText(c.expiresOn)}` : ''}{c.verifiedBy ? ` · verified by ${c.verifiedBy.name} ${when(c.verifiedAt, tz)}` : ''}</Meta>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {expiring ? <span className="text-xs text-amber-600">renew</span> : null}
-                      <Status value={c.status} />
                       {c.status === 'pending_verification' ? <ActionButton op="verifyCredential" vars={{ credentialId: c.id, expectedVersion: c.version }} confirm="You checked the licence against the issuer's public lookup?" paths={[path]}>Verify</ActionButton> : null}
                       {c.status === 'verified' ? <ActionButton op="revokeCredential" vars={{ credentialId: c.id, expectedVersion: c.version }} ask="Why revoke this credential?" paths={[path]}>Revoke</ActionButton> : null}
                     </div>

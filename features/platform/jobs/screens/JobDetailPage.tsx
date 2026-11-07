@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { q, companyTimeZone } from '../../lib/server';
-import { label, quantity, when } from '../../lib/format';
+import { eventText, label, quantity, when, windowText, dateText } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
 import { CommandForm } from '../../components/CommandForm';
@@ -57,8 +57,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <p className="text-sm">{j.summary || 'No description.'}</p>
         <Meta>
           {j.location ? `${j.location.address1}, ${j.location.city} ${j.location.postalCode}${j.location.serviceArea ? ` · ${j.location.serviceArea.name}` : ''}` : ''}
-          {' · '}{j.bookedByAgent ? `booked by the AI receptionist (${j.bookedByAgent.name})` : j.bookedBy ? `booked by ${j.bookedBy.name}` : `booked via ${label(j.source)}`} {when(j.createdAt, tz)}{j.lead ? ` from lead ${j.lead.ref}` : ''}
-          {j.holdReason ? ` · on hold (${label(j.holdReason)}) until ${j.holdFollowUpOn ?? '—'}` : ''}{j.cancelReason ? ` · cancelled: ${label(j.cancelReason)}` : ''}
+          {' · '}{j.bookedByAgent ? `booked by the AI receptionist (${j.bookedByAgent.name})` : j.bookedBy ? `booked by ${j.bookedBy.name}${j.source === 'csr' ? ' on the phone' : j.source === 'online' ? ' online' : ''}` : label(j.source, 'bookedVia').toLowerCase()} {when(j.createdAt, tz)}{j.lead ? ` from lead ${j.lead.ref}` : ''}
+          {j.holdReason ? ` · on hold (${label(j.holdReason).toLowerCase()}), follow up ${j.holdFollowUpOn ? dateText(j.holdFollowUpOn) : '—'}` : ''}{j.cancelReason ? ` · cancelled: ${label(j.cancelReason).toLowerCase()}` : ''}
         </Meta>
         <div className="flex flex-wrap gap-2 pt-2">
           {open ? <CommandForm op="holdJob" submit="Put on hold" fixed={{ jobId: j.id, expectedVersion: j.version }} paths={[PATH(j.id)]} fields={[
@@ -66,23 +66,22 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             { name: 'followUpOn', label: 'Follow up on', kind: 'date', required: true, width: 'sm' },
           ]} /> : null}
           {j.status === 'on_hold' ? <ActionButton op="releaseJobHold" vars={{ jobId: j.id, expectedVersion: j.version }} paths={[PATH(j.id)]}>Release hold</ActionButton> : null}
-          {['booked', 'scheduled', 'on_hold'].includes(j.status) ? <ActionButton op="cancelJob" vars={{ jobId: j.id, expectedVersion: j.version }} ask="Cancel reason (customer_request, duplicate, no_access, out_of_area, scheduling, weather, other):" paths={[PATH(j.id)]}>Cancel job</ActionButton> : null}
+          {['booked', 'scheduled', 'on_hold'].includes(j.status) ? <ActionButton op="cancelJob" vars={{ jobId: j.id, expectedVersion: j.version }} choices={['customer_request', 'duplicate', 'no_access', 'out_of_area', 'scheduling', 'weather', 'other'].map(v => ({ value: v, label: label(v) }))} paths={[PATH(j.id)]}>Cancel job</ActionButton> : null}
         </div>
       </Section>
       <Section title="Visits">
         {j.visits.map(v => (
           <div key={v.id} className="space-y-2 border-b py-3 last:border-b-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-medium">{v.ref} · {v.window ? `${v.window.date} ${v.window.label}` : 'unscheduled'} · {quantity(v.capacityHours)} h</span>
-              <Status value={v.status} />
+              <span className="flex flex-wrap items-center gap-2 text-sm font-medium">{v.ref} · {v.window ? windowText(v.window) : 'Not scheduled'} · {quantity(v.capacityHours)} h <Status value={v.status} /></span>
             </div>
             {v.needsReview ? <p className="text-xs text-amber-600">A device sent a status out of order; check the timeline.</p> : null}
             <Meta>
-              {v.assignments.length ? v.assignments.map((a, i) => <span key={i} className={a.active ? '' : 'line-through'}>{a.employee?.displayName} ({label(a.role)}) by {a.assignedByAgent ? `agent ${a.assignedByAgent.name}` : a.assignedBy?.name ?? 'system'}{a.overrideReason ? ` · override: ${a.overrideReason}` : ''}{i < v.assignments.length - 1 ? '; ' : ''}</span>) : 'Not assigned'}
+              {v.assignments.length ? v.assignments.map((a, i) => <span key={i} className={a.active ? '' : 'line-through'}>{a.employee?.displayName} ({label(a.role, 'crewRole').toLowerCase()}) by {a.assignedByAgent ? `AI agent ${a.assignedByAgent.name}` : a.assignedBy?.name ?? 'system'}{a.overrideReason ? ` · override: ${a.overrideReason}` : ''}{i < v.assignments.length - 1 ? '; ' : ''}</span>) : 'Not assigned'}
             </Meta>
             {v.statusEvents.length ? (
               <ol className="space-y-0.5 text-xs text-muted-foreground">
-                {v.statusEvents.map((e, i) => <li key={i}>{when(e.occurredAt, tz, 'seconds')} · {label(e.fromStatus)} → {label(e.toStatus)}{e.kind !== 'transition' ? ` (${e.kind})` : ''}{e.actorUser ? ` · ${e.actorUser.name}` : ''}{e.note ? ` · ${e.note}` : ''}</li>)}
+                {v.statusEvents.map((e, i) => <li key={i}>{when(e.occurredAt, tz, 'seconds')} · {label(e.fromStatus)} → {label(e.toStatus)}{e.kind !== 'transition' ? ` (${label(e.kind).toLowerCase()})` : ''}{e.actorUser ? ` · ${e.actorUser.name}` : ''}{e.note ? ` · ${e.note}` : ''}</li>)}
               </ol>
             ) : null}
           </div>
@@ -91,9 +90,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <Section title="Texts">
         {d.messages.length ? d.messages.map(m => (
           <Row key={m.id}>
-            <div className="min-w-0 flex-1"><span className="font-medium">{label(m.template)}</span><Meta> · {when(m.sentAt ?? m.createdAt, tz)}{m.blockedReason ? ` · held: ${label(m.blockedReason)}` : ''}</Meta></div>
+            <div className="min-w-0 flex-1"><span className="font-medium">{label(m.template)}</span> <Status value={m.status} /><Meta> · {when(m.sentAt ?? m.createdAt, tz)}{m.blockedReason ? ` · held: ${label(m.blockedReason).toLowerCase()}` : ''}</Meta></div>
             <div className="flex flex-wrap items-center gap-2">
-              <Status value={m.status} />
               {m.status === 'blocked' ? <ActionButton op="requeueMessage" vars={{ messageId: m.id, expectedVersion: m.version }} confirm="Send again? It is checked against consent and quiet hours again." paths={[PATH(j.id)]}>Retry</ActionButton> : null}
               {m.status === 'manual' ? <ActionButton op="markMessageSent" vars={{ messageId: m.id, expectedVersion: m.version }} paths={[PATH(j.id)]}>I sent it</ActionButton> : null}
             </div>
@@ -103,7 +101,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <Section title="Audit">
         {d.auditEvents.length ? (
           <ol className="space-y-0.5 text-xs text-muted-foreground">
-            {d.auditEvents.map((e, i) => <li key={i}>{when(e.at, tz, 'seconds')} · {e.eventType}{e.actorAgent ? ` · agent ${e.actorAgent.name}` : e.actorUser ? ` · ${e.actorUser.name}` : ''}</li>)}
+            {d.auditEvents.map((e, i) => <li key={i}>{when(e.at, tz, 'seconds')} · {eventText(e.eventType)}{e.actorAgent ? ` · AI agent ${e.actorAgent.name}` : e.actorUser ? ` · ${e.actorUser.name}` : ''}</li>)}
           </ol>
         ) : <Empty>No audit events visible to you.</Empty>}
       </Section>

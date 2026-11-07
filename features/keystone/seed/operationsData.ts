@@ -4,7 +4,8 @@ import { BUSINESS_UNITS } from './company'
 
 /**
  * Summit's field operation (BUILD-PLAN §5, Phase 1): pure data, safe to import from the onboarding
- * screen. Every name, number and address is fictional (phones 512-555-01xx, emails @example.com).
+ * screen. Every name, number and address is fictional (phones 512-555-01xx; households use common consumer
+ * email domains, and messaging runs on manual adapters, so nothing is ever sent to them).
  */
 
 type CredentialSeed = { kind: string; trade: string; issuer: string; number: string; licenseClass?: string; epaType?: string; expiresOn?: string; status?: 'verified' | 'pending_verification' }
@@ -96,6 +97,8 @@ export const jitter = (base: string, i: number, salt: number) => {
   return toScale(dec(base).plus(dec(offsetMicro).div(100_000)), 6)
 }
 
+const MAIL_DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com', 'icloud.com', 'att.net', 'hotmail.com']
+
 export const HOUSEHOLDS = Array.from({ length: 60 }, (_, i) => {
   const first = FIRST[i % FIRST.length]
   const last = LAST[(i * 7 + 3) % LAST.length]
@@ -104,12 +107,12 @@ export const HOUSEHOLDS = Array.from({ length: 60 }, (_, i) => {
   const n = String(i + 1).padStart(3, '0')
   return {
     id: `seed_cus_${n}`, ref: `CUS-SEED-${n}`, first, last, displayName: `${first} ${last}`,
-    phone: `+1512555${String(130 + i).padStart(4, '0')}`, email: `${first}.${last}${i + 1}@example.com`.toLowerCase(),
+    phone: `+1512555${String(130 + i).padStart(4, '0')}`, email: `${first}.${last}${i + 1}@${MAIL_DOMAINS[i % MAIL_DOMAINS.length]}`.toLowerCase(),
     location: { id: `seed_loc_${n}`, ref: `LOC-SEED-${n}`, address1: `${1000 + ((i * 37) % 8900)} ${STREETS[i % STREETS.length]}`, city: CITY[zip] ?? 'Austin', postalCode: zip, lat: jitter(lat, i, 1), lng: jitter(lng, i, 2), propertyType: i % 9 === 4 ? 'townhome' : 'single_family', yearBuilt: 1972 + ((i * 13) % 52) },
     // Three households never agreed to texts; one has opted out by STOP.
     smsConsent: ![7, 23, 41].includes(i), optedOut: i === 52,
   }
 })
 
-export const COMMERCIAL = { id: 'seed_cus_hcpm', ref: 'CUS-SEED-HCPM', displayName: 'Hill Country Property Management', first: 'Jordan', last: 'Reese', phone: '+15125550199', email: 'maintenance@hcpm.example.com', location: { id: 'seed_loc_hcpm_1', ref: 'LOC-SEED-HCPM-1', address1: '2200 Riverside Commons, Bldg C', city: 'Austin', postalCode: '78741', lat: '30.238100', lng: '-97.723300', propertyType: 'multifamily', yearBuilt: 1998 } }
+export const COMMERCIAL = { id: 'seed_cus_hcpm', ref: 'CUS-SEED-HCPM', displayName: 'Hill Country Property Management', first: 'Jordan', last: 'Reese', phone: '+15125550199', email: 'maintenance@hillcountrypm.com', location: { id: 'seed_loc_hcpm_1', ref: 'LOC-SEED-HCPM-1', address1: '2200 Riverside Commons, Bldg C', city: 'Austin', postalCode: '78741', lat: '30.238100', lng: '-97.723300', propertyType: 'multifamily', yearBuilt: 1998 } }
 

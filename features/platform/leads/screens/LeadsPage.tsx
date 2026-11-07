@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { q, companyTimeZone, requestTime } from '../../lib/server';
-import { label, when } from '../../lib/format';
+import { label, phoneText, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Tabs } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
 import { CommandForm } from '../../components/CommandForm';
@@ -54,7 +54,7 @@ export default async function LeadsPage({ searchParams }: { searchParams?: Promi
             { name: 'phone', label: 'Phone', kind: 'tel' },
             { name: 'postalCode', label: 'ZIP', width: 'sm' },
             { name: 'summary', label: 'What they need', width: 'lg' },
-            { name: 'source', label: 'Source', kind: 'select', options: ['call', 'web_form', 'sms', 'lsa', 'marketplace', 'tech_generated'].map(v => ({ value: v, label: label(v) })) },
+            { name: 'source', label: 'Source', kind: 'select', options: ['call', 'web_form', 'sms', 'lsa', 'marketplace', 'tech_generated'].map(v => ({ value: v, label: label(v, 'leadSource') })) },
             { name: 'campaignId', label: 'Campaign', kind: 'select', options: [{ value: '', label: 'None' }, ...d.campaigns.map(c => ({ value: c.id, label: c.name }))] },
           ]} />
         </Section>
@@ -68,22 +68,22 @@ export default async function LeadsPage({ searchParams }: { searchParams?: Promi
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{l.contactName || 'Unknown caller'}</span>
                   <span className="font-mono text-xs text-muted-foreground">{l.ref}</span>
+                  <Status value={l.status} />
                   {l.customer ? <Link className="text-xs underline" href={`/dashboard/platform/customers/${l.customer.id}`}>{l.customer.displayName}</Link> : null}
                 </div>
                 {l.summary ? <p className="break-words text-sm">{l.summary}</p> : null}
                 <Meta>
-                  {label(l.source)}{l.campaign ? ` · ${l.campaign.name}` : ''}{l.requestedJobType ? ` · ${l.requestedJobType.name}` : ''}{l.phoneE164 ? ` · ${l.phoneE164}` : ''} · {when(l.createdAt, tz)}
+                  {label(l.source, 'leadSource')}{l.campaign ? ` · ${l.campaign.name}` : ''}{l.requestedJobType ? ` · ${l.requestedJobType.name}` : ''}{l.phoneE164 ? ` · ${phoneText(l.phoneE164)}` : ''} · {when(l.createdAt, tz)}
                   {l.firstResponseSeconds !== null ? ` · answered in ${respondedIn(l.firstResponseSeconds)}` : ''}
-                  {l.lostReason ? ` · ${label(l.lostReason)}` : ''}
+                  {l.lostReason ? ` · lost: ${label(l.lostReason).toLowerCase()}` : ''}
                 </Meta>
                 {l.job ? <Meta><br /><Link className="underline" href={`/dashboard/platform/jobs/${l.job.id}`}>Job {l.job.ref}</Link></Meta> : null}
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Status value={l.status} />
                 {l.status === 'new' && l.respondDueAt ? <span className={`text-xs ${late ? 'font-medium text-red-600' : 'text-muted-foreground'}`}>{late ? 'Overdue since' : 'Respond by'} {when(l.respondDueAt, tz, 'time')}</span> : null}
                 {l.status === 'new' ? <ActionButton op="markLeadContacted" vars={{ leadId: l.id, expectedVersion: l.version }} paths={PATHS}>Contacted</ActionButton> : null}
                 {OPEN.includes(l.status) ? <Link className="text-xs underline" href="/dashboard/platform/book">Book</Link> : null}
-                {OPEN.includes(l.status) ? <ActionButton op="loseLead" vars={{ leadId: l.id, expectedVersion: l.version }} ask={`Why was it lost? (${['price', 'timing', 'out_of_area', 'no_answer', 'competitor', 'not_serviceable', 'duplicate', 'other'].join(', ')})`} paths={PATHS}>Lost</ActionButton> : null}
+                {OPEN.includes(l.status) ? <ActionButton op="loseLead" vars={{ leadId: l.id, expectedVersion: l.version }} choices={['price', 'timing', 'out_of_area', 'no_answer', 'competitor', 'not_serviceable', 'duplicate', 'other'].map(v => ({ value: v, label: label(v) }))} paths={PATHS}>Lost</ActionButton> : null}
                 {OPEN.includes(l.status) ? <ActionButton op="markLeadSpam" vars={{ leadId: l.id, expectedVersion: l.version }} confirm="Mark this lead as spam?" paths={PATHS}>Spam</ActionButton> : null}
               </div>
             </Row>

@@ -13,7 +13,7 @@ export { CAMPAIGNS, COMMERCIAL, HOUSEHOLDS, JOB_TYPES, REQUIREMENTS, SKILLS, TEC
  * job types with licensing requirements and the AI receptionist's keywords and emergency scripts,
  * arrival-window templates, shifts, on-call, campaigns and tracking numbers, and fictional
  * households across Austin, Round Rock, Pflugerville and Cedar Park. Every name, number and address
- * is fictional (phones 512-555-01xx, emails @example.com). Ids are deterministic; loading twice adds nothing.
+ * is fictional (phones 512-555-01xx, emails @summitplumbingair.com). Ids are deterministic; loading twice adds nothing.
  */
 
 const UNUSABLE_PASSWORD_HASH = '$2a$10$3dITCbIvf5zFA.1U8KZDhOHC3EEexi3KYy5ysZK1cRF6LHMm0H.ya'
@@ -38,15 +38,15 @@ export async function seedOperations(uow: UnitOfWork, actor: Actor) {
   const haveEmployees = new Set((await tx.employee.findMany({ where: { id: { in: [...techIds, 'seed_emp_kim'] } }, select: { id: true } })).map(e => e.id))
   const newTechs = TECHS.filter(t => !haveEmployees.has(`seed_emp_${t.key}`))
   if (newTechs.length) {
-    const emails = newTechs.map(t => `${t.first}.${t.last}@example.com`.toLowerCase())
+    const emails = newTechs.map(t => `${t.first}.${t.last}@summitplumbingair.com`.toLowerCase())
     const existingUsers = new Set((await tx.user.findMany({ where: { email: { in: emails } }, select: { email: true } })).map(u => u.email))
-    await tx.user.createMany({ data: newTechs.filter(t => !existingUsers.has(`${t.first}.${t.last}@example.com`.toLowerCase())).map(t => ({ id: `seed_user_${t.key}`, name: `${t.first} ${t.last}`, email: `${t.first}.${t.last}@example.com`.toLowerCase(), title: t.title, phone: t.phone, password: UNUSABLE_PASSWORD_HASH, kind: 'staff' as const, roleId: 'seed_role_technician', onboardingStatus: 'dismissed' })) })
+    await tx.user.createMany({ data: newTechs.filter(t => !existingUsers.has(`${t.first}.${t.last}@summitplumbingair.com`.toLowerCase())).map(t => ({ id: `seed_user_${t.key}`, name: `${t.first} ${t.last}`, email: `${t.first}.${t.last}@summitplumbingair.com`.toLowerCase(), title: t.title, phone: t.phone, password: UNUSABLE_PASSWORD_HASH, kind: 'staff' as const, roleId: 'seed_role_technician', onboardingStatus: 'dismissed' })) })
     for (const [i, t] of newTechs.entries()) {
       const [lat, lng] = ZIP_CENTROIDS[t.zip]
       await tx.employee.create({
         data: {
           id: `seed_emp_${t.key}`, userId: `seed_user_${t.key}`, firstName: t.first, lastName: t.last, displayName: `${t.first} ${t.last}`, employeeNumber: `E-${String(1101 + TECHS.indexOf(t))}`,
-          homeBranchId: BRANCH.id, kind: t.kind, employmentType: 'w2_hourly', hireDate: day(`20${String(14 + (i % 10)).padStart(2, '0')}-0${1 + (i % 9)}-15`), phoneE164: t.phone, email: `${t.first}.${t.last}@example.com`.toLowerCase(),
+          homeBranchId: BRANCH.id, kind: t.kind, employmentType: 'w2_hourly', hireDate: day(`20${String(14 + (i % 10)).padStart(2, '0')}-0${1 + (i % 9)}-15`), phoneE164: t.phone, email: `${t.first}.${t.last}@summitplumbingair.com`.toLowerCase(),
           lat: jitter(lat, i, 3), lng: jitter(lng, i, 4), dispatchable: true, status: 'active',
           businessUnits: { connect: t.units.map(id => ({ id })) }, skills: { connect: t.skills.map(code => ({ id: skillId(code) })) },
         },
@@ -69,7 +69,7 @@ export async function seedOperations(uow: UnitOfWork, actor: Actor) {
     created.shiftTemplates = shiftTemplates.length
   }
   if (!haveEmployees.has('seed_emp_kim')) {
-    await tx.employee.create({ data: { id: 'seed_emp_kim', userId: 'seed_user_kim', firstName: 'Rachel', lastName: 'Kim', displayName: 'Rachel Kim', employeeNumber: 'E-1201', homeBranchId: BRANCH.id, kind: 'sales', employmentType: 'w2_salaried_nonexempt', phoneE164: '+15125550109', email: 'rachel.kim@example.com', lat: '30.351600', lng: '-97.731700', dispatchable: true, status: 'active', businessUnits: { connect: [{ id: 'seed_bu_hvac_install' }] } } })
+    await tx.employee.create({ data: { id: 'seed_emp_kim', userId: 'seed_user_kim', firstName: 'Rachel', lastName: 'Kim', displayName: 'Rachel Kim', employeeNumber: 'E-1201', homeBranchId: BRANCH.id, kind: 'sales', employmentType: 'w2_salaried_nonexempt', phoneE164: '+15125550109', email: 'rachel.kim@summitplumbingair.com', lat: '30.351600', lng: '-97.731700', dispatchable: true, status: 'active', businessUnits: { connect: [{ id: 'seed_bu_hvac_install' }] } } })
     await tx.shiftTemplate.createMany({ data: [1, 2, 3, 4, 5].map(weekday => ({ employeeId: 'seed_emp_kim', weekday, startLocal: '08:00', endLocal: '17:00' })), skipDuplicates: true })
     auditCreate(uow, actor, 'Employee', 'seed_emp_kim', 'employee.created', { name: 'Rachel Kim', kind: 'sales' }, meta)
     created.technicians += 1

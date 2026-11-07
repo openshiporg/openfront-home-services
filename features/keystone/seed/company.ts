@@ -2,7 +2,7 @@ import { permissionNames, type Permission } from '../access'
 
 /**
  * Summit Plumbing & Air (BUILD-PLAN §5). Every name, number and licence is fictional; phone
- * numbers are 512-555-01xx and email addresses are @example.com. Ids are deterministic (`seed_…`)
+ * numbers are 512-555-01xx and email addresses are @summitplumbingair.com. Ids are deterministic (`seed_…`)
  * so loading twice changes nothing.
  */
 
@@ -39,18 +39,18 @@ export const ROLES: RoleSeed[] = [
 export type StaffSeed = { id: string; name: string; email: string; title: string; phone: string; roleId: string }
 
 export const STAFF: StaffSeed[] = [
-  { id: 'seed_user_whitfield', name: 'Dana Whitfield', email: 'dana.whitfield@example.com', title: 'Owner', phone: '+15125550101', roleId: 'seed_role_owner' },
-  { id: 'seed_user_ortega', name: 'Marcus Ortega', email: 'marcus.ortega@example.com', title: 'General Manager', phone: '+15125550102', roleId: 'seed_role_gm' },
-  { id: 'seed_user_raman', name: 'Priya Raman', email: 'priya.raman@example.com', title: 'Customer Service Representative', phone: '+15125550103', roleId: 'seed_role_csr' },
-  { id: 'seed_user_mendoza', name: 'Luis Mendoza', email: 'luis.mendoza@example.com', title: 'Customer Service Representative', phone: '+15125550104', roleId: 'seed_role_csr' },
-  { id: 'seed_user_tran', name: 'Kelsey Tran', email: 'kelsey.tran@example.com', title: 'Customer Service Representative', phone: '+15125550105', roleId: 'seed_role_csr' },
-  { id: 'seed_user_brooks', name: 'Andre Brooks', email: 'andre.brooks@example.com', title: 'Dispatcher', phone: '+15125550106', roleId: 'seed_role_dispatcher' },
-  { id: 'seed_user_reyes', name: 'Tomás Reyes', email: 'tomas.reyes@example.com', title: 'Warehouse Lead', phone: '+15125550107', roleId: 'seed_role_warehouse' },
-  { id: 'seed_user_cole', name: 'Hannah Cole', email: 'hannah.cole@example.com', title: 'Accountant', phone: '+15125550108', roleId: 'seed_role_accounting' },
-  { id: 'seed_user_kim', name: 'Rachel Kim', email: 'rachel.kim@example.com', title: 'Comfort Advisor', phone: '+15125550109', roleId: 'seed_role_comfort_advisor' },
+  { id: 'seed_user_whitfield', name: 'Dana Whitfield', email: 'dana.whitfield@summitplumbingair.com', title: 'Owner', phone: '+15125550101', roleId: 'seed_role_owner' },
+  { id: 'seed_user_ortega', name: 'Marcus Ortega', email: 'marcus.ortega@summitplumbingair.com', title: 'General Manager', phone: '+15125550102', roleId: 'seed_role_gm' },
+  { id: 'seed_user_raman', name: 'Priya Raman', email: 'priya.raman@summitplumbingair.com', title: 'Customer Service Representative', phone: '+15125550103', roleId: 'seed_role_csr' },
+  { id: 'seed_user_mendoza', name: 'Luis Mendoza', email: 'luis.mendoza@summitplumbingair.com', title: 'Customer Service Representative', phone: '+15125550104', roleId: 'seed_role_csr' },
+  { id: 'seed_user_tran', name: 'Kelsey Tran', email: 'kelsey.tran@summitplumbingair.com', title: 'Customer Service Representative', phone: '+15125550105', roleId: 'seed_role_csr' },
+  { id: 'seed_user_brooks', name: 'Andre Brooks', email: 'andre.brooks@summitplumbingair.com', title: 'Dispatcher', phone: '+15125550106', roleId: 'seed_role_dispatcher' },
+  { id: 'seed_user_reyes', name: 'Tomás Reyes', email: 'tomas.reyes@summitplumbingair.com', title: 'Warehouse Lead', phone: '+15125550107', roleId: 'seed_role_warehouse' },
+  { id: 'seed_user_cole', name: 'Hannah Cole', email: 'hannah.cole@summitplumbingair.com', title: 'Accountant', phone: '+15125550108', roleId: 'seed_role_accounting' },
+  { id: 'seed_user_kim', name: 'Rachel Kim', email: 'rachel.kim@summitplumbingair.com', title: 'Comfort Advisor', phone: '+15125550109', roleId: 'seed_role_comfort_advisor' },
 ]
 
-export const BRAND = { id: 'seed_brand_summit', name: 'Summit Plumbing & Air', phone: '+15125550100', email: 'service@example.com', website: 'https://summit.example.com' }
+export const BRAND = { id: 'seed_brand_summit', name: 'Summit Plumbing & Air', phone: '+15125550100', email: 'service@summitplumbingair.com', website: 'https://summitplumbingair.com' }
 
 export const LICENSES = [
   { id: 'seed_license_acr', trade: 'hvac', jurisdictionCode: 'US-TX', issuer: 'TDLR', licenseNumber: 'TACLA00098765E', licenseClass: 'A', endorsements: ['environmental_air'], responsibleName: 'Dana Whitfield' },

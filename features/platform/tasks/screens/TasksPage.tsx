@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { q, companyTimeZone, requestTime } from '../../lib/server';
 import { label, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Tabs } from '../../components/ui';
@@ -30,11 +31,10 @@ export default async function TasksPage({ searchParams }: { searchParams?: Promi
         {tasks.length ? tasks.map(t => (
           <Row key={t.id}>
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{t.title}</span><span className="font-mono text-xs uppercase text-muted-foreground">{label(t.priority)}</span></div>
-              <Meta>{label(t.kind)}{t.subjectType ? ` · ${t.subjectType} ${t.subjectId}` : ''}{t.assignee ? ` · ${t.assignee.name}` : t.role ? ` · ${t.role.name}` : ''}{t.detail ? ` · ${t.detail}` : ''}</Meta>
+              <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{t.title}</span><Status value={t.status} />{t.priority === 'high' || t.priority === 'urgent' ? <span className="text-xs text-amber-600">{label(t.priority)} priority</span> : null}</div>
+              <Meta>{label(t.kind)}{t.subjectType === 'Job' && t.subjectId ? <> · <Link className="underline" href={`/dashboard/platform/jobs/${t.subjectId}`}>Open job</Link></> : ''}{t.assignee ? ` · ${t.assignee.name}` : t.role ? ` · ${t.role.name}` : ''}{t.detail ? ` · ${t.detail}` : ''}</Meta>
             </div>
             <div className="space-y-1 text-right">
-              <Status value={t.status} />
               {t.dueAt ? <p className={`text-xs ${new Date(t.dueAt).getTime() < now && view === 'open' ? 'text-red-600' : 'text-muted-foreground'}`}>Due {when(t.dueAt, tz)}</p> : null}
             </div>
           </Row>

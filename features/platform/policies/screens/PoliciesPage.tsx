@@ -1,5 +1,5 @@
 import { q, companyTimeZone } from '../../lib/server';
-import { label, when } from '../../lib/format';
+import { dateText, label, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status } from '../../components/ui';
 
 type SourceRef = { ref: string; url?: string; verified: boolean; checkedOn?: string; note?: string };
@@ -31,19 +31,19 @@ export default async function PoliciesPage() {
         <Section key={p.id} title={`${label(p.kind)} · ${p.jurisdictionCode}`}>
           <Row>
             <div className="min-w-0 flex-1 space-y-1"><div className="font-medium">{p.name}</div><Meta><span className="font-mono">{p.code}</span>{p.description ? ` · ${p.description}` : ''}</Meta></div>
-            <Meta>{p.bindings.map(b => `${b.scope}${b.scopeValue ? ` ${b.scopeValue}` : ''} (${b.status})`).join(', ') || 'Not bound'}</Meta>
+            <Meta>{p.bindings.map(b => `${label(b.scope)}${b.scopeValue ? ` ${b.scopeValue}` : ''} (${label(b.status).toLowerCase()})`).join(', ') || 'Not in use'}</Meta>
           </Row>
           {p.versions.map(v => (
             <Row key={v.id}>
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Version {v.versionNumber}</span><Status value={v.status} /></div>
-                <Meta>From {v.effectiveFrom}{v.effectiveTo ? ` to ${v.effectiveTo}` : ''} · hash <span className="font-mono">{v.contentHash.slice(0, 12)}</span>{v.verifiedAt ? ` · verified ${when(v.verifiedAt, tz, 'day')}` : ''}</Meta>
+                <Meta>From {dateText(v.effectiveFrom)}{v.effectiveTo ? ` to ${dateText(v.effectiveTo)}` : ''} · hash <span className="font-mono">{v.contentHash.slice(0, 12)}</span>{v.verifiedAt ? ` · verified ${when(v.verifiedAt, tz, 'day')}` : ''}</Meta>
                 <ul className="space-y-0.5 text-xs">
                   {(v.sourceRefs ?? []).map((s, i) => (
                     <li key={i} className="break-words">
                       <span className={s.verified ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}>{s.verified ? 'Verified' : 'To verify'}</span>
                       {' · '}{s.url ? <a href={s.url} className="underline underline-offset-2" target="_blank" rel="noreferrer">{s.ref}</a> : s.ref}
-                      {s.checkedOn ? ` · checked ${s.checkedOn}` : ''}{s.note ? ` · ${s.note}` : ''}
+                      {s.checkedOn ? ` · checked ${dateText(s.checkedOn)}` : ''}{s.note ? ` · ${s.note}` : ''}
                     </li>
                   ))}
                 </ul>

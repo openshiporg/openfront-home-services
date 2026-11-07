@@ -1,5 +1,5 @@
 import { q, companyTimeZone } from '../../lib/server';
-import { label, when } from '../../lib/format';
+import { label, when, windowText } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Tabs } from '../../components/ui';
 
 type Job = {
@@ -48,15 +48,15 @@ export default async function JobsPage({ searchParams }: { searchParams?: Promis
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{j.jobType?.name ?? 'Job'}</span>
                   <span className="font-mono text-xs text-muted-foreground">{j.ref}</span>
+                  <Status value={j.status} />
                   {j.priority === 'emergency' ? <Status value="emergency" /> : null}
                 </div>
                 <Meta>
                   {j.customer?.displayName ?? ''}{j.location ? ` · ${j.location.city} ${j.location.postalCode}` : ''} · {j.businessUnit?.name ?? ''}
-                  {v?.window ? ` · ${v.window.date} ${v.window.label}` : ''}{v?.assignments.length ? ` · ${v.assignments.map(a => a.employee?.displayName).join(', ')}` : ''}
+                  {v?.window ? ` · ${windowText(v.window)}` : ''}{v?.assignments.length ? ` · ${v.assignments.map(a => a.employee?.displayName).join(', ')}` : ''}
                 </Meta>
-                <Meta><br />{j.bookedByAgent ? `Booked by AI receptionist (${j.bookedByAgent.name})` : `Booked via ${label(j.source)}`} · {when(j.createdAt, tz)}{j.holdReason ? ` · on hold: ${label(j.holdReason)}` : ''}</Meta>
+                <Meta><br />{j.bookedByAgent ? `Booked by the AI receptionist (${j.bookedByAgent.name})` : label(j.source, 'bookedVia')} · {when(j.createdAt, tz)}{j.holdReason ? ` · on hold: ${label(j.holdReason).toLowerCase()}` : ''}</Meta>
               </div>
-              <Status value={j.status} />
             </Row>
           );
         }) : <Empty>No jobs here.</Empty>}

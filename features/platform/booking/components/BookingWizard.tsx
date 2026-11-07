@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { runCommand, runQuery } from '../../actions/commands';
 import { pillClass } from '../../components/ActionButton';
 import { inputClass } from '../../components/CommandForm';
+import { dayText, phoneText } from '../../lib/format';
 
 type JobTypeOption = { id: string; code: string; name: string; businessUnit: string; priority: string };
 type Match = { customerId: string; ref: string; name: string; phone: string | null; doNotService: boolean; locations: { locationId: string; address: string; city: string; postalCode: string; inServiceArea: boolean }[] };
@@ -66,7 +67,7 @@ export function BookingWizard({ jobTypes, today, timeZone }: { jobTypes: JobType
   const zip = picked?.postalCode ?? draft.postalCode;
   const haveCustomer = !!picked || (newCustomer && draft.firstName && draft.lastName && draft.phone && draft.address1 && /^\d{5}$/.test(draft.postalCode));
   const fmt = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
-  const day = (d: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(`${d}T00:00:00Z`));
+  const day = (d: string) => dayText(d);
 
   async function run<T>(label: string, fn: () => Promise<{ ok: true; data: unknown } | { ok: false; error: string }>, then: (data: T) => void) {
     setBusy(label); setError('');
@@ -145,7 +146,7 @@ export function BookingWizard({ jobTypes, today, timeZone }: { jobTypes: JobType
               <ul className="divide-y rounded-md border">
                 {matches.map(m => m.locations.map(l => (
                   <li key={l.locationId} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
-                    <span><span className="font-medium">{m.name}</span> <span className="text-muted-foreground">{m.ref} · {m.phone ?? 'no mobile'} · {l.address}, {l.city} {l.postalCode}</span>{m.doNotService ? <span className="ml-2 text-xs text-red-600">do not service</span> : null}{!l.inServiceArea ? <span className="ml-2 text-xs text-amber-600">outside service area</span> : null}</span>
+                    <span><span className="font-medium">{m.name}</span> <span className="text-muted-foreground">{m.ref} · {m.phone ? phoneText(m.phone) : 'no mobile'} · {l.address}, {l.city} {l.postalCode}</span>{m.doNotService ? <span className="ml-2 text-xs text-red-600">do not service</span> : null}{!l.inServiceArea ? <span className="ml-2 text-xs text-amber-600">outside service area</span> : null}</span>
                     <button type="button" disabled={m.doNotService} className={cn(pillClass, 'border')} onClick={() => setPicked({ customerId: m.customerId, locationId: l.locationId, name: m.name, postalCode: l.postalCode, address: l.address })}>Use</button>
                   </li>
                 )))}

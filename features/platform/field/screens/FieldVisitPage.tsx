@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { q, companyTimeZone } from '../../lib/server';
-import { label, when } from '../../lib/format';
+import { label, when, windowText } from '../../lib/format';
 import { Page, Meta, Section, Status, Empty } from '../../components/ui';
 import { ChecklistForm, RevealCode, VisitStatusButtons } from '../components/FieldActions';
 
@@ -41,7 +41,7 @@ export default async function FieldVisitPage({ params }: { params: Promise<{ id:
     <Page title={v.job?.jobType?.name ?? 'Visit'} crumbs={[{ label: 'My day', href: '/dashboard/field/today' }]}>
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2"><Status value={v.status} /><span className="font-mono text-xs text-muted-foreground">{v.ref}</span>{v.job?.priority === 'emergency' ? <Status value="emergency" /> : null}</div>
-        <p className="text-base font-medium">{v.window ? `${v.window.date} · ${v.window.label}` : ''}</p>
+        <p className="text-base font-medium">{windowText(v.window)}</p>
         <p className="text-sm">{v.job?.customer?.displayName}</p>
         {loc ? <a className="text-sm underline" href={`https://maps.apple.com/?daddr=${encodeURIComponent(`${loc.address1}, ${loc.city} ${loc.postalCode}`)}`}>{loc.address1}{loc.address2 ? `, ${loc.address2}` : ''}, {loc.city} {loc.postalCode}</a> : null}
         {v.job?.summary ? <p className="pt-1 text-sm text-muted-foreground">{v.job.summary}</p> : null}
@@ -64,7 +64,7 @@ export default async function FieldVisitPage({ params }: { params: Promise<{ id:
         </Section>
       ) : null}
       <Section title="Timeline">
-        {v.statusEvents.length ? <ol className="space-y-0.5 text-xs text-muted-foreground">{v.statusEvents.map((e, i) => <li key={i}>{when(e.occurredAt, tz, 'time')} · {label(e.toStatus)}{e.kind !== 'transition' ? ` (${e.kind})` : ''}</li>)}</ol> : <Empty>Nothing yet.</Empty>}
+        {v.statusEvents.length ? <ol className="space-y-0.5 text-xs text-muted-foreground">{v.statusEvents.map((e, i) => <li key={i}>{when(e.occurredAt, tz, 'time')} · {label(e.toStatus)}{e.kind !== 'transition' ? ` (${label(e.kind).toLowerCase()})` : ''}</li>)}</ol> : <Empty>Nothing yet.</Empty>}
       </Section>
     </Page>
   );

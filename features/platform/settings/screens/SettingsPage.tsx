@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { q } from '../../lib/server';
-import { money, bpsPercent, label } from '../../lib/format';
+import { money, bpsPercent, label, dateText, actionText, permissionText } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Stat, Status } from '../../components/ui';
 
 type Company = {
@@ -48,7 +48,7 @@ export default async function SettingsPage() {
         {d.contractorLicenses.length ? d.contractorLicenses.map(l => (
           <Row key={l.id}>
             <div className="min-w-0 space-y-1"><div className="font-medium">{l.issuer} {l.licenseNumber}</div><Meta>{label(l.trade)}{l.licenseClass ? ` · ${l.licenseClass}` : ''}{l.responsibleName ? ` · ${l.responsibleName}` : ''}</Meta></div>
-            <Meta>{l.expiresOn ? `Expires ${l.expiresOn}` : 'No expiry on file'}</Meta>
+            <Meta>{l.expiresOn ? `Expires ${dateText(l.expiresOn)}` : 'No expiry on file'}</Meta>
           </Row>
         )) : <Empty>No licences yet.</Empty>}
       </Section>
@@ -61,8 +61,7 @@ export default async function SettingsPage() {
         ))}
         {d.businessUnits.map(u => (
           <Row key={u.id}>
-            <div className="min-w-0 space-y-1"><div className="font-medium">{u.name} <span className="font-mono text-xs text-muted-foreground">{u.code}</span></div><Meta>{label(u.trade)} · {label(u.kind)}{u.branch ? ` · ${u.branch.code}` : ''}</Meta></div>
-            <Status value={u.active ? 'active' : 'retired'} />
+            <div className="min-w-0 space-y-1"><div className="flex flex-wrap items-center gap-2"><span className="font-medium">{u.name}</span><span className="font-mono text-xs text-muted-foreground">{u.code}</span><Status value={u.active ? 'active' : 'retired'} /></div><Meta>{label(u.trade)} · {label(u.kind).toLowerCase()}{u.branch ? ` · ${u.branch.code}` : ''}</Meta></div>
           </Row>
         ))}
         {!d.branches.length && !d.businessUnits.length ? <Empty>No branches yet.</Empty> : null}
@@ -81,7 +80,7 @@ export default async function SettingsPage() {
         {d.businessCalendars.length ? d.businessCalendars.map(cal => (
           <Row key={cal.id}>
             <div className="min-w-0 space-y-1"><div className="font-medium">{cal.name} <span className="font-mono text-xs text-muted-foreground">{cal.code}</span></div><Meta>{label(cal.kind)} · {cal.timeZone} · {cal.exceptionsCount} holidays</Meta></div>
-            <Meta>Covers through {cal.coverageThrough}</Meta>
+            <Meta>Covers through {dateText(cal.coverageThrough)}</Meta>
           </Row>
         )) : <Empty>No calendars yet.</Empty>}
       </Section>
@@ -89,8 +88,8 @@ export default async function SettingsPage() {
       <Section title="Approval policies" aside={<Link href="/dashboard/platform/approvals" className="text-xs underline">Approvals</Link>}>
         {d.approvalPolicies.length ? d.approvalPolicies.map(p => (
           <Row key={p.id}>
-            <div className="min-w-0 flex-1 space-y-1"><div className="font-mono text-sm">{p.action}</div><Meta>{p.description}</Meta></div>
-            <Meta>{p.requiredPermission}{p.thresholdMinor ? ` · above ${money(p.thresholdMinor)}` : ''}</Meta>
+            <div className="min-w-0 flex-1 space-y-1"><div className="font-medium">{actionText(p.action)}</div><Meta>{p.description}</Meta></div>
+            <Meta>{permissionText(p.requiredPermission)}{p.thresholdMinor ? ` · above ${money(p.thresholdMinor)}` : ''}</Meta>
           </Row>
         )) : <Empty>No approval policies yet.</Empty>}
       </Section>
