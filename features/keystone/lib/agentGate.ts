@@ -36,3 +36,13 @@ export async function recordAgentAction(uow: UnitOfWork, actor: Actor, spec: { t
   })
   return row.id
 }
+
+/** An agent's read call (lookup, windows, match) is written down too, outside any transaction. */
+export async function recordAgentRead(db: Db, actor: Actor, spec: { tool: string; inputs: unknown; output: unknown }) {
+  if (actor.kind !== 'agent') return null
+  const row = await db.agentAction.create({
+    data: { agentId: actor.agentId, tool: spec.tool, idempotencyKey: `${actor.agentId}:read:${randomUUID()}`, inputsHash: payloadHash(spec.inputs), status: 'applied', output: toJsonValue(spec.output) as never },
+    select: { id: true },
+  })
+  return row.id
+}

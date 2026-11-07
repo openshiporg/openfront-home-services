@@ -3993,6 +3993,4323 @@ input AgentScopeGrantCreateInput {
   updatedAt: DateTime
 }
 
+type Credential {
+  id: ID!
+  employee: Employee
+  kind: String
+  trade: String
+  jurisdictionCode: String
+  issuer: String
+  number: String
+  licenseClass: String
+  epaType: String
+  endorsements: JSON
+  issuedOn: CalendarDay
+  expiresOn: CalendarDay
+  evidence: Document
+  verifiedBy: User
+  verifiedAt: DateTime
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CredentialWhereUniqueInput {
+  id: ID
+}
+
+input CredentialWhereInput {
+  AND: [CredentialWhereInput!]
+  OR: [CredentialWhereInput!]
+  NOT: [CredentialWhereInput!]
+  id: IDFilter
+  employee: EmployeeWhereInput
+  kind: StringFilter
+  trade: StringFilter
+  jurisdictionCode: StringFilter
+  issuer: StringFilter
+  number: StringFilter
+  licenseClass: StringFilter
+  epaType: StringFilter
+  issuedOn: CalendarDayNullableFilter
+  expiresOn: CalendarDayNullableFilter
+  evidence: DocumentWhereInput
+  verifiedBy: UserWhereInput
+  verifiedAt: DateTimeNullableFilter
+  status: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CredentialOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  trade: OrderDirection
+  jurisdictionCode: OrderDirection
+  issuer: OrderDirection
+  number: OrderDirection
+  licenseClass: OrderDirection
+  epaType: OrderDirection
+  issuedOn: OrderDirection
+  expiresOn: OrderDirection
+  verifiedAt: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CredentialUpdateInput {
+  employee: EmployeeRelateToOneForUpdateInput
+  kind: String
+  trade: String
+  jurisdictionCode: String
+  issuer: String
+  number: String
+  licenseClass: String
+  epaType: String
+  endorsements: JSON
+  issuedOn: CalendarDay
+  expiresOn: CalendarDay
+  evidence: DocumentRelateToOneForUpdateInput
+  verifiedBy: UserRelateToOneForUpdateInput
+  verifiedAt: DateTime
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EmployeeRelateToOneForUpdateInput {
+  create: EmployeeCreateInput
+  connect: EmployeeWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CredentialUpdateArgs {
+  where: CredentialWhereUniqueInput!
+  data: CredentialUpdateInput!
+}
+
+input CredentialCreateInput {
+  employee: EmployeeRelateToOneForCreateInput
+  kind: String
+  trade: String
+  jurisdictionCode: String
+  issuer: String
+  number: String
+  licenseClass: String
+  epaType: String
+  endorsements: JSON
+  issuedOn: CalendarDay
+  expiresOn: CalendarDay
+  evidence: DocumentRelateToOneForCreateInput
+  verifiedBy: UserRelateToOneForCreateInput
+  verifiedAt: DateTime
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EmployeeRelateToOneForCreateInput {
+  create: EmployeeCreateInput
+  connect: EmployeeWhereUniqueInput
+}
+
+type Crew {
+  id: ID!
+  name: String
+  lead: Employee
+  members(where: EmployeeWhereInput! = {}, orderBy: [EmployeeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EmployeeWhereUniqueInput): [Employee!]
+  membersCount(where: EmployeeWhereInput! = {}): Int
+  businessUnit: BusinessUnit
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CrewWhereUniqueInput {
+  id: ID
+}
+
+input CrewWhereInput {
+  AND: [CrewWhereInput!]
+  OR: [CrewWhereInput!]
+  NOT: [CrewWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  lead: EmployeeWhereInput
+  members: EmployeeManyRelationFilter
+  businessUnit: BusinessUnitWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EmployeeManyRelationFilter {
+  every: EmployeeWhereInput
+  some: EmployeeWhereInput
+  none: EmployeeWhereInput
+}
+
+input CrewOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CrewUpdateInput {
+  name: String
+  lead: EmployeeRelateToOneForUpdateInput
+  members: EmployeeRelateToManyForUpdateInput
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EmployeeRelateToManyForUpdateInput {
+  disconnect: [EmployeeWhereUniqueInput!]
+  set: [EmployeeWhereUniqueInput!]
+  create: [EmployeeCreateInput!]
+  connect: [EmployeeWhereUniqueInput!]
+}
+
+input BusinessUnitRelateToOneForUpdateInput {
+  create: BusinessUnitCreateInput
+  connect: BusinessUnitWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CrewUpdateArgs {
+  where: CrewWhereUniqueInput!
+  data: CrewUpdateInput!
+}
+
+input CrewCreateInput {
+  name: String
+  lead: EmployeeRelateToOneForCreateInput
+  members: EmployeeRelateToManyForCreateInput
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EmployeeRelateToManyForCreateInput {
+  create: [EmployeeCreateInput!]
+  connect: [EmployeeWhereUniqueInput!]
+}
+
+input BusinessUnitRelateToOneForCreateInput {
+  create: BusinessUnitCreateInput
+  connect: BusinessUnitWhereUniqueInput
+}
+
+type EligibilityEvaluation {
+  id: ID!
+  visit: Visit
+  employee: Employee
+  policyVersion: PolicyVersion
+  result: String
+  findings: JSON
+  evaluatedAt: DateTime
+  overrideApproval: ApprovalRequest
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EligibilityEvaluationWhereUniqueInput {
+  id: ID
+}
+
+input EligibilityEvaluationWhereInput {
+  AND: [EligibilityEvaluationWhereInput!]
+  OR: [EligibilityEvaluationWhereInput!]
+  NOT: [EligibilityEvaluationWhereInput!]
+  id: IDFilter
+  visit: VisitWhereInput
+  employee: EmployeeWhereInput
+  policyVersion: PolicyVersionWhereInput
+  result: StringFilter
+  evaluatedAt: DateTimeNullableFilter
+  overrideApproval: ApprovalRequestWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EligibilityEvaluationOrderByInput {
+  id: OrderDirection
+  result: OrderDirection
+  evaluatedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EligibilityEvaluationUpdateInput {
+  visit: VisitRelateToOneForUpdateInput
+  employee: EmployeeRelateToOneForUpdateInput
+  policyVersion: PolicyVersionRelateToOneForUpdateInput
+  result: String
+  findings: JSON
+  evaluatedAt: DateTime
+  overrideApproval: ApprovalRequestRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VisitRelateToOneForUpdateInput {
+  create: VisitCreateInput
+  connect: VisitWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PolicyVersionRelateToOneForUpdateInput {
+  create: PolicyVersionCreateInput
+  connect: PolicyVersionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EligibilityEvaluationUpdateArgs {
+  where: EligibilityEvaluationWhereUniqueInput!
+  data: EligibilityEvaluationUpdateInput!
+}
+
+input EligibilityEvaluationCreateInput {
+  visit: VisitRelateToOneForCreateInput
+  employee: EmployeeRelateToOneForCreateInput
+  policyVersion: PolicyVersionRelateToOneForCreateInput
+  result: String
+  findings: JSON
+  evaluatedAt: DateTime
+  overrideApproval: ApprovalRequestRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VisitRelateToOneForCreateInput {
+  create: VisitCreateInput
+  connect: VisitWhereUniqueInput
+}
+
+input PolicyVersionRelateToOneForCreateInput {
+  create: PolicyVersionCreateInput
+  connect: PolicyVersionWhereUniqueInput
+}
+
+type Employee {
+  id: ID!
+  user: User
+  firstName: String
+  lastName: String
+  displayName: String
+  employeeNumber: String
+  homeBranch: Branch
+  businessUnits(where: BusinessUnitWhereInput! = {}, orderBy: [BusinessUnitOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BusinessUnitWhereUniqueInput): [BusinessUnit!]
+  businessUnitsCount(where: BusinessUnitWhereInput! = {}): Int
+  kind: String
+  employmentType: String
+  hireDate: CalendarDay
+  terminationDate: CalendarDay
+  skills(where: SkillWhereInput! = {}, orderBy: [SkillOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SkillWhereUniqueInput): [Skill!]
+  skillsCount(where: SkillWhereInput! = {}): Int
+  credentials(where: CredentialWhereInput! = {}, orderBy: [CredentialOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CredentialWhereUniqueInput): [Credential!]
+  credentialsCount(where: CredentialWhereInput! = {}): Int
+  phoneE164: String
+  email: String
+  lat: Decimal
+  lng: Decimal
+  dispatchable: Boolean
+  status: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EmployeeWhereUniqueInput {
+  id: ID
+  employeeNumber: String
+}
+
+input EmployeeWhereInput {
+  AND: [EmployeeWhereInput!]
+  OR: [EmployeeWhereInput!]
+  NOT: [EmployeeWhereInput!]
+  id: IDFilter
+  user: UserWhereInput
+  firstName: StringFilter
+  lastName: StringFilter
+  displayName: StringFilter
+  employeeNumber: StringFilter
+  homeBranch: BranchWhereInput
+  businessUnits: BusinessUnitManyRelationFilter
+  kind: StringFilter
+  employmentType: StringFilter
+  hireDate: CalendarDayNullableFilter
+  terminationDate: CalendarDayNullableFilter
+  skills: SkillManyRelationFilter
+  credentials: CredentialManyRelationFilter
+  phoneE164: StringFilter
+  email: StringFilter
+  lat: DecimalNullableFilter
+  lng: DecimalNullableFilter
+  dispatchable: BooleanFilter
+  status: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input SkillManyRelationFilter {
+  every: SkillWhereInput
+  some: SkillWhereInput
+  none: SkillWhereInput
+}
+
+input CredentialManyRelationFilter {
+  every: CredentialWhereInput
+  some: CredentialWhereInput
+  none: CredentialWhereInput
+}
+
+input EmployeeOrderByInput {
+  id: OrderDirection
+  firstName: OrderDirection
+  lastName: OrderDirection
+  displayName: OrderDirection
+  employeeNumber: OrderDirection
+  kind: OrderDirection
+  employmentType: OrderDirection
+  hireDate: OrderDirection
+  terminationDate: OrderDirection
+  phoneE164: OrderDirection
+  email: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  dispatchable: OrderDirection
+  status: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EmployeeUpdateInput {
+  user: UserRelateToOneForUpdateInput
+  firstName: String
+  lastName: String
+  displayName: String
+  employeeNumber: String
+  homeBranch: BranchRelateToOneForUpdateInput
+  businessUnits: BusinessUnitRelateToManyForUpdateInput
+  kind: String
+  employmentType: String
+  hireDate: CalendarDay
+  terminationDate: CalendarDay
+  skills: SkillRelateToManyForUpdateInput
+  credentials: CredentialRelateToManyForUpdateInput
+  phoneE164: String
+  email: String
+  lat: Decimal
+  lng: Decimal
+  dispatchable: Boolean
+  status: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SkillRelateToManyForUpdateInput {
+  disconnect: [SkillWhereUniqueInput!]
+  set: [SkillWhereUniqueInput!]
+  create: [SkillCreateInput!]
+  connect: [SkillWhereUniqueInput!]
+}
+
+input CredentialRelateToManyForUpdateInput {
+  disconnect: [CredentialWhereUniqueInput!]
+  set: [CredentialWhereUniqueInput!]
+  create: [CredentialCreateInput!]
+  connect: [CredentialWhereUniqueInput!]
+}
+
+input EmployeeUpdateArgs {
+  where: EmployeeWhereUniqueInput!
+  data: EmployeeUpdateInput!
+}
+
+input EmployeeCreateInput {
+  user: UserRelateToOneForCreateInput
+  firstName: String
+  lastName: String
+  displayName: String
+  employeeNumber: String
+  homeBranch: BranchRelateToOneForCreateInput
+  businessUnits: BusinessUnitRelateToManyForCreateInput
+  kind: String
+  employmentType: String
+  hireDate: CalendarDay
+  terminationDate: CalendarDay
+  skills: SkillRelateToManyForCreateInput
+  credentials: CredentialRelateToManyForCreateInput
+  phoneE164: String
+  email: String
+  lat: Decimal
+  lng: Decimal
+  dispatchable: Boolean
+  status: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SkillRelateToManyForCreateInput {
+  create: [SkillCreateInput!]
+  connect: [SkillWhereUniqueInput!]
+}
+
+input CredentialRelateToManyForCreateInput {
+  create: [CredentialCreateInput!]
+  connect: [CredentialWhereUniqueInput!]
+}
+
+type JobTypeRequirement {
+  id: ID!
+  name: String
+  licensingTags: JSON
+  requiredCredentialKinds: JSON
+  requiresSupervisorOnJob: Boolean
+  maxCoolingTons: Decimal
+  maxHeatingBtuh: Int
+  skills(where: SkillWhereInput! = {}, orderBy: [SkillOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SkillWhereUniqueInput): [Skill!]
+  skillsCount(where: SkillWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobTypeRequirementWhereUniqueInput {
+  id: ID
+}
+
+input JobTypeRequirementWhereInput {
+  AND: [JobTypeRequirementWhereInput!]
+  OR: [JobTypeRequirementWhereInput!]
+  NOT: [JobTypeRequirementWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  requiresSupervisorOnJob: BooleanFilter
+  maxCoolingTons: DecimalNullableFilter
+  maxHeatingBtuh: IntNullableFilter
+  skills: SkillManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input JobTypeRequirementOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  requiresSupervisorOnJob: OrderDirection
+  maxCoolingTons: OrderDirection
+  maxHeatingBtuh: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input JobTypeRequirementUpdateInput {
+  name: String
+  licensingTags: JSON
+  requiredCredentialKinds: JSON
+  requiresSupervisorOnJob: Boolean
+  maxCoolingTons: Decimal
+  maxHeatingBtuh: Int
+  skills: SkillRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobTypeRequirementUpdateArgs {
+  where: JobTypeRequirementWhereUniqueInput!
+  data: JobTypeRequirementUpdateInput!
+}
+
+input JobTypeRequirementCreateInput {
+  name: String
+  licensingTags: JSON
+  requiredCredentialKinds: JSON
+  requiresSupervisorOnJob: Boolean
+  maxCoolingTons: Decimal
+  maxHeatingBtuh: Int
+  skills: SkillRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type OnCallRotation {
+  id: ID!
+  businessUnit: BusinessUnit
+  employee: Employee
+  startsAt: DateTime
+  endsAt: DateTime
+  phoneE164: String
+  escalationOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OnCallRotationWhereUniqueInput {
+  id: ID
+}
+
+input OnCallRotationWhereInput {
+  AND: [OnCallRotationWhereInput!]
+  OR: [OnCallRotationWhereInput!]
+  NOT: [OnCallRotationWhereInput!]
+  id: IDFilter
+  businessUnit: BusinessUnitWhereInput
+  employee: EmployeeWhereInput
+  startsAt: DateTimeFilter
+  endsAt: DateTimeFilter
+  phoneE164: StringFilter
+  escalationOrder: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input OnCallRotationOrderByInput {
+  id: OrderDirection
+  startsAt: OrderDirection
+  endsAt: OrderDirection
+  phoneE164: OrderDirection
+  escalationOrder: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input OnCallRotationUpdateInput {
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  employee: EmployeeRelateToOneForUpdateInput
+  startsAt: DateTime
+  endsAt: DateTime
+  phoneE164: String
+  escalationOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OnCallRotationUpdateArgs {
+  where: OnCallRotationWhereUniqueInput!
+  data: OnCallRotationUpdateInput!
+}
+
+input OnCallRotationCreateInput {
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  employee: EmployeeRelateToOneForCreateInput
+  startsAt: DateTime
+  endsAt: DateTime
+  phoneE164: String
+  escalationOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Shift {
+  id: ID!
+  employee: Employee
+  date: CalendarDay
+  startsAt: DateTime
+  endsAt: DateTime
+  kind: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ShiftWhereUniqueInput {
+  id: ID
+}
+
+input ShiftWhereInput {
+  AND: [ShiftWhereInput!]
+  OR: [ShiftWhereInput!]
+  NOT: [ShiftWhereInput!]
+  id: IDFilter
+  employee: EmployeeWhereInput
+  date: CalendarDayFilter
+  startsAt: DateTimeFilter
+  endsAt: DateTimeFilter
+  kind: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ShiftOrderByInput {
+  id: OrderDirection
+  date: OrderDirection
+  startsAt: OrderDirection
+  endsAt: OrderDirection
+  kind: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ShiftUpdateInput {
+  employee: EmployeeRelateToOneForUpdateInput
+  date: CalendarDay
+  startsAt: DateTime
+  endsAt: DateTime
+  kind: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ShiftUpdateArgs {
+  where: ShiftWhereUniqueInput!
+  data: ShiftUpdateInput!
+}
+
+input ShiftCreateInput {
+  employee: EmployeeRelateToOneForCreateInput
+  date: CalendarDay
+  startsAt: DateTime
+  endsAt: DateTime
+  kind: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type ShiftTemplate {
+  id: ID!
+  employee: Employee
+  weekday: Int
+  startLocal: String
+  endLocal: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ShiftTemplateWhereUniqueInput {
+  id: ID
+}
+
+input ShiftTemplateWhereInput {
+  AND: [ShiftTemplateWhereInput!]
+  OR: [ShiftTemplateWhereInput!]
+  NOT: [ShiftTemplateWhereInput!]
+  id: IDFilter
+  employee: EmployeeWhereInput
+  weekday: IntFilter
+  startLocal: StringFilter
+  endLocal: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ShiftTemplateOrderByInput {
+  id: OrderDirection
+  weekday: OrderDirection
+  startLocal: OrderDirection
+  endLocal: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ShiftTemplateUpdateInput {
+  employee: EmployeeRelateToOneForUpdateInput
+  weekday: Int
+  startLocal: String
+  endLocal: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ShiftTemplateUpdateArgs {
+  where: ShiftTemplateWhereUniqueInput!
+  data: ShiftTemplateUpdateInput!
+}
+
+input ShiftTemplateCreateInput {
+  employee: EmployeeRelateToOneForCreateInput
+  weekday: Int
+  startLocal: String
+  endLocal: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Skill {
+  id: ID!
+  code: String
+  name: String
+  trade: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SkillWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input SkillWhereInput {
+  AND: [SkillWhereInput!]
+  OR: [SkillWhereInput!]
+  NOT: [SkillWhereInput!]
+  id: IDFilter
+  code: StringFilter
+  name: StringFilter
+  trade: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input SkillOrderByInput {
+  id: OrderDirection
+  code: OrderDirection
+  name: OrderDirection
+  trade: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SkillUpdateInput {
+  code: String
+  name: String
+  trade: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SkillUpdateArgs {
+  where: SkillWhereUniqueInput!
+  data: SkillUpdateInput!
+}
+
+input SkillCreateInput {
+  code: String
+  name: String
+  trade: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type AccessSecret {
+  id: ID!
+  location: ServiceLocation
+  kind: String
+  label: String
+  secretRef: String
+  status: String
+  reveals(where: AccessSecretRevealWhereInput! = {}, orderBy: [AccessSecretRevealOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AccessSecretRevealWhereUniqueInput): [AccessSecretReveal!]
+  revealsCount(where: AccessSecretRevealWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccessSecretWhereUniqueInput {
+  id: ID
+}
+
+input AccessSecretWhereInput {
+  AND: [AccessSecretWhereInput!]
+  OR: [AccessSecretWhereInput!]
+  NOT: [AccessSecretWhereInput!]
+  id: IDFilter
+  location: ServiceLocationWhereInput
+  kind: StringFilter
+  label: StringFilter
+  secretRef: StringFilter
+  status: StringFilter
+  reveals: AccessSecretRevealManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input AccessSecretRevealManyRelationFilter {
+  every: AccessSecretRevealWhereInput
+  some: AccessSecretRevealWhereInput
+  none: AccessSecretRevealWhereInput
+}
+
+input AccessSecretOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  label: OrderDirection
+  secretRef: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input AccessSecretUpdateInput {
+  location: ServiceLocationRelateToOneForUpdateInput
+  kind: String
+  label: String
+  secretRef: String
+  status: String
+  reveals: AccessSecretRevealRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ServiceLocationRelateToOneForUpdateInput {
+  create: ServiceLocationCreateInput
+  connect: ServiceLocationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AccessSecretRevealRelateToManyForUpdateInput {
+  disconnect: [AccessSecretRevealWhereUniqueInput!]
+  set: [AccessSecretRevealWhereUniqueInput!]
+  create: [AccessSecretRevealCreateInput!]
+  connect: [AccessSecretRevealWhereUniqueInput!]
+}
+
+input AccessSecretUpdateArgs {
+  where: AccessSecretWhereUniqueInput!
+  data: AccessSecretUpdateInput!
+}
+
+input AccessSecretCreateInput {
+  location: ServiceLocationRelateToOneForCreateInput
+  kind: String
+  label: String
+  secretRef: String
+  status: String
+  reveals: AccessSecretRevealRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ServiceLocationRelateToOneForCreateInput {
+  create: ServiceLocationCreateInput
+  connect: ServiceLocationWhereUniqueInput
+}
+
+input AccessSecretRevealRelateToManyForCreateInput {
+  create: [AccessSecretRevealCreateInput!]
+  connect: [AccessSecretRevealWhereUniqueInput!]
+}
+
+type AccessSecretReveal {
+  id: ID!
+  secret: AccessSecret
+  revealedTo: User
+  visit: Visit
+  revealedAt: DateTime
+  expiresAt: DateTime
+  reason: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccessSecretRevealWhereUniqueInput {
+  id: ID
+}
+
+input AccessSecretRevealWhereInput {
+  AND: [AccessSecretRevealWhereInput!]
+  OR: [AccessSecretRevealWhereInput!]
+  NOT: [AccessSecretRevealWhereInput!]
+  id: IDFilter
+  secret: AccessSecretWhereInput
+  revealedTo: UserWhereInput
+  visit: VisitWhereInput
+  revealedAt: DateTimeNullableFilter
+  expiresAt: DateTimeNullableFilter
+  reason: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input AccessSecretRevealOrderByInput {
+  id: OrderDirection
+  revealedAt: OrderDirection
+  expiresAt: OrderDirection
+  reason: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input AccessSecretRevealUpdateInput {
+  secret: AccessSecretRelateToOneForUpdateInput
+  revealedTo: UserRelateToOneForUpdateInput
+  visit: VisitRelateToOneForUpdateInput
+  revealedAt: DateTime
+  expiresAt: DateTime
+  reason: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccessSecretRelateToOneForUpdateInput {
+  create: AccessSecretCreateInput
+  connect: AccessSecretWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AccessSecretRevealUpdateArgs {
+  where: AccessSecretRevealWhereUniqueInput!
+  data: AccessSecretRevealUpdateInput!
+}
+
+input AccessSecretRevealCreateInput {
+  secret: AccessSecretRelateToOneForCreateInput
+  revealedTo: UserRelateToOneForCreateInput
+  visit: VisitRelateToOneForCreateInput
+  revealedAt: DateTime
+  expiresAt: DateTime
+  reason: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccessSecretRelateToOneForCreateInput {
+  create: AccessSecretCreateInput
+  connect: AccessSecretWhereUniqueInput
+}
+
+type ConsentRecord {
+  id: ID!
+  contactPoint: ContactPoint
+  purpose: String
+  action: String
+  channel: String
+  evidence: JSON
+  wordingVersion: String
+  policyVersion: PolicyVersion
+  recordedAt: DateTime
+  actorKind: String
+  actorId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ConsentRecordWhereUniqueInput {
+  id: ID
+}
+
+input ConsentRecordWhereInput {
+  AND: [ConsentRecordWhereInput!]
+  OR: [ConsentRecordWhereInput!]
+  NOT: [ConsentRecordWhereInput!]
+  id: IDFilter
+  contactPoint: ContactPointWhereInput
+  purpose: StringFilter
+  action: StringFilter
+  channel: StringFilter
+  wordingVersion: StringFilter
+  policyVersion: PolicyVersionWhereInput
+  recordedAt: DateTimeFilter
+  actorKind: StringFilter
+  actorId: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ConsentRecordOrderByInput {
+  id: OrderDirection
+  purpose: OrderDirection
+  action: OrderDirection
+  channel: OrderDirection
+  wordingVersion: OrderDirection
+  recordedAt: OrderDirection
+  actorKind: OrderDirection
+  actorId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ConsentRecordUpdateInput {
+  contactPoint: ContactPointRelateToOneForUpdateInput
+  purpose: String
+  action: String
+  channel: String
+  evidence: JSON
+  wordingVersion: String
+  policyVersion: PolicyVersionRelateToOneForUpdateInput
+  recordedAt: DateTime
+  actorKind: String
+  actorId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ContactPointRelateToOneForUpdateInput {
+  create: ContactPointCreateInput
+  connect: ContactPointWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ConsentRecordUpdateArgs {
+  where: ConsentRecordWhereUniqueInput!
+  data: ConsentRecordUpdateInput!
+}
+
+input ConsentRecordCreateInput {
+  contactPoint: ContactPointRelateToOneForCreateInput
+  purpose: String
+  action: String
+  channel: String
+  evidence: JSON
+  wordingVersion: String
+  policyVersion: PolicyVersionRelateToOneForCreateInput
+  recordedAt: DateTime
+  actorKind: String
+  actorId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ContactPointRelateToOneForCreateInput {
+  create: ContactPointCreateInput
+  connect: ContactPointWhereUniqueInput
+}
+
+type Contact {
+  id: ID!
+  customer: Customer
+  firstName: String
+  lastName: String
+  role: String
+  points(where: ContactPointWhereInput! = {}, orderBy: [ContactPointOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ContactPointWhereUniqueInput): [ContactPoint!]
+  pointsCount(where: ContactPointWhereInput! = {}): Int
+  preferredLanguage: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ContactWhereUniqueInput {
+  id: ID
+}
+
+input ContactWhereInput {
+  AND: [ContactWhereInput!]
+  OR: [ContactWhereInput!]
+  NOT: [ContactWhereInput!]
+  id: IDFilter
+  customer: CustomerWhereInput
+  firstName: StringFilter
+  lastName: StringFilter
+  role: StringFilter
+  points: ContactPointManyRelationFilter
+  preferredLanguage: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ContactPointManyRelationFilter {
+  every: ContactPointWhereInput
+  some: ContactPointWhereInput
+  none: ContactPointWhereInput
+}
+
+input ContactOrderByInput {
+  id: OrderDirection
+  firstName: OrderDirection
+  lastName: OrderDirection
+  role: OrderDirection
+  preferredLanguage: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ContactUpdateInput {
+  customer: CustomerRelateToOneForUpdateInput
+  firstName: String
+  lastName: String
+  role: String
+  points: ContactPointRelateToManyForUpdateInput
+  preferredLanguage: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CustomerRelateToOneForUpdateInput {
+  create: CustomerCreateInput
+  connect: CustomerWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ContactPointRelateToManyForUpdateInput {
+  disconnect: [ContactPointWhereUniqueInput!]
+  set: [ContactPointWhereUniqueInput!]
+  create: [ContactPointCreateInput!]
+  connect: [ContactPointWhereUniqueInput!]
+}
+
+input ContactUpdateArgs {
+  where: ContactWhereUniqueInput!
+  data: ContactUpdateInput!
+}
+
+input ContactCreateInput {
+  customer: CustomerRelateToOneForCreateInput
+  firstName: String
+  lastName: String
+  role: String
+  points: ContactPointRelateToManyForCreateInput
+  preferredLanguage: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CustomerRelateToOneForCreateInput {
+  create: CustomerCreateInput
+  connect: CustomerWhereUniqueInput
+}
+
+input ContactPointRelateToManyForCreateInput {
+  create: [ContactPointCreateInput!]
+  connect: [ContactPointWhereUniqueInput!]
+}
+
+type ContactPoint {
+  id: ID!
+  contact: Contact
+  kind: String
+  value: String
+  valueHash: String
+  verifiedAt: DateTime
+  isPrimary: Boolean
+  carrierLineType: String
+  consents(where: ConsentRecordWhereInput! = {}, orderBy: [ConsentRecordOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ConsentRecordWhereUniqueInput): [ConsentRecord!]
+  consentsCount(where: ConsentRecordWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ContactPointWhereUniqueInput {
+  id: ID
+}
+
+input ContactPointWhereInput {
+  AND: [ContactPointWhereInput!]
+  OR: [ContactPointWhereInput!]
+  NOT: [ContactPointWhereInput!]
+  id: IDFilter
+  contact: ContactWhereInput
+  kind: StringFilter
+  value: StringFilter
+  valueHash: StringFilter
+  verifiedAt: DateTimeNullableFilter
+  isPrimary: BooleanFilter
+  carrierLineType: StringFilter
+  consents: ConsentRecordManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ConsentRecordManyRelationFilter {
+  every: ConsentRecordWhereInput
+  some: ConsentRecordWhereInput
+  none: ConsentRecordWhereInput
+}
+
+input ContactPointOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  value: OrderDirection
+  valueHash: OrderDirection
+  verifiedAt: OrderDirection
+  isPrimary: OrderDirection
+  carrierLineType: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ContactPointUpdateInput {
+  contact: ContactRelateToOneForUpdateInput
+  kind: String
+  value: String
+  valueHash: String
+  verifiedAt: DateTime
+  isPrimary: Boolean
+  carrierLineType: String
+  consents: ConsentRecordRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ContactRelateToOneForUpdateInput {
+  create: ContactCreateInput
+  connect: ContactWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ConsentRecordRelateToManyForUpdateInput {
+  disconnect: [ConsentRecordWhereUniqueInput!]
+  set: [ConsentRecordWhereUniqueInput!]
+  create: [ConsentRecordCreateInput!]
+  connect: [ConsentRecordWhereUniqueInput!]
+}
+
+input ContactPointUpdateArgs {
+  where: ContactPointWhereUniqueInput!
+  data: ContactPointUpdateInput!
+}
+
+input ContactPointCreateInput {
+  contact: ContactRelateToOneForCreateInput
+  kind: String
+  value: String
+  valueHash: String
+  verifiedAt: DateTime
+  isPrimary: Boolean
+  carrierLineType: String
+  consents: ConsentRecordRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ContactRelateToOneForCreateInput {
+  create: ContactCreateInput
+  connect: ContactWhereUniqueInput
+}
+
+input ConsentRecordRelateToManyForCreateInput {
+  create: [ConsentRecordCreateInput!]
+  connect: [ConsentRecordWhereUniqueInput!]
+}
+
+type Customer {
+  id: ID!
+  ref: String
+  kind: String
+  displayName: String
+  organizationName: String
+  primaryContact: Contact
+  contacts(where: ContactWhereInput! = {}, orderBy: [ContactOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ContactWhereUniqueInput): [Contact!]
+  contactsCount(where: ContactWhereInput! = {}): Int
+  locations(where: ServiceLocationWhereInput! = {}, orderBy: [ServiceLocationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ServiceLocationWhereUniqueInput): [ServiceLocation!]
+  locationsCount(where: ServiceLocationWhereInput! = {}): Int
+  jobs(where: JobWhereInput! = {}, orderBy: [JobOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: JobWhereUniqueInput): [Job!]
+  jobsCount(where: JobWhereInput! = {}): Int
+  billingLine1: String
+  billingLine2: String
+  billingCity: String
+  billingRegion: String
+  billingPostalCode: String
+  taxExemptCertificate: Document
+  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
+  tagsCount(where: TagWhereInput! = {}): Int
+  doNotService: Boolean
+  doNotServiceReason: String
+  mergedInto: Customer
+  source: Campaign
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CustomerWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input CustomerWhereInput {
+  AND: [CustomerWhereInput!]
+  OR: [CustomerWhereInput!]
+  NOT: [CustomerWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  kind: StringFilter
+  displayName: StringFilter
+  organizationName: StringFilter
+  primaryContact: ContactWhereInput
+  contacts: ContactManyRelationFilter
+  locations: ServiceLocationManyRelationFilter
+  jobs: JobManyRelationFilter
+  billingLine1: StringFilter
+  billingLine2: StringFilter
+  billingCity: StringFilter
+  billingRegion: StringFilter
+  billingPostalCode: StringFilter
+  taxExemptCertificate: DocumentWhereInput
+  tags: TagManyRelationFilter
+  doNotService: BooleanFilter
+  doNotServiceReason: StringFilter
+  mergedInto: CustomerWhereInput
+  source: CampaignWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ContactManyRelationFilter {
+  every: ContactWhereInput
+  some: ContactWhereInput
+  none: ContactWhereInput
+}
+
+input ServiceLocationManyRelationFilter {
+  every: ServiceLocationWhereInput
+  some: ServiceLocationWhereInput
+  none: ServiceLocationWhereInput
+}
+
+input JobManyRelationFilter {
+  every: JobWhereInput
+  some: JobWhereInput
+  none: JobWhereInput
+}
+
+input TagManyRelationFilter {
+  every: TagWhereInput
+  some: TagWhereInput
+  none: TagWhereInput
+}
+
+input CustomerOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  kind: OrderDirection
+  displayName: OrderDirection
+  organizationName: OrderDirection
+  billingLine1: OrderDirection
+  billingLine2: OrderDirection
+  billingCity: OrderDirection
+  billingRegion: OrderDirection
+  billingPostalCode: OrderDirection
+  doNotService: OrderDirection
+  doNotServiceReason: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CustomerUpdateInput {
+  ref: String
+  kind: String
+  displayName: String
+  organizationName: String
+  primaryContact: ContactRelateToOneForUpdateInput
+  contacts: ContactRelateToManyForUpdateInput
+  locations: ServiceLocationRelateToManyForUpdateInput
+  jobs: JobRelateToManyForUpdateInput
+  billingLine1: String
+  billingLine2: String
+  billingCity: String
+  billingRegion: String
+  billingPostalCode: String
+  taxExemptCertificate: DocumentRelateToOneForUpdateInput
+  tags: TagRelateToManyForUpdateInput
+  doNotService: Boolean
+  doNotServiceReason: String
+  mergedInto: CustomerRelateToOneForUpdateInput
+  source: CampaignRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ContactRelateToManyForUpdateInput {
+  disconnect: [ContactWhereUniqueInput!]
+  set: [ContactWhereUniqueInput!]
+  create: [ContactCreateInput!]
+  connect: [ContactWhereUniqueInput!]
+}
+
+input ServiceLocationRelateToManyForUpdateInput {
+  disconnect: [ServiceLocationWhereUniqueInput!]
+  set: [ServiceLocationWhereUniqueInput!]
+  create: [ServiceLocationCreateInput!]
+  connect: [ServiceLocationWhereUniqueInput!]
+}
+
+input JobRelateToManyForUpdateInput {
+  disconnect: [JobWhereUniqueInput!]
+  set: [JobWhereUniqueInput!]
+  create: [JobCreateInput!]
+  connect: [JobWhereUniqueInput!]
+}
+
+input TagRelateToManyForUpdateInput {
+  disconnect: [TagWhereUniqueInput!]
+  set: [TagWhereUniqueInput!]
+  create: [TagCreateInput!]
+  connect: [TagWhereUniqueInput!]
+}
+
+input CampaignRelateToOneForUpdateInput {
+  create: CampaignCreateInput
+  connect: CampaignWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CustomerUpdateArgs {
+  where: CustomerWhereUniqueInput!
+  data: CustomerUpdateInput!
+}
+
+input CustomerCreateInput {
+  ref: String
+  kind: String
+  displayName: String
+  organizationName: String
+  primaryContact: ContactRelateToOneForCreateInput
+  contacts: ContactRelateToManyForCreateInput
+  locations: ServiceLocationRelateToManyForCreateInput
+  jobs: JobRelateToManyForCreateInput
+  billingLine1: String
+  billingLine2: String
+  billingCity: String
+  billingRegion: String
+  billingPostalCode: String
+  taxExemptCertificate: DocumentRelateToOneForCreateInput
+  tags: TagRelateToManyForCreateInput
+  doNotService: Boolean
+  doNotServiceReason: String
+  mergedInto: CustomerRelateToOneForCreateInput
+  source: CampaignRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ContactRelateToManyForCreateInput {
+  create: [ContactCreateInput!]
+  connect: [ContactWhereUniqueInput!]
+}
+
+input ServiceLocationRelateToManyForCreateInput {
+  create: [ServiceLocationCreateInput!]
+  connect: [ServiceLocationWhereUniqueInput!]
+}
+
+input JobRelateToManyForCreateInput {
+  create: [JobCreateInput!]
+  connect: [JobWhereUniqueInput!]
+}
+
+input TagRelateToManyForCreateInput {
+  create: [TagCreateInput!]
+  connect: [TagWhereUniqueInput!]
+}
+
+input CampaignRelateToOneForCreateInput {
+  create: CampaignCreateInput
+  connect: CampaignWhereUniqueInput
+}
+
+type DncEntry {
+  id: ID!
+  valueHash: String
+  kind: String
+  source: String
+  addedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DncEntryWhereUniqueInput {
+  id: ID
+}
+
+input DncEntryWhereInput {
+  AND: [DncEntryWhereInput!]
+  OR: [DncEntryWhereInput!]
+  NOT: [DncEntryWhereInput!]
+  id: IDFilter
+  valueHash: StringFilter
+  kind: StringFilter
+  source: StringFilter
+  addedAt: DateTimeNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input DncEntryOrderByInput {
+  id: OrderDirection
+  valueHash: OrderDirection
+  kind: OrderDirection
+  source: OrderDirection
+  addedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input DncEntryUpdateInput {
+  valueHash: String
+  kind: String
+  source: String
+  addedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DncEntryUpdateArgs {
+  where: DncEntryWhereUniqueInput!
+  data: DncEntryUpdateInput!
+}
+
+input DncEntryCreateInput {
+  valueHash: String
+  kind: String
+  source: String
+  addedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type LocationContact {
+  id: ID!
+  location: ServiceLocation
+  contact: Contact
+  role: String
+  canAuthorizeWork: Boolean
+  nteMinor: BigInt
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LocationContactWhereUniqueInput {
+  id: ID
+}
+
+input LocationContactWhereInput {
+  AND: [LocationContactWhereInput!]
+  OR: [LocationContactWhereInput!]
+  NOT: [LocationContactWhereInput!]
+  id: IDFilter
+  location: ServiceLocationWhereInput
+  contact: ContactWhereInput
+  role: StringFilter
+  canAuthorizeWork: BooleanFilter
+  nteMinor: BigIntNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input LocationContactOrderByInput {
+  id: OrderDirection
+  role: OrderDirection
+  canAuthorizeWork: OrderDirection
+  nteMinor: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input LocationContactUpdateInput {
+  location: ServiceLocationRelateToOneForUpdateInput
+  contact: ContactRelateToOneForUpdateInput
+  role: String
+  canAuthorizeWork: Boolean
+  nteMinor: BigInt
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LocationContactUpdateArgs {
+  where: LocationContactWhereUniqueInput!
+  data: LocationContactUpdateInput!
+}
+
+input LocationContactCreateInput {
+  location: ServiceLocationRelateToOneForCreateInput
+  contact: ContactRelateToOneForCreateInput
+  role: String
+  canAuthorizeWork: Boolean
+  nteMinor: BigInt
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type LocationOwnership {
+  id: ID!
+  location: ServiceLocation
+  customer: Customer
+  from: CalendarDay
+  to: CalendarDay
+  reason: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LocationOwnershipWhereUniqueInput {
+  id: ID
+}
+
+input LocationOwnershipWhereInput {
+  AND: [LocationOwnershipWhereInput!]
+  OR: [LocationOwnershipWhereInput!]
+  NOT: [LocationOwnershipWhereInput!]
+  id: IDFilter
+  location: ServiceLocationWhereInput
+  customer: CustomerWhereInput
+  from: CalendarDayNullableFilter
+  to: CalendarDayNullableFilter
+  reason: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input LocationOwnershipOrderByInput {
+  id: OrderDirection
+  from: OrderDirection
+  to: OrderDirection
+  reason: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input LocationOwnershipUpdateInput {
+  location: ServiceLocationRelateToOneForUpdateInput
+  customer: CustomerRelateToOneForUpdateInput
+  from: CalendarDay
+  to: CalendarDay
+  reason: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LocationOwnershipUpdateArgs {
+  where: LocationOwnershipWhereUniqueInput!
+  data: LocationOwnershipUpdateInput!
+}
+
+input LocationOwnershipCreateInput {
+  location: ServiceLocationRelateToOneForCreateInput
+  customer: CustomerRelateToOneForCreateInput
+  from: CalendarDay
+  to: CalendarDay
+  reason: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type ServiceLocation {
+  id: ID!
+  ref: String
+  customer: Customer
+  address1: String
+  address2: String
+  city: String
+  state: String
+  county: String
+  postalCode: String
+  country: String
+  lat: Decimal
+  lng: Decimal
+  geocodeQuality: String
+  timeZone: String
+  serviceArea: ServiceArea
+  propertyClass: String
+  propertyType: String
+  yearBuilt: Int
+  squareFeet: Int
+  contacts(where: LocationContactWhereInput! = {}, orderBy: [LocationContactOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LocationContactWhereUniqueInput): [LocationContact!]
+  contactsCount(where: LocationContactWhereInput! = {}): Int
+  accessSecrets(where: AccessSecretWhereInput! = {}, orderBy: [AccessSecretOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AccessSecretWhereUniqueInput): [AccessSecret!]
+  accessSecretsCount(where: AccessSecretWhereInput! = {}): Int
+  jobs(where: JobWhereInput! = {}, orderBy: [JobOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: JobWhereUniqueInput): [Job!]
+  jobsCount(where: JobWhereInput! = {}): Int
+  mergedInto: ServiceLocation
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ServiceLocationWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input ServiceLocationWhereInput {
+  AND: [ServiceLocationWhereInput!]
+  OR: [ServiceLocationWhereInput!]
+  NOT: [ServiceLocationWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  customer: CustomerWhereInput
+  address1: StringFilter
+  address2: StringFilter
+  city: StringFilter
+  state: StringFilter
+  county: StringFilter
+  postalCode: StringFilter
+  country: StringFilter
+  lat: DecimalNullableFilter
+  lng: DecimalNullableFilter
+  geocodeQuality: StringFilter
+  timeZone: StringFilter
+  serviceArea: ServiceAreaWhereInput
+  propertyClass: StringFilter
+  propertyType: StringFilter
+  yearBuilt: IntNullableFilter
+  squareFeet: IntNullableFilter
+  contacts: LocationContactManyRelationFilter
+  accessSecrets: AccessSecretManyRelationFilter
+  jobs: JobManyRelationFilter
+  mergedInto: ServiceLocationWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input LocationContactManyRelationFilter {
+  every: LocationContactWhereInput
+  some: LocationContactWhereInput
+  none: LocationContactWhereInput
+}
+
+input AccessSecretManyRelationFilter {
+  every: AccessSecretWhereInput
+  some: AccessSecretWhereInput
+  none: AccessSecretWhereInput
+}
+
+input ServiceLocationOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  address1: OrderDirection
+  address2: OrderDirection
+  city: OrderDirection
+  state: OrderDirection
+  county: OrderDirection
+  postalCode: OrderDirection
+  country: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  geocodeQuality: OrderDirection
+  timeZone: OrderDirection
+  propertyClass: OrderDirection
+  propertyType: OrderDirection
+  yearBuilt: OrderDirection
+  squareFeet: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ServiceLocationUpdateInput {
+  ref: String
+  customer: CustomerRelateToOneForUpdateInput
+  address1: String
+  address2: String
+  city: String
+  state: String
+  county: String
+  postalCode: String
+  country: String
+  lat: Decimal
+  lng: Decimal
+  geocodeQuality: String
+  timeZone: String
+  serviceArea: ServiceAreaRelateToOneForUpdateInput
+  propertyClass: String
+  propertyType: String
+  yearBuilt: Int
+  squareFeet: Int
+  contacts: LocationContactRelateToManyForUpdateInput
+  accessSecrets: AccessSecretRelateToManyForUpdateInput
+  jobs: JobRelateToManyForUpdateInput
+  mergedInto: ServiceLocationRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ServiceAreaRelateToOneForUpdateInput {
+  create: ServiceAreaCreateInput
+  connect: ServiceAreaWhereUniqueInput
+  disconnect: Boolean
+}
+
+input LocationContactRelateToManyForUpdateInput {
+  disconnect: [LocationContactWhereUniqueInput!]
+  set: [LocationContactWhereUniqueInput!]
+  create: [LocationContactCreateInput!]
+  connect: [LocationContactWhereUniqueInput!]
+}
+
+input AccessSecretRelateToManyForUpdateInput {
+  disconnect: [AccessSecretWhereUniqueInput!]
+  set: [AccessSecretWhereUniqueInput!]
+  create: [AccessSecretCreateInput!]
+  connect: [AccessSecretWhereUniqueInput!]
+}
+
+input ServiceLocationUpdateArgs {
+  where: ServiceLocationWhereUniqueInput!
+  data: ServiceLocationUpdateInput!
+}
+
+input ServiceLocationCreateInput {
+  ref: String
+  customer: CustomerRelateToOneForCreateInput
+  address1: String
+  address2: String
+  city: String
+  state: String
+  county: String
+  postalCode: String
+  country: String
+  lat: Decimal
+  lng: Decimal
+  geocodeQuality: String
+  timeZone: String
+  serviceArea: ServiceAreaRelateToOneForCreateInput
+  propertyClass: String
+  propertyType: String
+  yearBuilt: Int
+  squareFeet: Int
+  contacts: LocationContactRelateToManyForCreateInput
+  accessSecrets: AccessSecretRelateToManyForCreateInput
+  jobs: JobRelateToManyForCreateInput
+  mergedInto: ServiceLocationRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ServiceAreaRelateToOneForCreateInput {
+  create: ServiceAreaCreateInput
+  connect: ServiceAreaWhereUniqueInput
+}
+
+input LocationContactRelateToManyForCreateInput {
+  create: [LocationContactCreateInput!]
+  connect: [LocationContactWhereUniqueInput!]
+}
+
+input AccessSecretRelateToManyForCreateInput {
+  create: [AccessSecretCreateInput!]
+  connect: [AccessSecretWhereUniqueInput!]
+}
+
+type Call {
+  id: ID!
+  conversation: Conversation
+  direction: String
+  providerCallId: String
+  provider: String
+  from: String
+  fromMasked: String
+  to: String
+  trackingNumber: TrackingNumber
+  startedAt: DateTime
+  endedAt: DateTime
+  durationSeconds: Int
+  answeredBy: String
+  agentRun: AgentRun
+  recording: Media
+  transcript: JSON
+  recordingDisclosurePlayed: Boolean
+  emergency: JSON
+  summary: String
+  disposition: String
+  bookable: Boolean
+  lead: Lead
+  job: Job
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CallWhereUniqueInput {
+  id: ID
+  providerCallId: String
+}
+
+input CallWhereInput {
+  AND: [CallWhereInput!]
+  OR: [CallWhereInput!]
+  NOT: [CallWhereInput!]
+  id: IDFilter
+  conversation: ConversationWhereInput
+  direction: StringFilter
+  providerCallId: StringFilter
+  provider: StringFilter
+  from: StringFilter
+  fromMasked: StringFilter
+  to: StringFilter
+  trackingNumber: TrackingNumberWhereInput
+  startedAt: DateTimeNullableFilter
+  endedAt: DateTimeNullableFilter
+  durationSeconds: IntNullableFilter
+  answeredBy: StringFilter
+  agentRun: AgentRunWhereInput
+  recording: MediaWhereInput
+  recordingDisclosurePlayed: BooleanFilter
+  summary: StringFilter
+  disposition: StringFilter
+  bookable: BooleanFilter
+  lead: LeadWhereInput
+  job: JobWhereInput
+  status: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CallOrderByInput {
+  id: OrderDirection
+  direction: OrderDirection
+  providerCallId: OrderDirection
+  provider: OrderDirection
+  from: OrderDirection
+  fromMasked: OrderDirection
+  to: OrderDirection
+  startedAt: OrderDirection
+  endedAt: OrderDirection
+  durationSeconds: OrderDirection
+  answeredBy: OrderDirection
+  recordingDisclosurePlayed: OrderDirection
+  summary: OrderDirection
+  disposition: OrderDirection
+  bookable: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CallUpdateInput {
+  conversation: ConversationRelateToOneForUpdateInput
+  direction: String
+  providerCallId: String
+  provider: String
+  from: String
+  fromMasked: String
+  to: String
+  trackingNumber: TrackingNumberRelateToOneForUpdateInput
+  startedAt: DateTime
+  endedAt: DateTime
+  durationSeconds: Int
+  answeredBy: String
+  agentRun: AgentRunRelateToOneForUpdateInput
+  recording: MediaRelateToOneForUpdateInput
+  transcript: JSON
+  recordingDisclosurePlayed: Boolean
+  emergency: JSON
+  summary: String
+  disposition: String
+  bookable: Boolean
+  lead: LeadRelateToOneForUpdateInput
+  job: JobRelateToOneForUpdateInput
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ConversationRelateToOneForUpdateInput {
+  create: ConversationCreateInput
+  connect: ConversationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TrackingNumberRelateToOneForUpdateInput {
+  create: TrackingNumberCreateInput
+  connect: TrackingNumberWhereUniqueInput
+  disconnect: Boolean
+}
+
+input MediaRelateToOneForUpdateInput {
+  create: MediaCreateInput
+  connect: MediaWhereUniqueInput
+  disconnect: Boolean
+}
+
+input LeadRelateToOneForUpdateInput {
+  create: LeadCreateInput
+  connect: LeadWhereUniqueInput
+  disconnect: Boolean
+}
+
+input JobRelateToOneForUpdateInput {
+  create: JobCreateInput
+  connect: JobWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CallUpdateArgs {
+  where: CallWhereUniqueInput!
+  data: CallUpdateInput!
+}
+
+input CallCreateInput {
+  conversation: ConversationRelateToOneForCreateInput
+  direction: String
+  providerCallId: String
+  provider: String
+  from: String
+  fromMasked: String
+  to: String
+  trackingNumber: TrackingNumberRelateToOneForCreateInput
+  startedAt: DateTime
+  endedAt: DateTime
+  durationSeconds: Int
+  answeredBy: String
+  agentRun: AgentRunRelateToOneForCreateInput
+  recording: MediaRelateToOneForCreateInput
+  transcript: JSON
+  recordingDisclosurePlayed: Boolean
+  emergency: JSON
+  summary: String
+  disposition: String
+  bookable: Boolean
+  lead: LeadRelateToOneForCreateInput
+  job: JobRelateToOneForCreateInput
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ConversationRelateToOneForCreateInput {
+  create: ConversationCreateInput
+  connect: ConversationWhereUniqueInput
+}
+
+input TrackingNumberRelateToOneForCreateInput {
+  create: TrackingNumberCreateInput
+  connect: TrackingNumberWhereUniqueInput
+}
+
+input MediaRelateToOneForCreateInput {
+  create: MediaCreateInput
+  connect: MediaWhereUniqueInput
+}
+
+input LeadRelateToOneForCreateInput {
+  create: LeadCreateInput
+  connect: LeadWhereUniqueInput
+}
+
+input JobRelateToOneForCreateInput {
+  create: JobCreateInput
+  connect: JobWhereUniqueInput
+}
+
+type Campaign {
+  id: ID!
+  name: String
+  channel: String
+  monthlyCostMinor: BigInt
+  active: Boolean
+  trackingNumbers(where: TrackingNumberWhereInput! = {}, orderBy: [TrackingNumberOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TrackingNumberWhereUniqueInput): [TrackingNumber!]
+  trackingNumbersCount(where: TrackingNumberWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CampaignWhereUniqueInput {
+  id: ID
+  name: String
+}
+
+input CampaignWhereInput {
+  AND: [CampaignWhereInput!]
+  OR: [CampaignWhereInput!]
+  NOT: [CampaignWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  channel: StringFilter
+  monthlyCostMinor: BigIntFilter
+  active: BooleanFilter
+  trackingNumbers: TrackingNumberManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input TrackingNumberManyRelationFilter {
+  every: TrackingNumberWhereInput
+  some: TrackingNumberWhereInput
+  none: TrackingNumberWhereInput
+}
+
+input CampaignOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  channel: OrderDirection
+  monthlyCostMinor: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CampaignUpdateInput {
+  name: String
+  channel: String
+  monthlyCostMinor: BigInt
+  active: Boolean
+  trackingNumbers: TrackingNumberRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TrackingNumberRelateToManyForUpdateInput {
+  disconnect: [TrackingNumberWhereUniqueInput!]
+  set: [TrackingNumberWhereUniqueInput!]
+  create: [TrackingNumberCreateInput!]
+  connect: [TrackingNumberWhereUniqueInput!]
+}
+
+input CampaignUpdateArgs {
+  where: CampaignWhereUniqueInput!
+  data: CampaignUpdateInput!
+}
+
+input CampaignCreateInput {
+  name: String
+  channel: String
+  monthlyCostMinor: BigInt
+  active: Boolean
+  trackingNumbers: TrackingNumberRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TrackingNumberRelateToManyForCreateInput {
+  create: [TrackingNumberCreateInput!]
+  connect: [TrackingNumberWhereUniqueInput!]
+}
+
+type Conversation {
+  id: ID!
+  customer: Customer
+  contactPoint: ContactPoint
+  channel: String
+  status: String
+  assignedTo: User
+  lead: Lead
+  job: Job
+  calls(where: CallWhereInput! = {}, orderBy: [CallOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CallWhereUniqueInput): [Call!]
+  callsCount(where: CallWhereInput! = {}): Int
+  messages(where: MessageWhereInput! = {}, orderBy: [MessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MessageWhereUniqueInput): [Message!]
+  messagesCount(where: MessageWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ConversationWhereUniqueInput {
+  id: ID
+}
+
+input ConversationWhereInput {
+  AND: [ConversationWhereInput!]
+  OR: [ConversationWhereInput!]
+  NOT: [ConversationWhereInput!]
+  id: IDFilter
+  customer: CustomerWhereInput
+  contactPoint: ContactPointWhereInput
+  channel: StringFilter
+  status: StringFilter
+  assignedTo: UserWhereInput
+  lead: LeadWhereInput
+  job: JobWhereInput
+  calls: CallManyRelationFilter
+  messages: MessageManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CallManyRelationFilter {
+  every: CallWhereInput
+  some: CallWhereInput
+  none: CallWhereInput
+}
+
+input MessageManyRelationFilter {
+  every: MessageWhereInput
+  some: MessageWhereInput
+  none: MessageWhereInput
+}
+
+input ConversationOrderByInput {
+  id: OrderDirection
+  channel: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ConversationUpdateInput {
+  customer: CustomerRelateToOneForUpdateInput
+  contactPoint: ContactPointRelateToOneForUpdateInput
+  channel: String
+  status: String
+  assignedTo: UserRelateToOneForUpdateInput
+  lead: LeadRelateToOneForUpdateInput
+  job: JobRelateToOneForUpdateInput
+  calls: CallRelateToManyForUpdateInput
+  messages: MessageRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CallRelateToManyForUpdateInput {
+  disconnect: [CallWhereUniqueInput!]
+  set: [CallWhereUniqueInput!]
+  create: [CallCreateInput!]
+  connect: [CallWhereUniqueInput!]
+}
+
+input MessageRelateToManyForUpdateInput {
+  disconnect: [MessageWhereUniqueInput!]
+  set: [MessageWhereUniqueInput!]
+  create: [MessageCreateInput!]
+  connect: [MessageWhereUniqueInput!]
+}
+
+input ConversationUpdateArgs {
+  where: ConversationWhereUniqueInput!
+  data: ConversationUpdateInput!
+}
+
+input ConversationCreateInput {
+  customer: CustomerRelateToOneForCreateInput
+  contactPoint: ContactPointRelateToOneForCreateInput
+  channel: String
+  status: String
+  assignedTo: UserRelateToOneForCreateInput
+  lead: LeadRelateToOneForCreateInput
+  job: JobRelateToOneForCreateInput
+  calls: CallRelateToManyForCreateInput
+  messages: MessageRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CallRelateToManyForCreateInput {
+  create: [CallCreateInput!]
+  connect: [CallWhereUniqueInput!]
+}
+
+input MessageRelateToManyForCreateInput {
+  create: [MessageCreateInput!]
+  connect: [MessageWhereUniqueInput!]
+}
+
+type Lead {
+  id: ID!
+  ref: String
+  source: String
+  campaign: Campaign
+  trackingNumber: TrackingNumber
+  externalId: String
+  customer: Customer
+  location: ServiceLocation
+  contactName: String
+  phoneE164: String
+  email: String
+  requestedJobType: JobType
+  summary: String
+  status: String
+  lostReason: String
+  firstResponseSeconds: Int
+  respondDueAt: DateTime
+  job: Job
+  mergedInto: Lead
+  assignedTo: User
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LeadWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input LeadWhereInput {
+  AND: [LeadWhereInput!]
+  OR: [LeadWhereInput!]
+  NOT: [LeadWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  source: StringFilter
+  campaign: CampaignWhereInput
+  trackingNumber: TrackingNumberWhereInput
+  externalId: StringFilter
+  customer: CustomerWhereInput
+  location: ServiceLocationWhereInput
+  contactName: StringFilter
+  phoneE164: StringFilter
+  email: StringFilter
+  requestedJobType: JobTypeWhereInput
+  summary: StringFilter
+  status: StringFilter
+  lostReason: StringFilter
+  firstResponseSeconds: IntNullableFilter
+  respondDueAt: DateTimeNullableFilter
+  job: JobWhereInput
+  mergedInto: LeadWhereInput
+  assignedTo: UserWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input LeadOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  source: OrderDirection
+  externalId: OrderDirection
+  contactName: OrderDirection
+  phoneE164: OrderDirection
+  email: OrderDirection
+  summary: OrderDirection
+  status: OrderDirection
+  lostReason: OrderDirection
+  firstResponseSeconds: OrderDirection
+  respondDueAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input LeadUpdateInput {
+  ref: String
+  source: String
+  campaign: CampaignRelateToOneForUpdateInput
+  trackingNumber: TrackingNumberRelateToOneForUpdateInput
+  externalId: String
+  customer: CustomerRelateToOneForUpdateInput
+  location: ServiceLocationRelateToOneForUpdateInput
+  contactName: String
+  phoneE164: String
+  email: String
+  requestedJobType: JobTypeRelateToOneForUpdateInput
+  summary: String
+  status: String
+  lostReason: String
+  firstResponseSeconds: Int
+  respondDueAt: DateTime
+  job: JobRelateToOneForUpdateInput
+  mergedInto: LeadRelateToOneForUpdateInput
+  assignedTo: UserRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobTypeRelateToOneForUpdateInput {
+  create: JobTypeCreateInput
+  connect: JobTypeWhereUniqueInput
+  disconnect: Boolean
+}
+
+input LeadUpdateArgs {
+  where: LeadWhereUniqueInput!
+  data: LeadUpdateInput!
+}
+
+input LeadCreateInput {
+  ref: String
+  source: String
+  campaign: CampaignRelateToOneForCreateInput
+  trackingNumber: TrackingNumberRelateToOneForCreateInput
+  externalId: String
+  customer: CustomerRelateToOneForCreateInput
+  location: ServiceLocationRelateToOneForCreateInput
+  contactName: String
+  phoneE164: String
+  email: String
+  requestedJobType: JobTypeRelateToOneForCreateInput
+  summary: String
+  status: String
+  lostReason: String
+  firstResponseSeconds: Int
+  respondDueAt: DateTime
+  job: JobRelateToOneForCreateInput
+  mergedInto: LeadRelateToOneForCreateInput
+  assignedTo: UserRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobTypeRelateToOneForCreateInput {
+  create: JobTypeCreateInput
+  connect: JobTypeWhereUniqueInput
+}
+
+type Message {
+  id: ID!
+  conversation: Conversation
+  contactPoint: ContactPoint
+  direction: String
+  channel: String
+  purpose: String
+  consentPurpose: String
+  template: String
+  body: String
+  status: String
+  blockedReason: String
+  guardFindings: JSON
+  providerMessageId: String
+  job: Job
+  visit: Visit
+  sentAt: DateTime
+  deliveredAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MessageWhereUniqueInput {
+  id: ID
+}
+
+input MessageWhereInput {
+  AND: [MessageWhereInput!]
+  OR: [MessageWhereInput!]
+  NOT: [MessageWhereInput!]
+  id: IDFilter
+  conversation: ConversationWhereInput
+  contactPoint: ContactPointWhereInput
+  direction: StringFilter
+  channel: StringFilter
+  purpose: StringFilter
+  consentPurpose: StringFilter
+  template: StringFilter
+  body: StringFilter
+  status: StringFilter
+  blockedReason: StringFilter
+  providerMessageId: StringFilter
+  job: JobWhereInput
+  visit: VisitWhereInput
+  sentAt: DateTimeNullableFilter
+  deliveredAt: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MessageOrderByInput {
+  id: OrderDirection
+  direction: OrderDirection
+  channel: OrderDirection
+  purpose: OrderDirection
+  consentPurpose: OrderDirection
+  template: OrderDirection
+  body: OrderDirection
+  status: OrderDirection
+  blockedReason: OrderDirection
+  providerMessageId: OrderDirection
+  sentAt: OrderDirection
+  deliveredAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MessageUpdateInput {
+  conversation: ConversationRelateToOneForUpdateInput
+  contactPoint: ContactPointRelateToOneForUpdateInput
+  direction: String
+  channel: String
+  purpose: String
+  consentPurpose: String
+  template: String
+  body: String
+  status: String
+  blockedReason: String
+  guardFindings: JSON
+  providerMessageId: String
+  job: JobRelateToOneForUpdateInput
+  visit: VisitRelateToOneForUpdateInput
+  sentAt: DateTime
+  deliveredAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MessageUpdateArgs {
+  where: MessageWhereUniqueInput!
+  data: MessageUpdateInput!
+}
+
+input MessageCreateInput {
+  conversation: ConversationRelateToOneForCreateInput
+  contactPoint: ContactPointRelateToOneForCreateInput
+  direction: String
+  channel: String
+  purpose: String
+  consentPurpose: String
+  template: String
+  body: String
+  status: String
+  blockedReason: String
+  guardFindings: JSON
+  providerMessageId: String
+  job: JobRelateToOneForCreateInput
+  visit: VisitRelateToOneForCreateInput
+  sentAt: DateTime
+  deliveredAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Opportunity {
+  id: ID!
+  ref: String
+  customer: Customer
+  location: ServiceLocation
+  kind: String
+  source: String
+  generatedBy: Employee
+  estimatedValueMinor: BigInt
+  reasons: JSON
+  stage: String
+  assignedTo: Employee
+  lead: Lead
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OpportunityWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input OpportunityWhereInput {
+  AND: [OpportunityWhereInput!]
+  OR: [OpportunityWhereInput!]
+  NOT: [OpportunityWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  customer: CustomerWhereInput
+  location: ServiceLocationWhereInput
+  kind: StringFilter
+  source: StringFilter
+  generatedBy: EmployeeWhereInput
+  estimatedValueMinor: BigIntNullableFilter
+  stage: StringFilter
+  assignedTo: EmployeeWhereInput
+  lead: LeadWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input OpportunityOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  kind: OrderDirection
+  source: OrderDirection
+  estimatedValueMinor: OrderDirection
+  stage: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input OpportunityUpdateInput {
+  ref: String
+  customer: CustomerRelateToOneForUpdateInput
+  location: ServiceLocationRelateToOneForUpdateInput
+  kind: String
+  source: String
+  generatedBy: EmployeeRelateToOneForUpdateInput
+  estimatedValueMinor: BigInt
+  reasons: JSON
+  stage: String
+  assignedTo: EmployeeRelateToOneForUpdateInput
+  lead: LeadRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OpportunityUpdateArgs {
+  where: OpportunityWhereUniqueInput!
+  data: OpportunityUpdateInput!
+}
+
+input OpportunityCreateInput {
+  ref: String
+  customer: CustomerRelateToOneForCreateInput
+  location: ServiceLocationRelateToOneForCreateInput
+  kind: String
+  source: String
+  generatedBy: EmployeeRelateToOneForCreateInput
+  estimatedValueMinor: BigInt
+  reasons: JSON
+  stage: String
+  assignedTo: EmployeeRelateToOneForCreateInput
+  lead: LeadRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type TrackingNumber {
+  id: ID!
+  phoneE164: String
+  campaign: Campaign
+  provider: String
+  forwardTo: String
+  businessUnit: BusinessUnit
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TrackingNumberWhereUniqueInput {
+  id: ID
+  phoneE164: String
+}
+
+input TrackingNumberWhereInput {
+  AND: [TrackingNumberWhereInput!]
+  OR: [TrackingNumberWhereInput!]
+  NOT: [TrackingNumberWhereInput!]
+  id: IDFilter
+  phoneE164: StringFilter
+  campaign: CampaignWhereInput
+  provider: StringFilter
+  forwardTo: StringFilter
+  businessUnit: BusinessUnitWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input TrackingNumberOrderByInput {
+  id: OrderDirection
+  phoneE164: OrderDirection
+  provider: OrderDirection
+  forwardTo: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TrackingNumberUpdateInput {
+  phoneE164: String
+  campaign: CampaignRelateToOneForUpdateInput
+  provider: String
+  forwardTo: String
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TrackingNumberUpdateArgs {
+  where: TrackingNumberWhereUniqueInput!
+  data: TrackingNumberUpdateInput!
+}
+
+input TrackingNumberCreateInput {
+  phoneE164: String
+  campaign: CampaignRelateToOneForCreateInput
+  provider: String
+  forwardTo: String
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type ArrivalWindow {
+  id: ID!
+  businessUnit: BusinessUnit
+  template: ArrivalWindowTemplate
+  date: CalendarDay
+  startsAt: DateTime
+  endsAt: DateTime
+  label: String
+  capacityHours: Decimal
+  bookedHours: Decimal
+  closed: Boolean
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArrivalWindowWhereUniqueInput {
+  id: ID
+}
+
+input ArrivalWindowWhereInput {
+  AND: [ArrivalWindowWhereInput!]
+  OR: [ArrivalWindowWhereInput!]
+  NOT: [ArrivalWindowWhereInput!]
+  id: IDFilter
+  businessUnit: BusinessUnitWhereInput
+  template: ArrivalWindowTemplateWhereInput
+  date: CalendarDayFilter
+  startsAt: DateTimeFilter
+  endsAt: DateTimeFilter
+  label: StringFilter
+  capacityHours: DecimalFilter
+  bookedHours: DecimalFilter
+  closed: BooleanFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input DecimalFilter {
+  equals: Decimal
+  in: [Decimal!]
+  notIn: [Decimal!]
+  lt: Decimal
+  lte: Decimal
+  gt: Decimal
+  gte: Decimal
+  not: DecimalFilter
+}
+
+input ArrivalWindowOrderByInput {
+  id: OrderDirection
+  date: OrderDirection
+  startsAt: OrderDirection
+  endsAt: OrderDirection
+  label: OrderDirection
+  capacityHours: OrderDirection
+  bookedHours: OrderDirection
+  closed: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ArrivalWindowUpdateInput {
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  template: ArrivalWindowTemplateRelateToOneForUpdateInput
+  date: CalendarDay
+  startsAt: DateTime
+  endsAt: DateTime
+  label: String
+  capacityHours: Decimal
+  bookedHours: Decimal
+  closed: Boolean
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArrivalWindowTemplateRelateToOneForUpdateInput {
+  create: ArrivalWindowTemplateCreateInput
+  connect: ArrivalWindowTemplateWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ArrivalWindowUpdateArgs {
+  where: ArrivalWindowWhereUniqueInput!
+  data: ArrivalWindowUpdateInput!
+}
+
+input ArrivalWindowCreateInput {
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  template: ArrivalWindowTemplateRelateToOneForCreateInput
+  date: CalendarDay
+  startsAt: DateTime
+  endsAt: DateTime
+  label: String
+  capacityHours: Decimal
+  bookedHours: Decimal
+  closed: Boolean
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArrivalWindowTemplateRelateToOneForCreateInput {
+  create: ArrivalWindowTemplateCreateInput
+  connect: ArrivalWindowTemplateWhereUniqueInput
+}
+
+type ArrivalWindowTemplate {
+  id: ID!
+  businessUnit: BusinessUnit
+  weekday: Int
+  startLocal: String
+  endLocal: String
+  label: String
+  capacityHours: Decimal
+  capacityFactor: Decimal
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArrivalWindowTemplateWhereUniqueInput {
+  id: ID
+}
+
+input ArrivalWindowTemplateWhereInput {
+  AND: [ArrivalWindowTemplateWhereInput!]
+  OR: [ArrivalWindowTemplateWhereInput!]
+  NOT: [ArrivalWindowTemplateWhereInput!]
+  id: IDFilter
+  businessUnit: BusinessUnitWhereInput
+  weekday: IntFilter
+  startLocal: StringFilter
+  endLocal: StringFilter
+  label: StringFilter
+  capacityHours: DecimalFilter
+  capacityFactor: DecimalNullableFilter
+  active: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ArrivalWindowTemplateOrderByInput {
+  id: OrderDirection
+  weekday: OrderDirection
+  startLocal: OrderDirection
+  endLocal: OrderDirection
+  label: OrderDirection
+  capacityHours: OrderDirection
+  capacityFactor: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ArrivalWindowTemplateUpdateInput {
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  weekday: Int
+  startLocal: String
+  endLocal: String
+  label: String
+  capacityHours: Decimal
+  capacityFactor: Decimal
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArrivalWindowTemplateUpdateArgs {
+  where: ArrivalWindowTemplateWhereUniqueInput!
+  data: ArrivalWindowTemplateUpdateInput!
+}
+
+input ArrivalWindowTemplateCreateInput {
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  weekday: Int
+  startLocal: String
+  endLocal: String
+  label: String
+  capacityHours: Decimal
+  capacityFactor: Decimal
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type BookingHold {
+  id: ID!
+  publicCode: String
+  window: ArrivalWindow
+  jobType: JobType
+  hours: Decimal
+  source: String
+  heldByUser: User
+  heldByAgent: AgentIdentity
+  customerDraft: JSON
+  expiresAt: DateTime
+  status: String
+  job: Job
+  visit: Visit
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input BookingHoldWhereUniqueInput {
+  id: ID
+  publicCode: String
+}
+
+input BookingHoldWhereInput {
+  AND: [BookingHoldWhereInput!]
+  OR: [BookingHoldWhereInput!]
+  NOT: [BookingHoldWhereInput!]
+  id: IDFilter
+  publicCode: StringFilter
+  window: ArrivalWindowWhereInput
+  jobType: JobTypeWhereInput
+  hours: DecimalFilter
+  source: StringFilter
+  heldByUser: UserWhereInput
+  heldByAgent: AgentIdentityWhereInput
+  expiresAt: DateTimeFilter
+  status: StringFilter
+  job: JobWhereInput
+  visit: VisitWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input BookingHoldOrderByInput {
+  id: OrderDirection
+  publicCode: OrderDirection
+  hours: OrderDirection
+  source: OrderDirection
+  expiresAt: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input BookingHoldUpdateInput {
+  publicCode: String
+  window: ArrivalWindowRelateToOneForUpdateInput
+  jobType: JobTypeRelateToOneForUpdateInput
+  hours: Decimal
+  source: String
+  heldByUser: UserRelateToOneForUpdateInput
+  heldByAgent: AgentIdentityRelateToOneForUpdateInput
+  customerDraft: JSON
+  expiresAt: DateTime
+  status: String
+  job: JobRelateToOneForUpdateInput
+  visit: VisitRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArrivalWindowRelateToOneForUpdateInput {
+  create: ArrivalWindowCreateInput
+  connect: ArrivalWindowWhereUniqueInput
+  disconnect: Boolean
+}
+
+input BookingHoldUpdateArgs {
+  where: BookingHoldWhereUniqueInput!
+  data: BookingHoldUpdateInput!
+}
+
+input BookingHoldCreateInput {
+  publicCode: String
+  window: ArrivalWindowRelateToOneForCreateInput
+  jobType: JobTypeRelateToOneForCreateInput
+  hours: Decimal
+  source: String
+  heldByUser: UserRelateToOneForCreateInput
+  heldByAgent: AgentIdentityRelateToOneForCreateInput
+  customerDraft: JSON
+  expiresAt: DateTime
+  status: String
+  job: JobRelateToOneForCreateInput
+  visit: VisitRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArrivalWindowRelateToOneForCreateInput {
+  create: ArrivalWindowCreateInput
+  connect: ArrivalWindowWhereUniqueInput
+}
+
+type CapacityOverride {
+  id: ID!
+  window: ArrivalWindow
+  addHours: Decimal
+  reason: String
+  requestedBy: User
+  approval: ApprovalRequest
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CapacityOverrideWhereUniqueInput {
+  id: ID
+}
+
+input CapacityOverrideWhereInput {
+  AND: [CapacityOverrideWhereInput!]
+  OR: [CapacityOverrideWhereInput!]
+  NOT: [CapacityOverrideWhereInput!]
+  id: IDFilter
+  window: ArrivalWindowWhereInput
+  addHours: DecimalFilter
+  reason: StringFilter
+  requestedBy: UserWhereInput
+  approval: ApprovalRequestWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CapacityOverrideOrderByInput {
+  id: OrderDirection
+  addHours: OrderDirection
+  reason: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CapacityOverrideUpdateInput {
+  window: ArrivalWindowRelateToOneForUpdateInput
+  addHours: Decimal
+  reason: String
+  requestedBy: UserRelateToOneForUpdateInput
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CapacityOverrideUpdateArgs {
+  where: CapacityOverrideWhereUniqueInput!
+  data: CapacityOverrideUpdateInput!
+}
+
+input CapacityOverrideCreateInput {
+  window: ArrivalWindowRelateToOneForCreateInput
+  addHours: Decimal
+  reason: String
+  requestedBy: UserRelateToOneForCreateInput
+  approval: ApprovalRequestRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type CapacityPlan {
+  id: ID!
+  businessUnit: BusinessUnit
+  date: CalendarDay
+  techHoursAvailable: Decimal
+  reservedEmergencyHours: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CapacityPlanWhereUniqueInput {
+  id: ID
+}
+
+input CapacityPlanWhereInput {
+  AND: [CapacityPlanWhereInput!]
+  OR: [CapacityPlanWhereInput!]
+  NOT: [CapacityPlanWhereInput!]
+  id: IDFilter
+  businessUnit: BusinessUnitWhereInput
+  date: CalendarDayFilter
+  techHoursAvailable: DecimalFilter
+  reservedEmergencyHours: DecimalFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CapacityPlanOrderByInput {
+  id: OrderDirection
+  date: OrderDirection
+  techHoursAvailable: OrderDirection
+  reservedEmergencyHours: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CapacityPlanUpdateInput {
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  date: CalendarDay
+  techHoursAvailable: Decimal
+  reservedEmergencyHours: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CapacityPlanUpdateArgs {
+  where: CapacityPlanWhereUniqueInput!
+  data: CapacityPlanUpdateInput!
+}
+
+input CapacityPlanCreateInput {
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  date: CalendarDay
+  techHoursAvailable: Decimal
+  reservedEmergencyHours: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type CapacityUsage {
+  id: ID!
+  window: ArrivalWindow
+  kind: String
+  hold: BookingHold
+  visit: Visit
+  hours: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CapacityUsageWhereUniqueInput {
+  id: ID
+}
+
+input CapacityUsageWhereInput {
+  AND: [CapacityUsageWhereInput!]
+  OR: [CapacityUsageWhereInput!]
+  NOT: [CapacityUsageWhereInput!]
+  id: IDFilter
+  window: ArrivalWindowWhereInput
+  kind: StringFilter
+  hold: BookingHoldWhereInput
+  visit: VisitWhereInput
+  hours: DecimalFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CapacityUsageOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  hours: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CapacityUsageUpdateInput {
+  window: ArrivalWindowRelateToOneForUpdateInput
+  kind: String
+  hold: BookingHoldRelateToOneForUpdateInput
+  visit: VisitRelateToOneForUpdateInput
+  hours: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input BookingHoldRelateToOneForUpdateInput {
+  create: BookingHoldCreateInput
+  connect: BookingHoldWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CapacityUsageUpdateArgs {
+  where: CapacityUsageWhereUniqueInput!
+  data: CapacityUsageUpdateInput!
+}
+
+input CapacityUsageCreateInput {
+  window: ArrivalWindowRelateToOneForCreateInput
+  kind: String
+  hold: BookingHoldRelateToOneForCreateInput
+  visit: VisitRelateToOneForCreateInput
+  hours: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input BookingHoldRelateToOneForCreateInput {
+  create: BookingHoldCreateInput
+  connect: BookingHoldWhereUniqueInput
+}
+
+type JobType {
+  id: ID!
+  code: String
+  name: String
+  businessUnit: BusinessUnit
+  trade: String
+  priority: String
+  defaultDurationMinutes: Int
+  capacityHours: Decimal
+  crewSize: Int
+  requirements: JobTypeRequirement
+  keywords: JSON
+  bookableOnline: Boolean
+  bookableByAi: Boolean
+  emergencyPolicy: JSON
+  checklistTemplate: ChecklistTemplate
+  refrigerantWork: Boolean
+  permitLikely: Boolean
+  bookingQuestions: JSON
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobTypeWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input JobTypeWhereInput {
+  AND: [JobTypeWhereInput!]
+  OR: [JobTypeWhereInput!]
+  NOT: [JobTypeWhereInput!]
+  id: IDFilter
+  code: StringFilter
+  name: StringFilter
+  businessUnit: BusinessUnitWhereInput
+  trade: StringFilter
+  priority: StringFilter
+  defaultDurationMinutes: IntFilter
+  capacityHours: DecimalFilter
+  crewSize: IntFilter
+  requirements: JobTypeRequirementWhereInput
+  bookableOnline: BooleanFilter
+  bookableByAi: BooleanFilter
+  checklistTemplate: ChecklistTemplateWhereInput
+  refrigerantWork: BooleanFilter
+  permitLikely: BooleanFilter
+  active: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input JobTypeOrderByInput {
+  id: OrderDirection
+  code: OrderDirection
+  name: OrderDirection
+  trade: OrderDirection
+  priority: OrderDirection
+  defaultDurationMinutes: OrderDirection
+  capacityHours: OrderDirection
+  crewSize: OrderDirection
+  bookableOnline: OrderDirection
+  bookableByAi: OrderDirection
+  refrigerantWork: OrderDirection
+  permitLikely: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input JobTypeUpdateInput {
+  code: String
+  name: String
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  trade: String
+  priority: String
+  defaultDurationMinutes: Int
+  capacityHours: Decimal
+  crewSize: Int
+  requirements: JobTypeRequirementRelateToOneForUpdateInput
+  keywords: JSON
+  bookableOnline: Boolean
+  bookableByAi: Boolean
+  emergencyPolicy: JSON
+  checklistTemplate: ChecklistTemplateRelateToOneForUpdateInput
+  refrigerantWork: Boolean
+  permitLikely: Boolean
+  bookingQuestions: JSON
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobTypeRequirementRelateToOneForUpdateInput {
+  create: JobTypeRequirementCreateInput
+  connect: JobTypeRequirementWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ChecklistTemplateRelateToOneForUpdateInput {
+  create: ChecklistTemplateCreateInput
+  connect: ChecklistTemplateWhereUniqueInput
+  disconnect: Boolean
+}
+
+input JobTypeUpdateArgs {
+  where: JobTypeWhereUniqueInput!
+  data: JobTypeUpdateInput!
+}
+
+input JobTypeCreateInput {
+  code: String
+  name: String
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  trade: String
+  priority: String
+  defaultDurationMinutes: Int
+  capacityHours: Decimal
+  crewSize: Int
+  requirements: JobTypeRequirementRelateToOneForCreateInput
+  keywords: JSON
+  bookableOnline: Boolean
+  bookableByAi: Boolean
+  emergencyPolicy: JSON
+  checklistTemplate: ChecklistTemplateRelateToOneForCreateInput
+  refrigerantWork: Boolean
+  permitLikely: Boolean
+  bookingQuestions: JSON
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobTypeRequirementRelateToOneForCreateInput {
+  create: JobTypeRequirementCreateInput
+  connect: JobTypeRequirementWhereUniqueInput
+}
+
+input ChecklistTemplateRelateToOneForCreateInput {
+  create: ChecklistTemplateCreateInput
+  connect: ChecklistTemplateWhereUniqueInput
+}
+
+type ChecklistResponse {
+  id: ID!
+  visit: Visit
+  template: ChecklistTemplate
+  templateVersion: Int
+  answers: JSON
+  completedBy: User
+  completedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ChecklistResponseWhereUniqueInput {
+  id: ID
+}
+
+input ChecklistResponseWhereInput {
+  AND: [ChecklistResponseWhereInput!]
+  OR: [ChecklistResponseWhereInput!]
+  NOT: [ChecklistResponseWhereInput!]
+  id: IDFilter
+  visit: VisitWhereInput
+  template: ChecklistTemplateWhereInput
+  templateVersion: IntNullableFilter
+  completedBy: UserWhereInput
+  completedAt: DateTimeNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ChecklistResponseOrderByInput {
+  id: OrderDirection
+  templateVersion: OrderDirection
+  completedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ChecklistResponseUpdateInput {
+  visit: VisitRelateToOneForUpdateInput
+  template: ChecklistTemplateRelateToOneForUpdateInput
+  templateVersion: Int
+  answers: JSON
+  completedBy: UserRelateToOneForUpdateInput
+  completedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ChecklistResponseUpdateArgs {
+  where: ChecklistResponseWhereUniqueInput!
+  data: ChecklistResponseUpdateInput!
+}
+
+input ChecklistResponseCreateInput {
+  visit: VisitRelateToOneForCreateInput
+  template: ChecklistTemplateRelateToOneForCreateInput
+  templateVersion: Int
+  answers: JSON
+  completedBy: UserRelateToOneForCreateInput
+  completedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type ChecklistTemplate {
+  id: ID!
+  name: String
+  items: JSON
+  templateVersion: Int
+  required: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ChecklistTemplateWhereUniqueInput {
+  id: ID
+}
+
+input ChecklistTemplateWhereInput {
+  AND: [ChecklistTemplateWhereInput!]
+  OR: [ChecklistTemplateWhereInput!]
+  NOT: [ChecklistTemplateWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  templateVersion: IntFilter
+  required: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ChecklistTemplateOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  templateVersion: OrderDirection
+  required: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ChecklistTemplateUpdateInput {
+  name: String
+  items: JSON
+  templateVersion: Int
+  required: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ChecklistTemplateUpdateArgs {
+  where: ChecklistTemplateWhereUniqueInput!
+  data: ChecklistTemplateUpdateInput!
+}
+
+input ChecklistTemplateCreateInput {
+  name: String
+  items: JSON
+  templateVersion: Int
+  required: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type DispatchRecommendation {
+  id: ID!
+  visit: Visit
+  rankedCandidates: JSON
+  inputsHash: String
+  features: JSON
+  modelRef: String
+  generatedBy: AgentIdentity
+  requestedBy: User
+  decision: String
+  decidedBy: User
+  decidedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DispatchRecommendationWhereUniqueInput {
+  id: ID
+}
+
+input DispatchRecommendationWhereInput {
+  AND: [DispatchRecommendationWhereInput!]
+  OR: [DispatchRecommendationWhereInput!]
+  NOT: [DispatchRecommendationWhereInput!]
+  id: IDFilter
+  visit: VisitWhereInput
+  inputsHash: StringFilter
+  modelRef: StringFilter
+  generatedBy: AgentIdentityWhereInput
+  requestedBy: UserWhereInput
+  decision: StringFilter
+  decidedBy: UserWhereInput
+  decidedAt: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input DispatchRecommendationOrderByInput {
+  id: OrderDirection
+  inputsHash: OrderDirection
+  modelRef: OrderDirection
+  decision: OrderDirection
+  decidedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input DispatchRecommendationUpdateInput {
+  visit: VisitRelateToOneForUpdateInput
+  rankedCandidates: JSON
+  inputsHash: String
+  features: JSON
+  modelRef: String
+  generatedBy: AgentIdentityRelateToOneForUpdateInput
+  requestedBy: UserRelateToOneForUpdateInput
+  decision: String
+  decidedBy: UserRelateToOneForUpdateInput
+  decidedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DispatchRecommendationUpdateArgs {
+  where: DispatchRecommendationWhereUniqueInput!
+  data: DispatchRecommendationUpdateInput!
+}
+
+input DispatchRecommendationCreateInput {
+  visit: VisitRelateToOneForCreateInput
+  rankedCandidates: JSON
+  inputsHash: String
+  features: JSON
+  modelRef: String
+  generatedBy: AgentIdentityRelateToOneForCreateInput
+  requestedBy: UserRelateToOneForCreateInput
+  decision: String
+  decidedBy: UserRelateToOneForCreateInput
+  decidedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Job {
+  id: ID!
+  ref: String
+  publicCode: String
+  customer: Customer
+  location: ServiceLocation
+  businessUnit: BusinessUnit
+  jobType: JobType
+  priority: String
+  status: String
+  statusBeforeHold: String
+  holdReason: String
+  holdFollowUpOn: CalendarDay
+  cancelReason: String
+  summary: String
+  source: String
+  lead: Lead
+  recallOf: Job
+  payers(where: JobPayerWhereInput! = {}, orderBy: [JobPayerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: JobPayerWhereUniqueInput): [JobPayer!]
+  payersCount(where: JobPayerWhereInput! = {}): Int
+  poNumber: String
+  nteMinor: BigInt
+  visits(where: VisitWhereInput! = {}, orderBy: [VisitOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VisitWhereUniqueInput): [Visit!]
+  visitsCount(where: VisitWhereInput! = {}): Int
+  workLines(where: WorkLineWhereInput! = {}, orderBy: [WorkLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WorkLineWhereUniqueInput): [WorkLine!]
+  workLinesCount(where: WorkLineWhereInput! = {}): Int
+  bookedBy: User
+  bookedByAgent: AgentIdentity
+  tags(where: TagWhereInput! = {}, orderBy: [TagOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TagWhereUniqueInput): [Tag!]
+  tagsCount(where: TagWhereInput! = {}): Int
+  completedAt: DateTime
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobWhereUniqueInput {
+  id: ID
+  ref: String
+  publicCode: String
+}
+
+input JobWhereInput {
+  AND: [JobWhereInput!]
+  OR: [JobWhereInput!]
+  NOT: [JobWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  publicCode: StringFilter
+  customer: CustomerWhereInput
+  location: ServiceLocationWhereInput
+  businessUnit: BusinessUnitWhereInput
+  jobType: JobTypeWhereInput
+  priority: StringFilter
+  status: StringFilter
+  statusBeforeHold: StringFilter
+  holdReason: StringFilter
+  holdFollowUpOn: CalendarDayNullableFilter
+  cancelReason: StringFilter
+  summary: StringFilter
+  source: StringFilter
+  lead: LeadWhereInput
+  recallOf: JobWhereInput
+  payers: JobPayerManyRelationFilter
+  poNumber: StringFilter
+  nteMinor: BigIntNullableFilter
+  visits: VisitManyRelationFilter
+  workLines: WorkLineManyRelationFilter
+  bookedBy: UserWhereInput
+  bookedByAgent: AgentIdentityWhereInput
+  tags: TagManyRelationFilter
+  completedAt: DateTimeNullableFilter
+  closedAt: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input JobPayerManyRelationFilter {
+  every: JobPayerWhereInput
+  some: JobPayerWhereInput
+  none: JobPayerWhereInput
+}
+
+input VisitManyRelationFilter {
+  every: VisitWhereInput
+  some: VisitWhereInput
+  none: VisitWhereInput
+}
+
+input WorkLineManyRelationFilter {
+  every: WorkLineWhereInput
+  some: WorkLineWhereInput
+  none: WorkLineWhereInput
+}
+
+input JobOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  publicCode: OrderDirection
+  priority: OrderDirection
+  status: OrderDirection
+  statusBeforeHold: OrderDirection
+  holdReason: OrderDirection
+  holdFollowUpOn: OrderDirection
+  cancelReason: OrderDirection
+  summary: OrderDirection
+  source: OrderDirection
+  poNumber: OrderDirection
+  nteMinor: OrderDirection
+  completedAt: OrderDirection
+  closedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input JobUpdateInput {
+  ref: String
+  publicCode: String
+  customer: CustomerRelateToOneForUpdateInput
+  location: ServiceLocationRelateToOneForUpdateInput
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  jobType: JobTypeRelateToOneForUpdateInput
+  priority: String
+  status: String
+  statusBeforeHold: String
+  holdReason: String
+  holdFollowUpOn: CalendarDay
+  cancelReason: String
+  summary: String
+  source: String
+  lead: LeadRelateToOneForUpdateInput
+  recallOf: JobRelateToOneForUpdateInput
+  payers: JobPayerRelateToManyForUpdateInput
+  poNumber: String
+  nteMinor: BigInt
+  visits: VisitRelateToManyForUpdateInput
+  workLines: WorkLineRelateToManyForUpdateInput
+  bookedBy: UserRelateToOneForUpdateInput
+  bookedByAgent: AgentIdentityRelateToOneForUpdateInput
+  tags: TagRelateToManyForUpdateInput
+  completedAt: DateTime
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobPayerRelateToManyForUpdateInput {
+  disconnect: [JobPayerWhereUniqueInput!]
+  set: [JobPayerWhereUniqueInput!]
+  create: [JobPayerCreateInput!]
+  connect: [JobPayerWhereUniqueInput!]
+}
+
+input VisitRelateToManyForUpdateInput {
+  disconnect: [VisitWhereUniqueInput!]
+  set: [VisitWhereUniqueInput!]
+  create: [VisitCreateInput!]
+  connect: [VisitWhereUniqueInput!]
+}
+
+input WorkLineRelateToManyForUpdateInput {
+  disconnect: [WorkLineWhereUniqueInput!]
+  set: [WorkLineWhereUniqueInput!]
+  create: [WorkLineCreateInput!]
+  connect: [WorkLineWhereUniqueInput!]
+}
+
+input JobUpdateArgs {
+  where: JobWhereUniqueInput!
+  data: JobUpdateInput!
+}
+
+input JobCreateInput {
+  ref: String
+  publicCode: String
+  customer: CustomerRelateToOneForCreateInput
+  location: ServiceLocationRelateToOneForCreateInput
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  jobType: JobTypeRelateToOneForCreateInput
+  priority: String
+  status: String
+  statusBeforeHold: String
+  holdReason: String
+  holdFollowUpOn: CalendarDay
+  cancelReason: String
+  summary: String
+  source: String
+  lead: LeadRelateToOneForCreateInput
+  recallOf: JobRelateToOneForCreateInput
+  payers: JobPayerRelateToManyForCreateInput
+  poNumber: String
+  nteMinor: BigInt
+  visits: VisitRelateToManyForCreateInput
+  workLines: WorkLineRelateToManyForCreateInput
+  bookedBy: UserRelateToOneForCreateInput
+  bookedByAgent: AgentIdentityRelateToOneForCreateInput
+  tags: TagRelateToManyForCreateInput
+  completedAt: DateTime
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobPayerRelateToManyForCreateInput {
+  create: [JobPayerCreateInput!]
+  connect: [JobPayerWhereUniqueInput!]
+}
+
+input VisitRelateToManyForCreateInput {
+  create: [VisitCreateInput!]
+  connect: [VisitWhereUniqueInput!]
+}
+
+input WorkLineRelateToManyForCreateInput {
+  create: [WorkLineCreateInput!]
+  connect: [WorkLineWhereUniqueInput!]
+}
+
+type JobPayer {
+  id: ID!
+  job: Job
+  payerKind: String
+  payerCustomer: Customer
+  authorizationRef: String
+  sharePolicy: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobPayerWhereUniqueInput {
+  id: ID
+}
+
+input JobPayerWhereInput {
+  AND: [JobPayerWhereInput!]
+  OR: [JobPayerWhereInput!]
+  NOT: [JobPayerWhereInput!]
+  id: IDFilter
+  job: JobWhereInput
+  payerKind: StringFilter
+  payerCustomer: CustomerWhereInput
+  authorizationRef: StringFilter
+  sharePolicy: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input JobPayerOrderByInput {
+  id: OrderDirection
+  payerKind: OrderDirection
+  authorizationRef: OrderDirection
+  sharePolicy: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input JobPayerUpdateInput {
+  job: JobRelateToOneForUpdateInput
+  payerKind: String
+  payerCustomer: CustomerRelateToOneForUpdateInput
+  authorizationRef: String
+  sharePolicy: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input JobPayerUpdateArgs {
+  where: JobPayerWhereUniqueInput!
+  data: JobPayerUpdateInput!
+}
+
+input JobPayerCreateInput {
+  job: JobRelateToOneForCreateInput
+  payerKind: String
+  payerCustomer: CustomerRelateToOneForCreateInput
+  authorizationRef: String
+  sharePolicy: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Visit {
+  id: ID!
+  ref: String
+  job: Job
+  window: ArrivalWindow
+  plannedStart: DateTime
+  plannedDurationMinutes: Int
+  capacityHours: Decimal
+  status: String
+  cancelReason: String
+  assignments(where: VisitAssignmentWhereInput! = {}, orderBy: [VisitAssignmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VisitAssignmentWhereUniqueInput): [VisitAssignment!]
+  assignmentsCount(where: VisitAssignmentWhereInput! = {}): Int
+  statusEvents(where: VisitStatusEventWhereInput! = {}, orderBy: [VisitStatusEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VisitStatusEventWhereUniqueInput): [VisitStatusEvent!]
+  statusEventsCount(where: VisitStatusEventWhereInput! = {}): Int
+  actualArrivalAt: DateTime
+  actualDoneAt: DateTime
+  etaMinutes: Int
+  customerSummaryDraft: String
+  needsReview: Boolean
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VisitWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input VisitWhereInput {
+  AND: [VisitWhereInput!]
+  OR: [VisitWhereInput!]
+  NOT: [VisitWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  job: JobWhereInput
+  window: ArrivalWindowWhereInput
+  plannedStart: DateTimeNullableFilter
+  plannedDurationMinutes: IntNullableFilter
+  capacityHours: DecimalFilter
+  status: StringFilter
+  cancelReason: StringFilter
+  assignments: VisitAssignmentManyRelationFilter
+  statusEvents: VisitStatusEventManyRelationFilter
+  actualArrivalAt: DateTimeNullableFilter
+  actualDoneAt: DateTimeNullableFilter
+  etaMinutes: IntNullableFilter
+  customerSummaryDraft: StringFilter
+  needsReview: BooleanFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input VisitAssignmentManyRelationFilter {
+  every: VisitAssignmentWhereInput
+  some: VisitAssignmentWhereInput
+  none: VisitAssignmentWhereInput
+}
+
+input VisitStatusEventManyRelationFilter {
+  every: VisitStatusEventWhereInput
+  some: VisitStatusEventWhereInput
+  none: VisitStatusEventWhereInput
+}
+
+input VisitOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  plannedStart: OrderDirection
+  plannedDurationMinutes: OrderDirection
+  capacityHours: OrderDirection
+  status: OrderDirection
+  cancelReason: OrderDirection
+  actualArrivalAt: OrderDirection
+  actualDoneAt: OrderDirection
+  etaMinutes: OrderDirection
+  customerSummaryDraft: OrderDirection
+  needsReview: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input VisitUpdateInput {
+  ref: String
+  job: JobRelateToOneForUpdateInput
+  window: ArrivalWindowRelateToOneForUpdateInput
+  plannedStart: DateTime
+  plannedDurationMinutes: Int
+  capacityHours: Decimal
+  status: String
+  cancelReason: String
+  assignments: VisitAssignmentRelateToManyForUpdateInput
+  statusEvents: VisitStatusEventRelateToManyForUpdateInput
+  actualArrivalAt: DateTime
+  actualDoneAt: DateTime
+  etaMinutes: Int
+  customerSummaryDraft: String
+  needsReview: Boolean
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VisitAssignmentRelateToManyForUpdateInput {
+  disconnect: [VisitAssignmentWhereUniqueInput!]
+  set: [VisitAssignmentWhereUniqueInput!]
+  create: [VisitAssignmentCreateInput!]
+  connect: [VisitAssignmentWhereUniqueInput!]
+}
+
+input VisitStatusEventRelateToManyForUpdateInput {
+  disconnect: [VisitStatusEventWhereUniqueInput!]
+  set: [VisitStatusEventWhereUniqueInput!]
+  create: [VisitStatusEventCreateInput!]
+  connect: [VisitStatusEventWhereUniqueInput!]
+}
+
+input VisitUpdateArgs {
+  where: VisitWhereUniqueInput!
+  data: VisitUpdateInput!
+}
+
+input VisitCreateInput {
+  ref: String
+  job: JobRelateToOneForCreateInput
+  window: ArrivalWindowRelateToOneForCreateInput
+  plannedStart: DateTime
+  plannedDurationMinutes: Int
+  capacityHours: Decimal
+  status: String
+  cancelReason: String
+  assignments: VisitAssignmentRelateToManyForCreateInput
+  statusEvents: VisitStatusEventRelateToManyForCreateInput
+  actualArrivalAt: DateTime
+  actualDoneAt: DateTime
+  etaMinutes: Int
+  customerSummaryDraft: String
+  needsReview: Boolean
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VisitAssignmentRelateToManyForCreateInput {
+  create: [VisitAssignmentCreateInput!]
+  connect: [VisitAssignmentWhereUniqueInput!]
+}
+
+input VisitStatusEventRelateToManyForCreateInput {
+  create: [VisitStatusEventCreateInput!]
+  connect: [VisitStatusEventWhereUniqueInput!]
+}
+
+type VisitAssignment {
+  id: ID!
+  visit: Visit
+  employee: Employee
+  role: String
+  assignedAt: DateTime
+  assignedBy: User
+  assignedByAgent: AgentIdentity
+  recommendation: DispatchRecommendation
+  overrideReason: String
+  eligibility: EligibilityEvaluation
+  active: Boolean
+  endedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VisitAssignmentWhereUniqueInput {
+  id: ID
+}
+
+input VisitAssignmentWhereInput {
+  AND: [VisitAssignmentWhereInput!]
+  OR: [VisitAssignmentWhereInput!]
+  NOT: [VisitAssignmentWhereInput!]
+  id: IDFilter
+  visit: VisitWhereInput
+  employee: EmployeeWhereInput
+  role: StringFilter
+  assignedAt: DateTimeNullableFilter
+  assignedBy: UserWhereInput
+  assignedByAgent: AgentIdentityWhereInput
+  recommendation: DispatchRecommendationWhereInput
+  overrideReason: StringFilter
+  eligibility: EligibilityEvaluationWhereInput
+  active: BooleanFilter
+  endedAt: DateTimeNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input VisitAssignmentOrderByInput {
+  id: OrderDirection
+  role: OrderDirection
+  assignedAt: OrderDirection
+  overrideReason: OrderDirection
+  active: OrderDirection
+  endedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input VisitAssignmentUpdateInput {
+  visit: VisitRelateToOneForUpdateInput
+  employee: EmployeeRelateToOneForUpdateInput
+  role: String
+  assignedAt: DateTime
+  assignedBy: UserRelateToOneForUpdateInput
+  assignedByAgent: AgentIdentityRelateToOneForUpdateInput
+  recommendation: DispatchRecommendationRelateToOneForUpdateInput
+  overrideReason: String
+  eligibility: EligibilityEvaluationRelateToOneForUpdateInput
+  active: Boolean
+  endedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DispatchRecommendationRelateToOneForUpdateInput {
+  create: DispatchRecommendationCreateInput
+  connect: DispatchRecommendationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EligibilityEvaluationRelateToOneForUpdateInput {
+  create: EligibilityEvaluationCreateInput
+  connect: EligibilityEvaluationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input VisitAssignmentUpdateArgs {
+  where: VisitAssignmentWhereUniqueInput!
+  data: VisitAssignmentUpdateInput!
+}
+
+input VisitAssignmentCreateInput {
+  visit: VisitRelateToOneForCreateInput
+  employee: EmployeeRelateToOneForCreateInput
+  role: String
+  assignedAt: DateTime
+  assignedBy: UserRelateToOneForCreateInput
+  assignedByAgent: AgentIdentityRelateToOneForCreateInput
+  recommendation: DispatchRecommendationRelateToOneForCreateInput
+  overrideReason: String
+  eligibility: EligibilityEvaluationRelateToOneForCreateInput
+  active: Boolean
+  endedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DispatchRecommendationRelateToOneForCreateInput {
+  create: DispatchRecommendationCreateInput
+  connect: DispatchRecommendationWhereUniqueInput
+}
+
+input EligibilityEvaluationRelateToOneForCreateInput {
+  create: EligibilityEvaluationCreateInput
+  connect: EligibilityEvaluationWhereUniqueInput
+}
+
+type VisitStatusEvent {
+  id: ID!
+  visit: Visit
+  employee: Employee
+  actorUser: User
+  fromStatus: String
+  toStatus: String
+  kind: String
+  occurredAt: DateTime
+  clientRecordedAt: DateTime
+  idempotencyKey: String
+  lat: Decimal
+  lng: Decimal
+  deviceId: String
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VisitStatusEventWhereUniqueInput {
+  id: ID
+  idempotencyKey: String
+}
+
+input VisitStatusEventWhereInput {
+  AND: [VisitStatusEventWhereInput!]
+  OR: [VisitStatusEventWhereInput!]
+  NOT: [VisitStatusEventWhereInput!]
+  id: IDFilter
+  visit: VisitWhereInput
+  employee: EmployeeWhereInput
+  actorUser: UserWhereInput
+  fromStatus: StringFilter
+  toStatus: StringFilter
+  kind: StringFilter
+  occurredAt: DateTimeFilter
+  clientRecordedAt: DateTimeNullableFilter
+  idempotencyKey: StringFilter
+  lat: DecimalNullableFilter
+  lng: DecimalNullableFilter
+  deviceId: StringFilter
+  note: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input VisitStatusEventOrderByInput {
+  id: OrderDirection
+  fromStatus: OrderDirection
+  toStatus: OrderDirection
+  kind: OrderDirection
+  occurredAt: OrderDirection
+  clientRecordedAt: OrderDirection
+  idempotencyKey: OrderDirection
+  lat: OrderDirection
+  lng: OrderDirection
+  deviceId: OrderDirection
+  note: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input VisitStatusEventUpdateInput {
+  visit: VisitRelateToOneForUpdateInput
+  employee: EmployeeRelateToOneForUpdateInput
+  actorUser: UserRelateToOneForUpdateInput
+  fromStatus: String
+  toStatus: String
+  kind: String
+  occurredAt: DateTime
+  clientRecordedAt: DateTime
+  idempotencyKey: String
+  lat: Decimal
+  lng: Decimal
+  deviceId: String
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VisitStatusEventUpdateArgs {
+  where: VisitStatusEventWhereUniqueInput!
+  data: VisitStatusEventUpdateInput!
+}
+
+input VisitStatusEventCreateInput {
+  visit: VisitRelateToOneForCreateInput
+  employee: EmployeeRelateToOneForCreateInput
+  actorUser: UserRelateToOneForCreateInput
+  fromStatus: String
+  toStatus: String
+  kind: String
+  occurredAt: DateTime
+  clientRecordedAt: DateTime
+  idempotencyKey: String
+  lat: Decimal
+  lng: Decimal
+  deviceId: String
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type WorkLine {
+  id: ID!
+  job: Job
+  source: String
+  description: String
+  snapshot: JSON
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  taxCategory: String
+  trade: String
+  cancellationClass: String
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WorkLineWhereUniqueInput {
+  id: ID
+}
+
+input WorkLineWhereInput {
+  AND: [WorkLineWhereInput!]
+  OR: [WorkLineWhereInput!]
+  NOT: [WorkLineWhereInput!]
+  id: IDFilter
+  job: JobWhereInput
+  source: StringFilter
+  description: StringFilter
+  quantity: DecimalFilter
+  uom: StringFilter
+  unitPriceMinor: BigIntFilter
+  amountMinor: BigIntFilter
+  taxCategory: StringFilter
+  trade: StringFilter
+  cancellationClass: StringFilter
+  status: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input WorkLineOrderByInput {
+  id: OrderDirection
+  source: OrderDirection
+  description: OrderDirection
+  quantity: OrderDirection
+  uom: OrderDirection
+  unitPriceMinor: OrderDirection
+  amountMinor: OrderDirection
+  taxCategory: OrderDirection
+  trade: OrderDirection
+  cancellationClass: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input WorkLineUpdateInput {
+  job: JobRelateToOneForUpdateInput
+  source: String
+  description: String
+  snapshot: JSON
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  taxCategory: String
+  trade: String
+  cancellationClass: String
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WorkLineUpdateArgs {
+  where: WorkLineWhereUniqueInput!
+  data: WorkLineUpdateInput!
+}
+
+input WorkLineCreateInput {
+  job: JobRelateToOneForCreateInput
+  source: String
+  description: String
+  snapshot: JSON
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  taxCategory: String
+  trade: String
+  cancellationClass: String
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -4215,6 +8532,258 @@ type Mutation {
   updateAgentScopeGrants(data: [AgentScopeGrantUpdateArgs!]!): [AgentScopeGrant]
   deleteAgentScopeGrant(where: AgentScopeGrantWhereUniqueInput!): AgentScopeGrant
   deleteAgentScopeGrants(where: [AgentScopeGrantWhereUniqueInput!]!): [AgentScopeGrant]
+  createCredential(data: CredentialCreateInput!): Credential
+  createCredentials(data: [CredentialCreateInput!]!): [Credential]
+  updateCredential(where: CredentialWhereUniqueInput!, data: CredentialUpdateInput!): Credential
+  updateCredentials(data: [CredentialUpdateArgs!]!): [Credential]
+  deleteCredential(where: CredentialWhereUniqueInput!): Credential
+  deleteCredentials(where: [CredentialWhereUniqueInput!]!): [Credential]
+  createCrew(data: CrewCreateInput!): Crew
+  createCrews(data: [CrewCreateInput!]!): [Crew]
+  updateCrew(where: CrewWhereUniqueInput!, data: CrewUpdateInput!): Crew
+  updateCrews(data: [CrewUpdateArgs!]!): [Crew]
+  deleteCrew(where: CrewWhereUniqueInput!): Crew
+  deleteCrews(where: [CrewWhereUniqueInput!]!): [Crew]
+  createEligibilityEvaluation(data: EligibilityEvaluationCreateInput!): EligibilityEvaluation
+  createEligibilityEvaluations(data: [EligibilityEvaluationCreateInput!]!): [EligibilityEvaluation]
+  updateEligibilityEvaluation(where: EligibilityEvaluationWhereUniqueInput!, data: EligibilityEvaluationUpdateInput!): EligibilityEvaluation
+  updateEligibilityEvaluations(data: [EligibilityEvaluationUpdateArgs!]!): [EligibilityEvaluation]
+  deleteEligibilityEvaluation(where: EligibilityEvaluationWhereUniqueInput!): EligibilityEvaluation
+  deleteEligibilityEvaluations(where: [EligibilityEvaluationWhereUniqueInput!]!): [EligibilityEvaluation]
+  createEmployee(data: EmployeeCreateInput!): Employee
+  createEmployees(data: [EmployeeCreateInput!]!): [Employee]
+  updateEmployee(where: EmployeeWhereUniqueInput!, data: EmployeeUpdateInput!): Employee
+  updateEmployees(data: [EmployeeUpdateArgs!]!): [Employee]
+  deleteEmployee(where: EmployeeWhereUniqueInput!): Employee
+  deleteEmployees(where: [EmployeeWhereUniqueInput!]!): [Employee]
+  createJobTypeRequirement(data: JobTypeRequirementCreateInput!): JobTypeRequirement
+  createJobTypeRequirements(data: [JobTypeRequirementCreateInput!]!): [JobTypeRequirement]
+  updateJobTypeRequirement(where: JobTypeRequirementWhereUniqueInput!, data: JobTypeRequirementUpdateInput!): JobTypeRequirement
+  updateJobTypeRequirements(data: [JobTypeRequirementUpdateArgs!]!): [JobTypeRequirement]
+  deleteJobTypeRequirement(where: JobTypeRequirementWhereUniqueInput!): JobTypeRequirement
+  deleteJobTypeRequirements(where: [JobTypeRequirementWhereUniqueInput!]!): [JobTypeRequirement]
+  createOnCallRotation(data: OnCallRotationCreateInput!): OnCallRotation
+  createOnCallRotations(data: [OnCallRotationCreateInput!]!): [OnCallRotation]
+  updateOnCallRotation(where: OnCallRotationWhereUniqueInput!, data: OnCallRotationUpdateInput!): OnCallRotation
+  updateOnCallRotations(data: [OnCallRotationUpdateArgs!]!): [OnCallRotation]
+  deleteOnCallRotation(where: OnCallRotationWhereUniqueInput!): OnCallRotation
+  deleteOnCallRotations(where: [OnCallRotationWhereUniqueInput!]!): [OnCallRotation]
+  createShift(data: ShiftCreateInput!): Shift
+  createShifts(data: [ShiftCreateInput!]!): [Shift]
+  updateShift(where: ShiftWhereUniqueInput!, data: ShiftUpdateInput!): Shift
+  updateShifts(data: [ShiftUpdateArgs!]!): [Shift]
+  deleteShift(where: ShiftWhereUniqueInput!): Shift
+  deleteShifts(where: [ShiftWhereUniqueInput!]!): [Shift]
+  createShiftTemplate(data: ShiftTemplateCreateInput!): ShiftTemplate
+  createShiftTemplates(data: [ShiftTemplateCreateInput!]!): [ShiftTemplate]
+  updateShiftTemplate(where: ShiftTemplateWhereUniqueInput!, data: ShiftTemplateUpdateInput!): ShiftTemplate
+  updateShiftTemplates(data: [ShiftTemplateUpdateArgs!]!): [ShiftTemplate]
+  deleteShiftTemplate(where: ShiftTemplateWhereUniqueInput!): ShiftTemplate
+  deleteShiftTemplates(where: [ShiftTemplateWhereUniqueInput!]!): [ShiftTemplate]
+  createSkill(data: SkillCreateInput!): Skill
+  createSkills(data: [SkillCreateInput!]!): [Skill]
+  updateSkill(where: SkillWhereUniqueInput!, data: SkillUpdateInput!): Skill
+  updateSkills(data: [SkillUpdateArgs!]!): [Skill]
+  deleteSkill(where: SkillWhereUniqueInput!): Skill
+  deleteSkills(where: [SkillWhereUniqueInput!]!): [Skill]
+  createAccessSecret(data: AccessSecretCreateInput!): AccessSecret
+  createAccessSecrets(data: [AccessSecretCreateInput!]!): [AccessSecret]
+  updateAccessSecret(where: AccessSecretWhereUniqueInput!, data: AccessSecretUpdateInput!): AccessSecret
+  updateAccessSecrets(data: [AccessSecretUpdateArgs!]!): [AccessSecret]
+  deleteAccessSecret(where: AccessSecretWhereUniqueInput!): AccessSecret
+  deleteAccessSecrets(where: [AccessSecretWhereUniqueInput!]!): [AccessSecret]
+  createAccessSecretReveal(data: AccessSecretRevealCreateInput!): AccessSecretReveal
+  createAccessSecretReveals(data: [AccessSecretRevealCreateInput!]!): [AccessSecretReveal]
+  updateAccessSecretReveal(where: AccessSecretRevealWhereUniqueInput!, data: AccessSecretRevealUpdateInput!): AccessSecretReveal
+  updateAccessSecretReveals(data: [AccessSecretRevealUpdateArgs!]!): [AccessSecretReveal]
+  deleteAccessSecretReveal(where: AccessSecretRevealWhereUniqueInput!): AccessSecretReveal
+  deleteAccessSecretReveals(where: [AccessSecretRevealWhereUniqueInput!]!): [AccessSecretReveal]
+  createConsentRecord(data: ConsentRecordCreateInput!): ConsentRecord
+  createConsentRecords(data: [ConsentRecordCreateInput!]!): [ConsentRecord]
+  updateConsentRecord(where: ConsentRecordWhereUniqueInput!, data: ConsentRecordUpdateInput!): ConsentRecord
+  updateConsentRecords(data: [ConsentRecordUpdateArgs!]!): [ConsentRecord]
+  deleteConsentRecord(where: ConsentRecordWhereUniqueInput!): ConsentRecord
+  deleteConsentRecords(where: [ConsentRecordWhereUniqueInput!]!): [ConsentRecord]
+  createContact(data: ContactCreateInput!): Contact
+  createContacts(data: [ContactCreateInput!]!): [Contact]
+  updateContact(where: ContactWhereUniqueInput!, data: ContactUpdateInput!): Contact
+  updateContacts(data: [ContactUpdateArgs!]!): [Contact]
+  deleteContact(where: ContactWhereUniqueInput!): Contact
+  deleteContacts(where: [ContactWhereUniqueInput!]!): [Contact]
+  createContactPoint(data: ContactPointCreateInput!): ContactPoint
+  createContactPoints(data: [ContactPointCreateInput!]!): [ContactPoint]
+  updateContactPoint(where: ContactPointWhereUniqueInput!, data: ContactPointUpdateInput!): ContactPoint
+  updateContactPoints(data: [ContactPointUpdateArgs!]!): [ContactPoint]
+  deleteContactPoint(where: ContactPointWhereUniqueInput!): ContactPoint
+  deleteContactPoints(where: [ContactPointWhereUniqueInput!]!): [ContactPoint]
+  createCustomer(data: CustomerCreateInput!): Customer
+  createCustomers(data: [CustomerCreateInput!]!): [Customer]
+  updateCustomer(where: CustomerWhereUniqueInput!, data: CustomerUpdateInput!): Customer
+  updateCustomers(data: [CustomerUpdateArgs!]!): [Customer]
+  deleteCustomer(where: CustomerWhereUniqueInput!): Customer
+  deleteCustomers(where: [CustomerWhereUniqueInput!]!): [Customer]
+  createDncEntry(data: DncEntryCreateInput!): DncEntry
+  createDncEntries(data: [DncEntryCreateInput!]!): [DncEntry]
+  updateDncEntry(where: DncEntryWhereUniqueInput!, data: DncEntryUpdateInput!): DncEntry
+  updateDncEntries(data: [DncEntryUpdateArgs!]!): [DncEntry]
+  deleteDncEntry(where: DncEntryWhereUniqueInput!): DncEntry
+  deleteDncEntries(where: [DncEntryWhereUniqueInput!]!): [DncEntry]
+  createLocationContact(data: LocationContactCreateInput!): LocationContact
+  createLocationContacts(data: [LocationContactCreateInput!]!): [LocationContact]
+  updateLocationContact(where: LocationContactWhereUniqueInput!, data: LocationContactUpdateInput!): LocationContact
+  updateLocationContacts(data: [LocationContactUpdateArgs!]!): [LocationContact]
+  deleteLocationContact(where: LocationContactWhereUniqueInput!): LocationContact
+  deleteLocationContacts(where: [LocationContactWhereUniqueInput!]!): [LocationContact]
+  createLocationOwnership(data: LocationOwnershipCreateInput!): LocationOwnership
+  createLocationOwnerships(data: [LocationOwnershipCreateInput!]!): [LocationOwnership]
+  updateLocationOwnership(where: LocationOwnershipWhereUniqueInput!, data: LocationOwnershipUpdateInput!): LocationOwnership
+  updateLocationOwnerships(data: [LocationOwnershipUpdateArgs!]!): [LocationOwnership]
+  deleteLocationOwnership(where: LocationOwnershipWhereUniqueInput!): LocationOwnership
+  deleteLocationOwnerships(where: [LocationOwnershipWhereUniqueInput!]!): [LocationOwnership]
+  createServiceLocation(data: ServiceLocationCreateInput!): ServiceLocation
+  createServiceLocations(data: [ServiceLocationCreateInput!]!): [ServiceLocation]
+  updateServiceLocation(where: ServiceLocationWhereUniqueInput!, data: ServiceLocationUpdateInput!): ServiceLocation
+  updateServiceLocations(data: [ServiceLocationUpdateArgs!]!): [ServiceLocation]
+  deleteServiceLocation(where: ServiceLocationWhereUniqueInput!): ServiceLocation
+  deleteServiceLocations(where: [ServiceLocationWhereUniqueInput!]!): [ServiceLocation]
+  createCall(data: CallCreateInput!): Call
+  createCalls(data: [CallCreateInput!]!): [Call]
+  updateCall(where: CallWhereUniqueInput!, data: CallUpdateInput!): Call
+  updateCalls(data: [CallUpdateArgs!]!): [Call]
+  deleteCall(where: CallWhereUniqueInput!): Call
+  deleteCalls(where: [CallWhereUniqueInput!]!): [Call]
+  createCampaign(data: CampaignCreateInput!): Campaign
+  createCampaigns(data: [CampaignCreateInput!]!): [Campaign]
+  updateCampaign(where: CampaignWhereUniqueInput!, data: CampaignUpdateInput!): Campaign
+  updateCampaigns(data: [CampaignUpdateArgs!]!): [Campaign]
+  deleteCampaign(where: CampaignWhereUniqueInput!): Campaign
+  deleteCampaigns(where: [CampaignWhereUniqueInput!]!): [Campaign]
+  createConversation(data: ConversationCreateInput!): Conversation
+  createConversations(data: [ConversationCreateInput!]!): [Conversation]
+  updateConversation(where: ConversationWhereUniqueInput!, data: ConversationUpdateInput!): Conversation
+  updateConversations(data: [ConversationUpdateArgs!]!): [Conversation]
+  deleteConversation(where: ConversationWhereUniqueInput!): Conversation
+  deleteConversations(where: [ConversationWhereUniqueInput!]!): [Conversation]
+  createLead(data: LeadCreateInput!): Lead
+  createLeads(data: [LeadCreateInput!]!): [Lead]
+  updateLead(where: LeadWhereUniqueInput!, data: LeadUpdateInput!): Lead
+  updateLeads(data: [LeadUpdateArgs!]!): [Lead]
+  deleteLead(where: LeadWhereUniqueInput!): Lead
+  deleteLeads(where: [LeadWhereUniqueInput!]!): [Lead]
+  createMessage(data: MessageCreateInput!): Message
+  createMessages(data: [MessageCreateInput!]!): [Message]
+  updateMessage(where: MessageWhereUniqueInput!, data: MessageUpdateInput!): Message
+  updateMessages(data: [MessageUpdateArgs!]!): [Message]
+  deleteMessage(where: MessageWhereUniqueInput!): Message
+  deleteMessages(where: [MessageWhereUniqueInput!]!): [Message]
+  createOpportunity(data: OpportunityCreateInput!): Opportunity
+  createOpportunities(data: [OpportunityCreateInput!]!): [Opportunity]
+  updateOpportunity(where: OpportunityWhereUniqueInput!, data: OpportunityUpdateInput!): Opportunity
+  updateOpportunities(data: [OpportunityUpdateArgs!]!): [Opportunity]
+  deleteOpportunity(where: OpportunityWhereUniqueInput!): Opportunity
+  deleteOpportunities(where: [OpportunityWhereUniqueInput!]!): [Opportunity]
+  createTrackingNumber(data: TrackingNumberCreateInput!): TrackingNumber
+  createTrackingNumbers(data: [TrackingNumberCreateInput!]!): [TrackingNumber]
+  updateTrackingNumber(where: TrackingNumberWhereUniqueInput!, data: TrackingNumberUpdateInput!): TrackingNumber
+  updateTrackingNumbers(data: [TrackingNumberUpdateArgs!]!): [TrackingNumber]
+  deleteTrackingNumber(where: TrackingNumberWhereUniqueInput!): TrackingNumber
+  deleteTrackingNumbers(where: [TrackingNumberWhereUniqueInput!]!): [TrackingNumber]
+  createArrivalWindow(data: ArrivalWindowCreateInput!): ArrivalWindow
+  createArrivalWindows(data: [ArrivalWindowCreateInput!]!): [ArrivalWindow]
+  updateArrivalWindow(where: ArrivalWindowWhereUniqueInput!, data: ArrivalWindowUpdateInput!): ArrivalWindow
+  updateArrivalWindows(data: [ArrivalWindowUpdateArgs!]!): [ArrivalWindow]
+  deleteArrivalWindow(where: ArrivalWindowWhereUniqueInput!): ArrivalWindow
+  deleteArrivalWindows(where: [ArrivalWindowWhereUniqueInput!]!): [ArrivalWindow]
+  createArrivalWindowTemplate(data: ArrivalWindowTemplateCreateInput!): ArrivalWindowTemplate
+  createArrivalWindowTemplates(data: [ArrivalWindowTemplateCreateInput!]!): [ArrivalWindowTemplate]
+  updateArrivalWindowTemplate(where: ArrivalWindowTemplateWhereUniqueInput!, data: ArrivalWindowTemplateUpdateInput!): ArrivalWindowTemplate
+  updateArrivalWindowTemplates(data: [ArrivalWindowTemplateUpdateArgs!]!): [ArrivalWindowTemplate]
+  deleteArrivalWindowTemplate(where: ArrivalWindowTemplateWhereUniqueInput!): ArrivalWindowTemplate
+  deleteArrivalWindowTemplates(where: [ArrivalWindowTemplateWhereUniqueInput!]!): [ArrivalWindowTemplate]
+  createBookingHold(data: BookingHoldCreateInput!): BookingHold
+  createBookingHolds(data: [BookingHoldCreateInput!]!): [BookingHold]
+  updateBookingHold(where: BookingHoldWhereUniqueInput!, data: BookingHoldUpdateInput!): BookingHold
+  updateBookingHolds(data: [BookingHoldUpdateArgs!]!): [BookingHold]
+  deleteBookingHold(where: BookingHoldWhereUniqueInput!): BookingHold
+  deleteBookingHolds(where: [BookingHoldWhereUniqueInput!]!): [BookingHold]
+  createCapacityOverride(data: CapacityOverrideCreateInput!): CapacityOverride
+  createCapacityOverrides(data: [CapacityOverrideCreateInput!]!): [CapacityOverride]
+  updateCapacityOverride(where: CapacityOverrideWhereUniqueInput!, data: CapacityOverrideUpdateInput!): CapacityOverride
+  updateCapacityOverrides(data: [CapacityOverrideUpdateArgs!]!): [CapacityOverride]
+  deleteCapacityOverride(where: CapacityOverrideWhereUniqueInput!): CapacityOverride
+  deleteCapacityOverrides(where: [CapacityOverrideWhereUniqueInput!]!): [CapacityOverride]
+  createCapacityPlan(data: CapacityPlanCreateInput!): CapacityPlan
+  createCapacityPlans(data: [CapacityPlanCreateInput!]!): [CapacityPlan]
+  updateCapacityPlan(where: CapacityPlanWhereUniqueInput!, data: CapacityPlanUpdateInput!): CapacityPlan
+  updateCapacityPlans(data: [CapacityPlanUpdateArgs!]!): [CapacityPlan]
+  deleteCapacityPlan(where: CapacityPlanWhereUniqueInput!): CapacityPlan
+  deleteCapacityPlans(where: [CapacityPlanWhereUniqueInput!]!): [CapacityPlan]
+  createCapacityUsage(data: CapacityUsageCreateInput!): CapacityUsage
+  createCapacityUsages(data: [CapacityUsageCreateInput!]!): [CapacityUsage]
+  updateCapacityUsage(where: CapacityUsageWhereUniqueInput!, data: CapacityUsageUpdateInput!): CapacityUsage
+  updateCapacityUsages(data: [CapacityUsageUpdateArgs!]!): [CapacityUsage]
+  deleteCapacityUsage(where: CapacityUsageWhereUniqueInput!): CapacityUsage
+  deleteCapacityUsages(where: [CapacityUsageWhereUniqueInput!]!): [CapacityUsage]
+  createJobType(data: JobTypeCreateInput!): JobType
+  createJobTypes(data: [JobTypeCreateInput!]!): [JobType]
+  updateJobType(where: JobTypeWhereUniqueInput!, data: JobTypeUpdateInput!): JobType
+  updateJobTypes(data: [JobTypeUpdateArgs!]!): [JobType]
+  deleteJobType(where: JobTypeWhereUniqueInput!): JobType
+  deleteJobTypes(where: [JobTypeWhereUniqueInput!]!): [JobType]
+  createChecklistResponse(data: ChecklistResponseCreateInput!): ChecklistResponse
+  createChecklistResponses(data: [ChecklistResponseCreateInput!]!): [ChecklistResponse]
+  updateChecklistResponse(where: ChecklistResponseWhereUniqueInput!, data: ChecklistResponseUpdateInput!): ChecklistResponse
+  updateChecklistResponses(data: [ChecklistResponseUpdateArgs!]!): [ChecklistResponse]
+  deleteChecklistResponse(where: ChecklistResponseWhereUniqueInput!): ChecklistResponse
+  deleteChecklistResponses(where: [ChecklistResponseWhereUniqueInput!]!): [ChecklistResponse]
+  createChecklistTemplate(data: ChecklistTemplateCreateInput!): ChecklistTemplate
+  createChecklistTemplates(data: [ChecklistTemplateCreateInput!]!): [ChecklistTemplate]
+  updateChecklistTemplate(where: ChecklistTemplateWhereUniqueInput!, data: ChecklistTemplateUpdateInput!): ChecklistTemplate
+  updateChecklistTemplates(data: [ChecklistTemplateUpdateArgs!]!): [ChecklistTemplate]
+  deleteChecklistTemplate(where: ChecklistTemplateWhereUniqueInput!): ChecklistTemplate
+  deleteChecklistTemplates(where: [ChecklistTemplateWhereUniqueInput!]!): [ChecklistTemplate]
+  createDispatchRecommendation(data: DispatchRecommendationCreateInput!): DispatchRecommendation
+  createDispatchRecommendations(data: [DispatchRecommendationCreateInput!]!): [DispatchRecommendation]
+  updateDispatchRecommendation(where: DispatchRecommendationWhereUniqueInput!, data: DispatchRecommendationUpdateInput!): DispatchRecommendation
+  updateDispatchRecommendations(data: [DispatchRecommendationUpdateArgs!]!): [DispatchRecommendation]
+  deleteDispatchRecommendation(where: DispatchRecommendationWhereUniqueInput!): DispatchRecommendation
+  deleteDispatchRecommendations(where: [DispatchRecommendationWhereUniqueInput!]!): [DispatchRecommendation]
+  createJob(data: JobCreateInput!): Job
+  createJobs(data: [JobCreateInput!]!): [Job]
+  updateJob(where: JobWhereUniqueInput!, data: JobUpdateInput!): Job
+  updateJobs(data: [JobUpdateArgs!]!): [Job]
+  deleteJob(where: JobWhereUniqueInput!): Job
+  deleteJobs(where: [JobWhereUniqueInput!]!): [Job]
+  createJobPayer(data: JobPayerCreateInput!): JobPayer
+  createJobPayers(data: [JobPayerCreateInput!]!): [JobPayer]
+  updateJobPayer(where: JobPayerWhereUniqueInput!, data: JobPayerUpdateInput!): JobPayer
+  updateJobPayers(data: [JobPayerUpdateArgs!]!): [JobPayer]
+  deleteJobPayer(where: JobPayerWhereUniqueInput!): JobPayer
+  deleteJobPayers(where: [JobPayerWhereUniqueInput!]!): [JobPayer]
+  createVisit(data: VisitCreateInput!): Visit
+  createVisits(data: [VisitCreateInput!]!): [Visit]
+  updateVisit(where: VisitWhereUniqueInput!, data: VisitUpdateInput!): Visit
+  updateVisits(data: [VisitUpdateArgs!]!): [Visit]
+  deleteVisit(where: VisitWhereUniqueInput!): Visit
+  deleteVisits(where: [VisitWhereUniqueInput!]!): [Visit]
+  createVisitAssignment(data: VisitAssignmentCreateInput!): VisitAssignment
+  createVisitAssignments(data: [VisitAssignmentCreateInput!]!): [VisitAssignment]
+  updateVisitAssignment(where: VisitAssignmentWhereUniqueInput!, data: VisitAssignmentUpdateInput!): VisitAssignment
+  updateVisitAssignments(data: [VisitAssignmentUpdateArgs!]!): [VisitAssignment]
+  deleteVisitAssignment(where: VisitAssignmentWhereUniqueInput!): VisitAssignment
+  deleteVisitAssignments(where: [VisitAssignmentWhereUniqueInput!]!): [VisitAssignment]
+  createVisitStatusEvent(data: VisitStatusEventCreateInput!): VisitStatusEvent
+  createVisitStatusEvents(data: [VisitStatusEventCreateInput!]!): [VisitStatusEvent]
+  updateVisitStatusEvent(where: VisitStatusEventWhereUniqueInput!, data: VisitStatusEventUpdateInput!): VisitStatusEvent
+  updateVisitStatusEvents(data: [VisitStatusEventUpdateArgs!]!): [VisitStatusEvent]
+  deleteVisitStatusEvent(where: VisitStatusEventWhereUniqueInput!): VisitStatusEvent
+  deleteVisitStatusEvents(where: [VisitStatusEventWhereUniqueInput!]!): [VisitStatusEvent]
+  createWorkLine(data: WorkLineCreateInput!): WorkLine
+  createWorkLines(data: [WorkLineCreateInput!]!): [WorkLine]
+  updateWorkLine(where: WorkLineWhereUniqueInput!, data: WorkLineUpdateInput!): WorkLine
+  updateWorkLines(data: [WorkLineUpdateArgs!]!): [WorkLine]
+  deleteWorkLine(where: WorkLineWhereUniqueInput!): WorkLine
+  deleteWorkLines(where: [WorkLineWhereUniqueInput!]!): [WorkLine]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -4226,6 +8795,35 @@ type Mutation {
   cancelApprovalRequest(requestId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
   requestCompanyControls(changes: JSON!, reason: String!, idempotencyKey: String!): JSON
   setCompanyOnboardingStatus(status: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  materializeWindows(from: String!, days: Int!, businessUnitIds: [ID!], idempotencyKey: String!): JSON
+  holdWindow(windowId: ID!, jobTypeId: ID!, source: String!, minutes: Int, customerDraft: JSON, idempotencyKey: String!): JSON
+  releaseHold(holdId: ID!, idempotencyKey: String!): JSON
+  bookJob(holdId: ID, windowId: ID, jobTypeId: ID!, customerId: ID, locationId: ID, customer: JSON, location: JSON, summary: String, source: String, leadId: ID, smsConsent: Boolean, idempotencyKey: String!): JSON
+  addCustomer(customer: JSON!, location: JSON, smsConsent: Boolean, idempotencyKey: String!): JSON
+  addServiceLocation(customerId: ID!, location: JSON!, idempotencyKey: String!): JSON
+  addContactPoint(contactId: ID!, kind: String!, value: String!, isPrimary: Boolean, idempotencyKey: String!): JSON
+  storeAccessSecret(locationId: ID!, kind: String!, label: String, secret: String!, idempotencyKey: String!): JSON
+  revealAccessSecret(accessSecretId: ID!, visitId: ID!, reason: String): JSON
+  ingestLead(source: String!, externalId: String, campaignId: ID, contactName: String, phone: String, email: String, summary: String, requestedJobTypeId: ID, postalCode: String, idempotencyKey: String!): JSON
+  markLeadContacted(leadId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  qualifyLead(leadId: ID!, expectedVersion: Int!, requestedJobTypeId: ID!, locationId: ID, postalCode: String, idempotencyKey: String!): JSON
+  loseLead(leadId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
+  markLeadSpam(leadId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  mergeLead(leadId: ID!, expectedVersion: Int!, intoLeadId: ID!, idempotencyKey: String!): JSON
+  recommendDispatch(visitId: ID!, idempotencyKey: String!): JSON
+  assignVisit(visitId: ID!, expectedVersion: Int!, employeeIds: [ID!]!, leadEmployeeId: ID, recommendationId: ID, overrideReason: String, idempotencyKey: String!): JSON
+  unassignVisit(visitId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
+  setVisitStatus(visitId: ID!, to: String!, expectedVersion: Int, reason: String, clientRecordedAt: String, deviceEventKey: String, lat: String, lng: String, idempotencyKey: String!): JSON
+  holdJob(jobId: ID!, expectedVersion: Int!, reason: String!, followUpOn: String!, idempotencyKey: String!): JSON
+  releaseJobHold(jobId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  cancelJob(jobId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
+  recordConsent(contactPointId: ID, customerId: ID, phone: String, purpose: String!, action: String!, channel: String!, evidence: JSON, wordingVersion: String, idempotencyKey: String!): JSON
+  requeueMessage(messageId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  markMessageSent(messageId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  handoffToHuman(callId: ID!, reason: String!, summary: String, idempotencyKey: String!): JSON
+  pageOnCall(callId: ID, businessUnitId: ID, summary: String!, idempotencyKey: String!): JSON
+  verifyCredential(credentialId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  revokeCredential(credentialId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -4365,12 +8963,143 @@ type Query {
   agentScopeGrant(where: AgentScopeGrantWhereUniqueInput!): AgentScopeGrant
   agentScopeGrants(where: AgentScopeGrantWhereInput! = {}, orderBy: [AgentScopeGrantOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AgentScopeGrantWhereUniqueInput): [AgentScopeGrant!]
   agentScopeGrantsCount(where: AgentScopeGrantWhereInput! = {}): Int
+  credential(where: CredentialWhereUniqueInput!): Credential
+  credentials(where: CredentialWhereInput! = {}, orderBy: [CredentialOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CredentialWhereUniqueInput): [Credential!]
+  credentialsCount(where: CredentialWhereInput! = {}): Int
+  crew(where: CrewWhereUniqueInput!): Crew
+  crews(where: CrewWhereInput! = {}, orderBy: [CrewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CrewWhereUniqueInput): [Crew!]
+  crewsCount(where: CrewWhereInput! = {}): Int
+  eligibilityEvaluation(where: EligibilityEvaluationWhereUniqueInput!): EligibilityEvaluation
+  eligibilityEvaluations(where: EligibilityEvaluationWhereInput! = {}, orderBy: [EligibilityEvaluationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EligibilityEvaluationWhereUniqueInput): [EligibilityEvaluation!]
+  eligibilityEvaluationsCount(where: EligibilityEvaluationWhereInput! = {}): Int
+  employee(where: EmployeeWhereUniqueInput!): Employee
+  employees(where: EmployeeWhereInput! = {}, orderBy: [EmployeeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EmployeeWhereUniqueInput): [Employee!]
+  employeesCount(where: EmployeeWhereInput! = {}): Int
+  jobTypeRequirement(where: JobTypeRequirementWhereUniqueInput!): JobTypeRequirement
+  jobTypeRequirements(where: JobTypeRequirementWhereInput! = {}, orderBy: [JobTypeRequirementOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: JobTypeRequirementWhereUniqueInput): [JobTypeRequirement!]
+  jobTypeRequirementsCount(where: JobTypeRequirementWhereInput! = {}): Int
+  onCallRotation(where: OnCallRotationWhereUniqueInput!): OnCallRotation
+  onCallRotations(where: OnCallRotationWhereInput! = {}, orderBy: [OnCallRotationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OnCallRotationWhereUniqueInput): [OnCallRotation!]
+  onCallRotationsCount(where: OnCallRotationWhereInput! = {}): Int
+  shift(where: ShiftWhereUniqueInput!): Shift
+  shifts(where: ShiftWhereInput! = {}, orderBy: [ShiftOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ShiftWhereUniqueInput): [Shift!]
+  shiftsCount(where: ShiftWhereInput! = {}): Int
+  shiftTemplate(where: ShiftTemplateWhereUniqueInput!): ShiftTemplate
+  shiftTemplates(where: ShiftTemplateWhereInput! = {}, orderBy: [ShiftTemplateOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ShiftTemplateWhereUniqueInput): [ShiftTemplate!]
+  shiftTemplatesCount(where: ShiftTemplateWhereInput! = {}): Int
+  skill(where: SkillWhereUniqueInput!): Skill
+  skills(where: SkillWhereInput! = {}, orderBy: [SkillOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SkillWhereUniqueInput): [Skill!]
+  skillsCount(where: SkillWhereInput! = {}): Int
+  accessSecret(where: AccessSecretWhereUniqueInput!): AccessSecret
+  accessSecrets(where: AccessSecretWhereInput! = {}, orderBy: [AccessSecretOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AccessSecretWhereUniqueInput): [AccessSecret!]
+  accessSecretsCount(where: AccessSecretWhereInput! = {}): Int
+  accessSecretReveal(where: AccessSecretRevealWhereUniqueInput!): AccessSecretReveal
+  accessSecretReveals(where: AccessSecretRevealWhereInput! = {}, orderBy: [AccessSecretRevealOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AccessSecretRevealWhereUniqueInput): [AccessSecretReveal!]
+  accessSecretRevealsCount(where: AccessSecretRevealWhereInput! = {}): Int
+  consentRecord(where: ConsentRecordWhereUniqueInput!): ConsentRecord
+  consentRecords(where: ConsentRecordWhereInput! = {}, orderBy: [ConsentRecordOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ConsentRecordWhereUniqueInput): [ConsentRecord!]
+  consentRecordsCount(where: ConsentRecordWhereInput! = {}): Int
+  contact(where: ContactWhereUniqueInput!): Contact
+  contacts(where: ContactWhereInput! = {}, orderBy: [ContactOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ContactWhereUniqueInput): [Contact!]
+  contactsCount(where: ContactWhereInput! = {}): Int
+  contactPoint(where: ContactPointWhereUniqueInput!): ContactPoint
+  contactPoints(where: ContactPointWhereInput! = {}, orderBy: [ContactPointOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ContactPointWhereUniqueInput): [ContactPoint!]
+  contactPointsCount(where: ContactPointWhereInput! = {}): Int
+  customer(where: CustomerWhereUniqueInput!): Customer
+  customers(where: CustomerWhereInput! = {}, orderBy: [CustomerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CustomerWhereUniqueInput): [Customer!]
+  customersCount(where: CustomerWhereInput! = {}): Int
+  dncEntry(where: DncEntryWhereUniqueInput!): DncEntry
+  dncEntries(where: DncEntryWhereInput! = {}, orderBy: [DncEntryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DncEntryWhereUniqueInput): [DncEntry!]
+  dncEntriesCount(where: DncEntryWhereInput! = {}): Int
+  locationContact(where: LocationContactWhereUniqueInput!): LocationContact
+  locationContacts(where: LocationContactWhereInput! = {}, orderBy: [LocationContactOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LocationContactWhereUniqueInput): [LocationContact!]
+  locationContactsCount(where: LocationContactWhereInput! = {}): Int
+  locationOwnership(where: LocationOwnershipWhereUniqueInput!): LocationOwnership
+  locationOwnerships(where: LocationOwnershipWhereInput! = {}, orderBy: [LocationOwnershipOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LocationOwnershipWhereUniqueInput): [LocationOwnership!]
+  locationOwnershipsCount(where: LocationOwnershipWhereInput! = {}): Int
+  serviceLocation(where: ServiceLocationWhereUniqueInput!): ServiceLocation
+  serviceLocations(where: ServiceLocationWhereInput! = {}, orderBy: [ServiceLocationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ServiceLocationWhereUniqueInput): [ServiceLocation!]
+  serviceLocationsCount(where: ServiceLocationWhereInput! = {}): Int
+  call(where: CallWhereUniqueInput!): Call
+  calls(where: CallWhereInput! = {}, orderBy: [CallOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CallWhereUniqueInput): [Call!]
+  callsCount(where: CallWhereInput! = {}): Int
+  campaign(where: CampaignWhereUniqueInput!): Campaign
+  campaigns(where: CampaignWhereInput! = {}, orderBy: [CampaignOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CampaignWhereUniqueInput): [Campaign!]
+  campaignsCount(where: CampaignWhereInput! = {}): Int
+  conversation(where: ConversationWhereUniqueInput!): Conversation
+  conversations(where: ConversationWhereInput! = {}, orderBy: [ConversationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ConversationWhereUniqueInput): [Conversation!]
+  conversationsCount(where: ConversationWhereInput! = {}): Int
+  lead(where: LeadWhereUniqueInput!): Lead
+  leads(where: LeadWhereInput! = {}, orderBy: [LeadOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LeadWhereUniqueInput): [Lead!]
+  leadsCount(where: LeadWhereInput! = {}): Int
+  message(where: MessageWhereUniqueInput!): Message
+  messages(where: MessageWhereInput! = {}, orderBy: [MessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MessageWhereUniqueInput): [Message!]
+  messagesCount(where: MessageWhereInput! = {}): Int
+  opportunity(where: OpportunityWhereUniqueInput!): Opportunity
+  opportunities(where: OpportunityWhereInput! = {}, orderBy: [OpportunityOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OpportunityWhereUniqueInput): [Opportunity!]
+  opportunitiesCount(where: OpportunityWhereInput! = {}): Int
+  trackingNumber(where: TrackingNumberWhereUniqueInput!): TrackingNumber
+  trackingNumbers(where: TrackingNumberWhereInput! = {}, orderBy: [TrackingNumberOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TrackingNumberWhereUniqueInput): [TrackingNumber!]
+  trackingNumbersCount(where: TrackingNumberWhereInput! = {}): Int
+  arrivalWindow(where: ArrivalWindowWhereUniqueInput!): ArrivalWindow
+  arrivalWindows(where: ArrivalWindowWhereInput! = {}, orderBy: [ArrivalWindowOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ArrivalWindowWhereUniqueInput): [ArrivalWindow!]
+  arrivalWindowsCount(where: ArrivalWindowWhereInput! = {}): Int
+  arrivalWindowTemplate(where: ArrivalWindowTemplateWhereUniqueInput!): ArrivalWindowTemplate
+  arrivalWindowTemplates(where: ArrivalWindowTemplateWhereInput! = {}, orderBy: [ArrivalWindowTemplateOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ArrivalWindowTemplateWhereUniqueInput): [ArrivalWindowTemplate!]
+  arrivalWindowTemplatesCount(where: ArrivalWindowTemplateWhereInput! = {}): Int
+  bookingHold(where: BookingHoldWhereUniqueInput!): BookingHold
+  bookingHolds(where: BookingHoldWhereInput! = {}, orderBy: [BookingHoldOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BookingHoldWhereUniqueInput): [BookingHold!]
+  bookingHoldsCount(where: BookingHoldWhereInput! = {}): Int
+  capacityOverride(where: CapacityOverrideWhereUniqueInput!): CapacityOverride
+  capacityOverrides(where: CapacityOverrideWhereInput! = {}, orderBy: [CapacityOverrideOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CapacityOverrideWhereUniqueInput): [CapacityOverride!]
+  capacityOverridesCount(where: CapacityOverrideWhereInput! = {}): Int
+  capacityPlan(where: CapacityPlanWhereUniqueInput!): CapacityPlan
+  capacityPlans(where: CapacityPlanWhereInput! = {}, orderBy: [CapacityPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CapacityPlanWhereUniqueInput): [CapacityPlan!]
+  capacityPlansCount(where: CapacityPlanWhereInput! = {}): Int
+  capacityUsage(where: CapacityUsageWhereUniqueInput!): CapacityUsage
+  capacityUsages(where: CapacityUsageWhereInput! = {}, orderBy: [CapacityUsageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CapacityUsageWhereUniqueInput): [CapacityUsage!]
+  capacityUsagesCount(where: CapacityUsageWhereInput! = {}): Int
+  jobType(where: JobTypeWhereUniqueInput!): JobType
+  jobTypes(where: JobTypeWhereInput! = {}, orderBy: [JobTypeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: JobTypeWhereUniqueInput): [JobType!]
+  jobTypesCount(where: JobTypeWhereInput! = {}): Int
+  checklistResponse(where: ChecklistResponseWhereUniqueInput!): ChecklistResponse
+  checklistResponses(where: ChecklistResponseWhereInput! = {}, orderBy: [ChecklistResponseOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ChecklistResponseWhereUniqueInput): [ChecklistResponse!]
+  checklistResponsesCount(where: ChecklistResponseWhereInput! = {}): Int
+  checklistTemplate(where: ChecklistTemplateWhereUniqueInput!): ChecklistTemplate
+  checklistTemplates(where: ChecklistTemplateWhereInput! = {}, orderBy: [ChecklistTemplateOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ChecklistTemplateWhereUniqueInput): [ChecklistTemplate!]
+  checklistTemplatesCount(where: ChecklistTemplateWhereInput! = {}): Int
+  dispatchRecommendation(where: DispatchRecommendationWhereUniqueInput!): DispatchRecommendation
+  dispatchRecommendations(where: DispatchRecommendationWhereInput! = {}, orderBy: [DispatchRecommendationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DispatchRecommendationWhereUniqueInput): [DispatchRecommendation!]
+  dispatchRecommendationsCount(where: DispatchRecommendationWhereInput! = {}): Int
+  job(where: JobWhereUniqueInput!): Job
+  jobs(where: JobWhereInput! = {}, orderBy: [JobOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: JobWhereUniqueInput): [Job!]
+  jobsCount(where: JobWhereInput! = {}): Int
+  jobPayer(where: JobPayerWhereUniqueInput!): JobPayer
+  jobPayers(where: JobPayerWhereInput! = {}, orderBy: [JobPayerOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: JobPayerWhereUniqueInput): [JobPayer!]
+  jobPayersCount(where: JobPayerWhereInput! = {}): Int
+  visit(where: VisitWhereUniqueInput!): Visit
+  visits(where: VisitWhereInput! = {}, orderBy: [VisitOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VisitWhereUniqueInput): [Visit!]
+  visitsCount(where: VisitWhereInput! = {}): Int
+  visitAssignment(where: VisitAssignmentWhereUniqueInput!): VisitAssignment
+  visitAssignments(where: VisitAssignmentWhereInput! = {}, orderBy: [VisitAssignmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VisitAssignmentWhereUniqueInput): [VisitAssignment!]
+  visitAssignmentsCount(where: VisitAssignmentWhereInput! = {}): Int
+  visitStatusEvent(where: VisitStatusEventWhereUniqueInput!): VisitStatusEvent
+  visitStatusEvents(where: VisitStatusEventWhereInput! = {}, orderBy: [VisitStatusEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VisitStatusEventWhereUniqueInput): [VisitStatusEvent!]
+  visitStatusEventsCount(where: VisitStatusEventWhereInput! = {}): Int
+  workLine(where: WorkLineWhereUniqueInput!): WorkLine
+  workLines(where: WorkLineWhereInput! = {}, orderBy: [WorkLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WorkLineWhereUniqueInput): [WorkLine!]
+  workLinesCount(where: WorkLineWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   validateUserPasswordResetToken(email: String!, token: String!): ValidateUserPasswordResetTokenResult
   redirectToInit: Boolean
   verifyAuditChain: JSON
   resolvePolicy(kind: String!, state: String, county: String, city: String, zip: String, branchId: ID, on: String!): JSON
+  availableWindows(jobTypeId: ID!, postalCode: String!, from: String!, days: Int): JSON
+  lookupCustomer(phone: String, email: String, name: String, postalCode: String): JSON
+  customerHistory(customerId: ID!, limit: Int): JSON
+  matchJobType(description: String!, postalCode: String): JSON
+  checkEligibility(visitId: ID!, employeeIds: [ID!]!): JSON
 }
 
 union AuthenticatedItem = User

@@ -28,4 +28,8 @@ export function delegateOf(tx: Tx, model: string) {
   }
 }
 
-export const TRANSACTION_OPTIONS = { maxWait: 15_000, timeout: 60_000 } as const
+/** maxWait is how long a transaction may queue for a pooled connection (HS_TX_MAX_WAIT_MS overrides it for load tests). */
+export const TRANSACTION_OPTIONS = {
+  get maxWait() { return Number.parseInt(process.env.HS_TX_MAX_WAIT_MS ?? '', 10) || 15_000 },
+  timeout: 60_000,
+}

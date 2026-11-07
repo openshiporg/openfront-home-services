@@ -1,5 +1,6 @@
 import { APPROVAL_POLICIES, BRANCH, BUSINESS_UNITS, COMPANY, LICENSES, ROLES, SERVICE_AREAS, STAFF } from '@/features/keystone/seed/company'
 import { POLICY_PACKS } from '@/features/keystone/seed/policyPacks'
+import { CAMPAIGNS, COMMERCIAL, HOUSEHOLDS, JOB_TYPES, TECHS, WINDOW_TEMPLATES } from '@/features/keystone/seed/operationsData'
 
 /**
  * What "Load Summit Plumbing & Air" creates, section by section. Each section is one idempotent
@@ -21,6 +22,22 @@ export const SETUP_SECTIONS = [
       'Federal business-day calendar and office hours 2026-2028',
       `${APPROVAL_POLICIES.length} maker-checker approval policies`,
       `${POLICY_PACKS.length} federal and Texas policy packs (cancellation rights, contact hours, tax, licensing, liens)`,
+    ],
+  },
+  {
+    id: 'operations',
+    title: 'Technicians, job types and customers',
+    mutation: 'mutation LoadOperations($idempotencyKey: String!) { loadOperationsSetup(idempotencyKey: $idempotencyKey) }',
+    field: 'loadOperationsSetup',
+    items: [
+      ...TECHS.map(t => `${t.first} ${t.last} · ${t.title}`),
+      'Rachel Kim · Comfort Advisor (sales visits)',
+      `${JOB_TYPES.length} job types with Texas licensing requirements, AI keywords and emergency scripts`,
+      `${WINDOW_TEMPLATES.length} arrival-window templates (2-hour service windows, half-day installs, half-capacity Saturdays)`,
+      'Weekly shifts and four weeks of on-call for HVAC, plumbing and electrical',
+      `${CAMPAIGNS.length} marketing campaigns with tracking numbers`,
+      `${HOUSEHOLDS.length} households across Austin, Round Rock, Pflugerville and Cedar Park, plus ${COMMERCIAL.displayName}`,
+      'The next 21 days of arrival windows and shifts',
     ],
   },
 ] as const

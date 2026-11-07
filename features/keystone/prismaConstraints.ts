@@ -13,6 +13,14 @@ export const COMPOUND_UNIQUES: Record<string, string[]> = {
   PolicyVersion: ['@@unique([packId, versionNumber], map: "PolicyVersion_pack_number_key")'],
   PolicyBinding: ['@@unique([packId, scope, scopeValue], map: "PolicyBinding_pack_scope_key")'],
   RoleLimit: ['@@unique([roleId, kind], map: "RoleLimit_role_kind_key")'],
+  // Phase 1: CRM, booking and dispatch
+  ContactPoint: ['@@unique([contactId, kind, value], map: "ContactPoint_contact_kind_value_key")'],
+  ArrivalWindow: ['@@unique([businessUnitId, date, startsAt], map: "ArrivalWindow_bu_date_start_key")'],
+  ArrivalWindowTemplate: ['@@unique([businessUnitId, weekday, startLocal], map: "ArrivalWindowTemplate_bu_day_start_key")'],
+  ShiftTemplate: ['@@unique([employeeId, weekday], map: "ShiftTemplate_employee_day_key")'],
+  Shift: ['@@unique([employeeId, date, kind], map: "Shift_employee_date_kind_key")'],
+  CapacityPlan: ['@@unique([businessUnitId, date], map: "CapacityPlan_bu_date_key")'],
+  Visit: ['@@index([status, plannedStart], map: "Visit_status_planned_idx")'],
 }
 
 export function addDatabaseConstraints(schema: string): string {

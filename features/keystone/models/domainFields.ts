@@ -12,12 +12,15 @@ export const minor = (options: { required?: boolean; defaultValue?: bigint; desc
 export const ccy = () =>
   text({ defaultValue: 'USD', validation: { isRequired: true, match: { regex: /^[A-Z]{3}$/, explanation: 'ISO 4217 currency code required' } } })
 
-const exact = (precision: number, scale: number) => (options: { required?: boolean; description?: string } = {}) =>
+type FieldLock = { access?: { create?: () => boolean; update?: () => boolean }; ui?: { createView?: { fieldMode: 'hidden' | 'edit' }; itemView?: { fieldMode: 'read' | 'edit' } } }
+
+const exact = (precision: number, scale: number) => (options: { required?: boolean; description?: string } & FieldLock = {}) =>
   decimal({
     precision,
     scale,
     validation: { isRequired: options.required ?? false },
-    ...(options.description ? { ui: { description: options.description } } : {}),
+    ...(options.access ? { access: options.access } : {}),
+    ...(options.ui || options.description ? { ui: { ...(options.ui ?? {}), ...(options.description ? { description: options.description } : {}) } } : {}),
   })
 
 /** Quantities (parts, feet, lb, hours, credits): numeric(18,4) (SCHEMA G3). */
@@ -31,7 +34,7 @@ export const geo = exact(9, 6)
 export const bps = (defaultValue?: number) =>
   integer({ ...(defaultValue !== undefined ? { defaultValue } : {}), validation: { isRequired: defaultValue !== undefined } })
 
-const option = (value: string) => ({ label: value.replaceAll('_', ' ').replaceAll('.', ' · '), value })
+const option = (value: string) => ({ label: value ? value.replaceAll('_', ' ').replaceAll('.', ' · ') : 'none', value })
 
 /**
  * A lifecycle status. It changes only through transition mutations (SCHEMA G6): never through the
@@ -77,10 +80,11 @@ export const systemText = (options: { indexed?: boolean | 'unique'; required?: b
 export const readOnly = { access: { create: () => false, update: () => false }, ui: { createView: { fieldMode: 'hidden' as const }, itemView: { fieldMode: 'read' as const } } }
 
 /** A choice fixed at creation by server code (e.g. a grant scope): visible, never edited. */
-export const fixedChoice = (values: readonly string[]) =>
+export const fixedChoice = (values: readonly string[], initial?: string) =>
   select({
     type: 'string',
     options: values.map(option),
+    ...(initial !== undefined ? { defaultValue: initial } : values[0] === '' ? { defaultValue: '' } : {}),
     validation: { isRequired: true },
     access: { create: () => false, update: () => false },
     ui: { createView: { fieldMode: 'hidden' }, itemView: { fieldMode: 'read' } },

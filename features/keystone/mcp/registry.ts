@@ -9,6 +9,8 @@
  * price-book, policy and pay publication; access-secret reveal; customer merges; marketing sends.
  */
 
+import { PHASE1_TOOLS } from './phase1Tools'
+
 export const FORBIDDEN_TOOL_PATTERNS = [/refund/i, /credit/i, /write.?off/i, /approve/i, /publish/i, /reveal/i, /merge/i, /campaign/i, /^decide/i, /secret/i, /^(create|update|delete)Data$/i]
 
 export type DomainTool = {
@@ -42,6 +44,14 @@ export const DOMAIN_TOOLS: DomainTool[] = [
     writes: true,
   },
   {
+    name: 'loadOperationsSetup',
+    description: "Load Summit's field operation after the company: 12 technicians with Texas licences and EPA 608 cards, job types with licensing rules and emergency scripts, arrival windows, shifts, on-call, campaigns and 61 fictional customers; then opens the next 21 days of windows. Idempotent. Needs canManageOnboarding.",
+    inputSchema: { type: 'object', properties: { idempotencyKey }, required: ['idempotencyKey'], additionalProperties: false },
+    document: 'mutation LoadOperationsSetup($idempotencyKey: String!) { loadOperationsSetup(idempotencyKey: $idempotencyKey) }',
+    field: 'loadOperationsSetup',
+    writes: true,
+  },
+  {
     name: 'policy.resolve',
     description: 'Which jurisdiction policy version governs a place on a date (cancellation rights, contact hours, tax, licensing, liens). Fails closed when no policy or more than one applies.',
     inputSchema: {
@@ -70,6 +80,7 @@ export function assertRegistrySafe(tools: DomainTool[] = DOMAIN_TOOLS) {
     if (FORBIDDEN_TOOL_PATTERNS.some(pattern => pattern.test(tool.name))) throw new Error(`Tool ${tool.name} exposes a human-only capability`)
   }
 }
+DOMAIN_TOOLS.push(...PHASE1_TOOLS)
 assertRegistrySafe()
 
 export function registerDomainTools(tools: DomainTool[]) {
@@ -83,7 +94,7 @@ export function registerDomainTools(tools: DomainTool[]) {
 /** Minimal JSON-schema check for the flat argument objects our tools take. */
 export function validateArguments(tool: DomainTool, args: Record<string, unknown>) {
   const problems: string[] = []
-  const properties = tool.inputSchema.properties as Record<string, { type?: string; enum?: unknown[]; minLength?: number; maxLength?: number; pattern?: string }>
+  const properties = tool.inputSchema.properties as Record<string, { type?: string; enum?: unknown[]; minLength?: number; maxLength?: number; pattern?: string; minimum?: number; maximum?: number; minItems?: number; maxItems?: number }>
   for (const key of tool.inputSchema.required) if (args[key] === undefined || args[key] === null || args[key] === '') problems.push(`${key} is required`)
   for (const [key, value] of Object.entries(args)) {
     const spec = properties[key]
@@ -95,6 +106,11 @@ export function validateArguments(tool: DomainTool, args: Record<string, unknown
     if (spec.type === 'integer' && !Number.isSafeInteger(value)) problems.push(`${key} must be an integer`)
     if (spec.type === 'boolean' && typeof value !== 'boolean') problems.push(`${key} must be true or false`)
     if (spec.type === 'object' && (typeof value !== 'object' || value === null || Array.isArray(value))) problems.push(`${key} must be an object`)
+    if (spec.type === 'array') {
+      if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) problems.push(`${key} must be a list of ids`)
+      else if ((spec.minItems && value.length < spec.minItems) || (spec.maxItems && value.length > spec.maxItems)) problems.push(`${key} has the wrong number of items`)
+    }
+    if (spec.type === 'integer' && Number.isSafeInteger(value) && ((spec.minimum !== undefined && (value as number) < spec.minimum) || (spec.maximum !== undefined && (value as number) > spec.maximum))) problems.push(`${key} is out of range`)
     if (spec.enum && !spec.enum.includes(value)) problems.push(`${key} must be one of ${spec.enum.join(', ')}`)
     if (typeof value === 'string') {
       if (spec.minLength && value.length < spec.minLength) problems.push(`${key} is too short`)

@@ -4,6 +4,9 @@ import { actorFor } from './actorFor'
 import { command } from '../lib/command'
 import { DomainError, Codes } from '../lib/errors'
 import { seedCompanyPlatform } from '../seed/platform'
+import { seedOperations } from '../seed/operations'
+import { materializeWindows } from '../services/booking'
+import { localDate } from '../lib/calendar'
 
 /** Onboarding: load the Summit Plumbing & Air company spine. Idempotent per key and per record. */
 export async function loadCompanySetup(_root: unknown, args: { idempotencyKey: string }, context: any) {
@@ -15,6 +18,24 @@ export async function loadCompanySetup(_root: unknown, args: { idempotencyKey: s
     return created
   })
   return { replay: result.replay, created: result.value }
+}
+
+/**
+ * Onboarding step 2: Summit's technicians, licences, job types, arrival windows, on-call, campaigns
+ * and households, then the next 21 days of windows and shifts. Needs the company spine first.
+ */
+export async function loadOperationsSetup(_root: unknown, args: { idempotencyKey: string }, context: any) {
+  const actor = await actorFor(context)
+  await authorizeOperation(context.prisma, actor, 'loadOperationsSetup', ['canManageOnboarding'])
+  if (!(await context.prisma.businessUnit.count({ where: { id: { startsWith: 'seed_bu_' } } }))) throw new DomainError(Codes.GUARD_FAILED, 'Load the company first.', { reason: 'company_missing' })
+  const result = await command(context.prisma, { name: 'setup.load_operations', actor, idempotencyKey: args.idempotencyKey, params: {} }, async uow => {
+    const created = await seedOperations(uow, actor)
+    await recordAgentAction(uow, actor, { tool: 'loadOperationsSetup', idempotencyKey: args.idempotencyKey, inputs: {}, output: created })
+    return created
+  })
+  const systemActorForWindows = actor.kind === 'agent' ? { kind: 'system' as const, name: 'setup' } : actor
+  const windows = await materializeWindows(context.prisma, systemActorForWindows, { from: localDate({ timeZone: 'America/Chicago' }, new Date()), days: 21, idempotencyKey: `${args.idempotencyKey}:windows` })
+  return { replay: result.replay, created: { ...result.value, windows: windows.created, shifts: windows.shifts } }
 }
 
 const ONBOARDING = ['not_started', 'in_progress', 'completed', 'dismissed']
