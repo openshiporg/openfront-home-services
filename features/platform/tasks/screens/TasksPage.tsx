@@ -1,4 +1,4 @@
-import { q, companyTimeZone } from '../../lib/server';
+import { q, companyTimeZone, requestTime } from '../../lib/server';
 import { label, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Tabs } from '../../components/ui';
 
@@ -19,7 +19,7 @@ export default async function TasksPage({ searchParams }: { searchParams?: Promi
     companyTimeZone(),
   ]);
   const tasks = [...d.tasks].sort((a, b) => (PRIORITY[a.priority] ?? 9) - (PRIORITY[b.priority] ?? 9));
-  const now = Date.now();
+  const now = requestTime();
   return (
     <Page title="Tasks">
       <Tabs active={view} items={[

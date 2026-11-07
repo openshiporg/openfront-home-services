@@ -21,6 +21,7 @@ export const phase1TypeDefs = graphql`
     availableWindows(jobTypeId: ID!, postalCode: String!, from: String!, days: Int): JSON
     lookupCustomer(phone: String, email: String, name: String, postalCode: String): JSON
     customerHistory(customerId: ID!, limit: Int): JSON
+    lookupLocations(customerId: ID!, postalCode: String): JSON
     matchJobType(description: String!, postalCode: String): JSON
     checkEligibility(visitId: ID!, employeeIds: [ID!]!): JSON
   }
@@ -43,6 +44,7 @@ export const phase1TypeDefs = graphql`
     recommendDispatch(visitId: ID!, idempotencyKey: String!): JSON
     assignVisit(visitId: ID!, expectedVersion: Int!, employeeIds: [ID!]!, leadEmployeeId: ID, recommendationId: ID, overrideReason: String, idempotencyKey: String!): JSON
     unassignVisit(visitId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
+    submitChecklist(visitId: ID!, answers: JSON!, idempotencyKey: String!): JSON
     setVisitStatus(visitId: ID!, to: String!, expectedVersion: Int, reason: String, clientRecordedAt: String, deviceEventKey: String, lat: String, lng: String, idempotencyKey: String!): JSON
     holdJob(jobId: ID!, expectedVersion: Int!, reason: String!, followUpOn: String!, idempotencyKey: String!): JSON
     releaseJobHold(jobId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
@@ -61,6 +63,7 @@ export const phase1Resolvers = {
   Query: {
     availableWindows: bind(booking.availableWindows),
     lookupCustomer: bind(crm.lookupCustomer),
+    lookupLocations: bind(crm.lookupLocations),
     customerHistory: bind(crm.customerHistory),
     matchJobType: bind(crm.matchJobType),
     checkEligibility: bind(dispatch.checkEligibility),
@@ -85,6 +88,7 @@ export const phase1Resolvers = {
     assignVisit: bind(dispatch.assignVisit),
     unassignVisit: bind(dispatch.unassignVisit),
     setVisitStatus: bind(dispatch.setVisitStatus),
+    submitChecklist: bind(dispatch.submitChecklist),
     holdJob: bind(dispatch.holdJob),
     releaseJobHold: bind(dispatch.releaseJobHold),
     cancelJob: bind(dispatch.cancelJob),

@@ -3,10 +3,10 @@ import { cn } from '@/lib/utils';
 import { PageContainer } from '@/features/dashboard/components/PageContainer';
 import { label } from '../lib/format';
 
-const GREEN = ['active', 'armed', 'reconciled', 'converted', 'approved', 'filled', 'completed', 'delivered', 'sealed', 'backtested', 'paper_validated', 'live', 'settled', 'ok', 'applied', 'acknowledged']
-const AMBER = ['pending', 'checked', 'starting', 'pending_send', 'sent', 'accepted', 'requested', 'draft', 'running', 'working', 'partially_filled', 'proposed', 'validated', 'leased', 'submitted', 'pending_new', 'unknown', 'paused', 'started']
+const GREEN = ['done', 'booked', 'verified', 'sent', 'qualified', 'grant', 'on_call', 'active', 'armed', 'reconciled', 'converted', 'approved', 'filled', 'completed', 'delivered', 'sealed', 'backtested', 'paper_validated', 'live', 'settled', 'ok', 'applied', 'acknowledged']
+const AMBER = ['scheduled', 'dispatched', 'en_route', 'on_site', 'unassigned', 'new', 'contacted', 'held', 'queued', 'sending', 'manual', 'on_hold', 'in_progress', 'ringing', 'ai_answering', 'human_answering', 'handoff_requested', 'open', 'pending_verification', 'work_complete', 'pending', 'checked', 'starting', 'pending_send', 'accepted', 'requested', 'draft', 'running', 'working', 'partially_filled', 'proposed', 'validated', 'leased', 'submitted', 'pending_new', 'unknown', 'paused', 'started']
 const BLUE = ['paper', 'cancelled_by_user', 'expired', 'superseded']
-const RED = ['rejected', 'cancelled', 'failed', 'dead', 'revoked', 'halted', 'broken', 'aborted', 'retired', 'breached']
+const RED = ['no_access', 'lost', 'spam', 'blocked', 'undeliverable', 'revoke', 'emergency', 'rejected', 'cancelled', 'failed', 'dead', 'revoked', 'halted', 'broken', 'aborted', 'retired', 'breached']
 const DOT: Record<string, string> = Object.fromEntries([
   ...GREEN.map(v => [v, 'bg-emerald-500']), ...AMBER.map(v => [v, 'bg-amber-500']), ...BLUE.map(v => [v, 'bg-blue-500']), ...RED.map(v => [v, 'bg-red-500']),
 ])

@@ -48,7 +48,7 @@ function ChatMessage({
 }
 
 // Domain commands that change data (refresh the page after they run).
-const CRUD_TOOLS = new Set(["loadCompanySetup"]);
+const CRUD_TOOLS = new Set(["loadCompanySetup", "booking.hold", "booking.release", "booking.confirm", "consent.record", "handoff.to_human", "page.on_call", "dispatch.apply"]);
 
 function getMessageText(message: UIMessage) {
   return message.parts

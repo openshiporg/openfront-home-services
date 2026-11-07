@@ -11,7 +11,7 @@ import { contactHoursRules, licensingRules } from './policySchemas'
 
 const rulesOf = (code: string) => POLICY_PACKS.find(p => p.code === code)!.version.rules
 const LICENSING = licensingRules.parse(rulesOf('us-tx-licensing')) as LicensingRules
-const COMPANY = LICENSES.map(l => ({ issuer: l.issuer, licenseClass: l.licenseClass, endorsements: [...(l.endorsements ?? [])], trade: l.trade, expiresOn: l.expiresOn ?? null }))
+const COMPANY = LICENSES.map(l => ({ issuer: l.issuer, licenseClass: l.licenseClass, endorsements: [...(l.endorsements ?? [])], trade: l.trade, expiresOn: null as string | null }))
 
 describe('contact normalisation and masking', () => {
   it('normalises North American numbers to E.164 and rejects junk', () => {

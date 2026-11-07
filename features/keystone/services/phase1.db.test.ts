@@ -8,9 +8,9 @@ import { verifyAuditChain } from '../lib/audit'
 import { addDays, localDate } from '../lib/calendar'
 import { loadCompanySetup, loadOperationsSetup } from '../mutations/setup'
 import { availableWindows, bookJob, expireHolds, holdWindow, materializeWindows, releaseHold } from './booking'
-import { assignVisit, cancelJob, checkEligibility, recommendDispatch, setVisitStatus, unassignVisit } from './dispatch'
+import { assignVisit, cancelJob, checkEligibility, recommendDispatch, setVisitStatus, submitChecklist, unassignVisit } from './dispatch'
 import { deliverMessage, effectiveConsent, receiveInboundSms, recordConsent, requeueMessage } from './comms'
-import { handoffToHuman, ingestLead, loseLead, lookupCustomer, markLeadContacted, matchJobType, pageOnCall, qualifyLead, revealAccessSecret, startInboundCall, storeAccessSecret, verifyCredential } from './crm'
+import { handoffToHuman, ingestLead, loseLead, lookupCustomer, lookupLocations, markLeadContacted, matchJobType, pageOnCall, qualifyLead, revealAccessSecret, startInboundCall, storeAccessSecret, verifyCredential } from './crm'
 import { runWorkerPass } from './worker'
 import { recordingTelephony, setTelephony } from '../../integrations/telephony'
 import { HOUSEHOLDS, JOB_TYPES, TECHS } from '../seed/operationsData'
@@ -100,7 +100,7 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
     techSofia = userActor('seed_user_alvarez', ['canAccessDashboard', 'canWorkVisits'])
     accountant = userActor('seed_user_cole', ['canAccessDashboard', 'canReadAudit'])
 
-    const tools = ['customer.lookup', 'customer.history', 'jobtype.match', 'capacity.windows', 'booking.hold', 'booking.release', 'booking.confirm', 'consent.record', 'handoff.to_human', 'page.on_call', 'dispatch.recommend', 'dispatch.apply', 'dispatch.eligibility']
+    const tools = ['customer.lookup', 'location.lookup', 'customer.history', 'jobtype.match', 'capacity.windows', 'booking.hold', 'booking.release', 'booking.confirm', 'consent.record', 'handoff.to_human', 'page.on_call', 'dispatch.recommend', 'dispatch.apply', 'dispatch.eligibility']
     const receptionist = await prisma.agentIdentity.create({ data: { name: 'Summit receptionist', kind: 'llm_agent', ownerId, status: 'active' } })
     await prisma.agentScopeGrant.createMany({ data: tools.map(tool => ({ agentId: receptionist.id, tool, autonomy: 'auto_within_policy', status: 'active', grantedById: ownerId })) })
     agent = { kind: 'agent', agentId: receptionist.id, ownerUserId: ownerId, name: 'Summit receptionist', scopes: new Set(tools) }
@@ -163,6 +163,13 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
       const full = await lookupCustomer(prisma, dispatcher, { phone: h.phone })
       expect(full.matches[0]).toMatchObject({ phone: h.phone, name: h.displayName })
       expect(full.matches[0].locations[0].address).toBe(h.location.address1)
+      // Service addresses: the AI gets the area and open jobs but not the street; nobody without a booking role sees any.
+      const aiLocs = await lookupLocations(prisma, agent, { customerId: h.id })
+      expect(aiLocs.locations).toHaveLength(1)
+      expect(aiLocs.locations[0]).toMatchObject({ locationId: h.location.id, postalCode: h.location.postalCode, inServiceArea: true })
+      expect(aiLocs.locations[0].address).not.toBe(h.location.address1)
+      expect((await lookupLocations(prisma, owner, { customerId: h.id })).locations[0].address).toBe(h.location.address1)
+      expect(await code(lookupLocations(prisma, accountant, { customerId: h.id }))).toBe(Codes.NOT_AUTHORIZED)
     })
   })
 
@@ -374,7 +381,15 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
       await assignVisit(prisma, dispatcher, { visitId: v.id, expectedVersion: v.version, employeeIds: ['seed_emp_alvarez'], idempotencyKey: uniqueKey('a'), now: NOW })
       for (const to of ['dispatched', 'en_route', 'on_site', 'working']) await setVisitStatus(prisma, dispatcher, { visitId: v.id, to, idempotencyKey: uniqueKey('s'), now: NOW })
       expect(await code(setVisitStatus(prisma, techSofia, { visitId: v.id, to: 'done', idempotencyKey: uniqueKey('s'), now: NOW }))).toBe(Codes.GUARD_FAILED)
-      await prisma.checklistResponse.create({ data: { visitId: v.id, templateId: 'seed_checklist_ac', templateVersion: 1, answers: { thermostat: 'ok' }, completedById: 'seed_user_alvarez', completedAt: NOW } })
+      const answers = { thermostat: 'Set 72, calling', filter: 'Replaced 16x25x1', pressures: '118/325', delta_t: '19 F', condensate: 'Clear' }
+      // Only the assigned tech (or dispatch) fills it in, every item answered; agents never do.
+      expect(await code(submitChecklist(prisma, agent, { visitId: v.id, answers, idempotencyKey: uniqueKey('c') }))).toBe(Codes.NOT_AUTHORIZED)
+      expect(await code(submitChecklist(prisma, techJake, { visitId: v.id, answers, idempotencyKey: uniqueKey('c') }))).toBe(Codes.NOT_AUTHORIZED)
+      expect(await code(submitChecklist(prisma, techSofia, { visitId: v.id, answers: { ...answers, delta_t: ' ' }, idempotencyKey: uniqueKey('c') }))).toBe(Codes.INVALID_INPUT)
+      const key = uniqueKey('c')
+      await submitChecklist(prisma, techSofia, { visitId: v.id, answers, idempotencyKey: key, now: NOW })
+      expect(await submitChecklist(prisma, techSofia, { visitId: v.id, answers, idempotencyKey: key, now: NOW })).toMatchObject({ replay: true })
+      expect(await prisma.checklistResponse.count({ where: { visitId: v.id } })).toBe(1)
       expect(await code(setVisitStatus(prisma, techSofia, { visitId: v.id, to: 'done', idempotencyKey: uniqueKey('s'), now: NOW }))).toBe('OK')
     })
 

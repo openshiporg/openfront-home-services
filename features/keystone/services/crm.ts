@@ -109,6 +109,28 @@ export async function customerHistory(db: Db, actor: Actor, args: { customerId: 
   return { customerId: args.customerId, jobs: out }
 }
 
+/**
+ * One customer's service locations (masked for agents): which addresses can be booked, whether each is
+ * inside the service area, and whether gate or lockbox access is on file (never the code itself).
+ */
+export async function lookupLocations(db: Db, actor: Actor, args: { customerId: string; postalCode?: string | null }) {
+  await authorizeOperation(db, actor, 'location.lookup', ['canBook', 'canManageCustomers', 'canDispatch'], args)
+  const rows = await db.serviceLocation.findMany({
+    where: { customerId: args.customerId, mergedIntoId: null, ...(args.postalCode ? { postalCode: { startsWith: args.postalCode.trim().slice(0, 5) } } : {}) },
+    orderBy: { createdAt: 'asc' },
+    take: 10,
+    select: { id: true, ref: true, address1: true, address2: true, city: true, state: true, postalCode: true, propertyClass: true, propertyType: true, serviceArea: { select: { name: true } }, accessSecrets: { where: { status: 'active' }, select: { kind: true } }, jobs: { where: { status: { in: ['booked', 'scheduled', 'in_progress', 'on_hold'] } }, select: { id: true } } },
+  })
+  const full = actor.kind === 'user' && can(actor, 'canReadCustomerPII')
+  const out = rows.map(l => ({
+    locationId: l.id, ref: l.ref, address: full ? [l.address1, l.address2].filter(Boolean).join(', ') : maskAddress(l.address1), city: l.city, state: l.state, postalCode: l.postalCode,
+    propertyClass: l.propertyClass, propertyType: l.propertyType, serviceArea: l.serviceArea?.name ?? null, inServiceArea: !!l.serviceArea,
+    accessOnFile: [...new Set(l.accessSecrets.map(a => a.kind))], openJobs: l.jobs.length,
+  }))
+  await recordAgentRead(db, actor, { tool: 'location.lookup', inputs: { customerId: args.customerId, byZip: !!args.postalCode }, output: { locations: out.length } })
+  return { customerId: args.customerId, locations: out }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Access secrets (gate codes): stored sealed; revealed only to an assigned tech, logged (I-C3)
 

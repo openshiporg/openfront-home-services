@@ -280,6 +280,37 @@ export async function setVisitStatus(db: Db, actor: Actor, args: VisitStatusArgs
   return { replay: result.replay, ...result.value }
 }
 
+/**
+ * The assigned tech (or a dispatcher) records the job type's checklist for a visit. Every item needs an
+ * answer; the template version is frozen on the response so later edits to the template don't rewrite it.
+ */
+export async function submitChecklist(db: Db, actor: Actor, args: { visitId: string; answers: Record<string, unknown>; idempotencyKey: string; now?: Date }) {
+  if (actor.kind === 'agent') throw new DomainError(Codes.NOT_AUTHORIZED, 'Agents do not fill in visit checklists.')
+  const { idempotencyKey, now: _now, ...params } = args
+  const result = await command(db, { name: 'visit.checklist', actor, idempotencyKey, params, now: args.now }, async uow => {
+    const { tx } = uow
+    const visit = await tx.visit.findUnique({ where: { id: args.visitId }, select: { id: true, status: true, job: { select: { jobType: { select: { checklistTemplate: { select: { id: true, name: true, items: true, templateVersion: true } } } } } } } })
+    if (!visit) throw new DomainError(Codes.NOT_FOUND, 'Visit not found.')
+    const userId = actorUserId(actor)
+    const assigned = userId ? await tx.visitAssignment.count({ where: { visitId: visit.id, active: true, employee: { user: { id: userId } } } }) : 0
+    if (!(can(actor, 'canDispatch') || (assigned > 0 && can(actor, 'canWorkVisits')))) throw new DomainError(Codes.NOT_AUTHORIZED, 'Only the assigned technician or a dispatcher can do this.')
+    if (!['on_site', 'working', 'paused'].includes(visit.status)) throw new DomainError(Codes.INVALID_TRANSITION, 'Fill in the checklist on site.', { currentStatus: visit.status })
+    const template = visit.job?.jobType?.checklistTemplate
+    if (!template) throw new DomainError(Codes.INVALID_INPUT, 'This job type has no checklist.', { field: 'visitId' })
+    const items = Array.isArray(template.items) ? (template.items as { key: string; label: string }[]) : []
+    const answers: Record<string, string> = {}
+    for (const item of items) {
+      const value = args.answers?.[item.key]
+      if (typeof value !== 'string' || !value.trim()) throw new DomainError(Codes.INVALID_INPUT, `Answer "${item.label}".`, { field: item.key })
+      answers[item.key] = value.trim().slice(0, 500)
+    }
+    const row = await tx.checklistResponse.create({ data: { visitId: visit.id, templateId: template.id, templateVersion: template.templateVersion, answers, completedById: userId, completedAt: uow.now }, select: { id: true } })
+    auditCreate(uow, actor, 'ChecklistResponse', row.id, 'visit.checklist_completed', { visitId: visit.id, templateId: template.id, templateVersion: template.templateVersion })
+    return { checklistResponseId: row.id, visitId: visit.id }
+  })
+  return { replay: result.replay, ...result.value }
+}
+
 async function assertChecklistsDone(tx: Tx, visitId: string) {
   const visit = await tx.visit.findUnique({ where: { id: visitId }, select: { job: { select: { jobType: { select: { checklistTemplate: { select: { id: true, required: true, name: true } } } } } } } })
   const template = visit?.job?.jobType?.checklistTemplate

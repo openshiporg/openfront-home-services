@@ -33,6 +33,14 @@ export const PHASE1_TOOLS: DomainTool[] = [
     writes: false,
   },
   {
+    name: 'location.lookup',
+    description: "A customer's service addresses (masked), whether each is inside the service area, and whether gate or lockbox access is on file. Use the locationId to book.",
+    inputSchema: schema({ customerId: id('Customer id from customer.lookup'), postalCode: zip }, ['customerId']),
+    document: 'query LookupLocations($customerId: ID!, $postalCode: String) { lookupLocations(customerId: $customerId, postalCode: $postalCode) }',
+    field: 'lookupLocations',
+    writes: false,
+  },
+  {
     name: 'jobtype.match',
     description: "Match the caller's description of the problem to bookable job types. If `emergency` is returned, read its script to the caller first (for example: leave the house and call the gas company), then call page.on_call.",
     inputSchema: schema({ description: { type: 'string', minLength: 3, maxLength: 1000 }, postalCode: zip }, ['description']),

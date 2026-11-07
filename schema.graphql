@@ -8791,6 +8791,7 @@ type Mutation {
   redeemUserPasswordResetToken(email: String!, token: String!, password: String!): RedeemUserPasswordResetTokenResult
   updateActiveUser(data: UserUpdateProfileInput!): User
   loadCompanySetup(idempotencyKey: String!): JSON
+  loadOperationsSetup(idempotencyKey: String!): JSON
   decideApprovalRequest(requestId: ID!, decision: String!, reason: String, expectedVersion: Int!, idempotencyKey: String!): JSON
   cancelApprovalRequest(requestId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
   requestCompanyControls(changes: JSON!, reason: String!, idempotencyKey: String!): JSON
@@ -8813,6 +8814,7 @@ type Mutation {
   recommendDispatch(visitId: ID!, idempotencyKey: String!): JSON
   assignVisit(visitId: ID!, expectedVersion: Int!, employeeIds: [ID!]!, leadEmployeeId: ID, recommendationId: ID, overrideReason: String, idempotencyKey: String!): JSON
   unassignVisit(visitId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
+  submitChecklist(visitId: ID!, answers: JSON!, idempotencyKey: String!): JSON
   setVisitStatus(visitId: ID!, to: String!, expectedVersion: Int, reason: String, clientRecordedAt: String, deviceEventKey: String, lat: String, lng: String, idempotencyKey: String!): JSON
   holdJob(jobId: ID!, expectedVersion: Int!, reason: String!, followUpOn: String!, idempotencyKey: String!): JSON
   releaseJobHold(jobId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
@@ -9098,6 +9100,7 @@ type Query {
   availableWindows(jobTypeId: ID!, postalCode: String!, from: String!, days: Int): JSON
   lookupCustomer(phone: String, email: String, name: String, postalCode: String): JSON
   customerHistory(customerId: ID!, limit: Int): JSON
+  lookupLocations(customerId: ID!, postalCode: String): JSON
   matchJobType(description: String!, postalCode: String): JSON
   checkEligibility(visitId: ID!, employeeIds: [ID!]!): JSON
 }

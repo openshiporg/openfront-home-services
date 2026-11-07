@@ -1,4 +1,4 @@
-import { q, companyTimeZone } from '../../lib/server';
+import { q, companyTimeZone, requestTime } from '../../lib/server';
 import { when, label } from '../../lib/format';
 import { Page, Row, Empty, Status, Meta, Section, Tabs } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
@@ -29,7 +29,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams?: P
     companyTimeZone(),
   ]);
   const me = data.authenticatedItem?.id;
-  const now = Date.now();
+  const now = requestTime();
   return (
     <Page title="Approvals">
       <Tabs active={view} items={[
