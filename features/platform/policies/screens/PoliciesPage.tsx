@@ -5,7 +5,7 @@ import { Page, Row, Empty, Meta, Section, Status } from '../../components/ui';
 type SourceRef = { ref: string; url?: string; verified: boolean; checkedOn?: string; note?: string };
 type Pack = {
   id: string; code: string; name: string; kind: string; jurisdictionCode: string; description: string;
-  versions: { id: string; versionNumber: number; status: string; effectiveFrom: string; effectiveTo: string | null; contentHash: string; verifiedAt: string | null; sourceRefs: SourceRef[] }[];
+  versions: { id: string; versionNumber: number; status: string; effectiveFrom: string; effectiveTo: string | null; contentHash: string; verifiedAt: string | null; sourceRefs: SourceRef[]; rules?: { rules?: { code?: string; assumptions?: { code: string; statement: string }[] }[] } | null }[];
   bindings: { id: string; scope: string; scopeValue: string; priority: number; status: string }[];
 };
 
@@ -18,7 +18,7 @@ export default async function PoliciesPage() {
     q<{ policyPacks: Pack[] }>(`{
       policyPacks(orderBy: { code: asc }) {
         id code name kind jurisdictionCode description
-        versions(orderBy: { versionNumber: desc }) { id versionNumber status effectiveFrom effectiveTo contentHash verifiedAt sourceRefs }
+        versions(orderBy: { versionNumber: desc }) { id versionNumber status effectiveFrom effectiveTo contentHash verifiedAt sourceRefs rules }
         bindings { id scope scopeValue priority status }
       }
     }`),
@@ -38,6 +38,9 @@ export default async function PoliciesPage() {
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Version {v.versionNumber}</span><Status value={v.status} /></div>
                 <Meta>From {dateText(v.effectiveFrom)}{v.effectiveTo ? ` to ${dateText(v.effectiveTo)}` : ''} · hash <span className="font-mono">{v.contentHash.slice(0, 12)}</span>{v.verifiedAt ? ` · verified ${when(v.verifiedAt, tz, 'day')}` : ''}</Meta>
+                {(v.rules?.rules ?? []).flatMap(r => (r.assumptions ?? []).map(a => (
+                  <p key={`${r.code}-${a.code}`} className="break-words rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"><span className="font-medium">Assumption, counsel to confirm.</span> {a.statement}</p>
+                )))}
                 <ul className="space-y-0.5 text-xs">
                   {(v.sourceRefs ?? []).map((s, i) => (
                     <li key={i} className="break-words">

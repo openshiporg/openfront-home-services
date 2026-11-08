@@ -17,11 +17,14 @@ export type PackSeed = {
   binding: { id: string; scope: 'company' | 'state'; scopeValue: string; priority: number }
   version: PackVersionSeed
   /**
-   * A later version of the same pack. Seeding closes the earlier version with effectiveTo (exclusive)
-   * and adds this one, so past dates still resolve to the rules that were in effect then.
+   * Later versions of the same pack, oldest first. Seeding closes the earlier version with effectiveTo
+   * (exclusive) and adds the next, so past dates still resolve to the rules that were in effect then.
    */
-  next?: PackVersionSeed & { versionNumber: number; reason: string }
+  later?: (PackVersionSeed & { versionNumber: number; reason: string })[]
 }
+
+/** Every version a pack ships, oldest first (version 1 has number 1). */
+export const versionsOf = (pack: PackSeed) => [{ ...pack.version, versionNumber: 1, reason: 'Initial verified policy load' }, ...(pack.later ?? [])]
 
 type PackVersionSeed = { id: string; effectiveFrom: string; rules: unknown; sourceRefs: { ref: string; url?: string; verified: boolean; checkedOn?: string; note?: string }[] }
 
@@ -55,6 +58,19 @@ const TX_601_RULE = {
   emergencyWaiver: { allowed: false, handwritten: true, signedAndDated: true },
   noticeTemplate: 'tx_601_notice_of_cancellation',
 }
+/**
+ * Tex. Bus. & Com. Code ch. 601 counts "business days" (§601.051, §601.053(b)(4), §601.154) without defining them.
+ * The pack counts every day except Sunday and federal holidays (16 CFR 429.0(f), Saturday counts). That is
+ * the safe direction for the buyer's cancel-by date only if Texas also counts Saturday; if Texas excludes
+ * Saturday, the printed date can fall a day early. Kept as the default until counsel decides.
+ */
+const TX_BUSINESS_DAY_ASSUMPTION = {
+  code: 'tx_business_day_calendar',
+  status: 'counsel_to_confirm',
+  flaggedOn: '2026-11-08',
+  statement: 'Chapter 601 does not define "business day". This rule counts every day except Sunday and federal holidays (the 16 CFR 429.0(f) calendar, Saturday counts). If Texas excludes Saturday, the cancel-by date printed on a notice can be a day earlier than the statute allows (§601.053(b)(4): "not earlier than the third business day"). Counsel to confirm before general availability.',
+  affects: ['cancel_by', 'refund_due_by'],
+}
 const TX_SOLICITATION_REFS = [
   { ref: '16 CFR 429.0-429.1', url: ECFR_429, verified: true, checkedOn: '2026-11-07' },
   { ref: 'Tex. Bus. & Com. Code §601.002 (scope: personally solicited away from the place of business; price over $25)', url: TX_601, verified: true, checkedOn: '2026-11-07' },
@@ -64,6 +80,10 @@ const TX_SOLICITATION_REFS = [
   { ref: 'Tex. Bus. & Com. Code §§601.003-601.004 (emergency waiver)', url: TX_601, verified: false, note: 'Not readable from the statutes mirrors. No Texas emergency waiver is honoured (fail closed) until verified.' },
   { ref: 'Tex. Occ. Code §1302.003 (ch. 601 does not apply to a consumer-initiated ACR transaction, except breach of express warranty or negligent installation)', url: TX_1302, verified: true, checkedOn: '2026-11-07' },
 ]
+
+const TX_SOLICITATION_REFS_V3 = TX_SOLICITATION_REFS.map(ref => ref.ref.includes('"business day" definition')
+  ? { ...ref, verified: false, note: 'ASSUMPTION, counsel to confirm. Chapter 601 (§601.001) defines no business day and no primary Texas text was found that does. The federal 16 CFR 429.0(f) calendar (Saturday counts; Sunday and federal holidays do not) is the default. Tex. Gov\'t Code §311.014 rolls a last day that falls on a Saturday, Sunday or legal holiday forward, but does not define a business day either.' }
+  : ref)
 
 export const POLICY_PACKS: PackSeed[] = [
   {
@@ -152,14 +172,24 @@ export const POLICY_PACKS: PackSeed[] = [
         { ref: 'Tex. Occ. Code §1302.003 (ch. 601 does not apply to a consumer-initiated ACR transaction, except breach of express warranty or negligent installation)', url: TX_1302, verified: true, checkedOn: '2026-11-07' },
       ],
     },
-    next: {
-      id: 'seed_policy_tx_home_solicitation_v2',
-      versionNumber: 2,
-      effectiveFrom: '2026-11-08',
-      reason: 'Chapter 601 covers what the merchant personally solicited: on a visit the customer asked for, that is the work proposed on site, not the requested repair.',
-      rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: 'personal_solicitation', refundBusinessDays: 10 }] },
-      sourceRefs: TX_SOLICITATION_REFS,
-    },
+    later: [
+      {
+        id: 'seed_policy_tx_home_solicitation_v2',
+        versionNumber: 2,
+        effectiveFrom: '2026-11-08',
+        reason: 'Chapter 601 covers what the merchant personally solicited: on a visit the customer asked for, that is the work proposed on site, not the requested repair.',
+        rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: 'personal_solicitation', refundBusinessDays: 10 }] },
+        sourceRefs: TX_SOLICITATION_REFS,
+      },
+      {
+        id: 'seed_policy_tx_home_solicitation_v3',
+        versionNumber: 3,
+        effectiveFrom: '2026-11-09',
+        reason: 'Chapter 601 does not define "business day". The federal calendar (everything but Sunday and federal holidays) stays as the conservative default, now recorded as an explicit assumption for counsel to confirm.',
+        rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: 'personal_solicitation', refundBusinessDays: 10, assumptions: [TX_BUSINESS_DAY_ASSUMPTION] }] },
+        sourceRefs: TX_SOLICITATION_REFS_V3,
+      },
+    ],
   },
   {
     id: 'seed_pack_tx_home_improvement_contract',

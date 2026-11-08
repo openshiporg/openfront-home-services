@@ -6,7 +6,7 @@ import { parsePolicyRules } from '../domain/policySchemas'
 import type { Actor } from '../lib/actor'
 import type { UnitOfWork } from '../lib/unitOfWork'
 import { APPROVAL_POLICIES, BRANCH, BRAND, BUSINESS_UNITS, COMPANY, COMPANY_CLOSED_HOLIDAYS, LICENSES, ROLES, SERVICE_AREAS, STAFF } from './company'
-import { POLICY_PACKS } from './policyPacks'
+import { POLICY_PACKS, versionsOf } from './policyPacks'
 
 /**
  * Loads the company spine idempotently: company settings, roles, office staff, licences, brand,
@@ -136,13 +136,13 @@ export async function seedPolicyPacks(uow: UnitOfWork, actor: Actor) {
   const created = { policyPacks: 0, policyVersions: 0, policyBindings: 0 }
 
   for (const pack of POLICY_PACKS) {
-    for (const v of [pack.version, ...(pack.next ? [pack.next] : [])]) {
+    for (const v of versionsOf(pack)) {
       const parsed = parsePolicyRules(pack.kind, v.rules)
       if (!parsed.success) throw new Error(`Seed policy ${pack.code} (${v.id}) does not match its schema: ${parsed.error.issues[0]?.message}`)
     }
   }
   const havePacks = new Set((await tx.policyPack.findMany({ where: { id: { in: POLICY_PACKS.map(p => p.id) } }, select: { id: true } })).map(r => r.id))
-  const haveVersions = new Set((await tx.policyVersion.findMany({ where: { id: { in: POLICY_PACKS.flatMap(p => [p.version.id, ...(p.next ? [p.next.id] : [])]) } }, select: { id: true } })).map(r => r.id))
+  const haveVersions = new Set((await tx.policyVersion.findMany({ where: { id: { in: POLICY_PACKS.flatMap(p => versionsOf(p).map(v => v.id)) } }, select: { id: true } })).map(r => r.id))
   const haveBindings = new Set((await tx.policyBinding.findMany({ where: { id: { in: POLICY_PACKS.map(p => p.binding.id) } }, select: { id: true } })).map(r => r.id))
   const packs = POLICY_PACKS.filter(p => !havePacks.has(p.id))
   if (packs.length) {
@@ -164,21 +164,25 @@ export async function seedPolicyPacks(uow: UnitOfWork, actor: Actor) {
   }
   // Later versions: close the earlier one the day the new one starts (effectiveTo is exclusive), so
   // a sale on an earlier date is still evaluated against the rules in effect then.
-  const successors = POLICY_PACKS.filter(p => p.next && !haveVersions.has(p.next.id))
-  for (const pack of successors) {
-    const next = pack.next!
-    const contentHash = payloadHash({ rules: next.rules, sourceRefs: next.sourceRefs })
-    await tx.policyVersion.update({ where: { id: pack.version.id }, data: { effectiveTo: day(next.effectiveFrom) } })
-    await tx.policyVersion.create({
-      data: {
-        id: next.id, packId: pack.id, versionNumber: next.versionNumber, effectiveFrom: day(next.effectiveFrom),
-        rules: toJsonValue(next.rules) as never, sourceRefs: toJsonValue(next.sourceRefs) as never,
-        verifiedBy: 'Openfront research (RESEARCH.md §12.1a)', verifiedAt: new Date('2026-11-08T12:00:00Z'), status: 'active', contentHash,
-      },
-    })
-    auditCreate(uow, actor, 'PolicyVersion', pack.version.id, 'policy_version.superseded', { pack: pack.code, effectiveTo: next.effectiveFrom, by: next.id }, { metadata: { seed: true }, reason: next.reason })
-    auditCreate(uow, actor, 'PolicyVersion', next.id, 'policy_version.activated', { pack: pack.code, versionNumber: next.versionNumber, contentHash }, { metadata: { seed: true }, reason: next.reason })
-    created.policyVersions += 1
+  for (const pack of POLICY_PACKS) {
+    const chain = versionsOf(pack)
+    for (let i = 1; i < chain.length; i++) {
+      const next = chain[i]
+      if (haveVersions.has(next.id)) continue
+      const previous = chain[i - 1]
+      const contentHash = payloadHash({ rules: next.rules, sourceRefs: next.sourceRefs })
+      await tx.policyVersion.update({ where: { id: previous.id }, data: { effectiveTo: day(next.effectiveFrom) } })
+      await tx.policyVersion.create({
+        data: {
+          id: next.id, packId: pack.id, versionNumber: next.versionNumber, effectiveFrom: day(next.effectiveFrom),
+          rules: toJsonValue(next.rules) as never, sourceRefs: toJsonValue(next.sourceRefs) as never,
+          verifiedBy: 'Openfront research (RESEARCH.md §12.1a)', verifiedAt: new Date('2026-11-08T12:00:00Z'), status: 'active', contentHash,
+        },
+      })
+      auditCreate(uow, actor, 'PolicyVersion', previous.id, 'policy_version.superseded', { pack: pack.code, effectiveTo: next.effectiveFrom, by: next.id }, { metadata: { seed: true }, reason: next.reason })
+      auditCreate(uow, actor, 'PolicyVersion', next.id, 'policy_version.activated', { pack: pack.code, versionNumber: next.versionNumber, contentHash }, { metadata: { seed: true }, reason: next.reason })
+      created.policyVersions += 1
+    }
   }
   const bindings = POLICY_PACKS.filter(p => !haveBindings.has(p.binding.id))
   if (bindings.length) {

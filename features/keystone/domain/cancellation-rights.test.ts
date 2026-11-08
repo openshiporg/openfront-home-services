@@ -9,7 +9,7 @@ const federalPack = POLICY_PACKS.find(p => p.id === 'seed_pack_us_home_solicitat
 const texasPack = POLICY_PACKS.find(p => p.id === 'seed_pack_tx_home_solicitation')!
 const PACKS: Record<string, HomeSolicitationRules> = {
   federal: homeSolicitationRules.parse(federalPack.version.rules),
-  tx: homeSolicitationRules.parse(texasPack.next!.rules),
+  tx: homeSolicitationRules.parse(texasPack.later![0].rules),
 }
 const CALENDARS = { 'US-FEDERAL': US_FEDERAL }
 

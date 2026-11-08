@@ -11,7 +11,7 @@ import { PrismaClient } from '@prisma/client'
 import { payloadHash } from '../features/keystone/lib/canonical'
 import { systemActor } from '../features/keystone/lib/actor'
 import { command } from '../features/keystone/lib/command'
-import { POLICY_PACKS } from '../features/keystone/seed/policyPacks'
+import { POLICY_PACKS, versionsOf } from '../features/keystone/seed/policyPacks'
 import { missingPolicies } from '../features/keystone/seed/policyReadiness'
 import { seedPolicyPacks } from '../features/keystone/seed/platform'
 
@@ -21,7 +21,7 @@ async function main() {
   try {
     const actor = systemActor('release')
     // A company that has not been loaded yet has nothing to attach packs to; packs are global, so load anyway.
-    const fingerprint = payloadHash(POLICY_PACKS.map(p => [p.id, p.version.id, p.next?.id ?? null])).slice(0, 16)
+    const fingerprint = payloadHash(POLICY_PACKS.map(p => [p.id, ...versionsOf(p).map(v => v.id)])).slice(0, 16)
     const before = await missingPolicies(prisma)
     if (before.length) {
       const result = await command(prisma, { name: 'setup.ensure_policies', actor, idempotencyKey: `release:policies:${fingerprint}:${before.length}`, params: {} }, uow => seedPolicyPacks(uow, actor))

@@ -40,6 +40,11 @@ export const homeSolicitationRules = z.object({
     exemptions: z.array(z.object({ code: z.string(), trades: z.array(trade).min(1), when: z.enum(['consumer_initiated']), except: z.array(z.string()).default([]) })).default([]),
     emergencyWaiver: z.object({ allowed: z.boolean(), handwritten: z.boolean(), signedAndDated: z.boolean() }),
     noticeTemplate: z.string().min(1),
+    /**
+     * Rules the pack follows without a primary source. Each is data: it shows on the Policies screen
+     * and in DOMAIN, and stays flagged until counsel confirms it and a new version replaces it.
+     */
+    assumptions: z.array(z.object({ code: z.string().min(1), status: z.enum(['counsel_to_confirm']), flaggedOn: z.string(), statement: z.string().min(1), affects: z.array(z.string()).default([]) })).default([]),
     /** Refund, return of trade-ins and release of security interests within this many business days of the buyer's notice. */
     refundBusinessDays: z.number().int().min(1).max(30).default(10),
   })).min(1),
