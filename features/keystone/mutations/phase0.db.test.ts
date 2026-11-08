@@ -45,7 +45,7 @@ describe.skipIf(!hasTestDatabase)('Phase 0 commands (database)', () => {
     expect(first.created).toMatchObject({
       company: 1, roles: ROLES.length, staff: STAFF.length, licenses: LICENSES.length, brands: 1, branches: 1,
       businessUnits: BUSINESS_UNITS.length, serviceAreas: SERVICE_AREAS.length, calendars: 2, calendarExceptions: FEDERAL_HOLIDAYS.length + closed,
-      approvalPolicies: APPROVAL_POLICIES.length, policyPacks: POLICY_PACKS.length, policyVersions: POLICY_PACKS.length, policyBindings: POLICY_PACKS.length,
+      approvalPolicies: APPROVAL_POLICIES.length, policyPacks: POLICY_PACKS.length, policyVersions: POLICY_PACKS.length + POLICY_PACKS.filter(p => p.next).length, policyBindings: POLICY_PACKS.length,
     })
 
     const replay = await loadCompanySetup(null, { idempotencyKey: key }, owner)

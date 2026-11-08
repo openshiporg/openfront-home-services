@@ -15,12 +15,55 @@ export type PackSeed = {
   jurisdictionCode: string
   description: string
   binding: { id: string; scope: 'company' | 'state'; scopeValue: string; priority: number }
-  version: { id: string; effectiveFrom: string; rules: unknown; sourceRefs: { ref: string; url?: string; verified: boolean; checkedOn?: string; note?: string }[] }
+  version: PackVersionSeed
+  /**
+   * A later version of the same pack. Seeding closes the earlier version with effectiveTo (exclusive)
+   * and adds this one, so past dates still resolve to the rules that were in effect then.
+   */
+  next?: PackVersionSeed & { versionNumber: number; reason: string }
 }
+
+type PackVersionSeed = { id: string; effectiveFrom: string; rules: unknown; sourceRefs: { ref: string; url?: string; verified: boolean; checkedOn?: string; note?: string }[] }
 
 const ECFR_429 = 'https://www.ecfr.gov/current/title-16/chapter-I/subchapter-D/part-429'
 const TX_601 = 'https://statutes.capitol.texas.gov/Docs/BC/htm/BC.601.htm'
 const TX_1302 = 'https://statutes.capitol.texas.gov/Docs/OC/htm/OC.1302.htm'
+const TX_PROP_41 = 'https://statutes.capitol.texas.gov/Docs/PR/htm/PR.41.htm'
+const TX_PROP_53 = 'https://statutes.capitol.texas.gov/Docs/PR/htm/PR.53.htm'
+
+const FTC_RULE_TX = {
+  code: 'ftc_cooling_off',
+  title: 'FTC Cooling-Off Rule (16 CFR 429)',
+  thresholdAtResidenceMinor: '2500', thresholdElsewhereMinor: '13000', thresholdComparison: 'at_least', businessDays: 3, calendar: 'US-FEDERAL',
+  exclusions: [
+    { code: 'retail_prior_negotiation', description: 'Prior negotiations at the seller\'s fixed retail location.', perLine: false },
+    { code: 'tila_rescission', description: 'Truth in Lending rescission applies instead.', perLine: false },
+    { code: 'emergency_waiver', description: 'Buyer-initiated emergency with a dated, signed, handwritten waiver.', perLine: false },
+    { code: 'mail_or_phone_only', description: 'Entirely by mail or telephone.', perLine: false },
+    { code: 'requested_repair', description: 'Requested repair or maintenance; additional goods or services are not excluded.', perLine: true },
+  ],
+  exemptions: [],
+  emergencyWaiver: { allowed: true, handwritten: true, signedAndDated: true },
+  noticeTemplate: 'ftc_429_notice_of_cancellation',
+}
+const TX_601_RULE = {
+  code: 'tx_601',
+  title: 'Texas home solicitation (Bus. & Com. Code ch. 601)',
+  thresholdAtResidenceMinor: '2500', thresholdElsewhereMinor: '2500', thresholdComparison: 'more_than', businessDays: 3, calendar: 'US-FEDERAL',
+  exclusions: [],
+  exemptions: [{ code: 'tx_acr_consumer_initiated', trades: ['hvac'], when: 'consumer_initiated', except: ['breach_of_express_warranty', 'negligent_installation'] }],
+  emergencyWaiver: { allowed: false, handwritten: true, signedAndDated: true },
+  noticeTemplate: 'tx_601_notice_of_cancellation',
+}
+const TX_SOLICITATION_REFS = [
+  { ref: '16 CFR 429.0-429.1', url: ECFR_429, verified: true, checkedOn: '2026-11-07' },
+  { ref: 'Tex. Bus. & Com. Code §601.002 (scope: personally solicited away from the place of business; price over $25)', url: TX_601, verified: true, checkedOn: '2026-11-07' },
+  { ref: 'Tex. Bus. & Com. Code §601.051 (cancel until midnight of the third business day after signing)', url: TX_601, verified: true, checkedOn: '2026-11-07' },
+  { ref: 'Tex. Bus. & Com. Code §601.052 (receipt or contract in the language of the sale, with the bold 10-point statement and an attached notice of cancellation)', url: TX_601, verified: true, checkedOn: '2026-11-08' },
+  { ref: 'Tex. Bus. & Com. Code ch. 601 "business day" definition', url: TX_601, verified: false, note: 'Section 601.001 defines no business day. The federal 16 CFR 429.0(f) calendar is used; verify before GA.' },
+  { ref: 'Tex. Bus. & Com. Code §§601.003-601.004 (emergency waiver)', url: TX_601, verified: false, note: 'Not readable from the statutes mirrors. No Texas emergency waiver is honoured (fail closed) until verified.' },
+  { ref: 'Tex. Occ. Code §1302.003 (ch. 601 does not apply to a consumer-initiated ACR transaction, except breach of express warranty or negligent installation)', url: TX_1302, verified: true, checkedOn: '2026-11-07' },
+]
 
 export const POLICY_PACKS: PackSeed[] = [
   {
@@ -107,6 +150,41 @@ export const POLICY_PACKS: PackSeed[] = [
         { ref: 'Tex. Bus. & Com. Code §601.051 (cancel until midnight of the third business day after signing)', url: TX_601, verified: true, checkedOn: '2026-11-07' },
         { ref: 'Tex. Bus. & Com. Code ch. 601 "business day" definition', url: TX_601, verified: false, note: 'Not readable from the statutes site (script-rendered). The federal 16 CFR 429.0(f) calendar is used; verify the chapter 601 definition, and whether ch. 601 has an emergency waiver, before GA.' },
         { ref: 'Tex. Occ. Code §1302.003 (ch. 601 does not apply to a consumer-initiated ACR transaction, except breach of express warranty or negligent installation)', url: TX_1302, verified: true, checkedOn: '2026-11-07' },
+      ],
+    },
+    next: {
+      id: 'seed_policy_tx_home_solicitation_v2',
+      versionNumber: 2,
+      effectiveFrom: '2026-11-08',
+      reason: 'Chapter 601 covers what the merchant personally solicited: on a visit the customer asked for, that is the work proposed on site, not the requested repair.',
+      rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: 'personal_solicitation', refundBusinessDays: 10 }] },
+      sourceRefs: TX_SOLICITATION_REFS,
+    },
+  },
+  {
+    id: 'seed_pack_tx_home_improvement_contract',
+    code: 'us-tx-home-improvement-contract',
+    name: 'Texas residential construction contracts',
+    kind: 'home_improvement_contract',
+    jurisdictionCode: 'US-TX',
+    description: 'What a Texas residential improvement contract must carry: the homestead warning, the lien-law disclosure and the contractor\'s licence.',
+    binding: { id: 'seed_binding_tx_home_improvement_contract', scope: 'state', scopeValue: 'US-TX', priority: 0 },
+    version: {
+      id: 'seed_policy_tx_home_improvement_contract_v1',
+      effectiveFrom: '2026-01-01',
+      rules: {
+        depositCapPct: null,
+        depositCapMinor: null,
+        requiredFields: ['contractor_name_address', 'contractor_license', 'scope_of_work', 'price', 'payment_terms', 'homestead_warning', 'lien_disclosure', 'cancellation_notice'],
+        licenseDisplay: true,
+      },
+      sourceRefs: [
+        { ref: 'Tex. Prop. Code §41.007(a) (homestead improvement contract: 10-point bold "IMPORTANT NOTICE: You and your contractor are responsible for meeting the terms and conditions of this contract…")', url: TX_PROP_41, verified: true, checkedOn: '2026-11-08' },
+        { ref: 'Tex. Prop. Code §41.007(c)-(d) (an arbitration clause must be in 10-point bold or it is unenforceable)', url: TX_PROP_41, verified: true, checkedOn: '2026-11-08' },
+        { ref: 'Tex. Prop. Code §53.001(8)-(10) (residence; residential construction contract)', url: TX_PROP_53, verified: true, checkedOn: '2026-11-08' },
+        { ref: 'Tex. Prop. Code §53.255 (disclosure statement to the owner before a residential construction contract is executed)', url: TX_PROP_53, verified: true, checkedOn: '2026-11-08' },
+        { ref: 'Texas deposit cap on residential repair and improvement', verified: false, note: 'No general statutory deposit cap was found for Texas residential repair; the pack sets none. Verify before GA; a cap is configuration (depositCapPct/depositCapMinor), not code.' },
+        { ref: 'Tex. Occ. Code §1302.251 and 16 TAC §75.70 (ACR contractor licence number on contracts, invoices and advertising)', verified: false, note: 'Display rule carried as licenseDisplay; verify the exact text before GA.' },
       ],
     },
   },

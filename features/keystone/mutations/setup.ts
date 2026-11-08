@@ -7,6 +7,7 @@ import { seedCompanyPlatform } from '../seed/platform'
 import { seedOperations } from '../seed/operations'
 import { materializeWindows } from '../services/booking'
 import { localDate } from '../lib/calendar'
+import { seedPriceBook } from '../seed/pricebook'
 
 /** Onboarding: load the Summit Plumbing & Air company spine. Idempotent per key and per record. */
 export async function loadCompanySetup(_root: unknown, args: { idempotencyKey: string }, context: any) {
@@ -36,6 +37,20 @@ export async function loadOperationsSetup(_root: unknown, args: { idempotencyKey
   const systemActorForWindows = actor.kind === 'agent' ? { kind: 'system' as const, name: 'setup' } : actor
   const windows = await materializeWindows(context.prisma, systemActorForWindows, { from: localDate({ timeZone: 'America/Chicago' }, new Date()), days: 21, idempotencyKey: `${args.idempotencyKey}:windows` })
   return { replay: result.replay, created: { ...result.value, windows: windows.created, shifts: windows.shifts } }
+}
+
+/**
+ * Onboarding step 3: Summit's flat-rate price book (about 300 items, good/better/best replacement
+ * ladders, labour rates and markup), drafted by the person onboarding and submitted for approval.
+ * A second person with canApprovePriceBook publishes it under Approvals; nobody publishes their own prices.
+ */
+export async function loadPriceBookSetup(_root: unknown, args: { idempotencyKey: string }, context: any) {
+  const actor = await actorFor(context)
+  await authorizeOperation(context.prisma, actor, 'loadPriceBookSetup', ['canManageOnboarding'])
+  if (actor.kind === 'agent') throw new DomainError(Codes.NOT_AUTHORIZED, 'A person loads the price book.')
+  if (!(await context.prisma.businessUnit.count({ where: { id: { startsWith: 'seed_bu_' } } }))) throw new DomainError(Codes.GUARD_FAILED, 'Load the company first.', { reason: 'company_missing' })
+  const created = await seedPriceBook(context.prisma, { maker: actor, checker: null, prefix: `setup:pricebook:${actor.kind === 'user' ? actor.userId : 'system'}` })
+  return { replay: false, created }
 }
 
 const ONBOARDING = ['not_started', 'in_progress', 'completed', 'dismissed']

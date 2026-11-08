@@ -64,6 +64,8 @@ export const SHIPPED_ROUTES = new Set<string>([
   // Phase 1: CRM, booking, dispatch, field
   '/platform/today', '/platform/leads', '/platform/calls', '/platform/book', '/platform/dispatch', '/platform/jobs',
   '/platform/customers', '/platform/team', '/field/today',
+  // Phase 2: price book, estimates, cancellation rights
+  '/platform/estimates', '/platform/cancellations', '/platform/pricebook',
 ])
 
 const shipped = platformNavItems.filter(item => SHIPPED_ROUTES.has(item.href))

@@ -8222,6 +8222,10 @@ type WorkLine {
   trade: String
   cancellationClass: String
   status: String
+  estimateLine: EstimateLine
+  changeOrder: ChangeOrder
+  cancellationNotices(where: CancellationNoticeWhereInput! = {}, orderBy: [CancellationNoticeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CancellationNoticeWhereUniqueInput): [CancellationNotice!]
+  cancellationNoticesCount(where: CancellationNoticeWhereInput! = {}): Int
   version: Int
   createdAt: DateTime
   updatedAt: DateTime
@@ -8247,9 +8251,18 @@ input WorkLineWhereInput {
   trade: StringFilter
   cancellationClass: StringFilter
   status: StringFilter
+  estimateLine: EstimateLineWhereInput
+  changeOrder: ChangeOrderWhereInput
+  cancellationNotices: CancellationNoticeManyRelationFilter
   version: IntFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
+}
+
+input CancellationNoticeManyRelationFilter {
+  every: CancellationNoticeWhereInput
+  some: CancellationNoticeWhereInput
+  none: CancellationNoticeWhereInput
 }
 
 input WorkLineOrderByInput {
@@ -8282,9 +8295,31 @@ input WorkLineUpdateInput {
   trade: String
   cancellationClass: String
   status: String
+  estimateLine: EstimateLineRelateToOneForUpdateInput
+  changeOrder: ChangeOrderRelateToOneForUpdateInput
+  cancellationNotices: CancellationNoticeRelateToManyForUpdateInput
   version: Int
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input EstimateLineRelateToOneForUpdateInput {
+  create: EstimateLineCreateInput
+  connect: EstimateLineWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ChangeOrderRelateToOneForUpdateInput {
+  create: ChangeOrderCreateInput
+  connect: ChangeOrderWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CancellationNoticeRelateToManyForUpdateInput {
+  disconnect: [CancellationNoticeWhereUniqueInput!]
+  set: [CancellationNoticeWhereUniqueInput!]
+  create: [CancellationNoticeCreateInput!]
+  connect: [CancellationNoticeWhereUniqueInput!]
 }
 
 input WorkLineUpdateArgs {
@@ -8305,7 +8340,2084 @@ input WorkLineCreateInput {
   trade: String
   cancellationClass: String
   status: String
+  estimateLine: EstimateLineRelateToOneForCreateInput
+  changeOrder: ChangeOrderRelateToOneForCreateInput
+  cancellationNotices: CancellationNoticeRelateToManyForCreateInput
   version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateLineRelateToOneForCreateInput {
+  create: EstimateLineCreateInput
+  connect: EstimateLineWhereUniqueInput
+}
+
+input ChangeOrderRelateToOneForCreateInput {
+  create: ChangeOrderCreateInput
+  connect: ChangeOrderWhereUniqueInput
+}
+
+input CancellationNoticeRelateToManyForCreateInput {
+  create: [CancellationNoticeCreateInput!]
+  connect: [CancellationNoticeWhereUniqueInput!]
+}
+
+type Authorization {
+  id: ID!
+  subjectType: String
+  subjectId: String
+  job: Job
+  method: String
+  signerName: String
+  signerContact: Contact
+  signerRole: String
+  signature: JSON
+  call: Call
+  poNumber: String
+  ip: String
+  userAgent: String
+  location: String
+  initiatedBy: String
+  selectedLineIds: JSON
+  depositMinor: BigInt
+  contentHash: String
+  authorizedAt: DateTime
+  recordedBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AuthorizationWhereUniqueInput {
+  id: ID
+}
+
+input AuthorizationWhereInput {
+  AND: [AuthorizationWhereInput!]
+  OR: [AuthorizationWhereInput!]
+  NOT: [AuthorizationWhereInput!]
+  id: IDFilter
+  subjectType: StringFilter
+  subjectId: StringFilter
+  job: JobWhereInput
+  method: StringFilter
+  signerName: StringFilter
+  signerContact: ContactWhereInput
+  signerRole: StringFilter
+  call: CallWhereInput
+  poNumber: StringFilter
+  ip: StringFilter
+  userAgent: StringFilter
+  location: StringFilter
+  initiatedBy: StringFilter
+  depositMinor: BigIntFilter
+  contentHash: StringFilter
+  authorizedAt: DateTimeFilter
+  recordedBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input AuthorizationOrderByInput {
+  id: OrderDirection
+  subjectType: OrderDirection
+  subjectId: OrderDirection
+  method: OrderDirection
+  signerName: OrderDirection
+  signerRole: OrderDirection
+  poNumber: OrderDirection
+  ip: OrderDirection
+  userAgent: OrderDirection
+  location: OrderDirection
+  initiatedBy: OrderDirection
+  depositMinor: OrderDirection
+  contentHash: OrderDirection
+  authorizedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input AuthorizationUpdateInput {
+  subjectType: String
+  subjectId: String
+  job: JobRelateToOneForUpdateInput
+  method: String
+  signerName: String
+  signerContact: ContactRelateToOneForUpdateInput
+  signerRole: String
+  signature: JSON
+  call: CallRelateToOneForUpdateInput
+  poNumber: String
+  ip: String
+  userAgent: String
+  location: String
+  initiatedBy: String
+  selectedLineIds: JSON
+  depositMinor: BigInt
+  contentHash: String
+  authorizedAt: DateTime
+  recordedBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CallRelateToOneForUpdateInput {
+  create: CallCreateInput
+  connect: CallWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AuthorizationUpdateArgs {
+  where: AuthorizationWhereUniqueInput!
+  data: AuthorizationUpdateInput!
+}
+
+input AuthorizationCreateInput {
+  subjectType: String
+  subjectId: String
+  job: JobRelateToOneForCreateInput
+  method: String
+  signerName: String
+  signerContact: ContactRelateToOneForCreateInput
+  signerRole: String
+  signature: JSON
+  call: CallRelateToOneForCreateInput
+  poNumber: String
+  ip: String
+  userAgent: String
+  location: String
+  initiatedBy: String
+  selectedLineIds: JSON
+  depositMinor: BigInt
+  contentHash: String
+  authorizedAt: DateTime
+  recordedBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CallRelateToOneForCreateInput {
+  create: CallCreateInput
+  connect: CallWhereUniqueInput
+}
+
+type CancellationEvaluation {
+  id: ID!
+  job: Job
+  authorization: Authorization
+  subjectType: String
+  subjectId: String
+  policyVersion: PolicyVersion
+  inputs: JSON
+  results: JSON
+  rightApplies: Boolean
+  governingRule: String
+  evaluatedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CancellationEvaluationWhereUniqueInput {
+  id: ID
+}
+
+input CancellationEvaluationWhereInput {
+  AND: [CancellationEvaluationWhereInput!]
+  OR: [CancellationEvaluationWhereInput!]
+  NOT: [CancellationEvaluationWhereInput!]
+  id: IDFilter
+  job: JobWhereInput
+  authorization: AuthorizationWhereInput
+  subjectType: StringFilter
+  subjectId: StringFilter
+  policyVersion: PolicyVersionWhereInput
+  rightApplies: BooleanFilter
+  governingRule: StringFilter
+  evaluatedAt: DateTimeFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CancellationEvaluationOrderByInput {
+  id: OrderDirection
+  subjectType: OrderDirection
+  subjectId: OrderDirection
+  rightApplies: OrderDirection
+  governingRule: OrderDirection
+  evaluatedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CancellationEvaluationUpdateInput {
+  job: JobRelateToOneForUpdateInput
+  authorization: AuthorizationRelateToOneForUpdateInput
+  subjectType: String
+  subjectId: String
+  policyVersion: PolicyVersionRelateToOneForUpdateInput
+  inputs: JSON
+  results: JSON
+  rightApplies: Boolean
+  governingRule: String
+  evaluatedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AuthorizationRelateToOneForUpdateInput {
+  create: AuthorizationCreateInput
+  connect: AuthorizationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CancellationEvaluationUpdateArgs {
+  where: CancellationEvaluationWhereUniqueInput!
+  data: CancellationEvaluationUpdateInput!
+}
+
+input CancellationEvaluationCreateInput {
+  job: JobRelateToOneForCreateInput
+  authorization: AuthorizationRelateToOneForCreateInput
+  subjectType: String
+  subjectId: String
+  policyVersion: PolicyVersionRelateToOneForCreateInput
+  inputs: JSON
+  results: JSON
+  rightApplies: Boolean
+  governingRule: String
+  evaluatedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AuthorizationRelateToOneForCreateInput {
+  create: AuthorizationCreateInput
+  connect: AuthorizationWhereUniqueInput
+}
+
+type CancellationNotice {
+  id: ID!
+  ref: String
+  evaluation: CancellationEvaluation
+  job: Job
+  customer: Customer
+  estimateVersion: EstimateVersion
+  changeOrder: ChangeOrder
+  rule: String
+  rules: JSON
+  policyVersion: PolicyVersion
+  noticeTemplate: String
+  language: String
+  coveredWorkLines(where: WorkLineWhereInput! = {}, orderBy: [WorkLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WorkLineWhereUniqueInput): [WorkLine!]
+  coveredWorkLinesCount(where: WorkLineWhereInput! = {}): Int
+  coveredAmountMinor: BigInt
+  transactionAt: DateTime
+  cancelBy: DateTime
+  timeZone: String
+  status: String
+  snapshot: JSON
+  deliveryEvidence: JSON
+  deliveredAt: DateTime
+  noticeDocument: Document
+  waiverDocument: Document
+  cancelledAt: DateTime
+  cancellationReceivedVia: String
+  refundDueBy: DateTime
+  refundDueMinor: BigInt
+  refundEvidence: JSON
+  startOverride: ApprovalRequest
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CancellationNoticeWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input CancellationNoticeWhereInput {
+  AND: [CancellationNoticeWhereInput!]
+  OR: [CancellationNoticeWhereInput!]
+  NOT: [CancellationNoticeWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  evaluation: CancellationEvaluationWhereInput
+  job: JobWhereInput
+  customer: CustomerWhereInput
+  estimateVersion: EstimateVersionWhereInput
+  changeOrder: ChangeOrderWhereInput
+  rule: StringFilter
+  policyVersion: PolicyVersionWhereInput
+  noticeTemplate: StringFilter
+  language: StringFilter
+  coveredWorkLines: WorkLineManyRelationFilter
+  coveredAmountMinor: BigIntFilter
+  transactionAt: DateTimeFilter
+  cancelBy: DateTimeFilter
+  timeZone: StringFilter
+  status: StringFilter
+  deliveredAt: DateTimeNullableFilter
+  noticeDocument: DocumentWhereInput
+  waiverDocument: DocumentWhereInput
+  cancelledAt: DateTimeNullableFilter
+  cancellationReceivedVia: StringFilter
+  refundDueBy: DateTimeNullableFilter
+  refundDueMinor: BigIntFilter
+  startOverride: ApprovalRequestWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CancellationNoticeOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  rule: OrderDirection
+  noticeTemplate: OrderDirection
+  language: OrderDirection
+  coveredAmountMinor: OrderDirection
+  transactionAt: OrderDirection
+  cancelBy: OrderDirection
+  timeZone: OrderDirection
+  status: OrderDirection
+  deliveredAt: OrderDirection
+  cancelledAt: OrderDirection
+  cancellationReceivedVia: OrderDirection
+  refundDueBy: OrderDirection
+  refundDueMinor: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CancellationNoticeUpdateInput {
+  ref: String
+  evaluation: CancellationEvaluationRelateToOneForUpdateInput
+  job: JobRelateToOneForUpdateInput
+  customer: CustomerRelateToOneForUpdateInput
+  estimateVersion: EstimateVersionRelateToOneForUpdateInput
+  changeOrder: ChangeOrderRelateToOneForUpdateInput
+  rule: String
+  rules: JSON
+  policyVersion: PolicyVersionRelateToOneForUpdateInput
+  noticeTemplate: String
+  language: String
+  coveredWorkLines: WorkLineRelateToManyForUpdateInput
+  coveredAmountMinor: BigInt
+  transactionAt: DateTime
+  cancelBy: DateTime
+  timeZone: String
+  status: String
+  snapshot: JSON
+  deliveryEvidence: JSON
+  deliveredAt: DateTime
+  noticeDocument: DocumentRelateToOneForUpdateInput
+  waiverDocument: DocumentRelateToOneForUpdateInput
+  cancelledAt: DateTime
+  cancellationReceivedVia: String
+  refundDueBy: DateTime
+  refundDueMinor: BigInt
+  refundEvidence: JSON
+  startOverride: ApprovalRequestRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CancellationEvaluationRelateToOneForUpdateInput {
+  create: CancellationEvaluationCreateInput
+  connect: CancellationEvaluationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EstimateVersionRelateToOneForUpdateInput {
+  create: EstimateVersionCreateInput
+  connect: EstimateVersionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CancellationNoticeUpdateArgs {
+  where: CancellationNoticeWhereUniqueInput!
+  data: CancellationNoticeUpdateInput!
+}
+
+input CancellationNoticeCreateInput {
+  ref: String
+  evaluation: CancellationEvaluationRelateToOneForCreateInput
+  job: JobRelateToOneForCreateInput
+  customer: CustomerRelateToOneForCreateInput
+  estimateVersion: EstimateVersionRelateToOneForCreateInput
+  changeOrder: ChangeOrderRelateToOneForCreateInput
+  rule: String
+  rules: JSON
+  policyVersion: PolicyVersionRelateToOneForCreateInput
+  noticeTemplate: String
+  language: String
+  coveredWorkLines: WorkLineRelateToManyForCreateInput
+  coveredAmountMinor: BigInt
+  transactionAt: DateTime
+  cancelBy: DateTime
+  timeZone: String
+  status: String
+  snapshot: JSON
+  deliveryEvidence: JSON
+  deliveredAt: DateTime
+  noticeDocument: DocumentRelateToOneForCreateInput
+  waiverDocument: DocumentRelateToOneForCreateInput
+  cancelledAt: DateTime
+  cancellationReceivedVia: String
+  refundDueBy: DateTime
+  refundDueMinor: BigInt
+  refundEvidence: JSON
+  startOverride: ApprovalRequestRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CancellationEvaluationRelateToOneForCreateInput {
+  create: CancellationEvaluationCreateInput
+  connect: CancellationEvaluationWhereUniqueInput
+}
+
+input EstimateVersionRelateToOneForCreateInput {
+  create: EstimateVersionCreateInput
+  connect: EstimateVersionWhereUniqueInput
+}
+
+type ChangeOrder {
+  id: ID!
+  ref: String
+  job: Job
+  estimate: Estimate
+  priceBookVersion: PriceBookVersion
+  status: String
+  reason: String
+  lines: JSON
+  deltaMinor: BigInt
+  contentHash: String
+  presentedAt: DateTime
+  authorization: Authorization
+  cancellationEvaluation: CancellationEvaluation
+  decidedAt: DateTime
+  createdBy: User
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ChangeOrderWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input ChangeOrderWhereInput {
+  AND: [ChangeOrderWhereInput!]
+  OR: [ChangeOrderWhereInput!]
+  NOT: [ChangeOrderWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  job: JobWhereInput
+  estimate: EstimateWhereInput
+  priceBookVersion: PriceBookVersionWhereInput
+  status: StringFilter
+  reason: StringFilter
+  deltaMinor: BigIntFilter
+  contentHash: StringFilter
+  presentedAt: DateTimeNullableFilter
+  authorization: AuthorizationWhereInput
+  cancellationEvaluation: CancellationEvaluationWhereInput
+  decidedAt: DateTimeNullableFilter
+  createdBy: UserWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ChangeOrderOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  status: OrderDirection
+  reason: OrderDirection
+  deltaMinor: OrderDirection
+  contentHash: OrderDirection
+  presentedAt: OrderDirection
+  decidedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ChangeOrderUpdateInput {
+  ref: String
+  job: JobRelateToOneForUpdateInput
+  estimate: EstimateRelateToOneForUpdateInput
+  priceBookVersion: PriceBookVersionRelateToOneForUpdateInput
+  status: String
+  reason: String
+  lines: JSON
+  deltaMinor: BigInt
+  contentHash: String
+  presentedAt: DateTime
+  authorization: AuthorizationRelateToOneForUpdateInput
+  cancellationEvaluation: CancellationEvaluationRelateToOneForUpdateInput
+  decidedAt: DateTime
+  createdBy: UserRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateRelateToOneForUpdateInput {
+  create: EstimateCreateInput
+  connect: EstimateWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PriceBookVersionRelateToOneForUpdateInput {
+  create: PriceBookVersionCreateInput
+  connect: PriceBookVersionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ChangeOrderUpdateArgs {
+  where: ChangeOrderWhereUniqueInput!
+  data: ChangeOrderUpdateInput!
+}
+
+input ChangeOrderCreateInput {
+  ref: String
+  job: JobRelateToOneForCreateInput
+  estimate: EstimateRelateToOneForCreateInput
+  priceBookVersion: PriceBookVersionRelateToOneForCreateInput
+  status: String
+  reason: String
+  lines: JSON
+  deltaMinor: BigInt
+  contentHash: String
+  presentedAt: DateTime
+  authorization: AuthorizationRelateToOneForCreateInput
+  cancellationEvaluation: CancellationEvaluationRelateToOneForCreateInput
+  decidedAt: DateTime
+  createdBy: UserRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateRelateToOneForCreateInput {
+  create: EstimateCreateInput
+  connect: EstimateWhereUniqueInput
+}
+
+input PriceBookVersionRelateToOneForCreateInput {
+  create: PriceBookVersionCreateInput
+  connect: PriceBookVersionWhereUniqueInput
+}
+
+type EquipmentModel {
+  id: ID!
+  manufacturer: String
+  brand: String
+  modelNumber: String
+  kind: String
+  tonnage: Decimal
+  btuh: Int
+  efficiency: JSON
+  refrigerantType: String
+  ahriRef: String
+  warrantySummary: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EquipmentModelWhereUniqueInput {
+  id: ID
+  modelNumber: String
+}
+
+input EquipmentModelWhereInput {
+  AND: [EquipmentModelWhereInput!]
+  OR: [EquipmentModelWhereInput!]
+  NOT: [EquipmentModelWhereInput!]
+  id: IDFilter
+  manufacturer: StringFilter
+  brand: StringFilter
+  modelNumber: StringFilter
+  kind: StringFilter
+  tonnage: DecimalNullableFilter
+  btuh: IntNullableFilter
+  refrigerantType: StringFilter
+  ahriRef: StringFilter
+  warrantySummary: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EquipmentModelOrderByInput {
+  id: OrderDirection
+  manufacturer: OrderDirection
+  brand: OrderDirection
+  modelNumber: OrderDirection
+  kind: OrderDirection
+  tonnage: OrderDirection
+  btuh: OrderDirection
+  refrigerantType: OrderDirection
+  ahriRef: OrderDirection
+  warrantySummary: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EquipmentModelUpdateInput {
+  manufacturer: String
+  brand: String
+  modelNumber: String
+  kind: String
+  tonnage: Decimal
+  btuh: Int
+  efficiency: JSON
+  refrigerantType: String
+  ahriRef: String
+  warrantySummary: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EquipmentModelUpdateArgs {
+  where: EquipmentModelWhereUniqueInput!
+  data: EquipmentModelUpdateInput!
+}
+
+input EquipmentModelCreateInput {
+  manufacturer: String
+  brand: String
+  modelNumber: String
+  kind: String
+  tonnage: Decimal
+  btuh: Int
+  efficiency: JSON
+  refrigerantType: String
+  ahriRef: String
+  warrantySummary: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Estimate {
+  id: ID!
+  ref: String
+  publicCode: String
+  title: String
+  job: Job
+  opportunity: Opportunity
+  customer: Customer
+  location: ServiceLocation
+  businessUnit: BusinessUnit
+  status: String
+  source: String
+  currentVersion: EstimateVersion
+  soldVersion: EstimateVersion
+  versions(where: EstimateVersionWhereInput! = {}, orderBy: [EstimateVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EstimateVersionWhereUniqueInput): [EstimateVersion!]
+  versionsCount(where: EstimateVersionWhereInput! = {}): Int
+  presentedBy: Employee
+  createdBy: User
+  createdByAgent: AgentIdentity
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateWhereUniqueInput {
+  id: ID
+  ref: String
+  publicCode: String
+}
+
+input EstimateWhereInput {
+  AND: [EstimateWhereInput!]
+  OR: [EstimateWhereInput!]
+  NOT: [EstimateWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  publicCode: StringFilter
+  title: StringFilter
+  job: JobWhereInput
+  opportunity: OpportunityWhereInput
+  customer: CustomerWhereInput
+  location: ServiceLocationWhereInput
+  businessUnit: BusinessUnitWhereInput
+  status: StringFilter
+  source: StringFilter
+  currentVersion: EstimateVersionWhereInput
+  soldVersion: EstimateVersionWhereInput
+  versions: EstimateVersionManyRelationFilter
+  presentedBy: EmployeeWhereInput
+  createdBy: UserWhereInput
+  createdByAgent: AgentIdentityWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EstimateVersionManyRelationFilter {
+  every: EstimateVersionWhereInput
+  some: EstimateVersionWhereInput
+  none: EstimateVersionWhereInput
+}
+
+input EstimateOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  publicCode: OrderDirection
+  title: OrderDirection
+  status: OrderDirection
+  source: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EstimateUpdateInput {
+  ref: String
+  publicCode: String
+  title: String
+  job: JobRelateToOneForUpdateInput
+  opportunity: OpportunityRelateToOneForUpdateInput
+  customer: CustomerRelateToOneForUpdateInput
+  location: ServiceLocationRelateToOneForUpdateInput
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  status: String
+  source: String
+  currentVersion: EstimateVersionRelateToOneForUpdateInput
+  soldVersion: EstimateVersionRelateToOneForUpdateInput
+  versions: EstimateVersionRelateToManyForUpdateInput
+  presentedBy: EmployeeRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  createdByAgent: AgentIdentityRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OpportunityRelateToOneForUpdateInput {
+  create: OpportunityCreateInput
+  connect: OpportunityWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EstimateVersionRelateToManyForUpdateInput {
+  disconnect: [EstimateVersionWhereUniqueInput!]
+  set: [EstimateVersionWhereUniqueInput!]
+  create: [EstimateVersionCreateInput!]
+  connect: [EstimateVersionWhereUniqueInput!]
+}
+
+input EstimateUpdateArgs {
+  where: EstimateWhereUniqueInput!
+  data: EstimateUpdateInput!
+}
+
+input EstimateCreateInput {
+  ref: String
+  publicCode: String
+  title: String
+  job: JobRelateToOneForCreateInput
+  opportunity: OpportunityRelateToOneForCreateInput
+  customer: CustomerRelateToOneForCreateInput
+  location: ServiceLocationRelateToOneForCreateInput
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  status: String
+  source: String
+  currentVersion: EstimateVersionRelateToOneForCreateInput
+  soldVersion: EstimateVersionRelateToOneForCreateInput
+  versions: EstimateVersionRelateToManyForCreateInput
+  presentedBy: EmployeeRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  createdByAgent: AgentIdentityRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input OpportunityRelateToOneForCreateInput {
+  create: OpportunityCreateInput
+  connect: OpportunityWhereUniqueInput
+}
+
+input EstimateVersionRelateToManyForCreateInput {
+  create: [EstimateVersionCreateInput!]
+  connect: [EstimateVersionWhereUniqueInput!]
+}
+
+type EstimateLine {
+  id: ID!
+  option: EstimateOption
+  pricebookItem: PriceBookItem
+  itemKey: String
+  snapshot: JSON
+  description: String
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  discountMinor: BigInt
+  memberPriced: Boolean
+  costMinor: BigInt
+  taxCategory: String
+  trade: String
+  cancellationClass: String
+  isAddOn: Boolean
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateLineWhereUniqueInput {
+  id: ID
+}
+
+input EstimateLineWhereInput {
+  AND: [EstimateLineWhereInput!]
+  OR: [EstimateLineWhereInput!]
+  NOT: [EstimateLineWhereInput!]
+  id: IDFilter
+  option: EstimateOptionWhereInput
+  pricebookItem: PriceBookItemWhereInput
+  itemKey: StringFilter
+  description: StringFilter
+  quantity: DecimalFilter
+  uom: StringFilter
+  unitPriceMinor: BigIntFilter
+  amountMinor: BigIntFilter
+  discountMinor: BigIntFilter
+  memberPriced: BooleanFilter
+  costMinor: BigIntFilter
+  taxCategory: StringFilter
+  trade: StringFilter
+  cancellationClass: StringFilter
+  isAddOn: BooleanFilter
+  sortOrder: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EstimateLineOrderByInput {
+  id: OrderDirection
+  itemKey: OrderDirection
+  description: OrderDirection
+  quantity: OrderDirection
+  uom: OrderDirection
+  unitPriceMinor: OrderDirection
+  amountMinor: OrderDirection
+  discountMinor: OrderDirection
+  memberPriced: OrderDirection
+  costMinor: OrderDirection
+  taxCategory: OrderDirection
+  trade: OrderDirection
+  cancellationClass: OrderDirection
+  isAddOn: OrderDirection
+  sortOrder: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EstimateLineUpdateInput {
+  option: EstimateOptionRelateToOneForUpdateInput
+  pricebookItem: PriceBookItemRelateToOneForUpdateInput
+  itemKey: String
+  snapshot: JSON
+  description: String
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  discountMinor: BigInt
+  memberPriced: Boolean
+  costMinor: BigInt
+  taxCategory: String
+  trade: String
+  cancellationClass: String
+  isAddOn: Boolean
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateOptionRelateToOneForUpdateInput {
+  create: EstimateOptionCreateInput
+  connect: EstimateOptionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PriceBookItemRelateToOneForUpdateInput {
+  create: PriceBookItemCreateInput
+  connect: PriceBookItemWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EstimateLineUpdateArgs {
+  where: EstimateLineWhereUniqueInput!
+  data: EstimateLineUpdateInput!
+}
+
+input EstimateLineCreateInput {
+  option: EstimateOptionRelateToOneForCreateInput
+  pricebookItem: PriceBookItemRelateToOneForCreateInput
+  itemKey: String
+  snapshot: JSON
+  description: String
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  discountMinor: BigInt
+  memberPriced: Boolean
+  costMinor: BigInt
+  taxCategory: String
+  trade: String
+  cancellationClass: String
+  isAddOn: Boolean
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateOptionRelateToOneForCreateInput {
+  create: EstimateOptionCreateInput
+  connect: EstimateOptionWhereUniqueInput
+}
+
+input PriceBookItemRelateToOneForCreateInput {
+  create: PriceBookItemCreateInput
+  connect: PriceBookItemWhereUniqueInput
+}
+
+type EstimateOption {
+  id: ID!
+  estimateVersion: EstimateVersion
+  tier: String
+  name: String
+  description: String
+  sortOrder: Int
+  subtotalMinor: BigInt
+  discountMinor: BigInt
+  estimatedTaxMinor: BigInt
+  totalMinor: BigInt
+  monthlyPaymentDisplay: JSON
+  contentHash: String
+  lines(where: EstimateLineWhereInput! = {}, orderBy: [EstimateLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EstimateLineWhereUniqueInput): [EstimateLine!]
+  linesCount(where: EstimateLineWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateOptionWhereUniqueInput {
+  id: ID
+}
+
+input EstimateOptionWhereInput {
+  AND: [EstimateOptionWhereInput!]
+  OR: [EstimateOptionWhereInput!]
+  NOT: [EstimateOptionWhereInput!]
+  id: IDFilter
+  estimateVersion: EstimateVersionWhereInput
+  tier: StringFilter
+  name: StringFilter
+  description: StringFilter
+  sortOrder: IntFilter
+  subtotalMinor: BigIntFilter
+  discountMinor: BigIntFilter
+  estimatedTaxMinor: BigIntFilter
+  totalMinor: BigIntFilter
+  contentHash: StringFilter
+  lines: EstimateLineManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EstimateLineManyRelationFilter {
+  every: EstimateLineWhereInput
+  some: EstimateLineWhereInput
+  none: EstimateLineWhereInput
+}
+
+input EstimateOptionOrderByInput {
+  id: OrderDirection
+  tier: OrderDirection
+  name: OrderDirection
+  description: OrderDirection
+  sortOrder: OrderDirection
+  subtotalMinor: OrderDirection
+  discountMinor: OrderDirection
+  estimatedTaxMinor: OrderDirection
+  totalMinor: OrderDirection
+  contentHash: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EstimateOptionUpdateInput {
+  estimateVersion: EstimateVersionRelateToOneForUpdateInput
+  tier: String
+  name: String
+  description: String
+  sortOrder: Int
+  subtotalMinor: BigInt
+  discountMinor: BigInt
+  estimatedTaxMinor: BigInt
+  totalMinor: BigInt
+  monthlyPaymentDisplay: JSON
+  contentHash: String
+  lines: EstimateLineRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateLineRelateToManyForUpdateInput {
+  disconnect: [EstimateLineWhereUniqueInput!]
+  set: [EstimateLineWhereUniqueInput!]
+  create: [EstimateLineCreateInput!]
+  connect: [EstimateLineWhereUniqueInput!]
+}
+
+input EstimateOptionUpdateArgs {
+  where: EstimateOptionWhereUniqueInput!
+  data: EstimateOptionUpdateInput!
+}
+
+input EstimateOptionCreateInput {
+  estimateVersion: EstimateVersionRelateToOneForCreateInput
+  tier: String
+  name: String
+  description: String
+  sortOrder: Int
+  subtotalMinor: BigInt
+  discountMinor: BigInt
+  estimatedTaxMinor: BigInt
+  totalMinor: BigInt
+  monthlyPaymentDisplay: JSON
+  contentHash: String
+  lines: EstimateLineRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateLineRelateToManyForCreateInput {
+  create: [EstimateLineCreateInput!]
+  connect: [EstimateLineWhereUniqueInput!]
+}
+
+type EstimateVersion {
+  id: ID!
+  estimate: Estimate
+  versionNumber: Int
+  label: String
+  status: String
+  priceBookVersion: PriceBookVersion
+  supersedes: EstimateVersion
+  discountBps: Int
+  discountReason: String
+  discountApproval: ApprovalRequest
+  notes: String
+  presentedAt: DateTime
+  presentedBy: User
+  presentedVia: String
+  validUntil: DateTime
+  snapshot: JSON
+  contentHash: String
+  pdf: Document
+  options(where: EstimateOptionWhereInput! = {}, orderBy: [EstimateOptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EstimateOptionWhereUniqueInput): [EstimateOption!]
+  optionsCount(where: EstimateOptionWhereInput! = {}): Int
+  soldOption: EstimateOption
+  authorization: Authorization
+  soldAt: DateTime
+  depositRequiredMinor: BigInt
+  declineReason: String
+  declineNote: String
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateVersionWhereUniqueInput {
+  id: ID
+}
+
+input EstimateVersionWhereInput {
+  AND: [EstimateVersionWhereInput!]
+  OR: [EstimateVersionWhereInput!]
+  NOT: [EstimateVersionWhereInput!]
+  id: IDFilter
+  estimate: EstimateWhereInput
+  versionNumber: IntFilter
+  label: StringFilter
+  status: StringFilter
+  priceBookVersion: PriceBookVersionWhereInput
+  supersedes: EstimateVersionWhereInput
+  discountBps: IntFilter
+  discountReason: StringFilter
+  discountApproval: ApprovalRequestWhereInput
+  notes: StringFilter
+  presentedAt: DateTimeNullableFilter
+  presentedBy: UserWhereInput
+  presentedVia: StringFilter
+  validUntil: DateTimeNullableFilter
+  contentHash: StringFilter
+  pdf: DocumentWhereInput
+  options: EstimateOptionManyRelationFilter
+  soldOption: EstimateOptionWhereInput
+  authorization: AuthorizationWhereInput
+  soldAt: DateTimeNullableFilter
+  depositRequiredMinor: BigIntFilter
+  declineReason: StringFilter
+  declineNote: StringFilter
+  closedAt: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EstimateOptionManyRelationFilter {
+  every: EstimateOptionWhereInput
+  some: EstimateOptionWhereInput
+  none: EstimateOptionWhereInput
+}
+
+input EstimateVersionOrderByInput {
+  id: OrderDirection
+  versionNumber: OrderDirection
+  label: OrderDirection
+  status: OrderDirection
+  discountBps: OrderDirection
+  discountReason: OrderDirection
+  notes: OrderDirection
+  presentedAt: OrderDirection
+  presentedVia: OrderDirection
+  validUntil: OrderDirection
+  contentHash: OrderDirection
+  soldAt: OrderDirection
+  depositRequiredMinor: OrderDirection
+  declineReason: OrderDirection
+  declineNote: OrderDirection
+  closedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EstimateVersionUpdateInput {
+  estimate: EstimateRelateToOneForUpdateInput
+  versionNumber: Int
+  label: String
+  status: String
+  priceBookVersion: PriceBookVersionRelateToOneForUpdateInput
+  supersedes: EstimateVersionRelateToOneForUpdateInput
+  discountBps: Int
+  discountReason: String
+  discountApproval: ApprovalRequestRelateToOneForUpdateInput
+  notes: String
+  presentedAt: DateTime
+  presentedBy: UserRelateToOneForUpdateInput
+  presentedVia: String
+  validUntil: DateTime
+  snapshot: JSON
+  contentHash: String
+  pdf: DocumentRelateToOneForUpdateInput
+  options: EstimateOptionRelateToManyForUpdateInput
+  soldOption: EstimateOptionRelateToOneForUpdateInput
+  authorization: AuthorizationRelateToOneForUpdateInput
+  soldAt: DateTime
+  depositRequiredMinor: BigInt
+  declineReason: String
+  declineNote: String
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateOptionRelateToManyForUpdateInput {
+  disconnect: [EstimateOptionWhereUniqueInput!]
+  set: [EstimateOptionWhereUniqueInput!]
+  create: [EstimateOptionCreateInput!]
+  connect: [EstimateOptionWhereUniqueInput!]
+}
+
+input EstimateVersionUpdateArgs {
+  where: EstimateVersionWhereUniqueInput!
+  data: EstimateVersionUpdateInput!
+}
+
+input EstimateVersionCreateInput {
+  estimate: EstimateRelateToOneForCreateInput
+  versionNumber: Int
+  label: String
+  status: String
+  priceBookVersion: PriceBookVersionRelateToOneForCreateInput
+  supersedes: EstimateVersionRelateToOneForCreateInput
+  discountBps: Int
+  discountReason: String
+  discountApproval: ApprovalRequestRelateToOneForCreateInput
+  notes: String
+  presentedAt: DateTime
+  presentedBy: UserRelateToOneForCreateInput
+  presentedVia: String
+  validUntil: DateTime
+  snapshot: JSON
+  contentHash: String
+  pdf: DocumentRelateToOneForCreateInput
+  options: EstimateOptionRelateToManyForCreateInput
+  soldOption: EstimateOptionRelateToOneForCreateInput
+  authorization: AuthorizationRelateToOneForCreateInput
+  soldAt: DateTime
+  depositRequiredMinor: BigInt
+  declineReason: String
+  declineNote: String
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EstimateOptionRelateToManyForCreateInput {
+  create: [EstimateOptionCreateInput!]
+  connect: [EstimateOptionWhereUniqueInput!]
+}
+
+type LaborRate {
+  id: ID!
+  priceBookVersion: PriceBookVersion
+  businessUnit: BusinessUnit
+  hourlyMinor: BigInt
+  afterHoursMultiplier: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LaborRateWhereUniqueInput {
+  id: ID
+}
+
+input LaborRateWhereInput {
+  AND: [LaborRateWhereInput!]
+  OR: [LaborRateWhereInput!]
+  NOT: [LaborRateWhereInput!]
+  id: IDFilter
+  priceBookVersion: PriceBookVersionWhereInput
+  businessUnit: BusinessUnitWhereInput
+  hourlyMinor: BigIntFilter
+  afterHoursMultiplier: DecimalNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input LaborRateOrderByInput {
+  id: OrderDirection
+  hourlyMinor: OrderDirection
+  afterHoursMultiplier: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input LaborRateUpdateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForUpdateInput
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  hourlyMinor: BigInt
+  afterHoursMultiplier: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LaborRateUpdateArgs {
+  where: LaborRateWhereUniqueInput!
+  data: LaborRateUpdateInput!
+}
+
+input LaborRateCreateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForCreateInput
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  hourlyMinor: BigInt
+  afterHoursMultiplier: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type MarkupTable {
+  id: ID!
+  priceBookVersion: PriceBookVersion
+  name: String
+  appliesTo: String
+  tiers: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MarkupTableWhereUniqueInput {
+  id: ID
+}
+
+input MarkupTableWhereInput {
+  AND: [MarkupTableWhereInput!]
+  OR: [MarkupTableWhereInput!]
+  NOT: [MarkupTableWhereInput!]
+  id: IDFilter
+  priceBookVersion: PriceBookVersionWhereInput
+  name: StringFilter
+  appliesTo: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MarkupTableOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  appliesTo: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MarkupTableUpdateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForUpdateInput
+  name: String
+  appliesTo: String
+  tiers: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MarkupTableUpdateArgs {
+  where: MarkupTableWhereUniqueInput!
+  data: MarkupTableUpdateInput!
+}
+
+input MarkupTableCreateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForCreateInput
+  name: String
+  appliesTo: String
+  tiers: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type MemberPricingRule {
+  id: ID!
+  priceBookVersion: PriceBookVersion
+  planCode: String
+  scope: String
+  scopeKey: String
+  discountBps: Int
+  waiveTripFee: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MemberPricingRuleWhereUniqueInput {
+  id: ID
+}
+
+input MemberPricingRuleWhereInput {
+  AND: [MemberPricingRuleWhereInput!]
+  OR: [MemberPricingRuleWhereInput!]
+  NOT: [MemberPricingRuleWhereInput!]
+  id: IDFilter
+  priceBookVersion: PriceBookVersionWhereInput
+  planCode: StringFilter
+  scope: StringFilter
+  scopeKey: StringFilter
+  discountBps: IntFilter
+  waiveTripFee: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MemberPricingRuleOrderByInput {
+  id: OrderDirection
+  planCode: OrderDirection
+  scope: OrderDirection
+  scopeKey: OrderDirection
+  discountBps: OrderDirection
+  waiveTripFee: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MemberPricingRuleUpdateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForUpdateInput
+  planCode: String
+  scope: String
+  scopeKey: String
+  discountBps: Int
+  waiveTripFee: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MemberPricingRuleUpdateArgs {
+  where: MemberPricingRuleWhereUniqueInput!
+  data: MemberPricingRuleUpdateInput!
+}
+
+input MemberPricingRuleCreateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForCreateInput
+  planCode: String
+  scope: String
+  scopeKey: String
+  discountBps: Int
+  waiveTripFee: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type PriceBook {
+  id: ID!
+  name: String
+  code: String
+  currencyCode: String
+  businessUnits(where: BusinessUnitWhereInput! = {}, orderBy: [BusinessUnitOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: BusinessUnitWhereUniqueInput): [BusinessUnit!]
+  businessUnitsCount(where: BusinessUnitWhereInput! = {}): Int
+  activeVersion: PriceBookVersion
+  versions(where: PriceBookVersionWhereInput! = {}, orderBy: [PriceBookVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookVersionWhereUniqueInput): [PriceBookVersion!]
+  versionsCount(where: PriceBookVersionWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input PriceBookWhereInput {
+  AND: [PriceBookWhereInput!]
+  OR: [PriceBookWhereInput!]
+  NOT: [PriceBookWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  code: StringFilter
+  currencyCode: StringFilter
+  businessUnits: BusinessUnitManyRelationFilter
+  activeVersion: PriceBookVersionWhereInput
+  versions: PriceBookVersionManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PriceBookVersionManyRelationFilter {
+  every: PriceBookVersionWhereInput
+  some: PriceBookVersionWhereInput
+  none: PriceBookVersionWhereInput
+}
+
+input PriceBookOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  code: OrderDirection
+  currencyCode: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PriceBookUpdateInput {
+  name: String
+  code: String
+  currencyCode: String
+  businessUnits: BusinessUnitRelateToManyForUpdateInput
+  activeVersion: PriceBookVersionRelateToOneForUpdateInput
+  versions: PriceBookVersionRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookVersionRelateToManyForUpdateInput {
+  disconnect: [PriceBookVersionWhereUniqueInput!]
+  set: [PriceBookVersionWhereUniqueInput!]
+  create: [PriceBookVersionCreateInput!]
+  connect: [PriceBookVersionWhereUniqueInput!]
+}
+
+input PriceBookUpdateArgs {
+  where: PriceBookWhereUniqueInput!
+  data: PriceBookUpdateInput!
+}
+
+input PriceBookCreateInput {
+  name: String
+  code: String
+  currencyCode: String
+  businessUnits: BusinessUnitRelateToManyForCreateInput
+  activeVersion: PriceBookVersionRelateToOneForCreateInput
+  versions: PriceBookVersionRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookVersionRelateToManyForCreateInput {
+  create: [PriceBookVersionCreateInput!]
+  connect: [PriceBookVersionWhereUniqueInput!]
+}
+
+type PriceBookCategory {
+  id: ID!
+  priceBookVersion: PriceBookVersion
+  categoryKey: String
+  name: String
+  trade: String
+  parentKey: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookCategoryWhereUniqueInput {
+  id: ID
+}
+
+input PriceBookCategoryWhereInput {
+  AND: [PriceBookCategoryWhereInput!]
+  OR: [PriceBookCategoryWhereInput!]
+  NOT: [PriceBookCategoryWhereInput!]
+  id: IDFilter
+  priceBookVersion: PriceBookVersionWhereInput
+  categoryKey: StringFilter
+  name: StringFilter
+  trade: StringFilter
+  parentKey: StringFilter
+  sortOrder: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PriceBookCategoryOrderByInput {
+  id: OrderDirection
+  categoryKey: OrderDirection
+  name: OrderDirection
+  trade: OrderDirection
+  parentKey: OrderDirection
+  sortOrder: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PriceBookCategoryUpdateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForUpdateInput
+  categoryKey: String
+  name: String
+  trade: String
+  parentKey: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookCategoryUpdateArgs {
+  where: PriceBookCategoryWhereUniqueInput!
+  data: PriceBookCategoryUpdateInput!
+}
+
+input PriceBookCategoryCreateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForCreateInput
+  categoryKey: String
+  name: String
+  trade: String
+  parentKey: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type PriceBookItem {
+  id: ID!
+  priceBookVersion: PriceBookVersion
+  itemKey: String
+  kind: String
+  categoryKey: String
+  name: String
+  customerDescription: String
+  internalNotes: String
+  trade: String
+  businessUnit: BusinessUnit
+  pricingMethod: String
+  unitPriceMinor: BigInt
+  memberUnitPriceMinor: BigInt
+  costMinor: BigInt
+  laborHours: Decimal
+  uom: String
+  taxCategory: String
+  warrantyText: String
+  equipmentModel: EquipmentModel
+  materials: JSON
+  commissionCode: String
+  spiffCode: String
+  cancellationClassDefault: String
+  ladderKey: String
+  tier: String
+  sortOrder: Int
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookItemWhereUniqueInput {
+  id: ID
+}
+
+input PriceBookItemWhereInput {
+  AND: [PriceBookItemWhereInput!]
+  OR: [PriceBookItemWhereInput!]
+  NOT: [PriceBookItemWhereInput!]
+  id: IDFilter
+  priceBookVersion: PriceBookVersionWhereInput
+  itemKey: StringFilter
+  kind: StringFilter
+  categoryKey: StringFilter
+  name: StringFilter
+  customerDescription: StringFilter
+  internalNotes: StringFilter
+  trade: StringFilter
+  businessUnit: BusinessUnitWhereInput
+  pricingMethod: StringFilter
+  unitPriceMinor: BigIntFilter
+  memberUnitPriceMinor: BigIntNullableFilter
+  costMinor: BigIntFilter
+  laborHours: DecimalNullableFilter
+  uom: StringFilter
+  taxCategory: StringFilter
+  warrantyText: StringFilter
+  equipmentModel: EquipmentModelWhereInput
+  commissionCode: StringFilter
+  spiffCode: StringFilter
+  cancellationClassDefault: StringFilter
+  ladderKey: StringFilter
+  tier: StringFilter
+  sortOrder: IntFilter
+  active: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PriceBookItemOrderByInput {
+  id: OrderDirection
+  itemKey: OrderDirection
+  kind: OrderDirection
+  categoryKey: OrderDirection
+  name: OrderDirection
+  customerDescription: OrderDirection
+  internalNotes: OrderDirection
+  trade: OrderDirection
+  pricingMethod: OrderDirection
+  unitPriceMinor: OrderDirection
+  memberUnitPriceMinor: OrderDirection
+  costMinor: OrderDirection
+  laborHours: OrderDirection
+  uom: OrderDirection
+  taxCategory: OrderDirection
+  warrantyText: OrderDirection
+  commissionCode: OrderDirection
+  spiffCode: OrderDirection
+  cancellationClassDefault: OrderDirection
+  ladderKey: OrderDirection
+  tier: OrderDirection
+  sortOrder: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PriceBookItemUpdateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForUpdateInput
+  itemKey: String
+  kind: String
+  categoryKey: String
+  name: String
+  customerDescription: String
+  internalNotes: String
+  trade: String
+  businessUnit: BusinessUnitRelateToOneForUpdateInput
+  pricingMethod: String
+  unitPriceMinor: BigInt
+  memberUnitPriceMinor: BigInt
+  costMinor: BigInt
+  laborHours: Decimal
+  uom: String
+  taxCategory: String
+  warrantyText: String
+  equipmentModel: EquipmentModelRelateToOneForUpdateInput
+  materials: JSON
+  commissionCode: String
+  spiffCode: String
+  cancellationClassDefault: String
+  ladderKey: String
+  tier: String
+  sortOrder: Int
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EquipmentModelRelateToOneForUpdateInput {
+  create: EquipmentModelCreateInput
+  connect: EquipmentModelWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PriceBookItemUpdateArgs {
+  where: PriceBookItemWhereUniqueInput!
+  data: PriceBookItemUpdateInput!
+}
+
+input PriceBookItemCreateInput {
+  priceBookVersion: PriceBookVersionRelateToOneForCreateInput
+  itemKey: String
+  kind: String
+  categoryKey: String
+  name: String
+  customerDescription: String
+  internalNotes: String
+  trade: String
+  businessUnit: BusinessUnitRelateToOneForCreateInput
+  pricingMethod: String
+  unitPriceMinor: BigInt
+  memberUnitPriceMinor: BigInt
+  costMinor: BigInt
+  laborHours: Decimal
+  uom: String
+  taxCategory: String
+  warrantyText: String
+  equipmentModel: EquipmentModelRelateToOneForCreateInput
+  materials: JSON
+  commissionCode: String
+  spiffCode: String
+  cancellationClassDefault: String
+  ladderKey: String
+  tier: String
+  sortOrder: Int
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EquipmentModelRelateToOneForCreateInput {
+  create: EquipmentModelCreateInput
+  connect: EquipmentModelWhereUniqueInput
+}
+
+type PriceBookVersion {
+  id: ID!
+  priceBook: PriceBook
+  versionNumber: Int
+  label: String
+  status: String
+  source: String
+  basedOn: PriceBookVersion
+  notes: String
+  effectiveAt: DateTime
+  contentHash: String
+  diffReport: JSON
+  costChangeReport: JSON
+  approval: ApprovalRequest
+  submittedBy: User
+  submittedAt: DateTime
+  publishedBy: User
+  publishedAt: DateTime
+  activatedAt: DateTime
+  retiredAt: DateTime
+  categories(where: PriceBookCategoryWhereInput! = {}, orderBy: [PriceBookCategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookCategoryWhereUniqueInput): [PriceBookCategory!]
+  categoriesCount(where: PriceBookCategoryWhereInput! = {}): Int
+  items(where: PriceBookItemWhereInput! = {}, orderBy: [PriceBookItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookItemWhereUniqueInput): [PriceBookItem!]
+  itemsCount(where: PriceBookItemWhereInput! = {}): Int
+  markupTables(where: MarkupTableWhereInput! = {}, orderBy: [MarkupTableOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MarkupTableWhereUniqueInput): [MarkupTable!]
+  markupTablesCount(where: MarkupTableWhereInput! = {}): Int
+  laborRates(where: LaborRateWhereInput! = {}, orderBy: [LaborRateOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LaborRateWhereUniqueInput): [LaborRate!]
+  laborRatesCount(where: LaborRateWhereInput! = {}): Int
+  memberPricingRules(where: MemberPricingRuleWhereInput! = {}, orderBy: [MemberPricingRuleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MemberPricingRuleWhereUniqueInput): [MemberPricingRule!]
+  memberPricingRulesCount(where: MemberPricingRuleWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookVersionWhereUniqueInput {
+  id: ID
+}
+
+input PriceBookVersionWhereInput {
+  AND: [PriceBookVersionWhereInput!]
+  OR: [PriceBookVersionWhereInput!]
+  NOT: [PriceBookVersionWhereInput!]
+  id: IDFilter
+  priceBook: PriceBookWhereInput
+  versionNumber: IntFilter
+  label: StringFilter
+  status: StringFilter
+  source: StringFilter
+  basedOn: PriceBookVersionWhereInput
+  notes: StringFilter
+  effectiveAt: DateTimeNullableFilter
+  contentHash: StringFilter
+  approval: ApprovalRequestWhereInput
+  submittedBy: UserWhereInput
+  submittedAt: DateTimeNullableFilter
+  publishedBy: UserWhereInput
+  publishedAt: DateTimeNullableFilter
+  activatedAt: DateTimeNullableFilter
+  retiredAt: DateTimeNullableFilter
+  categories: PriceBookCategoryManyRelationFilter
+  items: PriceBookItemManyRelationFilter
+  markupTables: MarkupTableManyRelationFilter
+  laborRates: LaborRateManyRelationFilter
+  memberPricingRules: MemberPricingRuleManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PriceBookCategoryManyRelationFilter {
+  every: PriceBookCategoryWhereInput
+  some: PriceBookCategoryWhereInput
+  none: PriceBookCategoryWhereInput
+}
+
+input PriceBookItemManyRelationFilter {
+  every: PriceBookItemWhereInput
+  some: PriceBookItemWhereInput
+  none: PriceBookItemWhereInput
+}
+
+input MarkupTableManyRelationFilter {
+  every: MarkupTableWhereInput
+  some: MarkupTableWhereInput
+  none: MarkupTableWhereInput
+}
+
+input LaborRateManyRelationFilter {
+  every: LaborRateWhereInput
+  some: LaborRateWhereInput
+  none: LaborRateWhereInput
+}
+
+input MemberPricingRuleManyRelationFilter {
+  every: MemberPricingRuleWhereInput
+  some: MemberPricingRuleWhereInput
+  none: MemberPricingRuleWhereInput
+}
+
+input PriceBookVersionOrderByInput {
+  id: OrderDirection
+  versionNumber: OrderDirection
+  label: OrderDirection
+  status: OrderDirection
+  source: OrderDirection
+  notes: OrderDirection
+  effectiveAt: OrderDirection
+  contentHash: OrderDirection
+  submittedAt: OrderDirection
+  publishedAt: OrderDirection
+  activatedAt: OrderDirection
+  retiredAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PriceBookVersionUpdateInput {
+  priceBook: PriceBookRelateToOneForUpdateInput
+  versionNumber: Int
+  label: String
+  status: String
+  source: String
+  basedOn: PriceBookVersionRelateToOneForUpdateInput
+  notes: String
+  effectiveAt: DateTime
+  contentHash: String
+  diffReport: JSON
+  costChangeReport: JSON
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  submittedBy: UserRelateToOneForUpdateInput
+  submittedAt: DateTime
+  publishedBy: UserRelateToOneForUpdateInput
+  publishedAt: DateTime
+  activatedAt: DateTime
+  retiredAt: DateTime
+  categories: PriceBookCategoryRelateToManyForUpdateInput
+  items: PriceBookItemRelateToManyForUpdateInput
+  markupTables: MarkupTableRelateToManyForUpdateInput
+  laborRates: LaborRateRelateToManyForUpdateInput
+  memberPricingRules: MemberPricingRuleRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookRelateToOneForUpdateInput {
+  create: PriceBookCreateInput
+  connect: PriceBookWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PriceBookCategoryRelateToManyForUpdateInput {
+  disconnect: [PriceBookCategoryWhereUniqueInput!]
+  set: [PriceBookCategoryWhereUniqueInput!]
+  create: [PriceBookCategoryCreateInput!]
+  connect: [PriceBookCategoryWhereUniqueInput!]
+}
+
+input PriceBookItemRelateToManyForUpdateInput {
+  disconnect: [PriceBookItemWhereUniqueInput!]
+  set: [PriceBookItemWhereUniqueInput!]
+  create: [PriceBookItemCreateInput!]
+  connect: [PriceBookItemWhereUniqueInput!]
+}
+
+input MarkupTableRelateToManyForUpdateInput {
+  disconnect: [MarkupTableWhereUniqueInput!]
+  set: [MarkupTableWhereUniqueInput!]
+  create: [MarkupTableCreateInput!]
+  connect: [MarkupTableWhereUniqueInput!]
+}
+
+input LaborRateRelateToManyForUpdateInput {
+  disconnect: [LaborRateWhereUniqueInput!]
+  set: [LaborRateWhereUniqueInput!]
+  create: [LaborRateCreateInput!]
+  connect: [LaborRateWhereUniqueInput!]
+}
+
+input MemberPricingRuleRelateToManyForUpdateInput {
+  disconnect: [MemberPricingRuleWhereUniqueInput!]
+  set: [MemberPricingRuleWhereUniqueInput!]
+  create: [MemberPricingRuleCreateInput!]
+  connect: [MemberPricingRuleWhereUniqueInput!]
+}
+
+input PriceBookVersionUpdateArgs {
+  where: PriceBookVersionWhereUniqueInput!
+  data: PriceBookVersionUpdateInput!
+}
+
+input PriceBookVersionCreateInput {
+  priceBook: PriceBookRelateToOneForCreateInput
+  versionNumber: Int
+  label: String
+  status: String
+  source: String
+  basedOn: PriceBookVersionRelateToOneForCreateInput
+  notes: String
+  effectiveAt: DateTime
+  contentHash: String
+  diffReport: JSON
+  costChangeReport: JSON
+  approval: ApprovalRequestRelateToOneForCreateInput
+  submittedBy: UserRelateToOneForCreateInput
+  submittedAt: DateTime
+  publishedBy: UserRelateToOneForCreateInput
+  publishedAt: DateTime
+  activatedAt: DateTime
+  retiredAt: DateTime
+  categories: PriceBookCategoryRelateToManyForCreateInput
+  items: PriceBookItemRelateToManyForCreateInput
+  markupTables: MarkupTableRelateToManyForCreateInput
+  laborRates: LaborRateRelateToManyForCreateInput
+  memberPricingRules: MemberPricingRuleRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PriceBookRelateToOneForCreateInput {
+  create: PriceBookCreateInput
+  connect: PriceBookWhereUniqueInput
+}
+
+input PriceBookCategoryRelateToManyForCreateInput {
+  create: [PriceBookCategoryCreateInput!]
+  connect: [PriceBookCategoryWhereUniqueInput!]
+}
+
+input PriceBookItemRelateToManyForCreateInput {
+  create: [PriceBookItemCreateInput!]
+  connect: [PriceBookItemWhereUniqueInput!]
+}
+
+input MarkupTableRelateToManyForCreateInput {
+  create: [MarkupTableCreateInput!]
+  connect: [MarkupTableWhereUniqueInput!]
+}
+
+input LaborRateRelateToManyForCreateInput {
+  create: [LaborRateCreateInput!]
+  connect: [LaborRateWhereUniqueInput!]
+}
+
+input MemberPricingRuleRelateToManyForCreateInput {
+  create: [MemberPricingRuleCreateInput!]
+  connect: [MemberPricingRuleWhereUniqueInput!]
+}
+
+type UnitOfMeasure {
+  id: ID!
+  code: String
+  name: String
+  kind: String
+  maxDecimals: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input UnitOfMeasureWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input UnitOfMeasureWhereInput {
+  AND: [UnitOfMeasureWhereInput!]
+  OR: [UnitOfMeasureWhereInput!]
+  NOT: [UnitOfMeasureWhereInput!]
+  id: IDFilter
+  code: StringFilter
+  name: StringFilter
+  kind: StringFilter
+  maxDecimals: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input UnitOfMeasureOrderByInput {
+  id: OrderDirection
+  code: OrderDirection
+  name: OrderDirection
+  kind: OrderDirection
+  maxDecimals: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input UnitOfMeasureUpdateInput {
+  code: String
+  name: String
+  kind: String
+  maxDecimals: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input UnitOfMeasureUpdateArgs {
+  where: UnitOfMeasureWhereUniqueInput!
+  data: UnitOfMeasureUpdateInput!
+}
+
+input UnitOfMeasureCreateInput {
+  code: String
+  name: String
+  kind: String
+  maxDecimals: Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -8784,6 +10896,108 @@ type Mutation {
   updateWorkLines(data: [WorkLineUpdateArgs!]!): [WorkLine]
   deleteWorkLine(where: WorkLineWhereUniqueInput!): WorkLine
   deleteWorkLines(where: [WorkLineWhereUniqueInput!]!): [WorkLine]
+  createAuthorization(data: AuthorizationCreateInput!): Authorization
+  createAuthorizations(data: [AuthorizationCreateInput!]!): [Authorization]
+  updateAuthorization(where: AuthorizationWhereUniqueInput!, data: AuthorizationUpdateInput!): Authorization
+  updateAuthorizations(data: [AuthorizationUpdateArgs!]!): [Authorization]
+  deleteAuthorization(where: AuthorizationWhereUniqueInput!): Authorization
+  deleteAuthorizations(where: [AuthorizationWhereUniqueInput!]!): [Authorization]
+  createCancellationEvaluation(data: CancellationEvaluationCreateInput!): CancellationEvaluation
+  createCancellationEvaluations(data: [CancellationEvaluationCreateInput!]!): [CancellationEvaluation]
+  updateCancellationEvaluation(where: CancellationEvaluationWhereUniqueInput!, data: CancellationEvaluationUpdateInput!): CancellationEvaluation
+  updateCancellationEvaluations(data: [CancellationEvaluationUpdateArgs!]!): [CancellationEvaluation]
+  deleteCancellationEvaluation(where: CancellationEvaluationWhereUniqueInput!): CancellationEvaluation
+  deleteCancellationEvaluations(where: [CancellationEvaluationWhereUniqueInput!]!): [CancellationEvaluation]
+  createCancellationNotice(data: CancellationNoticeCreateInput!): CancellationNotice
+  createCancellationNotices(data: [CancellationNoticeCreateInput!]!): [CancellationNotice]
+  updateCancellationNotice(where: CancellationNoticeWhereUniqueInput!, data: CancellationNoticeUpdateInput!): CancellationNotice
+  updateCancellationNotices(data: [CancellationNoticeUpdateArgs!]!): [CancellationNotice]
+  deleteCancellationNotice(where: CancellationNoticeWhereUniqueInput!): CancellationNotice
+  deleteCancellationNotices(where: [CancellationNoticeWhereUniqueInput!]!): [CancellationNotice]
+  createChangeOrder(data: ChangeOrderCreateInput!): ChangeOrder
+  createChangeOrders(data: [ChangeOrderCreateInput!]!): [ChangeOrder]
+  updateChangeOrder(where: ChangeOrderWhereUniqueInput!, data: ChangeOrderUpdateInput!): ChangeOrder
+  updateChangeOrders(data: [ChangeOrderUpdateArgs!]!): [ChangeOrder]
+  deleteChangeOrder(where: ChangeOrderWhereUniqueInput!): ChangeOrder
+  deleteChangeOrders(where: [ChangeOrderWhereUniqueInput!]!): [ChangeOrder]
+  createEquipmentModel(data: EquipmentModelCreateInput!): EquipmentModel
+  createEquipmentModels(data: [EquipmentModelCreateInput!]!): [EquipmentModel]
+  updateEquipmentModel(where: EquipmentModelWhereUniqueInput!, data: EquipmentModelUpdateInput!): EquipmentModel
+  updateEquipmentModels(data: [EquipmentModelUpdateArgs!]!): [EquipmentModel]
+  deleteEquipmentModel(where: EquipmentModelWhereUniqueInput!): EquipmentModel
+  deleteEquipmentModels(where: [EquipmentModelWhereUniqueInput!]!): [EquipmentModel]
+  createEstimate(data: EstimateCreateInput!): Estimate
+  createEstimates(data: [EstimateCreateInput!]!): [Estimate]
+  updateEstimate(where: EstimateWhereUniqueInput!, data: EstimateUpdateInput!): Estimate
+  updateEstimates(data: [EstimateUpdateArgs!]!): [Estimate]
+  deleteEstimate(where: EstimateWhereUniqueInput!): Estimate
+  deleteEstimates(where: [EstimateWhereUniqueInput!]!): [Estimate]
+  createEstimateLine(data: EstimateLineCreateInput!): EstimateLine
+  createEstimateLines(data: [EstimateLineCreateInput!]!): [EstimateLine]
+  updateEstimateLine(where: EstimateLineWhereUniqueInput!, data: EstimateLineUpdateInput!): EstimateLine
+  updateEstimateLines(data: [EstimateLineUpdateArgs!]!): [EstimateLine]
+  deleteEstimateLine(where: EstimateLineWhereUniqueInput!): EstimateLine
+  deleteEstimateLines(where: [EstimateLineWhereUniqueInput!]!): [EstimateLine]
+  createEstimateOption(data: EstimateOptionCreateInput!): EstimateOption
+  createEstimateOptions(data: [EstimateOptionCreateInput!]!): [EstimateOption]
+  updateEstimateOption(where: EstimateOptionWhereUniqueInput!, data: EstimateOptionUpdateInput!): EstimateOption
+  updateEstimateOptions(data: [EstimateOptionUpdateArgs!]!): [EstimateOption]
+  deleteEstimateOption(where: EstimateOptionWhereUniqueInput!): EstimateOption
+  deleteEstimateOptions(where: [EstimateOptionWhereUniqueInput!]!): [EstimateOption]
+  createEstimateVersion(data: EstimateVersionCreateInput!): EstimateVersion
+  createEstimateVersions(data: [EstimateVersionCreateInput!]!): [EstimateVersion]
+  updateEstimateVersion(where: EstimateVersionWhereUniqueInput!, data: EstimateVersionUpdateInput!): EstimateVersion
+  updateEstimateVersions(data: [EstimateVersionUpdateArgs!]!): [EstimateVersion]
+  deleteEstimateVersion(where: EstimateVersionWhereUniqueInput!): EstimateVersion
+  deleteEstimateVersions(where: [EstimateVersionWhereUniqueInput!]!): [EstimateVersion]
+  createLaborRate(data: LaborRateCreateInput!): LaborRate
+  createLaborRates(data: [LaborRateCreateInput!]!): [LaborRate]
+  updateLaborRate(where: LaborRateWhereUniqueInput!, data: LaborRateUpdateInput!): LaborRate
+  updateLaborRates(data: [LaborRateUpdateArgs!]!): [LaborRate]
+  deleteLaborRate(where: LaborRateWhereUniqueInput!): LaborRate
+  deleteLaborRates(where: [LaborRateWhereUniqueInput!]!): [LaborRate]
+  createMarkupTable(data: MarkupTableCreateInput!): MarkupTable
+  createMarkupTables(data: [MarkupTableCreateInput!]!): [MarkupTable]
+  updateMarkupTable(where: MarkupTableWhereUniqueInput!, data: MarkupTableUpdateInput!): MarkupTable
+  updateMarkupTables(data: [MarkupTableUpdateArgs!]!): [MarkupTable]
+  deleteMarkupTable(where: MarkupTableWhereUniqueInput!): MarkupTable
+  deleteMarkupTables(where: [MarkupTableWhereUniqueInput!]!): [MarkupTable]
+  createMemberPricingRule(data: MemberPricingRuleCreateInput!): MemberPricingRule
+  createMemberPricingRules(data: [MemberPricingRuleCreateInput!]!): [MemberPricingRule]
+  updateMemberPricingRule(where: MemberPricingRuleWhereUniqueInput!, data: MemberPricingRuleUpdateInput!): MemberPricingRule
+  updateMemberPricingRules(data: [MemberPricingRuleUpdateArgs!]!): [MemberPricingRule]
+  deleteMemberPricingRule(where: MemberPricingRuleWhereUniqueInput!): MemberPricingRule
+  deleteMemberPricingRules(where: [MemberPricingRuleWhereUniqueInput!]!): [MemberPricingRule]
+  createPriceBook(data: PriceBookCreateInput!): PriceBook
+  createPriceBooks(data: [PriceBookCreateInput!]!): [PriceBook]
+  updatePriceBook(where: PriceBookWhereUniqueInput!, data: PriceBookUpdateInput!): PriceBook
+  updatePriceBooks(data: [PriceBookUpdateArgs!]!): [PriceBook]
+  deletePriceBook(where: PriceBookWhereUniqueInput!): PriceBook
+  deletePriceBooks(where: [PriceBookWhereUniqueInput!]!): [PriceBook]
+  createPriceBookCategory(data: PriceBookCategoryCreateInput!): PriceBookCategory
+  createPriceBookCategories(data: [PriceBookCategoryCreateInput!]!): [PriceBookCategory]
+  updatePriceBookCategory(where: PriceBookCategoryWhereUniqueInput!, data: PriceBookCategoryUpdateInput!): PriceBookCategory
+  updatePriceBookCategories(data: [PriceBookCategoryUpdateArgs!]!): [PriceBookCategory]
+  deletePriceBookCategory(where: PriceBookCategoryWhereUniqueInput!): PriceBookCategory
+  deletePriceBookCategories(where: [PriceBookCategoryWhereUniqueInput!]!): [PriceBookCategory]
+  createPriceBookItem(data: PriceBookItemCreateInput!): PriceBookItem
+  createPriceBookItems(data: [PriceBookItemCreateInput!]!): [PriceBookItem]
+  updatePriceBookItem(where: PriceBookItemWhereUniqueInput!, data: PriceBookItemUpdateInput!): PriceBookItem
+  updatePriceBookItems(data: [PriceBookItemUpdateArgs!]!): [PriceBookItem]
+  deletePriceBookItem(where: PriceBookItemWhereUniqueInput!): PriceBookItem
+  deletePriceBookItems(where: [PriceBookItemWhereUniqueInput!]!): [PriceBookItem]
+  createPriceBookVersion(data: PriceBookVersionCreateInput!): PriceBookVersion
+  createPriceBookVersions(data: [PriceBookVersionCreateInput!]!): [PriceBookVersion]
+  updatePriceBookVersion(where: PriceBookVersionWhereUniqueInput!, data: PriceBookVersionUpdateInput!): PriceBookVersion
+  updatePriceBookVersions(data: [PriceBookVersionUpdateArgs!]!): [PriceBookVersion]
+  deletePriceBookVersion(where: PriceBookVersionWhereUniqueInput!): PriceBookVersion
+  deletePriceBookVersions(where: [PriceBookVersionWhereUniqueInput!]!): [PriceBookVersion]
+  createUnitOfMeasure(data: UnitOfMeasureCreateInput!): UnitOfMeasure
+  createUnitOfMeasures(data: [UnitOfMeasureCreateInput!]!): [UnitOfMeasure]
+  updateUnitOfMeasure(where: UnitOfMeasureWhereUniqueInput!, data: UnitOfMeasureUpdateInput!): UnitOfMeasure
+  updateUnitOfMeasures(data: [UnitOfMeasureUpdateArgs!]!): [UnitOfMeasure]
+  deleteUnitOfMeasure(where: UnitOfMeasureWhereUniqueInput!): UnitOfMeasure
+  deleteUnitOfMeasures(where: [UnitOfMeasureWhereUniqueInput!]!): [UnitOfMeasure]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -8792,6 +11006,7 @@ type Mutation {
   updateActiveUser(data: UserUpdateProfileInput!): User
   loadCompanySetup(idempotencyKey: String!): JSON
   loadOperationsSetup(idempotencyKey: String!): JSON
+  loadPriceBookSetup(idempotencyKey: String!): JSON
   decideApprovalRequest(requestId: ID!, decision: String!, reason: String, expectedVersion: Int!, idempotencyKey: String!): JSON
   cancelApprovalRequest(requestId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
   requestCompanyControls(changes: JSON!, reason: String!, idempotencyKey: String!): JSON
@@ -8826,6 +11041,38 @@ type Mutation {
   pageOnCall(callId: ID, businessUnitId: ID, summary: String!, idempotencyKey: String!): JSON
   verifyCredential(credentialId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   revokeCredential(credentialId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
+  openPriceBook(name: String!, code: String!, businessUnitIds: [ID!], idempotencyKey: String!): JSON
+  startPriceBookDraft(priceBookId: ID!, label: String, idempotencyKey: String!): JSON
+  saveDraftItems(versionId: ID!, items: JSON!, expectedVersion: Int, idempotencyKey: String!): JSON
+  removeDraftItems(versionId: ID!, itemKeys: [String!]!, expectedVersion: Int, idempotencyKey: String!): JSON
+  saveDraftSettings(versionId: ID!, categories: JSON, laborRates: JSON, markupTables: JSON, memberPricingRules: JSON, expectedVersion: Int, idempotencyKey: String!): JSON
+  submitPriceBookVersion(versionId: ID!, effectiveAt: String, expectedVersion: Int!, note: String, idempotencyKey: String!): JSON
+  reopenPriceBookDraft(versionId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+  discardPriceBookVersion(versionId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+  importSupplierCosts(priceBookId: ID!, supplier: String!, costs: JSON!, idempotencyKey: String!): JSON
+  openEstimate(jobId: ID, opportunityId: ID, customerId: ID, locationId: ID, businessUnitId: ID, title: String!, options: JSON, idempotencyKey: String!): JSON
+  draftEstimate(jobId: ID, opportunityId: ID, customerId: ID, locationId: ID, businessUnitId: ID, title: String!, options: JSON!, idempotencyKey: String!): JSON
+  draftEstimateFromCapture(visitId: ID!, title: String!, options: JSON!, idempotencyKey: String!): JSON
+  draftFollowupEstimate(versionId: ID!, idempotencyKey: String!): JSON
+  saveEstimateOption(versionId: ID!, optionId: ID, tier: String!, name: String!, description: String, memberPricing: Boolean, lines: JSON!, expectedVersion: Int, idempotencyKey: String!): JSON
+  removeEstimateOption(versionId: ID!, optionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  repriceEstimateVersion(versionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  setEstimateDiscount(versionId: ID!, discountBps: Int!, reason: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  reopenEstimateVersion(versionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  presentEstimate(versionId: ID!, via: String, notes: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  sellEstimate(versionId: ID!, optionId: ID!, expectedVersion: Int!, authorization: JSON!, saleLocation: String!, initiatedBy: String!, depositMinor: String, emergencyWaiver: JSON, acrContext: [String!], exclusions: [String!], idempotencyKey: String!): JSON
+  declineEstimate(versionId: ID!, reason: String!, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  requoteEstimate(versionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  discardEstimateVersion(versionId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+  draftChangeOrder(jobId: ID!, reason: String!, add: JSON, removeWorkLineIds: [ID!], idempotencyKey: String!): JSON
+  presentChangeOrder(changeOrderId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  acceptChangeOrder(changeOrderId: ID!, expectedVersion: Int!, authorization: JSON!, saleLocation: String!, initiatedBy: String!, emergencyWaiver: JSON, acrContext: [String!], idempotencyKey: String!): JSON
+  declineChangeOrder(changeOrderId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+  deliverCancellationNotice(noticeId: ID!, method: String!, acknowledgedBy: String!, signature: JSON, messageId: ID, expectedVersion: Int!, idempotencyKey: String!): JSON
+  waiveCancellationNotice(noticeId: ID!, waiver: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, amountPaidMinor: String, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  markCancellationRefunded(noticeId: ID!, evidence: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  requestCancellationHoldOverride(noticeId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -9091,6 +11338,57 @@ type Query {
   workLine(where: WorkLineWhereUniqueInput!): WorkLine
   workLines(where: WorkLineWhereInput! = {}, orderBy: [WorkLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WorkLineWhereUniqueInput): [WorkLine!]
   workLinesCount(where: WorkLineWhereInput! = {}): Int
+  authorization(where: AuthorizationWhereUniqueInput!): Authorization
+  authorizations(where: AuthorizationWhereInput! = {}, orderBy: [AuthorizationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AuthorizationWhereUniqueInput): [Authorization!]
+  authorizationsCount(where: AuthorizationWhereInput! = {}): Int
+  cancellationEvaluation(where: CancellationEvaluationWhereUniqueInput!): CancellationEvaluation
+  cancellationEvaluations(where: CancellationEvaluationWhereInput! = {}, orderBy: [CancellationEvaluationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CancellationEvaluationWhereUniqueInput): [CancellationEvaluation!]
+  cancellationEvaluationsCount(where: CancellationEvaluationWhereInput! = {}): Int
+  cancellationNotice(where: CancellationNoticeWhereUniqueInput!): CancellationNotice
+  cancellationNotices(where: CancellationNoticeWhereInput! = {}, orderBy: [CancellationNoticeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CancellationNoticeWhereUniqueInput): [CancellationNotice!]
+  cancellationNoticesCount(where: CancellationNoticeWhereInput! = {}): Int
+  changeOrder(where: ChangeOrderWhereUniqueInput!): ChangeOrder
+  changeOrders(where: ChangeOrderWhereInput! = {}, orderBy: [ChangeOrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ChangeOrderWhereUniqueInput): [ChangeOrder!]
+  changeOrdersCount(where: ChangeOrderWhereInput! = {}): Int
+  equipmentModel(where: EquipmentModelWhereUniqueInput!): EquipmentModel
+  equipmentModels(where: EquipmentModelWhereInput! = {}, orderBy: [EquipmentModelOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EquipmentModelWhereUniqueInput): [EquipmentModel!]
+  equipmentModelsCount(where: EquipmentModelWhereInput! = {}): Int
+  estimate(where: EstimateWhereUniqueInput!): Estimate
+  estimates(where: EstimateWhereInput! = {}, orderBy: [EstimateOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EstimateWhereUniqueInput): [Estimate!]
+  estimatesCount(where: EstimateWhereInput! = {}): Int
+  estimateLine(where: EstimateLineWhereUniqueInput!): EstimateLine
+  estimateLines(where: EstimateLineWhereInput! = {}, orderBy: [EstimateLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EstimateLineWhereUniqueInput): [EstimateLine!]
+  estimateLinesCount(where: EstimateLineWhereInput! = {}): Int
+  estimateOption(where: EstimateOptionWhereUniqueInput!): EstimateOption
+  estimateOptions(where: EstimateOptionWhereInput! = {}, orderBy: [EstimateOptionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EstimateOptionWhereUniqueInput): [EstimateOption!]
+  estimateOptionsCount(where: EstimateOptionWhereInput! = {}): Int
+  estimateVersion(where: EstimateVersionWhereUniqueInput!): EstimateVersion
+  estimateVersions(where: EstimateVersionWhereInput! = {}, orderBy: [EstimateVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EstimateVersionWhereUniqueInput): [EstimateVersion!]
+  estimateVersionsCount(where: EstimateVersionWhereInput! = {}): Int
+  laborRate(where: LaborRateWhereUniqueInput!): LaborRate
+  laborRates(where: LaborRateWhereInput! = {}, orderBy: [LaborRateOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LaborRateWhereUniqueInput): [LaborRate!]
+  laborRatesCount(where: LaborRateWhereInput! = {}): Int
+  markupTable(where: MarkupTableWhereUniqueInput!): MarkupTable
+  markupTables(where: MarkupTableWhereInput! = {}, orderBy: [MarkupTableOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MarkupTableWhereUniqueInput): [MarkupTable!]
+  markupTablesCount(where: MarkupTableWhereInput! = {}): Int
+  memberPricingRule(where: MemberPricingRuleWhereUniqueInput!): MemberPricingRule
+  memberPricingRules(where: MemberPricingRuleWhereInput! = {}, orderBy: [MemberPricingRuleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MemberPricingRuleWhereUniqueInput): [MemberPricingRule!]
+  memberPricingRulesCount(where: MemberPricingRuleWhereInput! = {}): Int
+  priceBook(where: PriceBookWhereUniqueInput!): PriceBook
+  priceBooks(where: PriceBookWhereInput! = {}, orderBy: [PriceBookOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookWhereUniqueInput): [PriceBook!]
+  priceBooksCount(where: PriceBookWhereInput! = {}): Int
+  priceBookCategory(where: PriceBookCategoryWhereUniqueInput!): PriceBookCategory
+  priceBookCategories(where: PriceBookCategoryWhereInput! = {}, orderBy: [PriceBookCategoryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookCategoryWhereUniqueInput): [PriceBookCategory!]
+  priceBookCategoriesCount(where: PriceBookCategoryWhereInput! = {}): Int
+  priceBookItem(where: PriceBookItemWhereUniqueInput!): PriceBookItem
+  priceBookItems(where: PriceBookItemWhereInput! = {}, orderBy: [PriceBookItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookItemWhereUniqueInput): [PriceBookItem!]
+  priceBookItemsCount(where: PriceBookItemWhereInput! = {}): Int
+  priceBookVersion(where: PriceBookVersionWhereUniqueInput!): PriceBookVersion
+  priceBookVersions(where: PriceBookVersionWhereInput! = {}, orderBy: [PriceBookVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookVersionWhereUniqueInput): [PriceBookVersion!]
+  priceBookVersionsCount(where: PriceBookVersionWhereInput! = {}): Int
+  unitOfMeasure(where: UnitOfMeasureWhereUniqueInput!): UnitOfMeasure
+  unitOfMeasures(where: UnitOfMeasureWhereInput! = {}, orderBy: [UnitOfMeasureOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UnitOfMeasureWhereUniqueInput): [UnitOfMeasure!]
+  unitOfMeasuresCount(where: UnitOfMeasureWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   validateUserPasswordResetToken(email: String!, token: String!): ValidateUserPasswordResetTokenResult
@@ -9103,6 +11401,10 @@ type Query {
   lookupLocations(customerId: ID!, postalCode: String): JSON
   matchJobType(description: String!, postalCode: String): JSON
   checkEligibility(visitId: ID!, employeeIds: [ID!]!): JSON
+  searchPriceBook(query: String, businessUnitId: ID, kind: String, limit: Int): JSON
+  quotePriceBook(lines: JSON!, businessUnitId: ID, memberPricing: Boolean, discountBps: Int): JSON
+  priceBookVersionReview(versionId: ID!): JSON
+  estimateSummary(estimateId: ID!): JSON
 }
 
 union AuthenticatedItem = User

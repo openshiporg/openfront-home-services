@@ -2,6 +2,9 @@ import type { Db } from '../lib/db'
 import { drainOutbox, type ClaimedMessage, type OutboxHandlers } from '../lib/outbox'
 import { expireHolds } from './booking'
 import { messagingHandlers } from './comms'
+import { activateDuePriceBookVersions } from './pricebook'
+import { expireDueEstimates } from './estimates'
+import { expireCancellationNotices } from './cancellation'
 
 /*
  * Background work: one pass drains the outbox (every topic has a handler, so nothing dead-letters for
@@ -31,12 +34,22 @@ export function workerHandlers(db: Db): OutboxHandlers {
     // Tech notifications: the tech app reads assignments live; no external push provider yet.
     'notify.tech_assignment': async () => undefined,
     'push.dispatch': async () => undefined,
+    // Approvers work from the approvals queue on the dashboard; there is no separate push channel.
+    'notify.approval': async () => undefined,
+    // A presented estimate sent by email: the office sends it from the estimate screen (the PDF link is staff-only until the portal ships).
+    'notify.estimate': raiseTask(db, 'estimate.send', async m => {
+      const est = await db.estimate.findUnique({ where: { id: String((m.payload as { estimateId?: string }).estimateId ?? '') }, select: { ref: true, customer: { select: { displayName: true } } } })
+      return est ? `Email estimate ${est.ref} to ${est.customer?.displayName ?? 'the customer'}` : null
+    }),
   }
 }
 
 export async function runWorkerPass(db: Db, options: { workerId?: string; now?: () => Date; maxMessages?: number } = {}) {
   const clock = options.now ?? (() => new Date())
   const holds = await expireHolds(db, clock())
+  const priceBooks = await activateDuePriceBookVersions(db, clock())
+  const estimates = await expireDueEstimates(db, clock())
+  const notices = await expireCancellationNotices(db, clock())
   const outbox = await drainOutbox(db, { workerId: options.workerId ?? `worker-${process.pid}`, handlers: workerHandlers(db), now: clock, maxMessages: options.maxMessages ?? 200 })
-  return { holds, outbox }
+  return { holds, priceBooks, estimates, notices, outbox }
 }

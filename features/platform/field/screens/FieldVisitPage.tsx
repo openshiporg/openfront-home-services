@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { JobSales } from '../../estimates/components/JobSales';
 import { q, companyTimeZone } from '../../lib/server';
 import { label, when, windowText } from '../../lib/format';
 import { Page, Meta, Section, Status, Empty } from '../../components/ui';
@@ -8,7 +9,7 @@ type Visit = {
   id: string; ref: string; status: string; version: number; needsReview: boolean;
   window: { date: string; label: string } | null;
   job: {
-    summary: string; priority: string;
+    id: string; summary: string; priority: string;
     jobType: { name: string; checklistTemplate: { id: string; name: string; items: { key: string; label: string }[] | null } | null } | null;
     location: { address1: string; address2: string; city: string; postalCode: string; accessSecrets: { id: string; kind: string; label: string }[] } | null;
     customer: { displayName: string } | null;
@@ -24,7 +25,7 @@ export default async function FieldVisitPage({ params }: { params: Promise<{ id:
       query FieldVisit($id: ID!) {
         visit(where: { id: $id }) {
           id ref status version needsReview window { date label }
-          job { summary priority jobType { name checklistTemplate { id name items } } location { address1 address2 city postalCode accessSecrets(where: { status: { equals: "active" } }) { id kind label } } customer { displayName } }
+          job { id summary priority jobType { name checklistTemplate { id name items } } location { address1 address2 city postalCode accessSecrets(where: { status: { equals: "active" } }) { id kind label } } customer { displayName } }
           statusEvents(orderBy: [{ occurredAt: asc }]) { toStatus kind occurredAt }
         }
         checklistResponsesCount(where: { visit: { id: { equals: $id } } })
@@ -63,6 +64,7 @@ export default async function FieldVisitPage({ params }: { params: Promise<{ id:
             : <Empty>Fill this in once you're on site. It's needed before you can mark the visit done.</Empty>}
         </Section>
       ) : null}
+      {v.job ? <JobSales jobId={v.job.id} jobTitle={`${v.job.jobType?.name ?? 'Estimate'}${v.job.customer ? ` · ${v.job.customer.displayName}` : ''}`} path={path} tz={tz} /> : null}
       <Section title="Timeline">
         {v.statusEvents.length ? <ol className="space-y-0.5 text-xs text-muted-foreground">{v.statusEvents.map((e, i) => <li key={i}>{when(e.occurredAt, tz, 'time')} · {label(e.toStatus)}{e.kind !== 'transition' ? ` (${label(e.kind).toLowerCase()})` : ''}</li>)}</ol> : <Empty>Nothing yet.</Empty>}
       </Section>

@@ -22,6 +22,11 @@ export function safeErrorSummary(error: unknown): { message: string; codes: stri
 // Keystone codes whose messages are written for the person filling the form.
 const USER_FACING_CODES = new Set([
   'KS_VALIDATION_FAILURE', 'KS_USER_INPUT_ERROR', 'KS_ACCESS_DENIED', 'KS_EXTENSION_ERROR',
+  // Business-rule refusals from the domain services (features/keystone/lib/errors.ts). Their messages are
+  // written for the person at the screen; mutations/op.ts already keeps driver and stack detail out.
+  'NOT_AUTHORIZED', 'NOT_FOUND', 'INVALID_INPUT', 'INVALID_TRANSITION', 'STALE_STATE', 'GUARD_FAILED', 'IDEMPOTENCY_KEY_REUSED', 'IN_PROGRESS',
+  'APPROVAL_REQUIRED', 'SELF_APPROVAL', 'AGENT_CANNOT_APPROVE', 'APPROVAL_MISMATCH', 'POLICY_MISSING', 'POLICY_AMBIGUOUS', 'POLICY_INVALID',
+  'SCOPE_DENIED', 'AGENT_DISABLED', 'CAPACITY_FULL', 'HOLD_EXPIRED', 'OUT_OF_AREA', 'NOT_ELIGIBLE', 'SCHEDULE_CONFLICT',
 ]);
 // Anything that looks like database, driver or stack output stays server-side.
 const UNSAFE_DETAIL = /prisma|invocation|\bat\s+\S+\s*\(|\bat\s+\/|node_modules|postgres(ql)?:\/\/|\bSQL\b|ECONN|query engine|\.ts:\d+|\.js:\d+/i;

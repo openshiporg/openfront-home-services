@@ -107,6 +107,27 @@ const COMMON: Record<string, string> = {
   home_solicitation: 'Home solicitation', home_improvement_contract: 'Home improvement contract', contact_hours: 'Contact hours',
   refrigerant: 'Refrigerant', licensing: 'Licensing', sales_tax: 'Sales tax', wage_hour: 'Wage and hour', lien: 'Liens', privacy: 'Privacy',
   booking_confirmation: 'Booking confirmation', on_the_way: 'On the way', high: 'High', normal: 'Normal', low: 'Low',
+  // Price book, estimates and cancellation rights (Phase 2)
+  service_task: 'Service task', material: 'Material', equipment: 'Equipment', fee: 'Fee', discount: 'Discount', bundle: 'Bundle',
+  fixed: 'Fixed price', formula: 'Formula', disposal: 'Disposal', permit_passthrough: 'Permit (pass-through)', warranty_reimbursed: 'Warranty reimbursed',
+  labor: 'Labor', good: 'Good', better: 'Better', best: 'Best', requested_repair: 'Requested repair',
+  necessary_replacement_parts: 'Part the repair needs', additional_goods_services: 'Add-on (beyond the request)',
+  buyer_residence: "At the buyer's home", other_non_merchant: 'Elsewhere (not our premises)', merchant_place: 'At our office', remote: 'By phone or online',
+  solicited: 'We approached the buyer', supplier_import: 'Supplier cost import', onboarding: 'Setup', staff: 'Staff', presented: 'Presented', sold: 'Sold',
+  declined: 'Declined', superseded: 'Superseded', discarded: 'Discarded', published: 'Published', issued: 'Issued', waived: 'Waived (emergency)',
+  expired_uncancelled: 'Window closed', refunded: 'Refunded', chose_competitor: 'Chose a competitor', will_call_back: 'Will call back',
+  financing_declined: 'Financing declined', no_longer_needed: 'No longer needed', signed_on_device: 'Signed on the device', emailed: 'Emailed',
+  printed_acknowledged: 'Printed and acknowledged', handed_paper_copy: 'Handed a paper copy', signature_on_device: 'Signature on the device',
+  verbal_recorded: 'Recorded verbal approval', written_paper: 'Signed paper copy', po_number: 'Purchase order', signed_form: 'Signed cancellation form',
+  mail: 'Mail', processor_refund: 'Card refund', check: 'Check', nothing_paid: 'Nothing was paid', printed: 'Printed',
+  ftc_16cfr429: 'FTC Cooling-Off Rule', tx_bcc_601: 'Texas home solicitation',
+  right_applies: 'Right to cancel applies', requested_repair_lines_excluded: 'Repairs the customer asked for are excluded', requested_work_not_solicited: 'Customer-requested work is not a solicited sale',
+  tx_acr_consumer_initiated: 'HVAC work the customer asked for is exempt', tx_acr_consumer_initiated_not_available: 'HVAC exemption not available (warranty or installation fault)',
+  at_merchant_place_of_business: 'Sold at our place of business', not_a_covered_location: 'Not a covered location', not_personally_solicited: 'Not a personal solicitation',
+  no_covered_lines: 'No covered lines', below_threshold: 'Below the dollar threshold', not_more_than_threshold: 'Not over the dollar threshold',
+  emergency_waiver_incomplete: 'Emergency waiver incomplete', emergency_waiver_not_available: 'This rule allows no emergency waiver', waived_by_buyer_emergency: 'Buyer waived it for an emergency',
+  excluded_emergency_waiver: 'Emergency waiver',
+  'cancellation.undelivered': 'Notice never delivered', 'cancellation.refund': 'Cooling-off refund', 'estimate.send': 'Send estimate',
   'job.no_access': 'No access', 'job.hold_follow_up': 'Hold follow-up', 'message.blocked': 'Text not sent', 'message.manual_send': 'Send text by hand',
 }
 
@@ -143,6 +164,16 @@ export function dayText(date: string | null | undefined, thisYear?: string) {
   const withYear = thisYear !== undefined && date.slice(0, 4) !== thisYear.slice(0, 4)
   return new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric', ...(withYear ? { year: 'numeric' } : {}) }).format(new Date(`${date}T00:00:00Z`))
 }
+
+/** A deadline: one that falls at local midnight reads as "end of Thu, Nov 12" (the last full day), anything else as a time. */
+export function deadlineText(iso: string | null | undefined, tz = 'America/Chicago') {
+  if (!iso) return ''
+  const hm = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso))
+  return hm === '00:00' ? `end of ${lastDayBefore(iso, tz)}` : when(iso, tz)
+}
+
+/** The last day an end-exclusive instant covers (an estimate valid until midnight Dec 10 is good through Dec 9). */
+export const lastDayBefore = (iso: string | null | undefined, tz = 'America/Chicago') => (iso ? when(new Date(Date.parse(iso) - 1).toISOString(), tz, 'day') : '')
 
 /** A calendar day without the weekday: "Mar 4, 2027" (expiry and effective dates). */
 export function dateText(date: string | null | undefined) {
@@ -193,6 +224,17 @@ const EVENTS: Record<string, string> = {
   'location.created': 'Address added', 'visit.created': 'Visit created', 'visit.assigned': 'Technician assigned',
   'credential.created': 'Credential added', 'employee.created': 'Team member added', 'user.created': 'User added',
   'policy_version.activated': 'Rule version made active', 'company.created': 'Company set up',
+  'estimate.created': 'Estimate started', 'estimate_version.option_saved': 'Option saved', 'estimate_version.presented': 'Estimate presented',
+  'estimate_version.sold': 'Estimate sold', 'estimate_version.declined': 'Estimate declined', 'estimate_version.expired': 'Estimate expired',
+  'estimate_version.superseded': 'Replaced by a new version', 'estimate_version.repriced': 'Re-priced from the price book',
+  'estimate_version.discount_set': 'Discount set', 'estimate_version.discount_requested': 'Discount sent for approval',
+  'estimate_version.cancelled_by_buyer': 'Cancelled by the customer', 'cancellation_notice.issued': 'Cancellation notice issued',
+  'cancellation_notice.delivered': 'Notice delivered', 'cancellation_notice.waived': 'Waived for an emergency',
+  'cancellation_notice.cancelled_by_buyer': 'Customer cancelled', 'cancellation_notice.refunded': 'Refund recorded',
+  'cancellation_notice.expired_uncancelled': 'Cancellation window closed', 'cancellation_notice.override_requested': 'Early start requested',
+  'pricebook_version.submitted': 'Sent for approval', 'pricebook_version.published': 'Published', 'pricebook_version.activated': 'Made active',
+  'pricebook_version.retired': 'Retired', 'pricebook_version.items_saved': 'Items saved', 'document.rendered': 'Document rendered',
+  'authorization.recorded': 'Customer authorized',
 }
 
 /** An audit event type ("job.on_hold") → "Put on hold"; unknown types read as "Job · on hold". */
@@ -212,7 +254,7 @@ export function phoneText(e164: string | null | undefined) {
 
 const ACTIONS: Record<string, string> = {
   'agent_grant.activate': 'Turn on an AI agent permission', 'ar_period.close': 'Close a receivables period', 'booking.overbook': 'Overbook an arrival window',
-  'campaign.send': 'Send a marketing campaign', 'company.controls': 'Change company controls', 'credit.issue': 'Issue a customer credit',
+  'campaign.send': 'Send a marketing campaign', 'cancellation.start_override': 'Start work inside the cancellation window', 'company.controls': 'Change company controls', 'credit.issue': 'Issue a customer credit',
   'customer.merge': 'Merge customers', 'estimate.discount': 'Discount an estimate', 'file_affidavit': 'File a lien affidavit',
   'invoice.write_off': 'Write off an invoice', 'notice_to_owner': 'Send a notice to the owner', 'pay_period.approve': 'Approve a pay period',
   'pay_plan.publish': 'Publish a pay plan', 'policy.publish': 'Publish a rule version', 'pricebook.publish': 'Publish the price book',

@@ -10,6 +10,7 @@
  */
 
 import { PHASE1_TOOLS } from './phase1Tools'
+import { PHASE2_TOOLS } from './phase2Tools'
 
 export const FORBIDDEN_TOOL_PATTERNS = [/refund/i, /credit/i, /write.?off/i, /approve/i, /publish/i, /reveal/i, /merge/i, /campaign/i, /^decide/i, /secret/i, /^(create|update|delete)Data$/i]
 
@@ -80,7 +81,7 @@ export function assertRegistrySafe(tools: DomainTool[] = DOMAIN_TOOLS) {
     if (FORBIDDEN_TOOL_PATTERNS.some(pattern => pattern.test(tool.name))) throw new Error(`Tool ${tool.name} exposes a human-only capability`)
   }
 }
-DOMAIN_TOOLS.push(...PHASE1_TOOLS)
+DOMAIN_TOOLS.push(...PHASE1_TOOLS, ...PHASE2_TOOLS)
 assertRegistrySafe()
 
 export function registerDomainTools(tools: DomainTool[]) {
@@ -91,34 +92,51 @@ export function registerDomainTools(tools: DomainTool[]) {
   }
 }
 
-/** Minimal JSON-schema check for the flat argument objects our tools take. */
+type Spec = { type?: string; enum?: unknown[]; minLength?: number; maxLength?: number; pattern?: string; minimum?: number; maximum?: number; minItems?: number; maxItems?: number; items?: Spec; properties?: Record<string, Spec>; required?: string[]; additionalProperties?: boolean }
+
+/** Minimal JSON-schema check: flat arguments, plus lists of ids or of closed objects (estimate options and lines). */
 export function validateArguments(tool: DomainTool, args: Record<string, unknown>) {
   const problems: string[] = []
-  const properties = tool.inputSchema.properties as Record<string, { type?: string; enum?: unknown[]; minLength?: number; maxLength?: number; pattern?: string; minimum?: number; maximum?: number; minItems?: number; maxItems?: number }>
-  for (const key of tool.inputSchema.required) if (args[key] === undefined || args[key] === null || args[key] === '') problems.push(`${key} is required`)
-  for (const [key, value] of Object.entries(args)) {
-    const spec = properties[key]
-    if (!spec) {
-      if (tool.inputSchema.additionalProperties === false) problems.push(`${key} is not an argument of ${tool.name}`)
+  checkObject(tool.inputSchema as Spec, args, '', tool.name, problems)
+  if (problems.length) throw new Error(`Invalid arguments: ${problems.slice(0, 20).join('; ')}`)
+}
+
+function checkObject(spec: Spec, value: Record<string, unknown>, at: string, owner: string, problems: string[]) {
+  const properties = spec.properties ?? {}
+  for (const key of spec.required ?? []) if (value[key] === undefined || value[key] === null || value[key] === '') problems.push(`${at}${key} is required`)
+  for (const [key, item] of Object.entries(value)) {
+    const child = properties[key]
+    if (!child) {
+      if (spec.additionalProperties === false) problems.push(`${at}${key} is not an argument of ${owner}`)
       continue
     }
-    if (spec.type === 'string' && typeof value !== 'string') problems.push(`${key} must be a string`)
-    if (spec.type === 'integer' && !Number.isSafeInteger(value)) problems.push(`${key} must be an integer`)
-    if (spec.type === 'boolean' && typeof value !== 'boolean') problems.push(`${key} must be true or false`)
-    if (spec.type === 'object' && (typeof value !== 'object' || value === null || Array.isArray(value))) problems.push(`${key} must be an object`)
-    if (spec.type === 'array') {
-      if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) problems.push(`${key} must be a list of ids`)
-      else if ((spec.minItems && value.length < spec.minItems) || (spec.maxItems && value.length > spec.maxItems)) problems.push(`${key} has the wrong number of items`)
-    }
-    if (spec.type === 'integer' && Number.isSafeInteger(value) && ((spec.minimum !== undefined && (value as number) < spec.minimum) || (spec.maximum !== undefined && (value as number) > spec.maximum))) problems.push(`${key} is out of range`)
-    if (spec.enum && !spec.enum.includes(value)) problems.push(`${key} must be one of ${spec.enum.join(', ')}`)
-    if (typeof value === 'string') {
-      if (spec.minLength && value.length < spec.minLength) problems.push(`${key} is too short`)
-      if (spec.maxLength && value.length > spec.maxLength) problems.push(`${key} is too long`)
-      if (spec.pattern && !new RegExp(spec.pattern).test(value)) problems.push(`${key} has invalid characters`)
+    checkValue(child, item, `${at}${key}`, owner, problems)
+  }
+}
+
+function checkValue(spec: Spec, value: unknown, key: string, owner: string, problems: string[]) {
+  if (spec.type === 'string' && typeof value !== 'string') problems.push(`${key} must be a string`)
+  if (spec.type === 'integer' && !Number.isSafeInteger(value)) problems.push(`${key} must be an integer`)
+  if (spec.type === 'boolean' && typeof value !== 'boolean') problems.push(`${key} must be true or false`)
+  if (spec.type === 'object') {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) problems.push(`${key} must be an object`)
+    else if (spec.properties) checkObject(spec, value as Record<string, unknown>, `${key}.`, owner, problems)
+  }
+  if (spec.type === 'array') {
+    if (!Array.isArray(value)) problems.push(`${key} must be a list`)
+    else {
+      if ((spec.minItems && value.length < spec.minItems) || (spec.maxItems && value.length > spec.maxItems)) problems.push(`${key} has the wrong number of items`)
+      if (spec.items) value.forEach((item, i) => checkValue(spec.items!, item, `${key}[${i}]`, owner, problems))
+      else if (value.some(item => typeof item !== 'string')) problems.push(`${key} must be a list of ids`)
     }
   }
-  if (problems.length) throw new Error(`Invalid arguments: ${problems.join('; ')}`)
+  if (spec.type === 'integer' && Number.isSafeInteger(value) && ((spec.minimum !== undefined && (value as number) < spec.minimum) || (spec.maximum !== undefined && (value as number) > spec.maximum))) problems.push(`${key} is out of range`)
+  if (spec.enum && !spec.enum.includes(value)) problems.push(`${key} must be one of ${spec.enum.join(', ')}`)
+  if (typeof value === 'string') {
+    if (spec.minLength && value.length < spec.minLength) problems.push(`${key} is too short`)
+    if (spec.maxLength && value.length > spec.maxLength) problems.push(`${key} is too long`)
+    if (spec.pattern && !new RegExp(spec.pattern).test(value)) problems.push(`${key} has invalid characters`)
+  }
 }
 
 export async function runDomainTool(tool: DomainTool, args: Record<string, unknown>, target: { graphqlEndpoint: string; auth: Record<string, string> }) {

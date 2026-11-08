@@ -1,4 +1,5 @@
-import { requirePermission } from '../lib/actor'
+import { requirePermission, type Actor } from '../lib/actor'
+import type { Db } from '../lib/db'
 import { actorFor } from './actorFor'
 import { command } from '../lib/command'
 import { consumeApproval, decideApproval } from '../lib/approval'
@@ -10,12 +11,18 @@ import { requestCompanyControlsChange, type CompanyControls } from '../lib/compa
 type Ctx = { session: any; prisma: any }
 
 /** Approve or reject a pending request. An approval whose action applies on approval runs now, in the same transaction. */
-export async function decideApprovalRequest(_root: unknown, args: { requestId: string; decision: 'approve' | 'reject'; reason?: string | null; expectedVersion: number; idempotencyKey: string }, context: Ctx) {
-  const actor = await actorFor(context)
+export async function decideApprovalRequest(_root: unknown, args: DecideArgs, context: Ctx) {
+  return decideApprovalAs(context.prisma, await actorFor(context), args)
+}
+
+type DecideArgs = { requestId: string; decision: 'approve' | 'reject'; reason?: string | null; expectedVersion: number; idempotencyKey: string; now?: Date }
+
+/** The same decision for a known actor (the seed and the tests approve through here, exactly as the dashboard does). */
+export async function decideApprovalAs(db: Db, actor: Actor, args: DecideArgs) {
   requirePermission(actor, 'canAccessDashboard')
   if (args.decision !== 'approve' && args.decision !== 'reject') throw new DomainError(Codes.INVALID_INPUT, 'Decision must be approve or reject.')
   if (args.decision === 'reject' && !args.reason?.trim()) throw new DomainError(Codes.INVALID_INPUT, 'Say why you are rejecting it.', { field: 'reason' })
-  const result = await command(context.prisma, { name: 'approval.decide', actor, idempotencyKey: args.idempotencyKey, params: { requestId: args.requestId, decision: args.decision, reason: args.reason ?? '', expectedVersion: args.expectedVersion } }, async uow => {
+  const result = await command(db, { name: 'approval.decide', actor, idempotencyKey: args.idempotencyKey, params: { requestId: args.requestId, decision: args.decision, reason: args.reason ?? '', expectedVersion: args.expectedVersion }, now: args.now }, async uow => {
     const decided = await decideApproval(uow, actor, { requestId: args.requestId, decision: args.decision, reason: args.reason ?? undefined, expectedVersion: args.expectedVersion, strictAgentOwner: true })
     let applied: unknown = null
     const registration = applierFor(String(decided.action))

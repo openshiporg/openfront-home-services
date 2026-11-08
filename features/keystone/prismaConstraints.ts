@@ -21,6 +21,11 @@ export const COMPOUND_UNIQUES: Record<string, string[]> = {
   Shift: ['@@unique([employeeId, date, kind], map: "Shift_employee_date_kind_key")'],
   CapacityPlan: ['@@unique([businessUnitId, date], map: "CapacityPlan_bu_date_key")'],
   Visit: ['@@index([status, plannedStart], map: "Visit_status_planned_idx")'],
+  // Phase 2: price book, estimates and cancellation rights
+  PriceBookVersion: ['@@unique([priceBookId, versionNumber], map: "PriceBookVersion_book_number_key")'],
+  PriceBookItem: ['@@unique([priceBookVersionId, itemKey], map: "PriceBookItem_version_key_key")'],
+  PriceBookCategory: ['@@unique([priceBookVersionId, categoryKey], map: "PriceBookCategory_version_key_key")'],
+  EstimateVersion: ['@@unique([estimateId, versionNumber], map: "EstimateVersion_estimate_number_key")'],
 }
 
 export function addDatabaseConstraints(schema: string): string {

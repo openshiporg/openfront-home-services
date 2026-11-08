@@ -1,8 +1,9 @@
 import { bigInt, decimal, integer, select, text } from '@keystone-6/core/fields'
 
 /** Money in integer minor units (SCHEMA G2); field names end in `Minor`. */
-export const minor = (options: { required?: boolean; defaultValue?: bigint; description?: string } = {}) =>
+export const minor = (options: { required?: boolean; defaultValue?: bigint; description?: string; access?: { read?: (args: any) => boolean } } = {}) =>
   bigInt({
+    ...(options.access ? { access: options.access } : {}),
     ...(options.defaultValue !== undefined ? { defaultValue: options.defaultValue } : {}),
     validation: { isRequired: options.required ?? options.defaultValue !== undefined },
     ...(options.description ? { ui: { description: options.description } } : {}),

@@ -12,6 +12,7 @@ import type { UnitOfWork } from '../lib/unitOfWork'
 import { evaluateEligibility, type CrewMember, type EligibilityResult, type LicensingRules } from '../domain/eligibility'
 import { DISPATCH_FEATURES, DISPATCH_MODEL, driveMinutes, rankCandidates, type Candidate } from '../domain/dispatch'
 import { resolvePolicyFromDb } from '../domain/policy'
+import { assertCanStartWork } from './cancellation'
 import { queueTransactionalSms } from './booking'
 
 /*
@@ -259,6 +260,8 @@ export async function setVisitStatus(db: Db, actor: Actor, args: VisitStatusArgs
     if (!move.from.includes(ctx.status)) throw new DomainError(Codes.INVALID_TRANSITION, `A ${ctx.status.replaceAll('_', ' ')} visit can't move to ${args.to.replaceAll('_', ' ')}.`, { currentStatus: ctx.status, currentVersion: ctx.version, to: args.to })
     if (['en_route', 'on_site'].includes(ctx.status) && args.to === 'cancelled' && !dispatcher) throw new DomainError(Codes.NOT_AUTHORIZED, 'Only a dispatcher can cancel a visit that is under way.')
     if (args.to === 'done') await assertChecklistsDone(tx, ctx.id)
+    // I-E6: work the buyer can still cancel doesn't start inside the cooling-off window.
+    if (args.to === 'working' && ctx.job) await assertCanStartWork(tx, ctx.job.id, uow.now)
 
     const data: Record<string, unknown> = {}
     if (args.to === 'on_site') data.actualArrivalAt = clientAt ?? uow.now

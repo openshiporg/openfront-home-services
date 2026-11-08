@@ -24,6 +24,13 @@ export const homeSolicitationRules = z.object({
     thresholdElsewhereMinor: minorText.nullable(),
     /** "$25 or more" (at_least) vs "exceeds $25" (more_than). */
     thresholdComparison: z.enum(['at_least', 'more_than']),
+    /**
+     * door_to_door (16 CFR 429.0(a)): the agreement is given at a non-merchant place, including after the
+     * buyer invited the seller; requested-repair lines are excluded per line. personal_solicitation (Tex.
+     * Bus. & Com. Code §601.002(a)): only what the merchant personally solicited away from its place of
+     * business is covered: every line when the visit itself was solicited, else the added lines.
+     */
+    scope: z.enum(['door_to_door', 'personal_solicitation']).default('door_to_door'),
     /** Cancel until midnight of this business day after the transaction. */
     businessDays: z.number().int().min(1).max(15),
     calendar: z.string().min(1),
@@ -33,6 +40,8 @@ export const homeSolicitationRules = z.object({
     exemptions: z.array(z.object({ code: z.string(), trades: z.array(trade).min(1), when: z.enum(['consumer_initiated']), except: z.array(z.string()).default([]) })).default([]),
     emergencyWaiver: z.object({ allowed: z.boolean(), handwritten: z.boolean(), signedAndDated: z.boolean() }),
     noticeTemplate: z.string().min(1),
+    /** Refund, return of trade-ins and release of security interests within this many business days of the buyer's notice. */
+    refundBusinessDays: z.number().int().min(1).max(30).default(10),
   })).min(1),
 })
 

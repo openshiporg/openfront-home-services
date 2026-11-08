@@ -8,7 +8,9 @@ import * as audit from './audit'
 import * as approvals from './approvals'
 import * as policy from './policy'
 import { phase1Resolvers, phase1TypeDefs } from './phase1'
+import { phase2Resolvers, phase2TypeDefs } from './phase2'
 import '../lib/companyControls'
+import '../services/salesAppliers'
 
 const graphql = String.raw
 
@@ -29,6 +31,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updateActiveUser(data: UserUpdateProfileInput!): User
         loadCompanySetup(idempotencyKey: String!): JSON
         loadOperationsSetup(idempotencyKey: String!): JSON
+        loadPriceBookSetup(idempotencyKey: String!): JSON
         decideApprovalRequest(requestId: ID!, decision: String!, reason: String, expectedVersion: Int!, idempotencyKey: String!): JSON
         cancelApprovalRequest(requestId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
         requestCompanyControls(changes: JSON!, reason: String!, idempotencyKey: String!): JSON
@@ -45,6 +48,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updateActiveUser,
         loadCompanySetup: op(setup.loadCompanySetup),
         loadOperationsSetup: op(setup.loadOperationsSetup),
+        loadPriceBookSetup: op(setup.loadPriceBookSetup),
         decideApprovalRequest: op(approvals.decideApprovalRequest),
         cancelApprovalRequest: op(approvals.cancelApprovalRequest),
         requestCompanyControls: op(approvals.requestCompanyControls),
@@ -52,5 +56,5 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       },
     },
   })
-  return mergeSchemas({ schemas: [core], typeDefs: phase1TypeDefs, resolvers: phase1Resolvers })
+  return mergeSchemas({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs], resolvers: [phase1Resolvers, phase2Resolvers] })
 }

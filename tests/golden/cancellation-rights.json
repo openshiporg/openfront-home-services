@@ -1,0 +1,596 @@
+{
+  "about": "Golden cancellation-rights scenarios (BUILD-PLAN Phase 2 exit gate; SM§6.2, R§12.1-12.1a). 'tx' evaluates the seeded Texas pack v2 (federal + ch. 601); 'federal' the seeded federal pack. Amounts are cents as strings; times are UTC.",
+  "scenarios": [
+    {
+      "name": "01 requested repair only, at the residence",
+      "pack": "tx",
+      "why": "16 CFR 429.0(a)(5): the repair the buyer asked for is excluded; Tex. §601.002(a): the merchant did not solicit it.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "18900",
+            "trade": "plumbing",
+            "cancellationClass": "requested_repair",
+            "description": "Replace kitchen faucet cartridge"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z"
+      },
+      "expect": {
+        "applies": false,
+        "governing": null,
+        "coveredLineIds": [],
+        "coveredAmountMinor": "0",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": false,
+            "reasons": [
+              "requested_repair_lines_excluded",
+              "no_covered_lines"
+            ]
+          },
+          "tx_601": {
+            "applies": false,
+            "reasons": [
+              "requested_work_not_solicited",
+              "no_covered_lines"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "02 requested repair plus a solicited add-on; Veterans Day is skipped",
+      "pack": "tx",
+      "why": "The add-on is covered by both rules; Tue 10 (1), Wed 11 is a federal holiday, Thu 12 (2), Fri 13 (3); midnight CST.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "18900",
+            "trade": "plumbing",
+            "cancellationClass": "requested_repair",
+            "description": "Diagnose no hot water"
+          },
+          {
+            "id": "l2",
+            "amountMinor": "245000",
+            "trade": "plumbing",
+            "cancellationClass": "additional_goods_services",
+            "description": "50-gal water heater replacement"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "governing": "ftc_cooling_off",
+        "coveredLineIds": [
+          "l2"
+        ],
+        "coveredAmountMinor": "245000",
+        "lastDay": "2026-11-13",
+        "cancelBy": "2026-11-14T06:00:00.000Z",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true
+          },
+          "tx_601": {
+            "applies": true
+          }
+        }
+      }
+    },
+    {
+      "name": "03 away from the residence, $100 add-on: Texas only",
+      "pack": "tx",
+      "why": "Federal elsewhere threshold is $130 (429.0(a)); Texas is over $25 anywhere away from the merchant's place.",
+      "facts": {
+        "location": "other_non_merchant",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "10000",
+            "trade": "plumbing",
+            "cancellationClass": "additional_goods_services",
+            "description": "Hose bib replacement at the buyer's rental office"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "governing": "tx_601",
+        "coveredLineIds": [
+          "l1"
+        ],
+        "coveredAmountMinor": "10000",
+        "lastDay": "2026-11-13",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": false,
+            "reasons": [
+              "below_threshold"
+            ]
+          },
+          "tx_601": {
+            "applies": true
+          }
+        }
+      }
+    },
+    {
+      "name": "04 ACR, consumer-initiated: Texas exempt, federal still applies",
+      "pack": "tx",
+      "why": "Tex. Occ. Code §1302.003: ch. 601 does not apply to a consumer-initiated ACR transaction; the federal rule has no such exemption.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "12900",
+            "trade": "hvac",
+            "cancellationClass": "requested_repair",
+            "description": "AC diagnostic"
+          },
+          {
+            "id": "l2",
+            "amountMinor": "180000",
+            "trade": "hvac",
+            "cancellationClass": "additional_goods_services",
+            "description": "Evaporator coil replacement"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "governing": "ftc_cooling_off",
+        "coveredLineIds": [
+          "l2"
+        ],
+        "coveredAmountMinor": "180000",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true
+          },
+          "tx_601": {
+            "applies": false,
+            "reasons": [
+              "requested_work_not_solicited",
+              "tx_acr_consumer_initiated",
+              "no_covered_lines"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "05 ACR, solicited visit: both rules cover every line",
+      "pack": "tx",
+      "why": "The ACR exemption is for consumer-initiated transactions only.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "solicited",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "980000",
+            "trade": "hvac",
+            "cancellationClass": "additional_goods_services",
+            "description": "3-ton heat pump system"
+          },
+          {
+            "id": "l2",
+            "amountMinor": "45000",
+            "trade": "hvac",
+            "cancellationClass": "additional_goods_services",
+            "description": "Thermostat and line set"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "governing": "ftc_cooling_off",
+        "coveredLineIds": [
+          "l1",
+          "l2"
+        ],
+        "coveredAmountMinor": "1025000",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true
+          },
+          "tx_601": {
+            "applies": true
+          }
+        }
+      }
+    },
+    {
+      "name": "06 ACR exemption defeated by negligent installation",
+      "pack": "tx",
+      "why": "§1302.003 keeps ch. 601 for breach of express warranty or negligent installation.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "180000",
+            "trade": "hvac",
+            "cancellationClass": "additional_goods_services",
+            "description": "Re-run condensate line and add float switch"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z",
+        "acrContext": [
+          "negligent_installation"
+        ]
+      },
+      "expect": {
+        "applies": true,
+        "coveredLineIds": [
+          "l1"
+        ],
+        "coveredAmountMinor": "180000",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true
+          },
+          "tx_601": {
+            "applies": true,
+            "reasons": [
+              "tx_acr_consumer_initiated_not_available",
+              "right_applies"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "07 federal emergency waiver, complete: no right",
+      "pack": "federal",
+      "why": "429.1(e)/429.0(a)(3): the buyer's own dated, signed, handwritten statement waives the right.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "95000",
+            "trade": "plumbing",
+            "cancellationClass": "additional_goods_services",
+            "description": "Emergency sewer line clear and camera"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z",
+        "emergencyWaiver": {
+          "present": true,
+          "handwritten": true,
+          "signedAndDated": true
+        }
+      },
+      "expect": {
+        "applies": false,
+        "governing": null,
+        "coveredLineIds": [],
+        "coveredAmountMinor": "0",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true,
+            "waived": true,
+            "reasons": [
+              "waived_by_buyer_emergency"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "08 federal emergency waiver not handwritten: right stands",
+      "pack": "federal",
+      "why": "A printed form is not a waiver; the buyer must write it.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "95000",
+            "trade": "plumbing",
+            "cancellationClass": "additional_goods_services",
+            "description": "Emergency sewer line clear and camera"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z",
+        "emergencyWaiver": {
+          "present": true,
+          "handwritten": false,
+          "signedAndDated": true
+        }
+      },
+      "expect": {
+        "applies": true,
+        "governing": "ftc_cooling_off",
+        "coveredLineIds": [
+          "l1"
+        ],
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true,
+            "waived": false,
+            "reasons": [
+              "emergency_waiver_incomplete",
+              "right_applies"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "09 Texas: an emergency waiver does not remove the ch. 601 right",
+      "pack": "tx",
+      "why": "Fail closed: no Texas waiver is honoured until §§601.003-601.004 are verified.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "95000",
+            "trade": "plumbing",
+            "cancellationClass": "additional_goods_services",
+            "description": "Emergency sewer line clear and camera"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z",
+        "emergencyWaiver": {
+          "present": true,
+          "handwritten": true,
+          "signedAndDated": true
+        }
+      },
+      "expect": {
+        "applies": true,
+        "governing": "tx_601",
+        "coveredLineIds": [
+          "l1"
+        ],
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true,
+            "waived": true
+          },
+          "tx_601": {
+            "applies": true,
+            "waived": false,
+            "reasons": [
+              "emergency_waiver_not_available",
+              "right_applies"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "10 Sunday sale: Sunday is not a business day",
+      "pack": "tx",
+      "why": "Mon 16 (1), Tue 17 (2), Wed 18 (3) (429.0(f)).",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "60000",
+            "trade": "electrical",
+            "cancellationClass": "additional_goods_services",
+            "description": "Whole-home surge protector"
+          }
+        ],
+        "transactionAt": "2026-11-15T20:00:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "transactionDate": "2026-11-15",
+        "lastDay": "2026-11-18",
+        "cancelBy": "2026-11-19T06:00:00.000Z"
+      }
+    },
+    {
+      "name": "11 Thanksgiving week: holiday skipped, Saturday counts",
+      "pack": "tx",
+      "why": "Thu 26 is a federal holiday; Fri 27 (1), Sat 28 (2), Sun 29 skipped, Mon 30 (3).",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "60000",
+            "trade": "electrical",
+            "cancellationClass": "additional_goods_services",
+            "description": "Whole-home surge protector"
+          }
+        ],
+        "transactionAt": "2026-11-25T22:00:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "transactionDate": "2026-11-25",
+        "lastDay": "2026-11-30",
+        "cancelBy": "2026-12-01T06:00:00.000Z"
+      }
+    },
+    {
+      "name": "12 evening sale across the end of daylight time",
+      "pack": "tx",
+      "why": "7:30 p.m. CDT on Thu 29 Oct is 30 Oct in UTC; the local date counts. Fri 30, Sat 31, (Sun 1 Nov skipped), Mon 2; midnight is CST (UTC-6).",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "60000",
+            "trade": "electrical",
+            "cancellationClass": "additional_goods_services",
+            "description": "Whole-home surge protector"
+          }
+        ],
+        "transactionAt": "2026-10-30T00:30:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "transactionDate": "2026-10-29",
+        "lastDay": "2026-11-02",
+        "cancelBy": "2026-11-03T06:00:00.000Z"
+      }
+    },
+    {
+      "name": "13 exactly $25.00: federal 'at least' yes, Texas 'more than' no",
+      "pack": "tx",
+      "why": "429.0(a): $25 or more; Tex. §601.002(a)(3): more than $25.",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "2500",
+            "trade": "plumbing",
+            "cancellationClass": "additional_goods_services",
+            "description": "Hose bib vacuum breaker"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "governing": "ftc_cooling_off",
+        "coveredAmountMinor": "2500",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true
+          },
+          "tx_601": {
+            "applies": false,
+            "reasons": [
+              "not_more_than_threshold"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "14 at our place of business: no right",
+      "pack": "tx",
+      "why": "Both rules cover sales away from the seller's place of business only.",
+      "facts": {
+        "location": "merchant_place",
+        "initiatedBy": "customer_request",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "245000",
+            "trade": "plumbing",
+            "cancellationClass": "additional_goods_services",
+            "description": "Water heater, customer pick-up and install"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z"
+      },
+      "expect": {
+        "applies": false,
+        "coveredLineIds": [],
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": false,
+            "reasons": [
+              "at_merchant_place_of_business"
+            ]
+          },
+          "tx_601": {
+            "applies": false,
+            "reasons": [
+              "at_merchant_place_of_business"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "15 solicited visit: a repair-class line is covered too",
+      "pack": "tx",
+      "why": "16 CFR 429.0(a)(5)(vi) excludes repairs only where the buyer initiated the contact and requested them; on a visit the seller solicited, every line is covered by both rules (Tex. §601.002(a)).",
+      "facts": {
+        "location": "buyer_residence",
+        "initiatedBy": "solicited",
+        "timeZone": "America/Chicago",
+        "lines": [
+          {
+            "id": "l1",
+            "amountMinor": "29500",
+            "trade": "plumbing",
+            "cancellationClass": "requested_repair",
+            "description": "Clear main line through cleanout"
+          },
+          {
+            "id": "l2",
+            "amountMinor": "69500",
+            "trade": "plumbing",
+            "cancellationClass": "additional_goods_services",
+            "description": "Hydro-jet main line"
+          }
+        ],
+        "transactionAt": "2026-11-09T16:00:00Z"
+      },
+      "expect": {
+        "applies": true,
+        "governing": "ftc_cooling_off",
+        "coveredLineIds": [
+          "l1",
+          "l2"
+        ],
+        "coveredAmountMinor": "99000",
+        "rules": {
+          "ftc_cooling_off": {
+            "applies": true,
+            "reasons": [
+              "right_applies"
+            ]
+          },
+          "tx_601": {
+            "applies": true,
+            "reasons": [
+              "right_applies"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

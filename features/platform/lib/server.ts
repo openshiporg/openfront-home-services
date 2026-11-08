@@ -31,3 +31,15 @@ export function plusDays(date: string, n: number): string {
 
 /** The request time, read once per render (kept out of components so renders stay pure). */
 export const requestTime = () => Date.now()
+
+/** The signed-in person and their role flags, for deciding which controls (and which internal fields) a screen asks for. */
+export async function viewer(): Promise<{ id: string; name: string; can: (permission: string) => boolean }> {
+  try {
+    const d: any = await q(`{ authenticatedItem { ... on User { id name role { canManagePriceBook canApprovePriceBook canApproveDiscounts canPresentEstimates canSellEstimates canManageCustomers canBook canDispatch canManageInvoices canApprovePolicies } } } }`)
+    const u = d.authenticatedItem
+    const role: Record<string, boolean> = u?.role ?? {}
+    return { id: u?.id ?? '', name: u?.name ?? '', can: (permission: string) => role[permission] === true }
+  } catch {
+    return { id: '', name: '', can: () => false }
+  }
+}

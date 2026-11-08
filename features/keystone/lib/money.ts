@@ -117,3 +117,20 @@ export function priceLineFromTotal(totalMinor: bigint, quantity: DecimalInput = 
   }
   return { quantity: q.toFixed(), unitPriceMinor, amountMinor: totalMinor }
 }
+
+/** An exact decimal amount of minor units → whole minor units (half-up unless told otherwise). */
+export function roundMinor(value: DecimalInput, rounding: Rounding = Decimal.ROUND_HALF_UP): bigint {
+  return BigInt(dec(value).toDecimalPlaces(0, rounding).toFixed(0))
+}
+
+/** numerator / denominator in basis points, half-up, as a signed integer string; null when the denominator is 0. */
+export function ratioBps(numerator: bigint, denominator: bigint): string | null {
+  if (denominator === 0n) return null
+  return dec(numerator).times(10_000).div(dec(denominator)).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(0)
+}
+
+/** amount × bps / 10 000, half-up to whole minor units. */
+export function bpsOf(amountMinor: bigint, bps: number): bigint {
+  if (!Number.isInteger(bps) || bps < 0 || bps > 10_000) throw new Error('Basis points must be a whole number from 0 to 10000')
+  return roundMinor(dec(amountMinor).times(bps).div(10_000))
+}

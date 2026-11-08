@@ -5,9 +5,13 @@
  * the seeded staff list then skips her and every other seeded person signs in after a reset.
  *
  * 1. The company spine and operations, through the same idempotent steps as the onboarding cards.
- * 2. A first working day (the next day with open arrival windows), through the same services the
+ * 2. The price book's history (v1-v3 published by the owner after the general manager submitted each,
+ *    and a v4 draft with a supplier cost import).
+ * 3. A first working day (the next day with open arrival windows), through the same services the
  *    dashboard and the AI receptionist call: inbound leads, office bookings, one recorded AI call
  *    that books, one caller handed to a person, and the dispatcher's assignments.
+ * 4. Estimates on that work: a replacement presented with good/better/best, an add-on sold at the
+ *    customer's home with its notice of cancellation delivered, a declined estimate, and a draft.
  *
  * Every step has a fixed idempotency key, so a second run replays and creates nothing.
  */
@@ -18,6 +22,8 @@ import { command } from '../features/keystone/lib/command'
 import { localDate } from '../features/keystone/lib/calendar'
 import { seedCompanyPlatform } from '../features/keystone/seed/platform'
 import { seedOperations } from '../features/keystone/seed/operations'
+import { seedPriceBook } from '../features/keystone/seed/pricebook'
+import { seedSales } from '../features/keystone/seed/sales'
 import { ROLES } from '../features/keystone/seed/company'
 import { HOUSEHOLDS } from '../features/keystone/seed/operationsData'
 import { availableWindows, bookJob, holdWindow, materializeWindows } from '../features/keystone/services/booking'
@@ -62,8 +68,14 @@ async function main() {
     if (missing.length) await prisma.agentScopeGrant.createMany({ data: missing.map(tool => ({ agentId: receptionist.id, tool, autonomy: 'auto_within_policy', status: 'active', grantedById: OWNER_ID, effectiveFrom: new Date() })) })
     const agent: Actor = { kind: 'agent', agentId: receptionist.id, ownerUserId: OWNER_ID, name: receptionist.name, scopes: new Set(RECEPTIONIST_TOOLS) }
 
+    // The price book: the general manager drafts each version and the owner approves it (maker-checker).
+    const gm = staffActor('seed_user_ortega', 'Marcus Ortega', 'seed_role_gm')
+    const owner = staffActor(OWNER_ID, 'Dana Whitfield', 'seed_role_owner')
+    await step('price book', () => seedPriceBook(prisma, { maker: gm, checker: owner }))
+
     if (await prisma.job.count()) {
       console.log('activity               skipped: the company already has jobs')
+      await step('sales', () => seedSales(prisma, { owner }))
       return
     }
 
@@ -138,6 +150,9 @@ async function main() {
       if (!best) continue
       await step(`assign ${i + 1}`, () => assignVisit(prisma, dispatcher, { visitId, expectedVersion: rec.visitVersion, employeeIds: [best.employeeId], recommendationId: rec.recommendationId, idempotencyKey: `seed:assign:${i + 1}` }))
     }
+
+    // Estimates on the booked work: presented, sold with a cancellation notice, declined, and an agent's draft.
+    await step('sales', () => seedSales(prisma, { owner }))
   } finally {
     await prisma.$disconnect()
   }

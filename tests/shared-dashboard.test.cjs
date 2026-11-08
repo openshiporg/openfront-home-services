@@ -112,6 +112,10 @@ test('form errors show Keystone validation text, never Prisma, stack or GraphQL 
     { message: 'connect ECONNREFUSED postgres://user:pw@db', extensions: { code: 'INTERNAL_SERVER_ERROR' } },
   ]) assert.equal(of(leak), PUBLIC_REQUEST_ERROR);
   assert.equal(publicGraphQLErrorMessage(new Error('synthetic')), PUBLIC_REQUEST_ERROR);
+  // Domain refusals carry their message to the screen; a domain code never lets driver detail through.
+  assert.equal(of({ message: 'Say why the discount is given.', extensions: { code: 'INVALID_INPUT', field: 'reason' } }), 'Say why the discount is given.');
+  assert.equal(of({ message: 'Version 4 is waiting for approval.', extensions: { code: 'GUARD_FAILED' } }), 'Version 4 is waiting for approval.');
+  assert.equal(of({ message: 'Invalid `prisma.estimate.update()` invocation', extensions: { code: 'GUARD_FAILED' } }), PUBLIC_REQUEST_ERROR);
 });
 
 function authActions({ env = {}, response }) {

@@ -89,6 +89,7 @@ export const APPROVAL_POLICIES: ApprovalPolicySeed[] = [
   { action: 'booking.overbook', description: 'Book past a window\'s capacity.', requiredPermission: 'canApproveOverbook', expiresAfterMinutes: 60 },
   { action: 'customer.merge', description: 'Merge two customer records.', requiredPermission: 'canApproveMerges', expiresAfterMinutes: 1440 },
   { action: 'estimate.discount', description: 'Apply a discount above the seller\'s limit.', requiredPermission: 'canApproveDiscounts', expiresAfterMinutes: 240 },
+  { action: 'cancellation.start_override', description: 'Start work the buyer can still cancel, before the cooling-off window closes.', requiredPermission: 'canApprovePolicies', expiresAfterMinutes: 240 },
   { action: 'pricebook.publish', description: 'Publish a price book version.', requiredPermission: 'canApprovePriceBook', expiresAfterMinutes: 7 * 1440 },
   { action: 'invoice.write_off', description: 'Write off an invoice balance.', requiredPermission: 'canApproveWriteOff', expiresAfterMinutes: 1440 },
   { action: 'credit.issue', description: 'Issue a customer credit.', requiredPermission: 'canApproveCredits', expiresAfterMinutes: 1440 },

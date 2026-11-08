@@ -1,5 +1,6 @@
 import { APPROVAL_POLICIES, BRANCH, BUSINESS_UNITS, COMPANY, LICENSES, ROLES, SERVICE_AREAS, STAFF } from '@/features/keystone/seed/company'
 import { POLICY_PACKS } from '@/features/keystone/seed/policyPacks'
+import { CATALOG, UNITS } from '@/features/keystone/seed/pricebookData'
 import { CAMPAIGNS, COMMERCIAL, HOUSEHOLDS, JOB_TYPES, TECHS, WINDOW_TEMPLATES } from '@/features/keystone/seed/operationsData'
 
 /**
@@ -38,6 +39,19 @@ export const SETUP_SECTIONS = [
       `${CAMPAIGNS.length} marketing campaigns with tracking numbers`,
       `${HOUSEHOLDS.length} households across Austin, Round Rock, Pflugerville and Cedar Park, plus ${COMMERCIAL.displayName}`,
       'The next 21 days of arrival windows and shifts',
+    ],
+  },
+  {
+    id: 'pricebook',
+    title: 'Price book',
+    mutation: 'mutation LoadPriceBook($idempotencyKey: String!) { loadPriceBookSetup(idempotencyKey: $idempotencyKey) }',
+    field: 'loadPriceBookSetup',
+    items: [
+      `${CATALOG.length} flat-rate items: ${CATALOG.filter(i => i.kind === 'service_task').length} tasks, ${CATALOG.filter(i => i.kind === 'material').length} materials, ${CATALOG.filter(i => i.kind === 'equipment').length} systems and ${CATALOG.filter(i => i.kind === 'fee').length} fees`,
+      'Good, better and best ladders: 3-ton AC and furnace, 3-ton heat pump, water heater (tank or tankless), 200 A panel, sewer line, whole-home repipe',
+      'Labour rates per department with a 1.5× after-hours multiplier; tiered markup on materials and equipment',
+      `${UNITS.length} units of measure`,
+      'Submitted for approval: a second person publishes it under Approvals',
     ],
   },
 ] as const

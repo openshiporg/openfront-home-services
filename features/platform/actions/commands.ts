@@ -42,6 +42,32 @@ const OPS: Record<string, Record<string, string>> = {
   verifyCredential: { credentialId: 'ID!', expectedVersion: 'Int!' },
   revokeCredential: { credentialId: 'ID!', expectedVersion: 'Int!', reason: 'String!' },
   materializeWindows: { from: 'String!', days: 'Int!', businessUnitIds: '[ID!]' },
+  // Phase 2: price book, estimates, cancellation rights
+  openPriceBook: { name: 'String!', code: 'String!', businessUnitIds: '[ID!]' },
+  startPriceBookDraft: { priceBookId: 'ID!', label: 'String' },
+  saveDraftItems: { versionId: 'ID!', items: 'JSON!', expectedVersion: 'Int' },
+  removeDraftItems: { versionId: 'ID!', itemKeys: '[String!]!', expectedVersion: 'Int' },
+  submitPriceBookVersion: { versionId: 'ID!', effectiveAt: 'String', expectedVersion: 'Int!', note: 'String' },
+  reopenPriceBookDraft: { versionId: 'ID!', expectedVersion: 'Int!', reason: 'String' },
+  discardPriceBookVersion: { versionId: 'ID!', expectedVersion: 'Int!', reason: 'String' },
+  importSupplierCosts: { priceBookId: 'ID!', supplier: 'String!', costs: 'JSON!' },
+  openEstimate: { jobId: 'ID', customerId: 'ID', locationId: 'ID', businessUnitId: 'ID', title: 'String!', options: 'JSON' },
+  saveEstimateOption: { versionId: 'ID!', optionId: 'ID', tier: 'String!', name: 'String!', description: 'String', memberPricing: 'Boolean', lines: 'JSON!', expectedVersion: 'Int' },
+  removeEstimateOption: { versionId: 'ID!', optionId: 'ID!', expectedVersion: 'Int!' },
+  repriceEstimateVersion: { versionId: 'ID!', expectedVersion: 'Int!' },
+  setEstimateDiscount: { versionId: 'ID!', discountBps: 'Int!', reason: 'String', expectedVersion: 'Int!' },
+  reopenEstimateVersion: { versionId: 'ID!', expectedVersion: 'Int!' },
+  presentEstimate: { versionId: 'ID!', via: 'String', notes: 'String', expectedVersion: 'Int!' },
+  sellEstimate: { versionId: 'ID!', optionId: 'ID!', expectedVersion: 'Int!', authorization: 'JSON!', saleLocation: 'String!', initiatedBy: 'String!', depositMinor: 'String', emergencyWaiver: 'JSON', acrContext: '[String!]', exclusions: '[String!]' },
+  declineEstimate: { versionId: 'ID!', reason: 'String!', note: 'String', expectedVersion: 'Int!' },
+  requoteEstimate: { versionId: 'ID!', expectedVersion: 'Int!' },
+  draftFollowupEstimate: { versionId: 'ID!' },
+  discardEstimateVersion: { versionId: 'ID!', expectedVersion: 'Int!', reason: 'String' },
+  deliverCancellationNotice: { noticeId: 'ID!', method: 'String!', acknowledgedBy: 'String!', signature: 'JSON', messageId: 'ID', expectedVersion: 'Int!' },
+  waiveCancellationNotice: { noticeId: 'ID!', waiver: 'JSON!', expectedVersion: 'Int!' },
+  recordBuyerCancellation: { noticeId: 'ID!', via: 'String!', sentAt: 'String!', amountPaidMinor: 'String', note: 'String', expectedVersion: 'Int!' },
+  markCancellationRefunded: { noticeId: 'ID!', evidence: 'JSON!', expectedVersion: 'Int!' },
+  requestCancellationHoldOverride: { noticeId: 'ID!', reason: 'String!', expectedVersion: 'Int!' },
 };
 
 /** Commands that act without an idempotency key (each is a logged read, not a state change). */
@@ -57,6 +83,8 @@ const READS: Record<string, Record<string, string>> = {
   matchJobType: { description: 'String!', postalCode: 'String' },
   availableWindows: { jobTypeId: 'ID!', postalCode: 'String!', from: 'String!', days: 'Int' },
   checkEligibility: { visitId: 'ID!', employeeIds: '[ID!]!' },
+  searchPriceBook: { query: 'String', businessUnitId: 'ID', kind: 'String', limit: 'Int' },
+  quotePriceBook: { lines: 'JSON!', businessUnitId: 'ID', memberPricing: 'Boolean', discountBps: 'Int' },
 };
 
 function pick(spec: Record<string, string>, variables: Record<string, unknown>) {
@@ -64,7 +92,8 @@ function pick(spec: Record<string, string>, variables: Record<string, unknown>) 
   return {
     decl: keys.map((k) => `$${k}: ${spec[k]}`),
     args: keys.map((k) => `${k}: $${k}`),
-    vars: Object.fromEntries(keys.map((k) => [k, variables[k]])) as Record<string, unknown>,
+    // Form fields arrive as text; an Int argument typed as digits is sent as a number.
+    vars: Object.fromEntries(keys.map((k) => [k, /^Int!?$/.test(spec[k]) && typeof variables[k] === 'string' && /^-?\d{1,9}$/.test(variables[k] as string) ? Number(variables[k]) : variables[k]])) as Record<string, unknown>,
   };
 }
 
