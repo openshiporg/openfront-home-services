@@ -207,7 +207,7 @@ export async function recordBuyerCancellation(db: Db, actor: Actor, args: { noti
   if (!RECEIVED_VIA.includes(args.via)) throw new DomainError(Codes.INVALID_INPUT, `Received via one of ${RECEIVED_VIA.join(', ')}.`, { field: 'via' })
   const sentAt = new Date(args.sentAt)
   if (Number.isNaN(sentAt.getTime())) throw new DomainError(Codes.INVALID_INPUT, 'When did the buyer send it?', { field: 'sentAt' })
-  const paid = args.amountPaidMinor ? (/^\d{1,13}$/.test(args.amountPaidMinor) ? BigInt(args.amountPaidMinor) : (() => { throw new DomainError(Codes.INVALID_INPUT, 'Amount paid is whole cents.', { field: 'amountPaidMinor' }) })()) : 0n
+  const typedPaid = args.amountPaidMinor ? (/^\d{1,13}$/.test(args.amountPaidMinor) ? BigInt(args.amountPaidMinor) : (() => { throw new DomainError(Codes.INVALID_INPUT, 'Amount paid is whole cents.', { field: 'amountPaidMinor' }) })()) : null
   const { idempotencyKey, now: _now, ...params } = args
   const result = await command(db, { name: 'cancellation.record_buyer_cancel', actor, idempotencyKey, params, now: args.now }, async uow => {
     const { tx } = uow
@@ -216,6 +216,9 @@ export async function recordBuyerCancellation(db: Db, actor: Actor, args: { noti
     if (sentAt.getTime() > uow.now.getTime()) throw new DomainError(Codes.INVALID_INPUT, 'The send time is in the future.', { field: 'sentAt' })
     if (sentAt.getTime() < row.transactionAt.getTime()) throw new DomainError(Codes.INVALID_INPUT, 'The send time is before the sale.', { field: 'sentAt' })
     if (sentAt.getTime() >= row.cancelBy.getTime()) throw new DomainError(Codes.GUARD_FAILED, 'This was sent after the cancellation deadline. Handle it as a customer-service cancellation, not a cooling-off cancellation.', { reason: 'after_deadline', cancelBy: row.cancelBy.toISOString() })
+    // When the office does not type an amount, the refund is what was recorded as paid at the sale (the authorization's deposit).
+    const recorded = await tx.cancellationNotice.findUnique({ where: { id: row.id }, select: { evaluation: { select: { authorization: { select: { depositMinor: true } } } } } })
+    const paid = typedPaid ?? recorded?.evaluation?.authorization?.depositMinor ?? 0n
     const covered = await tx.workLine.findMany({ where: { cancellationNotices: { some: { id: row.id } } }, select: { id: true, version: true, status: true, amountMinor: true } })
     const cancelled: string[] = []
     for (const w of covered) {
@@ -336,14 +339,26 @@ export async function assertCanStartWork(tx: Tx, jobId: string, now: Date) {
 }
 
 /** Ask a second person to approve starting covered work inside the window. The buyer keeps the right to cancel. */
+export const MIN_OVERRIDE_REASON = 10
+
+/** Only the technician assigned to the job's visits, or someone with dispatch rights, may ask to start early. */
+async function assertMayRequestOverride(tx: Tx, actor: Actor, jobId: string) {
+  if (actor.kind !== 'user') throw new DomainError(Codes.NOT_AUTHORIZED, 'A person asks to start early.')
+  if (actor.permissions.has('canDispatch')) return
+  const assigned = await tx.visit.count({ where: { jobId, assignments: { some: { active: true, employee: { user: { id: { equals: actor.userId } } } } } } })
+  if (!assigned) throw new DomainError(Codes.NOT_AUTHORIZED, 'Only the technician assigned to this job, or dispatch, can ask to start early.')
+}
+
 export async function requestCancellationHoldOverride(db: Db, actor: Actor, args: { noticeId: string; reason: string; expectedVersion: number; idempotencyKey: string; now?: Date }) {
   await authorizeOperation(db, actor, 'cancellation.override_hold', ['canDispatch', 'canSellEstimates'], args)
   if (actor.kind === 'agent') throw new DomainError(Codes.NOT_AUTHORIZED, 'Agents do not override cancellation holds.')
-  if (!args.reason?.trim()) throw new DomainError(Codes.INVALID_INPUT, 'Say why the work must start before the window closes.', { field: 'reason' })
+  const reasonText = args.reason?.trim() ?? ''
+  if (reasonText.length < MIN_OVERRIDE_REASON) throw new DomainError(Codes.INVALID_INPUT, `Say why the work must start before the window closes (at least ${MIN_OVERRIDE_REASON} characters).`, { field: 'reason' })
   const { idempotencyKey, now: _now, ...params } = args
   const result = await command(db, { name: 'cancellation.override_hold', actor, idempotencyKey, params, now: args.now }, async uow => {
     const row = await lockNotice(uow.tx, args.noticeId, args.expectedVersion)
     if (!OPEN.includes(row.status)) throw new DomainError(Codes.INVALID_TRANSITION, `A ${row.status.replaceAll('_', ' ')} notice holds nothing back.`, { currentStatus: row.status })
+    await assertMayRequestOverride(uow.tx, actor, row.job)
     if (row.startOverride) {
       const existing = await uow.tx.approvalRequest.findUnique({ where: { id: row.startOverride }, select: { status: true } })
       if (existing && ['pending', 'approved'].includes(existing.status)) throw new DomainError(Codes.GUARD_FAILED, `An override is already ${existing.status}.`, { reason: 'override_exists' })

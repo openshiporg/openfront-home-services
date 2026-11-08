@@ -8,10 +8,10 @@ import { BuyerCancelForm, DeliverForm, RefundForm } from '../components/NoticeAc
 
 type RuleResult = { rule: string; title: string; applies: boolean; cancelBy?: string | null; lastDay?: string | null; businessDays?: number; coveredAmountMinor?: string; reasons?: string[] };
 type Notice = {
-  id: string; ref: string; rule: string; evaluation: { results: { results?: RuleResult[] } | null; evaluatedAt: string } | null; status: string; version: number; language: string; noticeTemplate: string;
+  id: string; ref: string; rule: string; evaluation: { results: { results?: RuleResult[] } | null; evaluatedAt: string; authorization: { depositMinor: string | null } | null } | null; status: string; version: number; language: string; noticeTemplate: string;
   transactionAt: string; cancelBy: string; deliveredAt: string | null; deliveryEvidence: { method?: string; acknowledgedBy?: string } | null; coveredAmountMinor: string;
   cancelledAt: string | null; cancellationReceivedVia: string; refundDueBy: string | null; refundDueMinor: string; refundEvidence: { method?: string; reference?: string } | null;
-  customer: { id: string; displayName: string } | null; job: { id: string; ref: string } | null;
+  customer: { id: string; displayName: string } | null; job: { id: string; ref: string; visits?: { assignments: { active: boolean; employee: { user: { id: string } | null } | null }[] }[] } | null;
   estimateVersion: { versionNumber: number; estimate: { id: string; ref: string } | null } | null; changeOrder: { ref: string } | null;
   coveredWorkLines: { id: string; description: string; amountMinor: string; status: string }[];
   noticeDocument: { id: string } | null; waiverDocument: { id: string; title: string } | null; startOverride: { id: string; status: string } | null;
@@ -27,9 +27,9 @@ export default async function CancellationNoticePage({ params }: { params: Promi
     q<{ cancellationNotice: Notice | null; auditEvents: { eventType: string; at: string; actorUser: { name: string } | null; actorAgent: { name: string } | null }[] }>(`
       query N($id: ID!, $entity: String!) {
         cancellationNotice(where: { id: $id }) {
-          id ref rule evaluation { results evaluatedAt } status version language noticeTemplate transactionAt cancelBy deliveredAt deliveryEvidence coveredAmountMinor
+          id ref rule evaluation { results evaluatedAt authorization { depositMinor } } status version language noticeTemplate transactionAt cancelBy deliveredAt deliveryEvidence coveredAmountMinor
           cancelledAt cancellationReceivedVia refundDueBy refundDueMinor refundEvidence
-          customer { id displayName } job { id ref } estimateVersion { versionNumber estimate { id ref } } changeOrder { ref }
+          customer { id displayName } job { id ref visits { assignments { active employee { user { id } } } } } estimateVersion { versionNumber estimate { id ref } } changeOrder { ref }
           coveredWorkLines { id description amountMinor status } noticeDocument { id } waiverDocument { id title } startOverride { id status }
         }
         auditEvents(where: { entityId: { equals: $entity } }, orderBy: [{ seq: asc }], take: 40) { eventType at actorUser { name } actorAgent { name } }
@@ -41,6 +41,8 @@ export default async function CancellationNoticePage({ params }: { params: Promi
   const sells = me.can('canSellEstimates') || me.can('canPresentEstimates');
   const office = me.can('canManageInvoices') || me.can('canManageCustomers');
   const open = OPEN.includes(n.status);
+  const assignedToMe = !!n.job?.visits?.some(v => v.assignments.some(a => a.active && a.employee?.user?.id === me.id));
+  const mayAskEarly = sells && (me.can('canDispatch') || assignedToMe);
   const rules = n.evaluation?.results?.results ?? [];
   return (
     <Page title={`${n.ref} · ${n.customer?.displayName ?? 'Cancellation notice'}`} crumbs={[{ label: 'Cancellations', href: '/dashboard/platform/cancellations' }]}>
@@ -68,11 +70,11 @@ export default async function CancellationNoticePage({ params }: { params: Promi
         </p>
         <div className="flex flex-wrap gap-2 pt-2">
           {n.noticeDocument ? <a className="inline-flex h-8 items-center rounded-md border bg-background px-3 text-sm font-medium shadow-sm" href={`/api/cancellation-notices/${n.id}/pdf`} target="_blank" rel="noreferrer">Open notice PDF</a> : null}
-          {open && sells && !n.startOverride ? <ActionButton op="requestCancellationHoldOverride" vars={{ noticeId: n.id, expectedVersion: n.version }} ask="Why must the work start before the window closes?" paths={[`/dashboard/platform/cancellations/${n.id}`]}>Ask to start early</ActionButton> : null}
+          {open && mayAskEarly && !n.startOverride ? <ActionButton op="requestCancellationHoldOverride" vars={{ noticeId: n.id, expectedVersion: n.version }} ask="Why must the work start before the window closes? (at least 10 characters)" paths={[`/dashboard/platform/cancellations/${n.id}`]}>Ask to start early</ActionButton> : null}
         </div>
       </Section>
       {n.status === 'issued' && sells ? <Section title="Give the buyer the notice"><DeliverForm noticeId={n.id} expectedVersion={n.version} buyer={n.customer?.displayName ?? ''} /></Section> : null}
-      {open && (sells || office) ? <Section title="The buyer cancelled"><BuyerCancelForm noticeId={n.id} expectedVersion={n.version} /></Section> : null}
+      {open && (sells || office) ? <Section title="The buyer cancelled"><BuyerCancelForm noticeId={n.id} expectedVersion={n.version} paidMinor={n.evaluation?.authorization?.depositMinor ?? '0'} /></Section> : null}
       {n.status === 'cancelled_by_buyer' && office ? <Section title="Refund"><RefundForm noticeId={n.id} expectedVersion={n.version} dueMinor={n.refundDueMinor} dueText={money(n.refundDueMinor)} /></Section> : null}
       <Section title={`Covered work · ${n.coveredWorkLines.length}`}>
         {n.coveredWorkLines.length ? n.coveredWorkLines.map(w => (
