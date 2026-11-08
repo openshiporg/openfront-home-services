@@ -1,3 +1,4 @@
+import { costGuardedJson } from './costHidden'
 import { list } from '@keystone-6/core'
 import { calendarDay, checkbox, integer, json, relationship, text, timestamp } from '@keystone-6/core/fields'
 import { anyOf, sys } from '../access'
@@ -199,7 +200,7 @@ export const WorkLine = list({
     job: relationship({ ref: 'Job.workLines', ...readOnly }),
     source: fixedChoice(['estimate_line', 'pricebook', 'manual', 'change_order', 'membership_benefit']),
     description: systemText({ required: true }),
-    snapshot: json({ ...readOnly }),
+    snapshot: costGuardedJson({ ...readOnly }),
     quantity: qty({ required: true }),
     uom: systemText(),
     unitPriceMinor: minor({ defaultValue: 0n }),

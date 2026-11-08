@@ -5,6 +5,7 @@ import { choice, fixedChoice, lifecycle, minor, qty, rate, readOnly, systemText,
 import { governed, managed } from './listAccess'
 import { jobFilter, OFFICE_READ } from './scope'
 import { trackingFields } from './trackingFields'
+import { costGuardedJson } from './costHidden'
 
 /*
  * Price book, estimates and cancellation rights (SCHEMA §7, SM§5-6, I-E1..I-E6). Every write goes
@@ -320,7 +321,7 @@ export const EstimateLine = list({
     option: relationship({ ref: 'EstimateOption.lines', ...readOnly }),
     pricebookItem: relationship({ ref: 'PriceBookItem', ...readOnly }),
     itemKey: systemText(),
-    snapshot: json({ ...readOnly }),
+    snapshot: costGuardedJson({ ...readOnly }),
     description: systemText({ required: true }),
     quantity: qty({ required: true, ...readOnly }),
     uom: systemText({ required: true }),
@@ -433,7 +434,7 @@ export const ChangeOrder = list({
     priceBookVersion: relationship({ ref: 'PriceBookVersion', ...readOnly }),
     status: lifecycle(['draft', 'presented', 'approved', 'declined']),
     reason: systemText(),
-    lines: json({ ...readOnly, ui: { ...readOnly.ui, description: '{ add: [frozen line snapshots], remove: [workLineId] }' } }),
+    lines: costGuardedJson({ ...readOnly, ui: { ...readOnly.ui, description: '{ add: [frozen line snapshots], remove: [workLineId] }' } }),
     deltaMinor: minor({ defaultValue: 0n, description: 'Signed change to the sold price, in cents (removals are negative).' }),
     contentHash: systemText(),
     presentedAt: timestamp({ ...readOnly }),
