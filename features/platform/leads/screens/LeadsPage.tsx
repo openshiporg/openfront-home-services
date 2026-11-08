@@ -65,15 +65,15 @@ export default async function LeadsPage({ searchParams }: { searchParams?: Promi
           return (
             <Row key={l.id}>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{l.contactName || 'Unknown caller'}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{l.ref}</span>
-                  <Status value={l.status} />
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="min-w-0 truncate font-medium">{l.contactName || 'Unknown caller'}</span>
+                  <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">{l.ref}</span>
+                  <Status value={l.status} className="shrink-0" />
                   {l.customer ? <Link className="text-xs underline" href={`/dashboard/platform/customers/${l.customer.id}`}>{l.customer.displayName}</Link> : null}
                 </div>
                 {l.summary ? <p className="break-words text-sm">{l.summary}</p> : null}
                 <Meta>
-                  {label(l.source, 'leadSource')}{l.campaign ? ` · ${l.campaign.name}` : ''}{l.requestedJobType ? ` · ${l.requestedJobType.name}` : ''}{l.phoneE164 ? ` · ${phoneText(l.phoneE164)}` : ''} · {when(l.createdAt, tz)}
+                  <span className="sm:hidden"><span className="font-mono">{l.ref}</span> · </span>{label(l.source, 'leadSource')}{l.campaign ? ` · ${l.campaign.name}` : ''}{l.requestedJobType ? ` · ${l.requestedJobType.name}` : ''}{l.phoneE164 ? ` · ${phoneText(l.phoneE164)}` : ''} · {when(l.createdAt, tz)}
                   {l.firstResponseSeconds !== null ? ` · answered in ${respondedIn(l.firstResponseSeconds)}` : ''}
                   {l.lostReason ? ` · lost: ${label(l.lostReason).toLowerCase()}` : ''}
                 </Meta>

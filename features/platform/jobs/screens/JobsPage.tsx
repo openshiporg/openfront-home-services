@@ -45,14 +45,15 @@ export default async function JobsPage({ searchParams }: { searchParams?: Promis
           return (
             <Row key={j.id} href={`/dashboard/platform/jobs/${j.id}`}>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{j.jobType?.name ?? 'Job'}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{j.ref}</span>
-                  <Status value={j.status} />
-                  {j.priority === 'emergency' ? <Status value="emergency" /> : null}
+                {/* One line: the title truncates before the status does; the job number moves to the meta line on phones. */}
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="min-w-0 truncate font-medium">{j.jobType?.name ?? 'Job'}</span>
+                  <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">{j.ref}</span>
+                  <Status value={j.status} className="shrink-0" />
+                  {j.priority === 'emergency' ? <Status value="emergency" className="shrink-0" /> : null}
                 </div>
                 <Meta>
-                  {j.customer?.displayName ?? ''}{j.location ? ` · ${j.location.city} ${j.location.postalCode}` : ''} · {j.businessUnit?.name ?? ''}
+                  <span className="sm:hidden"><span className="font-mono">{j.ref}</span> · </span>{j.customer?.displayName ?? ''}{j.location ? ` · ${j.location.city} ${j.location.postalCode}` : ''} · {j.businessUnit?.name ?? ''}
                   {v?.window ? ` · ${windowText(v.window)}` : ''}{v?.assignments.length ? ` · ${v.assignments.map(a => a.employee?.displayName).join(', ')}` : ''}
                 </Meta>
                 <Meta><br />{j.bookedByAgent ? `Booked by the AI receptionist (${j.bookedByAgent.name})` : label(j.source, 'bookedVia')} · {when(j.createdAt, tz)}{j.holdReason ? ` · on hold: ${label(j.holdReason).toLowerCase()}` : ''}</Meta>

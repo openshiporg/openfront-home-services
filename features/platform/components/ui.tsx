@@ -14,7 +14,7 @@ const DOT: Record<string, string> = Object.fromEntries([
 export function Status({ value, className }: { value?: string | null; className?: string }) {
   if (!value) return null;
   return (
-    <span className={cn('inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide', className)}>
+    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-xs uppercase tracking-wide', className)}>
       <span className={cn('size-2 shrink-0 rounded-full', DOT[value] || 'bg-muted-foreground/50')} />
       {label(value)}
     </span>
@@ -60,7 +60,7 @@ export function Section({ title, aside, children }: { title: string; aside?: Rea
 }
 
 export function Row({ children, href, className }: { children: React.ReactNode; href?: string; className?: string }) {
-  const cls = cn('flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b py-3 text-sm last:border-b-0', href && 'hover:bg-muted/40', className);
+  const cls = cn('flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b py-3 text-sm last:border-b-0 [&>*:first-child]:min-w-[min(100%,16rem)]', href && 'hover:bg-muted/40', className);
   return href ? <Link href={href} className={cls}>{children}</Link> : <div className={cls}>{children}</div>;
 }
 
