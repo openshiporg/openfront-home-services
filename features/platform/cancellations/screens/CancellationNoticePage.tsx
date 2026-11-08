@@ -66,11 +66,13 @@ export default async function CancellationNoticePage({ params }: { params: Promi
           {` · notice in ${n.language === 'es' ? 'Spanish' : n.language === 'en' ? 'English' : n.language.toUpperCase()}`}
         </p>
         <p className="text-xs text-muted-foreground">
-          {n.deliveredAt ? `Given to ${n.deliveryEvidence?.acknowledgedBy ?? 'the buyer'} ${when(n.deliveredAt, tz)}${n.deliveryEvidence?.method ? ` (${label(n.deliveryEvidence.method).toLowerCase()})` : ''}` : n.status === 'issued' ? 'Not yet given to the buyer. The window does not close until the buyer has the notice.' : ''}
-          {n.cancelledAt ? ` · cancelled ${when(n.cancelledAt, tz)}${n.cancellationReceivedVia ? ` by ${label(n.cancellationReceivedVia).toLowerCase()}` : ''}` : ''}
-          {n.status === 'cancelled_by_buyer' && n.refundDueBy ? ` · refund ${money(n.refundDueMinor)} by ${deadlineText(n.refundDueBy, tz)}` : ''}
-          {n.refundEvidence ? ` · refunded${n.refundEvidence.method ? ` (${label(n.refundEvidence.method).toLowerCase()}${n.refundEvidence.reference ? ` ${n.refundEvidence.reference}` : ''})` : ''}` : ''}
-          {n.startOverride ? ` · early start ${label(n.startOverride.status).toLowerCase()}` : ''}
+          {[
+            n.deliveredAt ? `Given to ${n.deliveryEvidence?.acknowledgedBy ?? 'the buyer'} ${when(n.deliveredAt, tz)}${n.deliveryEvidence?.method ? ` (${label(n.deliveryEvidence.method).toLowerCase()})` : ''}` : n.status === 'issued' ? 'Not yet given to the buyer. The window does not close until the buyer has the notice.' : '',
+            n.cancelledAt ? `cancelled ${when(n.cancelledAt, tz)}${n.cancellationReceivedVia ? ` by ${label(n.cancellationReceivedVia).toLowerCase()}` : ''}` : '',
+            n.status === 'cancelled_by_buyer' && n.refundDueBy ? `refund ${money(n.refundDueMinor)} by ${deadlineText(n.refundDueBy, tz)}` : '',
+            n.refundEvidence ? `refunded${n.refundEvidence.method ? ` (${label(n.refundEvidence.method).toLowerCase()}${n.refundEvidence.reference ? ` ${n.refundEvidence.reference}` : ''})` : ''}` : '',
+            n.startOverride ? `early start ${label(n.startOverride.status).toLowerCase()}` : '',
+          ].filter(Boolean).join(' · ')}
         </p>
         <div className="flex flex-wrap gap-2 pt-2">
           {n.noticeDocument ? <a className="inline-flex h-8 items-center rounded-md border bg-background px-3 text-sm font-medium shadow-sm" href={`/api/cancellation-notices/${n.id}/pdf`} target="_blank" rel="noreferrer">Open notice PDF</a> : null}
@@ -89,7 +91,7 @@ export default async function CancellationNoticePage({ params }: { params: Promi
         {payments.length ? payments.map(p => (
           <Row key={p.id}>
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
-              <span className="min-w-0 break-words font-medium">{p.ref} · {label(p.kind)} by {label(p.method).toLowerCase()}</span>
+              <span className="min-w-0 break-words font-medium">{p.ref} · {label(p.kind)} · {label(p.method).toLowerCase()}</span>
               <span className="ml-auto font-mono text-sm tabular-nums">{money(p.amountMinor)}</span>
               <span className="basis-full text-xs text-muted-foreground">Received {when(p.receivedAt, tz)}{p.refunds.map(r => ` · refunded ${money(r.amountMinor)} (${r.ref}, ${label(r.method).toLowerCase()} ${r.reference}) ${when(r.refundedAt, tz)}`).join('')}</span>
             </div>
