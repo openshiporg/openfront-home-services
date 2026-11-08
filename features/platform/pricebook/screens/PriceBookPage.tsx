@@ -62,7 +62,7 @@ export default async function PriceBookPage({ searchParams }: { searchParams?: P
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="shrink-0 font-mono text-xs text-muted-foreground">v{v.versionNumber}</span>
-                    <span className="min-w-0 truncate font-medium">{v.label || 'Untitled version'}</span>
+                    <span className="min-w-0 break-words font-medium">{v.label || 'Untitled version'}</span>
                     <Status value={v.status} className="shrink-0" />
                   </div>
                   <Meta>
@@ -94,7 +94,7 @@ export default async function PriceBookPage({ searchParams }: { searchParams?: P
               <Row key={i.id}>
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="min-w-0 truncate font-medium">{i.name}</span>
+                    <span className="min-w-0 break-words font-medium">{i.name}</span>
                     <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">{i.itemKey}</span>
                     <span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(i.unitPriceMinor)}</span>
                   </div>

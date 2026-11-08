@@ -42,7 +42,7 @@ export default async function EstimatesPage({ searchParams }: { searchParams?: P
             <Row key={e.id} href={`/dashboard/platform/estimates/${e.id}`}>
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="min-w-0 truncate font-medium">{e.title}</span>
+                  <span className="min-w-0 break-words font-medium">{e.title}</span>
                   <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">{e.ref}</span>
                   <Status value={e.status === 'open' && v ? v.status : e.status} className="shrink-0" />
                 </div>

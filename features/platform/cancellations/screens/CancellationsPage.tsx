@@ -44,7 +44,7 @@ export default async function CancellationsPage({ searchParams }: { searchParams
             <Row key={n.id} href={`/dashboard/platform/cancellations/${n.id}`}>
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="min-w-0 truncate font-medium">{n.customer?.displayName ?? n.ref}</span>
+                  <span className="min-w-0 break-words font-medium">{n.customer?.displayName ?? n.ref}</span>
                   <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">{n.ref}</span>
                   <Status value={n.status} className="shrink-0" />
                 </div>

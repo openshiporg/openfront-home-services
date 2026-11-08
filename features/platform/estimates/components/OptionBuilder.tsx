@@ -103,7 +103,7 @@ export function OptionBuilder({ versionId, expectedVersion, path, initial, creat
         <ul className="divide-y rounded-md border">
           {hits.length ? hits.map(h => (
             <li key={h.itemKey} className="flex min-w-0 items-center gap-2 px-3 py-2 text-sm">
-              <span className="min-w-0 flex-1 truncate">{h.name}</span>
+              <span className="min-w-0 flex-1 break-words">{h.name}</span>
               <span className="shrink-0 font-mono text-xs tabular-nums">{money(h.unitPriceMinor)}</span>
               <button type="button" onClick={() => add(h)} className={cn(pillClass, 'h-7 border px-2')}>Add</button>
             </li>
@@ -114,7 +114,7 @@ export function OptionBuilder({ versionId, expectedVersion, path, initial, creat
         <ul className="divide-y rounded-md border">
           {lines.map((l, i) => (
             <li key={l.itemKey} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
-              <span className="min-w-0 flex-1 basis-48 truncate">{l.name}</span>
+              <span className="min-w-0 flex-1 basis-48 break-words">{l.name}</span>
               <input aria-label="Quantity" value={l.quantity} onChange={e => setLines(ls => ls.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} className={cn(inputClass, 'h-8 w-20')} inputMode="decimal" />
               <span className="text-xs text-muted-foreground">{l.uom} × {money(l.unitPriceMinor)}</span>
               <select aria-label="Cooling-off class" value={l.cancellationClass} onChange={e => setLines(ls => ls.map((x, j) => j === i ? { ...x, cancellationClass: e.target.value } : x))} className={cn(inputClass, 'h-8 w-full sm:w-56')}>

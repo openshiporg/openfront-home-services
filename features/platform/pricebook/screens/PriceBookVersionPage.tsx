@@ -102,7 +102,7 @@ export default async function PriceBookVersionPage({ params }: { params: Promise
                 {diff.repriced.map(r => (
                   <Row key={r.itemKey}>
                     <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate">{r.name}</span><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(r.fromMinor)} → {money(r.toMinor)}</span></div>
+                      <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words">{r.name}</span><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(r.fromMinor)} → {money(r.toMinor)}</span></div>
                       <Meta><span className="font-mono">{r.itemKey}</span>{r.changeBps ? ` · ${pct(r.changeBps)}` : ''}</Meta>
                     </div>
                   </Row>
@@ -112,13 +112,13 @@ export default async function PriceBookVersionPage({ params }: { params: Promise
             {diff.added.length ? (
               <div>
                 <h3 className="pb-1 text-sm font-medium">New items · {diff.added.length}</h3>
-                {diff.added.map(r => <Row key={r.itemKey}><div className="flex min-w-0 flex-1 items-center gap-2"><span className="min-w-0 truncate">{r.name}</span><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(r.unitPriceMinor)}</span></div></Row>)}
+                {diff.added.map(r => <Row key={r.itemKey}><div className="flex min-w-0 flex-1 items-center gap-2"><span className="min-w-0 break-words">{r.name}</span><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(r.unitPriceMinor)}</span></div></Row>)}
               </div>
             ) : null}
             {diff.removed.length ? (
               <div>
                 <h3 className="pb-1 text-sm font-medium">Removed · {diff.removed.length}</h3>
-                {diff.removed.map(r => <Row key={r.itemKey}><div className="flex min-w-0 flex-1 items-center gap-2"><span className="min-w-0 truncate line-through">{r.name}</span><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(r.unitPriceMinor)}</span></div></Row>)}
+                {diff.removed.map(r => <Row key={r.itemKey}><div className="flex min-w-0 flex-1 items-center gap-2"><span className="min-w-0 break-words line-through">{r.name}</span><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(r.unitPriceMinor)}</span></div></Row>)}
               </div>
             ) : null}
             {diff.changed.length ? (
@@ -136,7 +136,7 @@ export default async function PriceBookVersionPage({ params }: { params: Promise
           {cost.changes.slice(0, 100).map(c => (
             <Row key={c.itemKey}>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate">{c.name}</span><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(c.fromMinor)} → {money(c.toMinor)}</span></div>
+                <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words">{c.name}</span><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(c.fromMinor)} → {money(c.toMinor)}</span></div>
                 <Meta><span className="font-mono">{c.itemKey}</span>{c.marginBpsAfter !== null ? ` · margin after ${bpsText(c.marginBpsAfter)}` : ''}</Meta>
               </div>
             </Row>

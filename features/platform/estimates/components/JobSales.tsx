@@ -27,7 +27,7 @@ export async function JobSales({ jobId, jobTitle, path, tz }: { jobId: string; j
           return (
             <Row key={e.id} href={`/dashboard/platform/estimates/${e.id}`}>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate font-medium">{e.title}</span><Status value={e.status === 'open' && e.currentVersion ? e.currentVersion.status : e.status} className="shrink-0" /></div>
+                <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words font-medium">{e.title}</span><Status value={e.status === 'open' && e.currentVersion ? e.currentVersion.status : e.status} className="shrink-0" /></div>
                 <Meta><span className="font-mono">{e.ref}</span>{e.currentVersion ? ` · v${e.currentVersion.versionNumber}` : ''}{totals.length ? ` · ${totals.join(' / ')}` : ''}</Meta>
               </div>
             </Row>
@@ -45,7 +45,7 @@ export async function JobSales({ jobId, jobTitle, path, tz }: { jobId: string; j
           {d.workLines.map(w => (
             <Row key={w.id}>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate">{w.description}</span><Status value={w.status} className="shrink-0" /><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(w.amountMinor)}</span></div>
+                <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words">{w.description}</span><Status value={w.status} className="shrink-0" /><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(w.amountMinor)}</span></div>
                 <Meta>{quantity(w.quantity)} {w.uom} · {label(w.cancellationClass).toLowerCase()}</Meta>
               </div>
             </Row>

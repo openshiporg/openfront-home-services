@@ -101,7 +101,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
                 <div key={o.id} className={`min-w-0 space-y-2 rounded-lg border p-3 ${current.soldOption?.id === o.id ? 'border-emerald-500' : ''}`}>
                   <div className="flex min-w-0 items-center gap-2">
                     {o.tier && !['single', 'custom'].includes(o.tier) ? <span className="shrink-0 font-mono text-xs uppercase text-muted-foreground">{label(o.tier)}</span> : null}
-                    <span className="min-w-0 truncate font-medium">{o.name}</span>
+                    <span className="min-w-0 break-words font-medium">{o.name}</span>
                     {current.soldOption?.id === o.id ? <Status value="sold" className="ml-auto shrink-0" /> : null}
                   </div>
                   {o.description ? <p className="text-xs text-muted-foreground">{o.description}</p> : null}
@@ -138,7 +138,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           {d.cancellationNotices.map(n => (
             <Row key={n.id} href={`/dashboard/platform/cancellations/${n.id}`}>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate font-medium">{label(n.rule)}</span><span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">{n.ref}</span><Status value={n.status} className="shrink-0" /></div>
+                <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 break-words font-medium">{label(n.rule)}</span><span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">{n.ref}</span><Status value={n.status} className="shrink-0" /></div>
                 <Meta><span className="sm:hidden"><span className="font-mono">{n.ref}</span> · </span>covers {money(n.coveredAmountMinor)} · cancel by {deadlineText(n.cancelBy, tz)}</Meta>
               </div>
             </Row>
@@ -150,7 +150,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           {earlier.map(v => (
             <Row key={v.id}>
               <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex min-w-0 items-center gap-2"><span className="shrink-0 font-mono text-xs text-muted-foreground">v{v.versionNumber}</span><span className="min-w-0 truncate">{v.options.map(o => `${o.name} ${money(o.totalMinor)}`).join(' · ')}</span><Status value={v.status} className="shrink-0" /></div>
+                <div className="flex min-w-0 items-center gap-2"><span className="shrink-0 font-mono text-xs text-muted-foreground">v{v.versionNumber}</span><span className="min-w-0 break-words">{v.options.map(o => `${o.name} ${money(o.totalMinor)}`).join(' · ')}</span><Status value={v.status} className="shrink-0" /></div>
                 <Meta>{v.presentedAt ? `presented ${when(v.presentedAt, tz)}` : 'never presented'}{v.priceBookVersion ? ` · price book v${v.priceBookVersion.versionNumber}` : ''}{v.pdf ? <> · <a className="underline" href={`/api/estimates/${v.id}/pdf`} target="_blank" rel="noreferrer">PDF</a></> : null}</Meta>
               </div>
             </Row>
