@@ -118,6 +118,23 @@ export async function seedCompanyPlatform(uow: UnitOfWork, actor: Actor) {
     created.approvalPolicies = rows.length
   }
 
+  const policy = await seedPolicyPacks(uow, actor)
+  created.policyPacks = policy.policyPacks
+  created.policyVersions = policy.policyVersions
+  created.policyBindings = policy.policyBindings
+
+  return created
+}
+
+/**
+ * Loads the federal + Texas policy packs, their versions and bindings. Idempotent by deterministic
+ * id: it adds what is missing (including later versions) and never rewrites an existing row. Run on
+ * every deploy (npm run policies:ensure) so a sale can never meet a missing binding.
+ */
+export async function seedPolicyPacks(uow: UnitOfWork, actor: Actor) {
+  const { tx } = uow
+  const created = { policyPacks: 0, policyVersions: 0, policyBindings: 0 }
+
   for (const pack of POLICY_PACKS) {
     for (const v of [pack.version, ...(pack.next ? [pack.next] : [])]) {
       const parsed = parsePolicyRules(pack.kind, v.rules)
@@ -161,7 +178,7 @@ export async function seedCompanyPlatform(uow: UnitOfWork, actor: Actor) {
     })
     auditCreate(uow, actor, 'PolicyVersion', pack.version.id, 'policy_version.superseded', { pack: pack.code, effectiveTo: next.effectiveFrom, by: next.id }, { metadata: { seed: true }, reason: next.reason })
     auditCreate(uow, actor, 'PolicyVersion', next.id, 'policy_version.activated', { pack: pack.code, versionNumber: next.versionNumber, contentHash }, { metadata: { seed: true }, reason: next.reason })
-    created.policyVersions = (created.policyVersions ?? 0) + 1
+    created.policyVersions += 1
   }
   const bindings = POLICY_PACKS.filter(p => !haveBindings.has(p.binding.id))
   if (bindings.length) {

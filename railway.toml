@@ -4,4 +4,6 @@
 buildCommand = "keystone build --no-ui && next build"
 
 [deploy]
-startCommand = "npm run migrate && next start"
+startCommand = "npm run migrate && npm run policies:ensure && next start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
