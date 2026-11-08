@@ -65,7 +65,7 @@ const OPS: Record<string, Record<string, string>> = {
   discardEstimateVersion: { versionId: 'ID!', expectedVersion: 'Int!', reason: 'String' },
   deliverCancellationNotice: { noticeId: 'ID!', method: 'String!', acknowledgedBy: 'String!', signature: 'JSON', messageId: 'ID', expectedVersion: 'Int!' },
   waiveCancellationNotice: { noticeId: 'ID!', waiver: 'JSON!', expectedVersion: 'Int!' },
-  recordBuyerCancellation: { noticeId: 'ID!', via: 'String!', sentAt: 'String!', amountPaidMinor: 'String', note: 'String', expectedVersion: 'Int!' },
+  recordBuyerCancellation: { noticeId: 'ID!', via: 'String!', sentAt: 'String!', note: 'String', expectedVersion: 'Int!' },
   markCancellationRefunded: { noticeId: 'ID!', evidence: 'JSON!', expectedVersion: 'Int!' },
   requestCancellationHoldOverride: { noticeId: 'ID!', reason: 'String!', expectedVersion: 'Int!' },
 };

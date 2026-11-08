@@ -446,12 +446,19 @@ describe.skipIf(!hasTestDatabase)('Phase 2: price book, estimates and cancellati
       const { sold, est } = await sell(techRay, job.jobId, [{ itemKey: 'PLB-PRV', quantity: '1', cancellationClass: 'additional_goods_services' }], { now: SALE, initiatedBy: 'solicited', depositMinor: '20000' })
       const id = sold.cancellation!.noticeId!
       let n = await prisma.cancellationNotice.findUniqueOrThrow({ where: { id } })
+      // The deposit was recorded as a payment at the sale; the database keeps it and caps refunds at it.
+      const payment = await prisma.payment.findFirstOrThrow({ where: { jobId: job.jobId }, include: { refunds: true } })
+      expect(payment).toMatchObject({ kind: 'deposit', amountMinor: 20000n })
+      await expect(prisma.payment.update({ where: { id: payment.id }, data: { amountMinor: 1n } })).rejects.toThrow(/append-only/)
+      await expect(prisma.refund.create({ data: { ref: 'RFD-TEST-1', paymentId: payment.id, method: 'check', amountMinor: 20001n, reference: 'x', refundedAt: new Date() } })).rejects.toThrow(/exceed/)
+      // A cancellation can't be recorded for a different amount than was paid, even straight against the table.
+      await expect(prisma.cancellationNotice.update({ where: { id }, data: { status: 'cancelled_by_buyer', refundDueMinor: 100n, cancelledAt: new Date(n.cancelBy.getTime() - 60_000), refundDueBy: new Date(n.cancelBy.getTime() + 86_400_000) } })).rejects.toThrow(/must refund what was paid/)
       // A cancellation sent after the deadline is refused; one the seller hasn't received yet can't be recorded from the future.
       const late = new Date(n.cancelBy.getTime() + 1000).toISOString()
-      expect(await reason(recordBuyerCancellation(prisma, csr, { noticeId: id, via: 'mail', sentAt: late, amountPaidMinor: '20000', expectedVersion: n.version, idempotencyKey: uniqueKey('c'), now: new Date(n.cancelBy.getTime() + 86_400_000) }))).toBe('after_deadline')
+      expect(await reason(recordBuyerCancellation(prisma, csr, { noticeId: id, via: 'mail', sentAt: late, expectedVersion: n.version, idempotencyKey: uniqueKey('c'), now: new Date(n.cancelBy.getTime() + 86_400_000) }))).toBe('after_deadline')
       expect(await code(recordBuyerCancellation(prisma, techJake, { noticeId: id, via: 'mail', sentAt: SALE.toISOString(), expectedVersion: n.version, idempotencyKey: uniqueKey('c') }))).toBe(Codes.NOT_AUTHORIZED)
       const sentAt = new Date(SALE.getTime() + 26 * 3_600_000) // next day, by mail
-      const cancelled = await recordBuyerCancellation(prisma, csr, { noticeId: id, via: 'mail', sentAt: sentAt.toISOString(), amountPaidMinor: '20000', expectedVersion: n.version, idempotencyKey: uniqueKey('c'), now: new Date(sentAt.getTime() + 3_600_000) })
+      const cancelled = await recordBuyerCancellation(prisma, csr, { noticeId: id, via: 'mail', sentAt: sentAt.toISOString(), expectedVersion: n.version, idempotencyKey: uniqueKey('c'), now: new Date(sentAt.getTime() + 3_600_000) })
       expect(cancelled.status).toBe('cancelled_by_buyer')
       expect(cancelled.workLineIds).toHaveLength(1)
       expect((await prisma.workLine.findUniqueOrThrow({ where: { id: cancelled.workLineIds[0] } })).status).toBe('cancelled_by_buyer')
@@ -466,6 +473,8 @@ describe.skipIf(!hasTestDatabase)('Phase 2: price book, estimates and cancellati
       expect(await code(markCancellationRefunded(prisma, csr, { noticeId: id, evidence: { method: 'check', reference: '1042', amountMinor: '20000' }, expectedVersion: n.version, idempotencyKey: uniqueKey('r') }))).toBe(Codes.NOT_AUTHORIZED)
       const refunded = await markCancellationRefunded(prisma, accountant, { noticeId: id, evidence: { method: 'check', reference: '1042', amountMinor: '20000' }, expectedVersion: n.version, idempotencyKey: uniqueKey('r') })
       expect(refunded.status).toBe('refunded')
+      expect(refunded.refunds).toEqual([expect.objectContaining({ paymentRef: payment.ref, amountMinor: '20000' })])
+      expect(await prisma.refund.findMany({ where: { paymentId: payment.id }, select: { amountMinor: true, noticeId: true, method: true, reference: true } })).toEqual([{ amountMinor: 20000n, noticeId: id, method: 'check', reference: '1042' }])
       expect((await prisma.task.findUniqueOrThrow({ where: { dedupeKey: `cancellation.refund:${id}` } })).status).toBe('done')
       // Terminal: nothing moves it again.
       expect(await code(recordBuyerCancellation(prisma, csr, { noticeId: id, via: 'mail', sentAt: sentAt.toISOString(), expectedVersion: refunded.version, idempotencyKey: uniqueKey('c') }))).toBe(Codes.INVALID_TRANSITION)

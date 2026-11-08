@@ -58,7 +58,7 @@ export const phase2TypeDefs = graphql`
 
     deliverCancellationNotice(noticeId: ID!, method: String!, acknowledgedBy: String!, signature: JSON, messageId: ID, expectedVersion: Int!, idempotencyKey: String!): JSON
     waiveCancellationNotice(noticeId: ID!, waiver: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
-    recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, amountPaidMinor: String, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+    recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
     markCancellationRefunded(noticeId: ID!, evidence: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
     requestCancellationHoldOverride(noticeId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
   }

@@ -7,8 +7,9 @@ import { ActionButton } from '../../components/ActionButton';
 import { BuyerCancelForm, DeliverForm, RefundForm } from '../components/NoticeActions';
 
 type RuleResult = { rule: string; title: string; applies: boolean; cancelBy?: string | null; lastDay?: string | null; businessDays?: number; coveredAmountMinor?: string; reasons?: string[] };
+type Payment = { id: string; ref: string; kind: string; method: string; amountMinor: string; receivedAt: string; refunds: { id: string; ref: string; amountMinor: string; method: string; reference: string; refundedAt: string }[] };
 type Notice = {
-  id: string; ref: string; rule: string; evaluation: { results: { results?: RuleResult[] } | null; evaluatedAt: string; authorization: { depositMinor: string | null } | null } | null; status: string; version: number; language: string; noticeTemplate: string;
+  id: string; ref: string; rule: string; evaluation: { results: { results?: RuleResult[] } | null; evaluatedAt: string; authorization: { depositMinor: string | null; payments: Payment[] } | null } | null; status: string; version: number; language: string; noticeTemplate: string;
   transactionAt: string; cancelBy: string; deliveredAt: string | null; deliveryEvidence: { method?: string; acknowledgedBy?: string } | null; coveredAmountMinor: string;
   cancelledAt: string | null; cancellationReceivedVia: string; refundDueBy: string | null; refundDueMinor: string; refundEvidence: { method?: string; reference?: string } | null;
   customer: { id: string; displayName: string } | null; job: { id: string; ref: string; visits?: { assignments: { active: boolean; employee: { user: { id: string } | null } | null }[] }[] } | null;
@@ -27,7 +28,7 @@ export default async function CancellationNoticePage({ params }: { params: Promi
     q<{ cancellationNotice: Notice | null; auditEvents: { eventType: string; at: string; actorUser: { name: string } | null; actorAgent: { name: string } | null }[] }>(`
       query N($id: ID!, $entity: String!) {
         cancellationNotice(where: { id: $id }) {
-          id ref rule evaluation { results evaluatedAt authorization { depositMinor } } status version language noticeTemplate transactionAt cancelBy deliveredAt deliveryEvidence coveredAmountMinor
+          id ref rule evaluation { results evaluatedAt authorization { depositMinor payments(orderBy: [{ receivedAt: asc }]) { id ref kind method amountMinor receivedAt refunds(orderBy: [{ refundedAt: asc }]) { id ref amountMinor method reference refundedAt } } } } status version language noticeTemplate transactionAt cancelBy deliveredAt deliveryEvidence coveredAmountMinor
           cancelledAt cancellationReceivedVia refundDueBy refundDueMinor refundEvidence
           customer { id displayName } job { id ref visits { assignments { active employee { user { id } } } } } estimateVersion { versionNumber estimate { id ref } } changeOrder { ref }
           coveredWorkLines { id description amountMinor status } noticeDocument { id } waiverDocument { id title } startOverride { id status }
@@ -44,10 +45,13 @@ export default async function CancellationNoticePage({ params }: { params: Promi
   const assignedToMe = !!n.job?.visits?.some(v => v.assignments.some(a => a.active && a.employee?.user?.id === me.id));
   const mayAskEarly = sells && (me.can('canDispatch') || assignedToMe);
   const rules = n.evaluation?.results?.results ?? [];
+  const payments = n.evaluation?.authorization?.payments ?? [];
+  const paid = payments.reduce((sum, p) => sum + BigInt(p.amountMinor), 0n);
+  const refundedSoFar = payments.reduce((sum, p) => sum + p.refunds.reduce((t, r) => t + BigInt(r.amountMinor), 0n), 0n);
   return (
     <Page title={`${n.ref} · ${n.customer?.displayName ?? 'Cancellation notice'}`} crumbs={[{ label: 'Cancellations', href: '/dashboard/platform/cancellations' }]}>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat name="Status" value={<Status value={n.status} />} />
+      <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-4 sm:grid-cols-[repeat(4,minmax(0,1fr))]">
+        <Stat name="Status" value={<Status value={n.status} className="items-start whitespace-normal text-sm [&>span:first-child]:mt-1.5" />} />
         <Stat name="Rule" value={label(n.rule)} />
         <Stat name="Covers" value={money(n.coveredAmountMinor)} />
         <Stat name="Cancel by" value={deadlineText(n.cancelBy, tz)} />
@@ -74,18 +78,29 @@ export default async function CancellationNoticePage({ params }: { params: Promi
         </div>
       </Section>
       {n.status === 'issued' && sells ? <Section title="Give the buyer the notice"><DeliverForm noticeId={n.id} expectedVersion={n.version} buyer={n.customer?.displayName ?? ''} /></Section> : null}
-      {open && (sells || office) ? <Section title="The buyer cancelled"><BuyerCancelForm noticeId={n.id} expectedVersion={n.version} paidMinor={n.evaluation?.authorization?.depositMinor ?? '0'} /></Section> : null}
+      {open && (sells || office) ? <Section title="The buyer cancelled"><BuyerCancelForm noticeId={n.id} expectedVersion={n.version} /></Section> : null}
       {n.status === 'cancelled_by_buyer' && office ? <Section title="Refund"><RefundForm noticeId={n.id} expectedVersion={n.version} dueMinor={n.refundDueMinor} dueText={money(n.refundDueMinor)} /></Section> : null}
       <Section title={`Covered work · ${n.coveredWorkLines.length}`}>
         {n.coveredWorkLines.length ? n.coveredWorkLines.map(w => (
-          <Row key={w.id}><div className="flex min-w-0 flex-1 items-center gap-2"><span className="min-w-0 truncate">{w.description}</span><Status value={w.status} className="shrink-0" /><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(w.amountMinor)}</span></div></Row>
+          <Row key={w.id}><div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1"><span className="min-w-0 basis-full break-words sm:basis-0 sm:flex-1">{w.description}</span><Status value={w.status} className="shrink-0" /><span className="ml-auto shrink-0 font-mono text-sm tabular-nums">{money(w.amountMinor)}</span></div></Row>
         )) : <Empty>No work lines.</Empty>}
+      </Section>
+      <Section title={`Payments on this sale · ${money(paid.toString())} paid${refundedSoFar > 0n ? ` · ${money(refundedSoFar.toString())} refunded` : ''}`}>
+        {payments.length ? payments.map(p => (
+          <Row key={p.id}>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-0.5">
+              <span className="min-w-0 break-words font-medium">{p.ref} · {label(p.kind)} by {label(p.method).toLowerCase()}</span>
+              <span className="ml-auto font-mono text-sm tabular-nums">{money(p.amountMinor)}</span>
+              <span className="basis-full text-xs text-muted-foreground">Received {when(p.receivedAt, tz)}{p.refunds.map(r => ` · refunded ${money(r.amountMinor)} (${r.ref}, ${label(r.method).toLowerCase()} ${r.reference}) ${when(r.refundedAt, tz)}`).join('')}</span>
+            </div>
+          </Row>
+        )) : <Empty>No payment was recorded on this sale, so there is nothing to refund.</Empty>}
       </Section>
       <Section title="Why this right applies">
         {rules.length ? rules.map((r, i) => (
           <Row key={i}>
             <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex min-w-0 items-center gap-2"><span className="min-w-0 truncate font-medium">{r.title || label(r.rule)}</span><span className="ml-auto shrink-0 text-xs text-muted-foreground">{r.applies ? `applies${r.cancelBy ? ` · ${r.businessDays ?? ''} business days, cancel by ${deadlineText(r.cancelBy, tz)}` : ''}` : 'does not apply'}</span></div>
+              <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-start sm:gap-3"><span className="min-w-0 break-words font-medium sm:flex-1">{r.title || label(r.rule)}</span><span className="min-w-0 break-words text-xs text-muted-foreground sm:max-w-[55%] sm:text-right">{r.applies ? `applies${r.cancelBy ? ` · ${r.businessDays ?? ''} business days, cancel by ${deadlineText(r.cancelBy, tz)}` : ''}` : 'does not apply'}</span></div>
               <Meta>{r.coveredAmountMinor ? `covers ${money(r.coveredAmountMinor)}` : ''}{r.reasons?.length ? `${r.coveredAmountMinor ? ' · ' : ''}${r.reasons.map(x => label(x).toLowerCase()).join(' · ')}` : ''}</Meta>
             </div>
           </Row>

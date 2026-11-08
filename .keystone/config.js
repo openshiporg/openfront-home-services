@@ -36,7 +36,7 @@ module.exports = __toCommonJS(keystone_exports);
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core17 = require("@keystone-6/core");
+var import_core19 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 
 // features/keystone/models/User.ts
@@ -594,6 +594,7 @@ var import_fields7 = require("@keystone-6/core/fields");
 // features/keystone/models/domainFields.ts
 var import_fields6 = require("@keystone-6/core/fields");
 var minor = (options = {}) => (0, import_fields6.bigInt)({
+  ...options.access ? { access: options.access } : {},
   ...options.defaultValue !== void 0 ? { defaultValue: options.defaultValue } : {},
   validation: { isRequired: options.required ?? options.defaultValue !== void 0 },
   ...options.description ? { ui: { description: options.description } } : {}
@@ -2043,12 +2044,40 @@ __export(jobs_exports, {
   VisitStatusEvent: () => VisitStatusEvent,
   WorkLine: () => WorkLine
 });
+
+// features/keystone/models/costHidden.ts
 var import_core15 = require("@keystone-6/core");
 var import_fields15 = require("@keystone-6/core/fields");
+var COST_PERMISSIONS = ["canManagePriceBook", "canApprovePriceBook", "canApproveDiscounts"];
+var canReadCost = (session) => !!session && isSignedIn({ session }) && COST_PERMISSIONS.some((name) => session.data?.role?.[name] === true);
+var COSTLY = /cost|margin/i;
+function withoutCost(value) {
+  if (Array.isArray(value)) return value.map(withoutCost);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).filter(([key2]) => !COSTLY.test(key2)).map(([key2, v]) => [key2, withoutCost(v)]));
+  }
+  return value;
+}
+var costGuardedJson = (config2 = {}) => (meta) => {
+  const base = (0, import_fields15.json)(config2)(meta);
+  return {
+    ...base,
+    output: import_core15.graphql.field({
+      type: import_core15.graphql.JSON,
+      resolve({ value }, _args, context) {
+        return canReadCost(context.session) ? value : withoutCost(value);
+      }
+    })
+  };
+};
+
+// features/keystone/models/jobs.ts
+var import_core16 = require("@keystone-6/core");
+var import_fields16 = require("@keystone-6/core/fields");
 var JOB_STATUSES = ["draft", "booked", "scheduled", "in_progress", "on_hold", "work_complete", "awaiting_inspection", "completed", "closed", "cancelled"];
 var JOB_HOLD_REASONS = ["", "parts", "customer_decision", "financing", "permit", "authorization", "access", "other"];
 var JOB_CANCEL_REASONS = ["", "customer_request", "duplicate", "no_access", "out_of_area", "scheduling", "weather", "other"];
-var Job = (0, import_core15.list)({
+var Job = (0, import_core16.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: anyOf("canBook", "canDispatch"), delete: sys },
     filter: { query: scoped((userId) => jobFilter(userId)) }
@@ -2057,48 +2086,48 @@ var Job = (0, import_core15.list)({
   fields: {
     ref: systemText({ indexed: "unique", required: true }),
     publicCode: systemText({ indexed: "unique", required: true }),
-    customer: (0, import_fields15.relationship)({ ref: "Customer.jobs", ...readOnly }),
-    location: (0, import_fields15.relationship)({ ref: "ServiceLocation.jobs", ...readOnly }),
-    businessUnit: (0, import_fields15.relationship)({ ref: "BusinessUnit", ...readOnly }),
-    jobType: (0, import_fields15.relationship)({ ref: "JobType", ...readOnly }),
+    customer: (0, import_fields16.relationship)({ ref: "Customer.jobs", ...readOnly }),
+    location: (0, import_fields16.relationship)({ ref: "ServiceLocation.jobs", ...readOnly }),
+    businessUnit: (0, import_fields16.relationship)({ ref: "BusinessUnit", ...readOnly }),
+    jobType: (0, import_fields16.relationship)({ ref: "JobType", ...readOnly }),
     priority: fixedChoice(["emergency", "urgent", "standard", "maintenance"]),
     status: lifecycle(JOB_STATUSES),
     statusBeforeHold: systemText(),
     holdReason: fixedChoice(JOB_HOLD_REASONS),
-    holdFollowUpOn: (0, import_fields15.calendarDay)({ ...readOnly }),
+    holdFollowUpOn: (0, import_fields16.calendarDay)({ ...readOnly }),
     cancelReason: fixedChoice(JOB_CANCEL_REASONS),
-    summary: (0, import_fields15.text)({ ui: { description: "What the customer reported, in their words." } }),
+    summary: (0, import_fields16.text)({ ui: { description: "What the customer reported, in their words." } }),
     source: fixedChoice(["csr", "online", "ai_agent", "tech_generated", "membership", "import"]),
-    lead: (0, import_fields15.relationship)({ ref: "Lead", ...readOnly }),
-    recallOf: (0, import_fields15.relationship)({ ref: "Job", ...readOnly }),
-    payers: (0, import_fields15.relationship)({ ref: "JobPayer.job", many: true, ...readOnly }),
-    poNumber: (0, import_fields15.text)(),
+    lead: (0, import_fields16.relationship)({ ref: "Lead", ...readOnly }),
+    recallOf: (0, import_fields16.relationship)({ ref: "Job", ...readOnly }),
+    payers: (0, import_fields16.relationship)({ ref: "JobPayer.job", many: true, ...readOnly }),
+    poNumber: (0, import_fields16.text)(),
     nteMinor: minor({ description: "Not-to-exceed authorised by the payer, in cents." }),
-    visits: (0, import_fields15.relationship)({ ref: "Visit.job", many: true, ...readOnly }),
-    workLines: (0, import_fields15.relationship)({ ref: "WorkLine.job", many: true, ...readOnly }),
-    bookedBy: (0, import_fields15.relationship)({ ref: "User", ...readOnly }),
-    bookedByAgent: (0, import_fields15.relationship)({ ref: "AgentIdentity", ...readOnly }),
-    tags: (0, import_fields15.relationship)({ ref: "Tag", many: true }),
-    completedAt: (0, import_fields15.timestamp)({ ...readOnly }),
-    closedAt: (0, import_fields15.timestamp)({ ...readOnly }),
+    visits: (0, import_fields16.relationship)({ ref: "Visit.job", many: true, ...readOnly }),
+    workLines: (0, import_fields16.relationship)({ ref: "WorkLine.job", many: true, ...readOnly }),
+    bookedBy: (0, import_fields16.relationship)({ ref: "User", ...readOnly }),
+    bookedByAgent: (0, import_fields16.relationship)({ ref: "AgentIdentity", ...readOnly }),
+    tags: (0, import_fields16.relationship)({ ref: "Tag", many: true }),
+    completedAt: (0, import_fields16.timestamp)({ ...readOnly }),
+    closedAt: (0, import_fields16.timestamp)({ ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var JobPayer = (0, import_core15.list)({
+var JobPayer = (0, import_core16.list)({
   access: governed(["canBook", "canDispatch", "canManageInvoices"]),
   ui: { labelField: "payerKind" },
   fields: {
-    job: (0, import_fields15.relationship)({ ref: "Job.payers", ...readOnly }),
+    job: (0, import_fields16.relationship)({ ref: "Job.payers", ...readOnly }),
     payerKind: fixedChoice(["customer", "home_warranty", "commercial_payer", "manufacturer"]),
-    payerCustomer: (0, import_fields15.relationship)({ ref: "Customer", ...readOnly }),
+    payerCustomer: (0, import_fields16.relationship)({ ref: "Customer", ...readOnly }),
     authorizationRef: systemText(),
     sharePolicy: fixedChoice(["all", "up_to_authorized", "specific_lines"]),
     ...trackingFields
   }
 });
 var VISIT_STATUSES = ["unassigned", "scheduled", "dispatched", "en_route", "on_site", "working", "paused", "done", "cancelled", "no_access"];
-var Visit = (0, import_core15.list)({
+var Visit = (0, import_core16.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: sys, delete: sys },
     filter: { query: scoped(visitFilter) }
@@ -2106,60 +2135,60 @@ var Visit = (0, import_core15.list)({
   ui: { labelField: "ref", listView: { initialColumns: ["ref", "job", "window", "plannedStart", "status"] } },
   fields: {
     ref: systemText({ indexed: "unique", required: true }),
-    job: (0, import_fields15.relationship)({ ref: "Job.visits", ...readOnly }),
-    window: (0, import_fields15.relationship)({ ref: "ArrivalWindow", ...readOnly }),
-    plannedStart: (0, import_fields15.timestamp)({ ...readOnly }),
-    plannedDurationMinutes: (0, import_fields15.integer)({ ...readOnly }),
+    job: (0, import_fields16.relationship)({ ref: "Job.visits", ...readOnly }),
+    window: (0, import_fields16.relationship)({ ref: "ArrivalWindow", ...readOnly }),
+    plannedStart: (0, import_fields16.timestamp)({ ...readOnly }),
+    plannedDurationMinutes: (0, import_fields16.integer)({ ...readOnly }),
     capacityHours: qty({ required: true }),
     status: lifecycle(VISIT_STATUSES),
     cancelReason: systemText(),
-    assignments: (0, import_fields15.relationship)({ ref: "VisitAssignment.visit", many: true, ...readOnly }),
-    statusEvents: (0, import_fields15.relationship)({ ref: "VisitStatusEvent.visit", many: true, ...readOnly }),
-    actualArrivalAt: (0, import_fields15.timestamp)({ ...readOnly }),
-    actualDoneAt: (0, import_fields15.timestamp)({ ...readOnly }),
-    etaMinutes: (0, import_fields15.integer)({ ...readOnly }),
+    assignments: (0, import_fields16.relationship)({ ref: "VisitAssignment.visit", many: true, ...readOnly }),
+    statusEvents: (0, import_fields16.relationship)({ ref: "VisitStatusEvent.visit", many: true, ...readOnly }),
+    actualArrivalAt: (0, import_fields16.timestamp)({ ...readOnly }),
+    actualDoneAt: (0, import_fields16.timestamp)({ ...readOnly }),
+    etaMinutes: (0, import_fields16.integer)({ ...readOnly }),
     customerSummaryDraft: systemText(),
-    needsReview: (0, import_fields15.checkbox)({ defaultValue: false, ...readOnly, ui: { ...readOnly.ui, description: "An out-of-order device event arrived; a dispatcher should look (I-D3)." } }),
+    needsReview: (0, import_fields16.checkbox)({ defaultValue: false, ...readOnly, ui: { ...readOnly.ui, description: "An out-of-order device event arrived; a dispatcher should look (I-D3)." } }),
     version: versionField(),
     ...trackingFields
   }
 });
-var VisitAssignment = (0, import_core15.list)({
+var VisitAssignment = (0, import_core16.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: sys, delete: sys },
     filter: { query: scoped((userId) => ({ employee: { user: { id: { equals: userId } } } })) }
   },
   ui: { labelField: "role", listView: { initialColumns: ["visit", "employee", "role", "active", "assignedAt"] } },
   fields: {
-    visit: (0, import_fields15.relationship)({ ref: "Visit.assignments", ...readOnly }),
-    employee: (0, import_fields15.relationship)({ ref: "Employee", ...readOnly }),
+    visit: (0, import_fields16.relationship)({ ref: "Visit.assignments", ...readOnly }),
+    employee: (0, import_fields16.relationship)({ ref: "Employee", ...readOnly }),
     role: fixedChoice(["lead", "helper", "sales", "apprentice"]),
-    assignedAt: (0, import_fields15.timestamp)({ ...readOnly }),
-    assignedBy: (0, import_fields15.relationship)({ ref: "User", ...readOnly }),
-    assignedByAgent: (0, import_fields15.relationship)({ ref: "AgentIdentity", ...readOnly }),
-    recommendation: (0, import_fields15.relationship)({ ref: "DispatchRecommendation", ...readOnly }),
+    assignedAt: (0, import_fields16.timestamp)({ ...readOnly }),
+    assignedBy: (0, import_fields16.relationship)({ ref: "User", ...readOnly }),
+    assignedByAgent: (0, import_fields16.relationship)({ ref: "AgentIdentity", ...readOnly }),
+    recommendation: (0, import_fields16.relationship)({ ref: "DispatchRecommendation", ...readOnly }),
     overrideReason: fixedChoice(["", "customer_request", "skill", "continuity", "geography", "fairness", "other"]),
-    eligibility: (0, import_fields15.relationship)({ ref: "EligibilityEvaluation", ...readOnly }),
-    active: (0, import_fields15.checkbox)({ defaultValue: true, ...readOnly }),
-    endedAt: (0, import_fields15.timestamp)({ ...readOnly }),
+    eligibility: (0, import_fields16.relationship)({ ref: "EligibilityEvaluation", ...readOnly }),
+    active: (0, import_fields16.checkbox)({ defaultValue: true, ...readOnly }),
+    endedAt: (0, import_fields16.timestamp)({ ...readOnly }),
     ...trackingFields
   }
 });
-var VisitStatusEvent = (0, import_core15.list)({
+var VisitStatusEvent = (0, import_core16.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: sys, delete: sys },
     filter: { query: scoped((userId) => ({ visit: visitFilter(userId) })) }
   },
   ui: { labelField: "toStatus", listView: { initialColumns: ["visit", "fromStatus", "toStatus", "kind", "occurredAt", "clientRecordedAt"] } },
   fields: {
-    visit: (0, import_fields15.relationship)({ ref: "Visit.statusEvents", ...readOnly }),
-    employee: (0, import_fields15.relationship)({ ref: "Employee", ...readOnly }),
-    actorUser: (0, import_fields15.relationship)({ ref: "User", ...readOnly }),
+    visit: (0, import_fields16.relationship)({ ref: "Visit.statusEvents", ...readOnly }),
+    employee: (0, import_fields16.relationship)({ ref: "Employee", ...readOnly }),
+    actorUser: (0, import_fields16.relationship)({ ref: "User", ...readOnly }),
     fromStatus: systemText({ required: true }),
     toStatus: systemText({ required: true }),
     kind: fixedChoice(["transition", "correction"]),
-    occurredAt: (0, import_fields15.timestamp)({ validation: { isRequired: true }, ...readOnly }),
-    clientRecordedAt: (0, import_fields15.timestamp)({ ...readOnly }),
+    occurredAt: (0, import_fields16.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    clientRecordedAt: (0, import_fields16.timestamp)({ ...readOnly }),
     idempotencyKey: systemText({ indexed: "unique", required: true }),
     lat: geo({ ...readOnly }),
     lng: geo({ ...readOnly }),
@@ -2168,62 +2197,62 @@ var VisitStatusEvent = (0, import_core15.list)({
     ...trackingFields
   }
 });
-var DispatchRecommendation = (0, import_core15.list)({
+var DispatchRecommendation = (0, import_core16.list)({
   access: immutable(["canDispatch", "canViewBoard"]),
   ui: { labelField: "decision", listView: { initialColumns: ["visit", "decision", "modelRef", "createdAt"] } },
   fields: {
-    visit: (0, import_fields15.relationship)({ ref: "Visit", ...readOnly }),
-    rankedCandidates: (0, import_fields15.json)({ ...readOnly }),
+    visit: (0, import_fields16.relationship)({ ref: "Visit", ...readOnly }),
+    rankedCandidates: (0, import_fields16.json)({ ...readOnly }),
     inputsHash: systemText({ required: true }),
-    features: (0, import_fields15.json)({ ...readOnly, ui: { ...readOnly.ui, description: "The scoring features used. Revenue prediction is not one of them until reviewed." } }),
+    features: (0, import_fields16.json)({ ...readOnly, ui: { ...readOnly.ui, description: "The scoring features used. Revenue prediction is not one of them until reviewed." } }),
     modelRef: systemText({ required: true }),
-    generatedBy: (0, import_fields15.relationship)({ ref: "AgentIdentity", ...readOnly }),
-    requestedBy: (0, import_fields15.relationship)({ ref: "User", ...readOnly }),
+    generatedBy: (0, import_fields16.relationship)({ ref: "AgentIdentity", ...readOnly }),
+    requestedBy: (0, import_fields16.relationship)({ ref: "User", ...readOnly }),
     decision: lifecycle(["proposed", "applied", "overridden", "expired"]),
-    decidedBy: (0, import_fields15.relationship)({ ref: "User", ...readOnly }),
-    decidedAt: (0, import_fields15.timestamp)({ ...readOnly }),
+    decidedBy: (0, import_fields16.relationship)({ ref: "User", ...readOnly }),
+    decidedAt: (0, import_fields16.timestamp)({ ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var ChecklistTemplate = (0, import_core15.list)({
+var ChecklistTemplate = (0, import_core16.list)({
   access: managed("signedIn", ["canManageCompany", "canDispatch"]),
   ui: { labelField: "name" },
   fields: {
-    name: (0, import_fields15.text)({ validation: { isRequired: true } }),
-    items: (0, import_fields15.json)({ defaultValue: [], ui: { description: '[{"key":"static_pressure","label":"Total static pressure","type":"reading","unit":"inWC","required":true}]' } }),
-    templateVersion: (0, import_fields15.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1 } }),
-    required: (0, import_fields15.checkbox)({ defaultValue: true }),
+    name: (0, import_fields16.text)({ validation: { isRequired: true } }),
+    items: (0, import_fields16.json)({ defaultValue: [], ui: { description: '[{"key":"static_pressure","label":"Total static pressure","type":"reading","unit":"inWC","required":true}]' } }),
+    templateVersion: (0, import_fields16.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1 } }),
+    required: (0, import_fields16.checkbox)({ defaultValue: true }),
     ...trackingFields
   }
 });
-var ChecklistResponse = (0, import_core15.list)({
+var ChecklistResponse = (0, import_core16.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: sys, delete: sys },
     filter: { query: scoped((userId) => ({ visit: visitFilter(userId) })) }
   },
   ui: { labelField: "completedAt" },
   fields: {
-    visit: (0, import_fields15.relationship)({ ref: "Visit", ...readOnly }),
-    template: (0, import_fields15.relationship)({ ref: "ChecklistTemplate", ...readOnly }),
-    templateVersion: (0, import_fields15.integer)({ ...readOnly }),
-    answers: (0, import_fields15.json)({ ...readOnly }),
-    completedBy: (0, import_fields15.relationship)({ ref: "User", ...readOnly }),
-    completedAt: (0, import_fields15.timestamp)({ ...readOnly }),
+    visit: (0, import_fields16.relationship)({ ref: "Visit", ...readOnly }),
+    template: (0, import_fields16.relationship)({ ref: "ChecklistTemplate", ...readOnly }),
+    templateVersion: (0, import_fields16.integer)({ ...readOnly }),
+    answers: (0, import_fields16.json)({ ...readOnly }),
+    completedBy: (0, import_fields16.relationship)({ ref: "User", ...readOnly }),
+    completedAt: (0, import_fields16.timestamp)({ ...readOnly }),
     ...trackingFields
   }
 });
-var WorkLine = (0, import_core15.list)({
+var WorkLine = (0, import_core16.list)({
   access: {
     operation: { query: officeOrTech(["canManageInvoices"]), create: sys, update: sys, delete: sys },
     filter: { query: scoped((userId) => ({ job: jobFilter(userId) }), ["canManageInvoices"]) }
   },
   ui: { labelField: "description", listView: { initialColumns: ["job", "description", "quantity", "unitPriceMinor", "amountMinor", "status"] } },
   fields: {
-    job: (0, import_fields15.relationship)({ ref: "Job.workLines", ...readOnly }),
+    job: (0, import_fields16.relationship)({ ref: "Job.workLines", ...readOnly }),
     source: fixedChoice(["estimate_line", "pricebook", "manual", "change_order", "membership_benefit"]),
     description: systemText({ required: true }),
-    snapshot: (0, import_fields15.json)({ ...readOnly }),
+    snapshot: costGuardedJson({ ...readOnly }),
     quantity: qty({ required: true }),
     uom: systemText(),
     unitPriceMinor: minor({ defaultValue: 0n }),
@@ -2232,6 +2261,472 @@ var WorkLine = (0, import_core15.list)({
     trade: fixedChoice(["hvac", "plumbing", "electrical", "general"]),
     cancellationClass: fixedChoice(["requested_repair", "necessary_replacement_parts", "additional_goods_services"]),
     status: lifecycle(["planned", "completed", "removed", "cancelled_by_buyer"]),
+    estimateLine: (0, import_fields16.relationship)({ ref: "EstimateLine", ...readOnly }),
+    changeOrder: (0, import_fields16.relationship)({ ref: "ChangeOrder", ...readOnly }),
+    cancellationNotices: (0, import_fields16.relationship)({ ref: "CancellationNotice.coveredWorkLines", many: true, ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/sales.ts
+var sales_exports = {};
+__export(sales_exports, {
+  Authorization: () => Authorization,
+  CANCELLATION_CLASSES: () => CANCELLATION_CLASSES,
+  CancellationEvaluation: () => CancellationEvaluation,
+  CancellationNotice: () => CancellationNotice,
+  ChangeOrder: () => ChangeOrder,
+  DECLINE_REASONS: () => DECLINE_REASONS,
+  ESTIMATE_STATUSES: () => ESTIMATE_STATUSES,
+  EquipmentModel: () => EquipmentModel,
+  Estimate: () => Estimate,
+  EstimateLine: () => EstimateLine,
+  EstimateOption: () => EstimateOption,
+  EstimateVersion: () => EstimateVersion,
+  ITEM_KINDS: () => ITEM_KINDS,
+  LaborRate: () => LaborRate,
+  MarkupTable: () => MarkupTable,
+  MemberPricingRule: () => MemberPricingRule,
+  NOTICE_STATUSES: () => NOTICE_STATUSES,
+  PAYMENT_METHODS: () => PAYMENT_METHODS,
+  PRICEBOOK_STATUSES: () => PRICEBOOK_STATUSES,
+  Payment: () => Payment,
+  PriceBook: () => PriceBook,
+  PriceBookCategory: () => PriceBookCategory,
+  PriceBookItem: () => PriceBookItem,
+  PriceBookVersion: () => PriceBookVersion,
+  Refund: () => Refund,
+  SALE_LOCATIONS: () => SALE_LOCATIONS,
+  TAX_CATEGORIES: () => TAX_CATEGORIES,
+  TRADE_OR_GENERAL: () => TRADE_OR_GENERAL,
+  UnitOfMeasure: () => UnitOfMeasure
+});
+var import_core17 = require("@keystone-6/core");
+var import_fields17 = require("@keystone-6/core/fields");
+var TRADE_OR_GENERAL = ["hvac", "plumbing", "electrical", "general"];
+var TAX_CATEGORIES = ["labor", "material", "equipment", "fee", "disposal", "permit_passthrough", "warranty_reimbursed", "membership", "maintenance"];
+var CANCELLATION_CLASSES = ["requested_repair", "necessary_replacement_parts", "additional_goods_services"];
+var ITEM_KINDS = ["service_task", "material", "equipment", "fee", "discount", "bundle"];
+var PRICEBOOK_STATUSES = ["draft", "pending_approval", "published", "active", "retired", "discarded"];
+var ESTIMATE_STATUSES = ["draft", "pending_approval", "presented", "sold", "declined", "expired", "superseded", "cancelled", "discarded"];
+var NOTICE_STATUSES = ["issued", "delivered", "waived", "cancelled_by_buyer", "expired_uncancelled", "refunded"];
+var DECLINE_REASONS = ["price", "timing", "chose_competitor", "will_call_back", "financing_declined", "no_longer_needed", "other"];
+var SALE_LOCATIONS = ["buyer_residence", "other_non_merchant", "merchant_place", "remote"];
+var has2 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
+var costRead = ({ session }) => isSignedIn({ session }) && has2(session, ["canManagePriceBook", "canApprovePriceBook", "canApproveDiscounts"]);
+var PRICEBOOK_READ = [...OFFICE_READ, "canManagePriceBook", "canApprovePriceBook", "canPresentEstimates", "canSellEstimates", "canWorkVisits"];
+var SALES_OFFICE = [...OFFICE_READ, "canManagePriceBook", "canApproveDiscounts", "canApprovePolicies"];
+var salesQuery = ({ session }) => isSignedIn({ session }) && (has2(session, SALES_OFFICE) || has2(session, ["canWorkVisits", "canPresentEstimates"]));
+var ownEstimates = (userId) => ({ OR: [{ job: jobFilter(userId) }, { presentedBy: { user: { id: { equals: userId } } } }] });
+var salesFilter = (path) => ({ session }) => {
+  if (!isSignedIn({ session })) return false;
+  if (has2(session, SALES_OFFICE)) return true;
+  if (has2(session, ["canWorkVisits", "canPresentEstimates"])) return path(ownEstimates(session.itemId));
+  return false;
+};
+var salesAccess = (path) => ({
+  operation: { query: salesQuery, create: sys, update: sys, delete: sys },
+  filter: { query: salesFilter(path) }
+});
+var jobRows = {
+  operation: { query: salesQuery, create: sys, update: sys, delete: sys },
+  filter: {
+    query: ({ session }) => {
+      if (!isSignedIn({ session })) return false;
+      if (has2(session, SALES_OFFICE)) return true;
+      if (has2(session, ["canWorkVisits", "canPresentEstimates"])) return { job: jobFilter(session.itemId) };
+      return false;
+    }
+  }
+};
+var UnitOfMeasure = (0, import_core17.list)({
+  access: managed("signedIn", "canManagePriceBook"),
+  ui: { labelField: "code", listView: { initialColumns: ["code", "name", "kind", "maxDecimals"] } },
+  fields: {
+    code: (0, import_fields17.text)({ isIndexed: "unique", validation: { isRequired: true, match: { regex: /^[a-z][a-z0-9_]{0,15}$/, explanation: "Lower-case code like ea, ft, lb" } } }),
+    name: (0, import_fields17.text)({ validation: { isRequired: true } }),
+    kind: choice(["count", "length", "weight", "volume", "time", "package"], "count"),
+    maxDecimals: (0, import_fields17.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0, max: 4 }, ui: { description: "How many decimal places a quantity may have (ea 0, ft 2, lb 2, hr 2)." } }),
+    ...trackingFields
+  }
+});
+var EquipmentModel = (0, import_core17.list)({
+  access: managed("signedIn", ["canManagePriceBook", "canManageEquipment"]),
+  ui: { labelField: "modelNumber", listView: { initialColumns: ["manufacturer", "brand", "modelNumber", "kind", "tonnage", "refrigerantType"] } },
+  fields: {
+    manufacturer: (0, import_fields17.text)({ validation: { isRequired: true } }),
+    brand: (0, import_fields17.text)(),
+    modelNumber: (0, import_fields17.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    kind: choice(["ac_condenser", "heat_pump", "furnace", "air_handler", "coil", "mini_split", "water_heater_tank", "water_heater_tankless", "boiler", "panel", "generator", "ev_charger", "other"], "other"),
+    tonnage: qty(),
+    btuh: (0, import_fields17.integer)({ validation: { min: 0 } }),
+    efficiency: (0, import_fields17.json)({ defaultValue: {}, ui: { description: 'SEER2 / EER2 / HSPF2 / AFUE / UEF as decimal strings, e.g. {"seer2":"15.2"}.' } }),
+    refrigerantType: (0, import_fields17.text)({ ui: { description: "R-454B, R-32, R-410A\u2026" } }),
+    ahriRef: (0, import_fields17.text)(),
+    warrantySummary: (0, import_fields17.text)({ ui: { displayMode: "textarea" } }),
+    ...trackingFields
+  }
+});
+var PriceBook = (0, import_core17.list)({
+  access: governed(PRICEBOOK_READ),
+  ui: { labelField: "name", listView: { initialColumns: ["name", "code", "activeVersion", "currencyCode"] } },
+  fields: {
+    name: systemText({ required: true }),
+    code: systemText({ indexed: "unique", required: true }),
+    currencyCode: systemText({ required: true }),
+    businessUnits: (0, import_fields17.relationship)({ ref: "BusinessUnit", many: true, ...readOnly }),
+    activeVersion: (0, import_fields17.relationship)({ ref: "PriceBookVersion", ...readOnly }),
+    versions: (0, import_fields17.relationship)({ ref: "PriceBookVersion.priceBook", many: true, ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var PriceBookVersion = (0, import_core17.list)({
+  access: governed(PRICEBOOK_READ),
+  ui: { labelField: "label", listView: { initialColumns: ["priceBook", "versionNumber", "status", "effectiveAt", "source"] } },
+  fields: {
+    priceBook: (0, import_fields17.relationship)({ ref: "PriceBook.versions", ...readOnly }),
+    versionNumber: (0, import_fields17.integer)({ validation: { isRequired: true, min: 1 }, ...readOnly }),
+    label: systemText({ required: true }),
+    status: lifecycle(PRICEBOOK_STATUSES),
+    source: fixedChoice(["manual", "copy", "supplier_import"], "manual"),
+    basedOn: (0, import_fields17.relationship)({ ref: "PriceBookVersion", ...readOnly }),
+    notes: systemText(),
+    effectiveAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    contentHash: systemText(),
+    diffReport: (0, import_fields17.json)({ ...readOnly }),
+    costChangeReport: (0, import_fields17.json)({ ...readOnly, access: { ...readOnly.access, read: costRead } }),
+    approval: (0, import_fields17.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    submittedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
+    submittedAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    publishedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
+    publishedAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    activatedAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    retiredAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    categories: (0, import_fields17.relationship)({ ref: "PriceBookCategory.priceBookVersion", many: true, ...readOnly }),
+    items: (0, import_fields17.relationship)({ ref: "PriceBookItem.priceBookVersion", many: true, ...readOnly }),
+    markupTables: (0, import_fields17.relationship)({ ref: "MarkupTable.priceBookVersion", many: true, ...readOnly }),
+    laborRates: (0, import_fields17.relationship)({ ref: "LaborRate.priceBookVersion", many: true, ...readOnly }),
+    memberPricingRules: (0, import_fields17.relationship)({ ref: "MemberPricingRule.priceBookVersion", many: true, ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var PriceBookCategory = (0, import_core17.list)({
+  access: governed(PRICEBOOK_READ),
+  ui: { labelField: "name", listView: { initialColumns: ["name", "categoryKey", "trade", "sortOrder", "priceBookVersion"] } },
+  fields: {
+    priceBookVersion: (0, import_fields17.relationship)({ ref: "PriceBookVersion.categories", ...readOnly }),
+    categoryKey: systemText({ required: true }),
+    name: systemText({ required: true }),
+    trade: fixedChoice(TRADE_OR_GENERAL, "general"),
+    parentKey: systemText(),
+    sortOrder: (0, import_fields17.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    ...trackingFields
+  }
+});
+var PriceBookItem = (0, import_core17.list)({
+  access: governed(PRICEBOOK_READ),
+  ui: { labelField: "name", listView: { initialColumns: ["itemKey", "name", "kind", "trade", "unitPriceMinor", "priceBookVersion"] } },
+  fields: {
+    priceBookVersion: (0, import_fields17.relationship)({ ref: "PriceBookVersion.items", ...readOnly }),
+    itemKey: systemText({ indexed: true, required: true }),
+    kind: fixedChoice(ITEM_KINDS, "service_task"),
+    categoryKey: systemText(),
+    name: systemText({ required: true }),
+    customerDescription: systemText(),
+    internalNotes: systemText(),
+    trade: fixedChoice(TRADE_OR_GENERAL, "general"),
+    businessUnit: (0, import_fields17.relationship)({ ref: "BusinessUnit", ...readOnly }),
+    pricingMethod: fixedChoice(["fixed", "formula"], "fixed"),
+    unitPriceMinor: minor({ defaultValue: 0n }),
+    memberUnitPriceMinor: minor(),
+    costMinor: minor({ defaultValue: 0n, access: { read: costRead } }),
+    laborHours: qty({ ...readOnly }),
+    uom: systemText({ required: true }),
+    taxCategory: fixedChoice(TAX_CATEGORIES, "labor"),
+    warrantyText: systemText(),
+    equipmentModel: (0, import_fields17.relationship)({ ref: "EquipmentModel", ...readOnly }),
+    materials: (0, import_fields17.json)({ ...readOnly, ui: { ...readOnly.ui, description: "Formula inputs and bill of materials: [{ itemKey, quantity }] of material items in the same version." } }),
+    commissionCode: systemText(),
+    spiffCode: systemText(),
+    cancellationClassDefault: fixedChoice(CANCELLATION_CLASSES, "requested_repair"),
+    ladderKey: systemText({ indexed: true }),
+    tier: fixedChoice(["", "good", "better", "best"], ""),
+    sortOrder: (0, import_fields17.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    active: (0, import_fields17.checkbox)({ defaultValue: true, ...readOnly }),
+    ...trackingFields
+  }
+});
+var MarkupTable = (0, import_core17.list)({
+  access: governed(["canManagePriceBook", "canApprovePriceBook"]),
+  ui: { labelField: "name" },
+  fields: {
+    priceBookVersion: (0, import_fields17.relationship)({ ref: "PriceBookVersion.markupTables", ...readOnly }),
+    name: systemText({ required: true }),
+    appliesTo: fixedChoice(["material", "equipment"], "material"),
+    tiers: (0, import_fields17.json)({ ...readOnly, ui: { ...readOnly.ui, description: "[{ fromCostMinor, toCostMinor | null, multiplier }]: cost in cents, multiplier a decimal string." } }),
+    ...trackingFields
+  }
+});
+var LaborRate = (0, import_core17.list)({
+  access: governed(["canManagePriceBook", "canApprovePriceBook"]),
+  ui: { labelField: "hourlyMinor" },
+  fields: {
+    priceBookVersion: (0, import_fields17.relationship)({ ref: "PriceBookVersion.laborRates", ...readOnly }),
+    businessUnit: (0, import_fields17.relationship)({ ref: "BusinessUnit", ...readOnly }),
+    hourlyMinor: minor({ required: true }),
+    afterHoursMultiplier: rate({ ...readOnly }),
+    ...trackingFields
+  }
+});
+var MemberPricingRule = (0, import_core17.list)({
+  access: governed(PRICEBOOK_READ),
+  ui: { labelField: "planCode" },
+  fields: {
+    priceBookVersion: (0, import_fields17.relationship)({ ref: "PriceBookVersion.memberPricingRules", ...readOnly }),
+    planCode: systemText({ required: true }),
+    scope: fixedChoice(["all", "category", "item"], "all"),
+    scopeKey: systemText(),
+    discountBps: (0, import_fields17.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0, max: 1e4 }, ...readOnly }),
+    waiveTripFee: (0, import_fields17.checkbox)({ defaultValue: false, ...readOnly }),
+    ...trackingFields
+  }
+});
+var Estimate = (0, import_core17.list)({
+  access: salesAccess((own) => own),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "customer", "job", "status", "createdAt"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    publicCode: systemText({ indexed: "unique", required: true }),
+    title: systemText(),
+    job: (0, import_fields17.relationship)({ ref: "Job", ...readOnly }),
+    opportunity: (0, import_fields17.relationship)({ ref: "Opportunity", ...readOnly }),
+    customer: (0, import_fields17.relationship)({ ref: "Customer", ...readOnly }),
+    location: (0, import_fields17.relationship)({ ref: "ServiceLocation", ...readOnly }),
+    businessUnit: (0, import_fields17.relationship)({ ref: "BusinessUnit", ...readOnly }),
+    status: lifecycle(["open", "sold", "declined", "expired", "cancelled", "discarded"]),
+    source: fixedChoice(["staff", "technician", "agent_draft", "followup"], "staff"),
+    currentVersion: (0, import_fields17.relationship)({ ref: "EstimateVersion", ...readOnly }),
+    soldVersion: (0, import_fields17.relationship)({ ref: "EstimateVersion", ...readOnly }),
+    versions: (0, import_fields17.relationship)({ ref: "EstimateVersion.estimate", many: true, ...readOnly }),
+    presentedBy: (0, import_fields17.relationship)({ ref: "Employee", ...readOnly }),
+    createdBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
+    createdByAgent: (0, import_fields17.relationship)({ ref: "AgentIdentity", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var EstimateVersion = (0, import_core17.list)({
+  access: salesAccess((own) => ({ estimate: own })),
+  ui: { labelField: "label", listView: { initialColumns: ["estimate", "versionNumber", "status", "presentedAt", "validUntil"] } },
+  fields: {
+    estimate: (0, import_fields17.relationship)({ ref: "Estimate.versions", ...readOnly }),
+    versionNumber: (0, import_fields17.integer)({ validation: { isRequired: true, min: 1 }, ...readOnly }),
+    label: systemText({ required: true }),
+    status: lifecycle(ESTIMATE_STATUSES),
+    priceBookVersion: (0, import_fields17.relationship)({ ref: "PriceBookVersion", ...readOnly }),
+    supersedes: (0, import_fields17.relationship)({ ref: "EstimateVersion", ...readOnly }),
+    discountBps: (0, import_fields17.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0, max: 1e4 }, ...readOnly }),
+    discountReason: systemText(),
+    discountApproval: (0, import_fields17.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    notes: systemText(),
+    presentedAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    presentedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
+    presentedVia: fixedChoice(["", "in_person", "email", "printed"], ""),
+    validUntil: (0, import_fields17.timestamp)({ ...readOnly }),
+    snapshot: (0, import_fields17.json)({ ...readOnly }),
+    contentHash: systemText(),
+    pdf: (0, import_fields17.relationship)({ ref: "Document", ...readOnly }),
+    options: (0, import_fields17.relationship)({ ref: "EstimateOption.estimateVersion", many: true, ...readOnly }),
+    soldOption: (0, import_fields17.relationship)({ ref: "EstimateOption", ...readOnly }),
+    authorization: (0, import_fields17.relationship)({ ref: "Authorization", ...readOnly }),
+    soldAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    depositRequiredMinor: minor({ defaultValue: 0n }),
+    declineReason: fixedChoice(["", ...DECLINE_REASONS], ""),
+    declineNote: systemText(),
+    closedAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var EstimateOption = (0, import_core17.list)({
+  access: salesAccess((own) => ({ estimateVersion: { estimate: own } })),
+  ui: { labelField: "name", listView: { initialColumns: ["estimateVersion", "tier", "name", "totalMinor"] } },
+  fields: {
+    estimateVersion: (0, import_fields17.relationship)({ ref: "EstimateVersion.options", ...readOnly }),
+    tier: fixedChoice(["good", "better", "best", "single", "custom"], "single"),
+    name: systemText({ required: true }),
+    description: systemText(),
+    sortOrder: (0, import_fields17.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    subtotalMinor: minor({ defaultValue: 0n }),
+    discountMinor: minor({ defaultValue: 0n }),
+    estimatedTaxMinor: minor({ defaultValue: 0n }),
+    totalMinor: minor({ defaultValue: 0n }),
+    monthlyPaymentDisplay: (0, import_fields17.json)({ ...readOnly }),
+    contentHash: systemText(),
+    lines: (0, import_fields17.relationship)({ ref: "EstimateLine.option", many: true, ...readOnly }),
+    ...trackingFields
+  }
+});
+var EstimateLine = (0, import_core17.list)({
+  access: salesAccess((own) => ({ option: { estimateVersion: { estimate: own } } })),
+  ui: { labelField: "description", listView: { initialColumns: ["option", "description", "quantity", "unitPriceMinor", "amountMinor", "cancellationClass"] } },
+  fields: {
+    option: (0, import_fields17.relationship)({ ref: "EstimateOption.lines", ...readOnly }),
+    pricebookItem: (0, import_fields17.relationship)({ ref: "PriceBookItem", ...readOnly }),
+    itemKey: systemText(),
+    snapshot: costGuardedJson({ ...readOnly }),
+    description: systemText({ required: true }),
+    quantity: qty({ required: true, ...readOnly }),
+    uom: systemText({ required: true }),
+    unitPriceMinor: minor({ defaultValue: 0n }),
+    amountMinor: minor({ defaultValue: 0n }),
+    discountMinor: minor({ defaultValue: 0n }),
+    memberPriced: (0, import_fields17.checkbox)({ defaultValue: false, ...readOnly }),
+    costMinor: minor({ defaultValue: 0n, access: { read: costRead } }),
+    taxCategory: fixedChoice(TAX_CATEGORIES, "labor"),
+    trade: fixedChoice(TRADE_OR_GENERAL, "general"),
+    cancellationClass: fixedChoice(CANCELLATION_CLASSES, "requested_repair"),
+    isAddOn: (0, import_fields17.checkbox)({ defaultValue: false, ...readOnly }),
+    sortOrder: (0, import_fields17.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    ...trackingFields
+  }
+});
+var Authorization = (0, import_core17.list)({
+  access: jobRows,
+  ui: { labelField: "signerName", listView: { initialColumns: ["subjectType", "signerName", "method", "location", "authorizedAt"] } },
+  fields: {
+    subjectType: fixedChoice(["EstimateVersion", "ChangeOrder"], "EstimateVersion"),
+    subjectId: systemText({ indexed: true, required: true }),
+    job: (0, import_fields17.relationship)({ ref: "Job", ...readOnly }),
+    method: fixedChoice(["signature_on_device", "portal_signature", "verbal_recorded", "written_paper", "po_number"], "signature_on_device"),
+    signerName: systemText({ required: true }),
+    signerContact: (0, import_fields17.relationship)({ ref: "Contact", ...readOnly }),
+    signerRole: fixedChoice(["owner", "tenant", "property_manager", "other"], "owner"),
+    signature: (0, import_fields17.json)({ ...readOnly, ui: { ...readOnly.ui, description: "Signature strokes or typed name, as captured on the device." } }),
+    call: (0, import_fields17.relationship)({ ref: "Call", ...readOnly }),
+    poNumber: systemText(),
+    ip: systemText(),
+    userAgent: systemText(),
+    location: fixedChoice(SALE_LOCATIONS, "buyer_residence"),
+    initiatedBy: fixedChoice(["customer_request", "solicited"], "customer_request"),
+    selectedLineIds: (0, import_fields17.json)({ ...readOnly }),
+    depositMinor: minor({ defaultValue: 0n }),
+    payments: (0, import_fields17.relationship)({ ref: "Payment.authorization", many: true, ...readOnly }),
+    contentHash: systemText({ required: true }),
+    authorizedAt: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    recordedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
+    ...trackingFields
+  }
+});
+var PAYMENT_METHODS = ["card", "ach", "cash", "check", "other"];
+var Payment = (0, import_core17.list)({
+  access: jobRows,
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "job", "kind", "method", "amountMinor", "receivedAt"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    job: (0, import_fields17.relationship)({ ref: "Job", ...readOnly }),
+    customer: (0, import_fields17.relationship)({ ref: "Customer", ...readOnly }),
+    authorization: (0, import_fields17.relationship)({ ref: "Authorization.payments", ...readOnly }),
+    kind: fixedChoice(["deposit", "payment"], "deposit"),
+    method: fixedChoice(PAYMENT_METHODS, "card"),
+    amountMinor: minor({ required: true }),
+    reference: systemText(),
+    receivedAt: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    recordedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
+    refunds: (0, import_fields17.relationship)({ ref: "Refund.payment", many: true, ...readOnly }),
+    ...trackingFields
+  }
+});
+var Refund = (0, import_core17.list)({
+  access: jobRows,
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "payment", "method", "amountMinor", "refundedAt"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    payment: (0, import_fields17.relationship)({ ref: "Payment.refunds", ...readOnly }),
+    notice: (0, import_fields17.relationship)({ ref: "CancellationNotice.refunds", ...readOnly }),
+    method: fixedChoice(["processor_refund", "check"], "processor_refund"),
+    amountMinor: minor({ required: true }),
+    reference: systemText({ required: true }),
+    refundedAt: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    recordedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
+    ...trackingFields
+  }
+});
+var CancellationEvaluation = (0, import_core17.list)({
+  access: jobRows,
+  ui: { labelField: "governingRule", listView: { initialColumns: ["job", "governingRule", "rightApplies", "evaluatedAt"] } },
+  fields: {
+    job: (0, import_fields17.relationship)({ ref: "Job", ...readOnly }),
+    authorization: (0, import_fields17.relationship)({ ref: "Authorization", ...readOnly }),
+    subjectType: fixedChoice(["EstimateVersion", "ChangeOrder"], "EstimateVersion"),
+    subjectId: systemText({ indexed: true, required: true }),
+    policyVersion: (0, import_fields17.relationship)({ ref: "PolicyVersion", ...readOnly }),
+    inputs: (0, import_fields17.json)({ ...readOnly }),
+    results: (0, import_fields17.json)({ ...readOnly }),
+    rightApplies: (0, import_fields17.checkbox)({ defaultValue: false, ...readOnly }),
+    governingRule: systemText(),
+    evaluatedAt: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    ...trackingFields
+  }
+});
+var CancellationNotice = (0, import_core17.list)({
+  access: jobRows,
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "job", "rule", "status", "cancelBy"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    evaluation: (0, import_fields17.relationship)({ ref: "CancellationEvaluation", ...readOnly }),
+    job: (0, import_fields17.relationship)({ ref: "Job", ...readOnly }),
+    customer: (0, import_fields17.relationship)({ ref: "Customer", ...readOnly }),
+    estimateVersion: (0, import_fields17.relationship)({ ref: "EstimateVersion", ...readOnly }),
+    changeOrder: (0, import_fields17.relationship)({ ref: "ChangeOrder", ...readOnly }),
+    rule: fixedChoice(["ftc_16cfr429", "tx_bcc_601", "other"], "ftc_16cfr429"),
+    rules: (0, import_fields17.json)({ ...readOnly }),
+    policyVersion: (0, import_fields17.relationship)({ ref: "PolicyVersion", ...readOnly }),
+    noticeTemplate: systemText({ required: true }),
+    language: systemText({ required: true }),
+    coveredWorkLines: (0, import_fields17.relationship)({ ref: "WorkLine.cancellationNotices", many: true, ...readOnly }),
+    coveredAmountMinor: minor({ defaultValue: 0n }),
+    transactionAt: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    cancelBy: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    timeZone: systemText({ required: true }),
+    status: lifecycle(NOTICE_STATUSES),
+    snapshot: (0, import_fields17.json)({ ...readOnly }),
+    deliveryEvidence: (0, import_fields17.json)({ ...readOnly }),
+    deliveredAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    noticeDocument: (0, import_fields17.relationship)({ ref: "Document", ...readOnly }),
+    waiverDocument: (0, import_fields17.relationship)({ ref: "Document", ...readOnly }),
+    cancelledAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    cancellationReceivedVia: fixedChoice(["", "signed_form", "mail", "email", "in_person", "portal"], ""),
+    refundDueBy: (0, import_fields17.timestamp)({ ...readOnly }),
+    refundDueMinor: minor({ defaultValue: 0n }),
+    refundEvidence: (0, import_fields17.json)({ ...readOnly }),
+    refunds: (0, import_fields17.relationship)({ ref: "Refund.notice", many: true, ...readOnly }),
+    startOverride: (0, import_fields17.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var ChangeOrder = (0, import_core17.list)({
+  access: jobRows,
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "job", "status", "deltaMinor", "createdAt"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    job: (0, import_fields17.relationship)({ ref: "Job", ...readOnly }),
+    estimate: (0, import_fields17.relationship)({ ref: "Estimate", ...readOnly }),
+    priceBookVersion: (0, import_fields17.relationship)({ ref: "PriceBookVersion", ...readOnly }),
+    status: lifecycle(["draft", "presented", "approved", "declined"]),
+    reason: systemText(),
+    lines: costGuardedJson({ ...readOnly, ui: { ...readOnly.ui, description: "{ add: [frozen line snapshots], remove: [workLineId] }" } }),
+    deltaMinor: minor({ defaultValue: 0n, description: "Signed change to the sold price, in cents (removals are negative)." }),
+    contentHash: systemText(),
+    presentedAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    authorization: (0, import_fields17.relationship)({ ref: "Authorization", ...readOnly }),
+    cancellationEvaluation: (0, import_fields17.relationship)({ ref: "CancellationEvaluation", ...readOnly }),
+    decidedAt: (0, import_fields17.timestamp)({ ...readOnly }),
+    createdBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
@@ -2252,7 +2747,8 @@ var models = {
   ...listsOf(crm_exports),
   ...listsOf(demand_exports),
   ...listsOf(booking_exports),
-  ...listsOf(jobs_exports)
+  ...listsOf(jobs_exports),
+  ...listsOf(sales_exports)
 };
 
 // features/keystone/index.ts
@@ -2386,9 +2882,9 @@ function dec(value) {
     if (!Number.isSafeInteger(value)) throw new Error(`Refusing float ${value}: pass the exact decimal as a string`);
     return new Decimal(value);
   }
-  const text15 = String(value).trim();
-  if (!DECIMAL_TEXT.test(text15)) throw new Error(`Not a decimal number: ${JSON.stringify(text15).slice(0, 40)}`);
-  return new Decimal(text15);
+  const text16 = String(value).trim();
+  if (!DECIMAL_TEXT.test(text16)) throw new Error(`Not a decimal number: ${JSON.stringify(text16).slice(0, 40)}`);
+  return new Decimal(text16);
 }
 function toScale(value, scale, rounding = Decimal.ROUND_HALF_UP) {
   const places = typeof scale === "number" ? scale : Scale[scale];
@@ -2421,7 +2917,7 @@ function canonicalize(value) {
   throw new Error(`Canonical JSON cannot hold a ${typeof value}`);
 }
 var canonicalJson = (value) => JSON.stringify(canonicalize(value));
-var sha256 = (text15) => (0, import_node_crypto2.createHash)("sha256").update(text15).digest("hex");
+var sha256 = (text16) => (0, import_node_crypto2.createHash)("sha256").update(text16).digest("hex");
 var payloadHash = (value) => sha256(canonicalJson(value));
 var toJsonValue = (value) => canonicalize(value);
 
@@ -2803,6 +3299,7 @@ function addDays(date, days) {
   return new Date(t).toISOString().slice(0, 10);
 }
 var weekday = (date) => (/* @__PURE__ */ new Date(`${date}T12:00:00Z`)).getUTCDay();
+var inZone = (calendar, timeZone) => ({ ...calendar, timeZone });
 function covered(calendar, date) {
   if (date > calendar.coverageThrough) throw new Error(`${calendar.code} has no verified schedule for ${date}`);
 }
@@ -2810,6 +3307,22 @@ function isBusinessDay(calendar, date) {
   assertDate(date);
   covered(calendar, date);
   return !calendar.weekendDays.includes(weekday(date)) && !calendar.holidays.has(date);
+}
+function nextBusinessDay(calendar, date) {
+  let d = addDays(date, 1);
+  while (!isBusinessDay(calendar, d)) d = addDays(d, 1);
+  return d;
+}
+function previousBusinessDay(calendar, date) {
+  let d = addDays(date, -1);
+  while (!isBusinessDay(calendar, d)) d = addDays(d, -1);
+  return d;
+}
+function addBusinessDays(calendar, date, n) {
+  if (!Number.isSafeInteger(n)) throw new Error("Business-day count must be a whole number");
+  let d = date;
+  for (let i = 0; i < Math.abs(n); i += 1) d = n > 0 ? nextBusinessDay(calendar, d) : previousBusinessDay(calendar, d);
+  return d;
 }
 var zoneParts = (timeZone, at) => Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date(at)).map((p) => [p.type, p.value]));
 function localDate(calendar, at) {
@@ -2830,6 +3343,12 @@ function zonedInstant(timeZone, date, hhmm2) {
     guess += diff;
   }
   return new Date(guess);
+}
+function cancelByDeadline(calendar, transactionAt, timeZone, businessDays) {
+  const cal = inZone(calendar, timeZone);
+  const transactionDate = localDate(cal, transactionAt);
+  const lastDay = addBusinessDays(cal, transactionDate, businessDays);
+  return { transactionDate, lastDay, deadline: zonedInstant(timeZone, addDays(lastDay, 1), "00:00") };
 }
 
 // features/keystone/lib/cas.ts
@@ -2926,6 +3445,13 @@ var homeSolicitationRules = import_zod.z.object({
     thresholdElsewhereMinor: minorText.nullable(),
     /** "$25 or more" (at_least) vs "exceeds $25" (more_than). */
     thresholdComparison: import_zod.z.enum(["at_least", "more_than"]),
+    /**
+     * door_to_door (16 CFR 429.0(a)): the agreement is given at a non-merchant place, including after the
+     * buyer invited the seller; requested-repair lines are excluded per line. personal_solicitation (Tex.
+     * Bus. & Com. Code §601.002(a)): only what the merchant personally solicited away from its place of
+     * business is covered: every line when the visit itself was solicited, else the added lines.
+     */
+    scope: import_zod.z.enum(["door_to_door", "personal_solicitation"]).default("door_to_door"),
     /** Cancel until midnight of this business day after the transaction. */
     businessDays: import_zod.z.number().int().min(1).max(15),
     calendar: import_zod.z.string().min(1),
@@ -2934,7 +3460,14 @@ var homeSolicitationRules = import_zod.z.object({
     /** Trade-specific exemptions, e.g. the Texas ACR exemption for consumer-initiated transactions. */
     exemptions: import_zod.z.array(import_zod.z.object({ code: import_zod.z.string(), trades: import_zod.z.array(trade).min(1), when: import_zod.z.enum(["consumer_initiated"]), except: import_zod.z.array(import_zod.z.string()).default([]) })).default([]),
     emergencyWaiver: import_zod.z.object({ allowed: import_zod.z.boolean(), handwritten: import_zod.z.boolean(), signedAndDated: import_zod.z.boolean() }),
-    noticeTemplate: import_zod.z.string().min(1)
+    noticeTemplate: import_zod.z.string().min(1),
+    /**
+     * Rules the pack follows without a primary source. Each is data: it shows on the Policies screen
+     * and in DOMAIN, and stays flagged until counsel confirms it and a new version replaces it.
+     */
+    assumptions: import_zod.z.array(import_zod.z.object({ code: import_zod.z.string().min(1), status: import_zod.z.enum(["counsel_to_confirm"]), flaggedOn: import_zod.z.string(), statement: import_zod.z.string().min(1), affects: import_zod.z.array(import_zod.z.string()).default([]) })).default([]),
+    /** Refund, return of trade-ins and release of security interests within this many business days of the buyer's notice. */
+    refundBusinessDays: import_zod.z.number().int().min(1).max(30).default(10)
   })).min(1)
 });
 var homeImprovementContractRules = import_zod.z.object({
@@ -3063,17 +3596,17 @@ var ROLES = [
   { id: "seed_role_payer_contact", name: "Payer Contact", description: "Third-party payer portal API only (home warranty, property managers); no dashboard.", permissions: [] }
 ];
 var STAFF = [
-  { id: "seed_user_whitfield", name: "Dana Whitfield", email: "dana.whitfield@example.com", title: "Owner", phone: "+15125550101", roleId: "seed_role_owner" },
-  { id: "seed_user_ortega", name: "Marcus Ortega", email: "marcus.ortega@example.com", title: "General Manager", phone: "+15125550102", roleId: "seed_role_gm" },
-  { id: "seed_user_raman", name: "Priya Raman", email: "priya.raman@example.com", title: "Customer Service Representative", phone: "+15125550103", roleId: "seed_role_csr" },
-  { id: "seed_user_mendoza", name: "Luis Mendoza", email: "luis.mendoza@example.com", title: "Customer Service Representative", phone: "+15125550104", roleId: "seed_role_csr" },
-  { id: "seed_user_tran", name: "Kelsey Tran", email: "kelsey.tran@example.com", title: "Customer Service Representative", phone: "+15125550105", roleId: "seed_role_csr" },
-  { id: "seed_user_brooks", name: "Andre Brooks", email: "andre.brooks@example.com", title: "Dispatcher", phone: "+15125550106", roleId: "seed_role_dispatcher" },
-  { id: "seed_user_reyes", name: "Tom\xE1s Reyes", email: "tomas.reyes@example.com", title: "Warehouse Lead", phone: "+15125550107", roleId: "seed_role_warehouse" },
-  { id: "seed_user_cole", name: "Hannah Cole", email: "hannah.cole@example.com", title: "Accountant", phone: "+15125550108", roleId: "seed_role_accounting" },
-  { id: "seed_user_kim", name: "Rachel Kim", email: "rachel.kim@example.com", title: "Comfort Advisor", phone: "+15125550109", roleId: "seed_role_comfort_advisor" }
+  { id: "seed_user_whitfield", name: "Dana Whitfield", email: "dana.whitfield@summitplumbingair.com", title: "Owner", phone: "+15125550101", roleId: "seed_role_owner" },
+  { id: "seed_user_ortega", name: "Marcus Ortega", email: "marcus.ortega@summitplumbingair.com", title: "General Manager", phone: "+15125550102", roleId: "seed_role_gm" },
+  { id: "seed_user_raman", name: "Priya Raman", email: "priya.raman@summitplumbingair.com", title: "Customer Service Representative", phone: "+15125550103", roleId: "seed_role_csr" },
+  { id: "seed_user_mendoza", name: "Luis Mendoza", email: "luis.mendoza@summitplumbingair.com", title: "Customer Service Representative", phone: "+15125550104", roleId: "seed_role_csr" },
+  { id: "seed_user_tran", name: "Kelsey Tran", email: "kelsey.tran@summitplumbingair.com", title: "Customer Service Representative", phone: "+15125550105", roleId: "seed_role_csr" },
+  { id: "seed_user_brooks", name: "Andre Brooks", email: "andre.brooks@summitplumbingair.com", title: "Dispatcher", phone: "+15125550106", roleId: "seed_role_dispatcher" },
+  { id: "seed_user_reyes", name: "Tom\xE1s Reyes", email: "tomas.reyes@summitplumbingair.com", title: "Warehouse Lead", phone: "+15125550107", roleId: "seed_role_warehouse" },
+  { id: "seed_user_cole", name: "Hannah Cole", email: "hannah.cole@summitplumbingair.com", title: "Accountant", phone: "+15125550108", roleId: "seed_role_accounting" },
+  { id: "seed_user_kim", name: "Rachel Kim", email: "rachel.kim@summitplumbingair.com", title: "Comfort Advisor", phone: "+15125550109", roleId: "seed_role_comfort_advisor" }
 ];
-var BRAND = { id: "seed_brand_summit", name: "Summit Plumbing & Air", phone: "+15125550100", email: "service@example.com", website: "https://summit.example.com" };
+var BRAND = { id: "seed_brand_summit", name: "Summit Plumbing & Air", phone: "+15125550100", email: "service@summitplumbingair.com", website: "https://summitplumbingair.com" };
 var LICENSES = [
   { id: "seed_license_acr", trade: "hvac", jurisdictionCode: "US-TX", issuer: "TDLR", licenseNumber: "TACLA00098765E", licenseClass: "A", endorsements: ["environmental_air"], responsibleName: "Dana Whitfield" },
   { id: "seed_license_rmp", trade: "plumbing", jurisdictionCode: "US-TX", issuer: "TSBPE", licenseNumber: "RMP-00045678", licenseClass: "Responsible Master Plumber", endorsements: [], responsibleName: "Ray Castillo" },
@@ -3112,6 +3645,7 @@ var APPROVAL_POLICIES = [
   { action: "booking.overbook", description: "Book past a window's capacity.", requiredPermission: "canApproveOverbook", expiresAfterMinutes: 60 },
   { action: "customer.merge", description: "Merge two customer records.", requiredPermission: "canApproveMerges", expiresAfterMinutes: 1440 },
   { action: "estimate.discount", description: "Apply a discount above the seller's limit.", requiredPermission: "canApproveDiscounts", expiresAfterMinutes: 240 },
+  { action: "cancellation.start_override", description: "Start work the buyer can still cancel, before the cooling-off window closes.", requiredPermission: "canApprovePolicies", expiresAfterMinutes: 240 },
   { action: "pricebook.publish", description: "Publish a price book version.", requiredPermission: "canApprovePriceBook", expiresAfterMinutes: 7 * 1440 },
   { action: "invoice.write_off", description: "Write off an invoice balance.", requiredPermission: "canApproveWriteOff", expiresAfterMinutes: 1440 },
   { action: "credit.issue", description: "Issue a customer credit.", requiredPermission: "canApproveCredits", expiresAfterMinutes: 1440 },
@@ -3126,9 +3660,61 @@ var APPROVAL_POLICIES = [
 ];
 
 // features/keystone/seed/policyPacks.ts
+var versionsOf = (pack) => [{ ...pack.version, versionNumber: 1, reason: "Initial verified policy load" }, ...pack.later ?? []];
 var ECFR_429 = "https://www.ecfr.gov/current/title-16/chapter-I/subchapter-D/part-429";
 var TX_601 = "https://statutes.capitol.texas.gov/Docs/BC/htm/BC.601.htm";
 var TX_1302 = "https://statutes.capitol.texas.gov/Docs/OC/htm/OC.1302.htm";
+var TX_PROP_41 = "https://statutes.capitol.texas.gov/Docs/PR/htm/PR.41.htm";
+var TX_PROP_53 = "https://statutes.capitol.texas.gov/Docs/PR/htm/PR.53.htm";
+var FTC_RULE_TX = {
+  code: "ftc_cooling_off",
+  title: "FTC Cooling-Off Rule (16 CFR 429)",
+  thresholdAtResidenceMinor: "2500",
+  thresholdElsewhereMinor: "13000",
+  thresholdComparison: "at_least",
+  businessDays: 3,
+  calendar: "US-FEDERAL",
+  exclusions: [
+    { code: "retail_prior_negotiation", description: "Prior negotiations at the seller's fixed retail location.", perLine: false },
+    { code: "tila_rescission", description: "Truth in Lending rescission applies instead.", perLine: false },
+    { code: "emergency_waiver", description: "Buyer-initiated emergency with a dated, signed, handwritten waiver.", perLine: false },
+    { code: "mail_or_phone_only", description: "Entirely by mail or telephone.", perLine: false },
+    { code: "requested_repair", description: "Requested repair or maintenance; additional goods or services are not excluded.", perLine: true }
+  ],
+  exemptions: [],
+  emergencyWaiver: { allowed: true, handwritten: true, signedAndDated: true },
+  noticeTemplate: "ftc_429_notice_of_cancellation"
+};
+var TX_601_RULE = {
+  code: "tx_601",
+  title: "Texas home solicitation (Bus. & Com. Code ch. 601)",
+  thresholdAtResidenceMinor: "2500",
+  thresholdElsewhereMinor: "2500",
+  thresholdComparison: "more_than",
+  businessDays: 3,
+  calendar: "US-FEDERAL",
+  exclusions: [],
+  exemptions: [{ code: "tx_acr_consumer_initiated", trades: ["hvac"], when: "consumer_initiated", except: ["breach_of_express_warranty", "negligent_installation"] }],
+  emergencyWaiver: { allowed: false, handwritten: true, signedAndDated: true },
+  noticeTemplate: "tx_601_notice_of_cancellation"
+};
+var TX_BUSINESS_DAY_ASSUMPTION = {
+  code: "tx_business_day_calendar",
+  status: "counsel_to_confirm",
+  flaggedOn: "2026-11-08",
+  statement: 'Chapter 601 does not define "business day". This rule counts every day except Sunday and federal holidays (the 16 CFR 429.0(f) calendar, Saturday counts). If Texas excludes Saturday, the cancel-by date printed on a notice can be a day earlier than the statute allows (\xA7601.053(b)(4): "not earlier than the third business day"). Counsel to confirm before general availability.',
+  affects: ["cancel_by", "refund_due_by"]
+};
+var TX_SOLICITATION_REFS = [
+  { ref: "16 CFR 429.0-429.1", url: ECFR_429, verified: true, checkedOn: "2026-11-07" },
+  { ref: "Tex. Bus. & Com. Code \xA7601.002 (scope: personally solicited away from the place of business; price over $25)", url: TX_601, verified: true, checkedOn: "2026-11-07" },
+  { ref: "Tex. Bus. & Com. Code \xA7601.051 (cancel until midnight of the third business day after signing)", url: TX_601, verified: true, checkedOn: "2026-11-07" },
+  { ref: "Tex. Bus. & Com. Code \xA7601.052 (receipt or contract in the language of the sale, with the bold 10-point statement and an attached notice of cancellation)", url: TX_601, verified: true, checkedOn: "2026-11-08" },
+  { ref: 'Tex. Bus. & Com. Code ch. 601 "business day" definition', url: TX_601, verified: false, note: "Section 601.001 defines no business day. The federal 16 CFR 429.0(f) calendar is used; verify before GA." },
+  { ref: "Tex. Bus. & Com. Code \xA7\xA7601.003-601.004 (emergency waiver)", url: TX_601, verified: false, note: "Not readable from the statutes mirrors. No Texas emergency waiver is honoured (fail closed) until verified." },
+  { ref: "Tex. Occ. Code \xA71302.003 (ch. 601 does not apply to a consumer-initiated ACR transaction, except breach of express warranty or negligent installation)", url: TX_1302, verified: true, checkedOn: "2026-11-07" }
+];
+var TX_SOLICITATION_REFS_V3 = TX_SOLICITATION_REFS.map((ref) => ref.ref.includes('"business day" definition') ? { ...ref, verified: false, note: "ASSUMPTION, counsel to confirm. Chapter 601 (\xA7601.001) defines no business day and no primary Texas text was found that does. The federal 16 CFR 429.0(f) calendar (Saturday counts; Sunday and federal holidays do not) is the default. Tex. Gov't Code \xA7311.014 rolls a last day that falls on a Saturday, Sunday or legal holiday forward, but does not define a business day either." } : ref);
 var POLICY_PACKS = [
   {
     id: "seed_pack_us_home_solicitation",
@@ -3222,6 +3808,51 @@ var POLICY_PACKS = [
         { ref: "Tex. Bus. & Com. Code \xA7601.051 (cancel until midnight of the third business day after signing)", url: TX_601, verified: true, checkedOn: "2026-11-07" },
         { ref: 'Tex. Bus. & Com. Code ch. 601 "business day" definition', url: TX_601, verified: false, note: "Not readable from the statutes site (script-rendered). The federal 16 CFR 429.0(f) calendar is used; verify the chapter 601 definition, and whether ch. 601 has an emergency waiver, before GA." },
         { ref: "Tex. Occ. Code \xA71302.003 (ch. 601 does not apply to a consumer-initiated ACR transaction, except breach of express warranty or negligent installation)", url: TX_1302, verified: true, checkedOn: "2026-11-07" }
+      ]
+    },
+    later: [
+      {
+        id: "seed_policy_tx_home_solicitation_v2",
+        versionNumber: 2,
+        effectiveFrom: "2026-11-08",
+        reason: "Chapter 601 covers what the merchant personally solicited: on a visit the customer asked for, that is the work proposed on site, not the requested repair.",
+        rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: "personal_solicitation", refundBusinessDays: 10 }] },
+        sourceRefs: TX_SOLICITATION_REFS
+      },
+      {
+        id: "seed_policy_tx_home_solicitation_v3",
+        versionNumber: 3,
+        effectiveFrom: "2026-11-09",
+        reason: 'Chapter 601 does not define "business day". The federal calendar (everything but Sunday and federal holidays) stays as the conservative default, now recorded as an explicit assumption for counsel to confirm.',
+        rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: "personal_solicitation", refundBusinessDays: 10, assumptions: [TX_BUSINESS_DAY_ASSUMPTION] }] },
+        sourceRefs: TX_SOLICITATION_REFS_V3
+      }
+    ]
+  },
+  {
+    id: "seed_pack_tx_home_improvement_contract",
+    code: "us-tx-home-improvement-contract",
+    name: "Texas residential construction contracts",
+    kind: "home_improvement_contract",
+    jurisdictionCode: "US-TX",
+    description: "What a Texas residential improvement contract must carry: the homestead warning, the lien-law disclosure and the contractor's licence.",
+    binding: { id: "seed_binding_tx_home_improvement_contract", scope: "state", scopeValue: "US-TX", priority: 0 },
+    version: {
+      id: "seed_policy_tx_home_improvement_contract_v1",
+      effectiveFrom: "2026-01-01",
+      rules: {
+        depositCapPct: null,
+        depositCapMinor: null,
+        requiredFields: ["contractor_name_address", "contractor_license", "scope_of_work", "price", "payment_terms", "homestead_warning", "lien_disclosure", "cancellation_notice"],
+        licenseDisplay: true
+      },
+      sourceRefs: [
+        { ref: 'Tex. Prop. Code \xA741.007(a) (homestead improvement contract: 10-point bold "IMPORTANT NOTICE: You and your contractor are responsible for meeting the terms and conditions of this contract\u2026")', url: TX_PROP_41, verified: true, checkedOn: "2026-11-08" },
+        { ref: "Tex. Prop. Code \xA741.007(c)-(d) (an arbitration clause must be in 10-point bold or it is unenforceable)", url: TX_PROP_41, verified: true, checkedOn: "2026-11-08" },
+        { ref: "Tex. Prop. Code \xA753.001(8)-(10) (residence; residential construction contract)", url: TX_PROP_53, verified: true, checkedOn: "2026-11-08" },
+        { ref: "Tex. Prop. Code \xA753.255 (disclosure statement to the owner before a residential construction contract is executed)", url: TX_PROP_53, verified: true, checkedOn: "2026-11-08" },
+        { ref: "Texas deposit cap on residential repair and improvement", verified: false, note: "No general statutory deposit cap was found for Texas residential repair; the pack sets none. Verify before GA; a cap is configuration (depositCapPct/depositCapMinor), not code." },
+        { ref: "Tex. Occ. Code \xA71302.251 and 16 TAC \xA775.70 (ACR contractor licence number on contracts, invoices and advertising)", verified: false, note: "Display rule carried as licenseDisplay; verify the exact text before GA." }
       ]
     }
   },
@@ -3484,16 +4115,27 @@ async function seedCompanyPlatform(uow, actor) {
   const havePolicies = new Set((await tx.approvalPolicy.findMany({ select: { action: true } })).map((p) => p.action));
   const newPolicies = APPROVAL_POLICIES.filter((p) => !havePolicies.has(p.action));
   if (newPolicies.length) {
-    const rows = await tx.approvalPolicy.createManyAndReturn({ data: newPolicies.map((policy) => ({ action: policy.action, description: policy.description, requiredPermission: policy.requiredPermission, minApprovals: 1, expiresAfterMinutes: policy.expiresAfterMinutes, thresholdMinor: policy.thresholdMinor ?? null })), select: { id: true, action: true, requiredPermission: true } });
+    const rows = await tx.approvalPolicy.createManyAndReturn({ data: newPolicies.map((policy2) => ({ action: policy2.action, description: policy2.description, requiredPermission: policy2.requiredPermission, minApprovals: 1, expiresAfterMinutes: policy2.expiresAfterMinutes, thresholdMinor: policy2.thresholdMinor ?? null })), select: { id: true, action: true, requiredPermission: true } });
     for (const row of rows) auditCreate(uow, actor, "ApprovalPolicy", row.id, "approval_policy.created", { action: row.action, requiredPermission: row.requiredPermission }, { metadata: { seed: true } });
     created.approvalPolicies = rows.length;
   }
+  const policy = await seedPolicyPacks(uow, actor);
+  created.policyPacks = policy.policyPacks;
+  created.policyVersions = policy.policyVersions;
+  created.policyBindings = policy.policyBindings;
+  return created;
+}
+async function seedPolicyPacks(uow, actor) {
+  const { tx } = uow;
+  const created = { policyPacks: 0, policyVersions: 0, policyBindings: 0 };
   for (const pack of POLICY_PACKS) {
-    const parsed2 = parsePolicyRules(pack.kind, pack.version.rules);
-    if (!parsed2.success) throw new Error(`Seed policy ${pack.code} does not match its schema: ${parsed2.error.issues[0]?.message}`);
+    for (const v of versionsOf(pack)) {
+      const parsed2 = parsePolicyRules(pack.kind, v.rules);
+      if (!parsed2.success) throw new Error(`Seed policy ${pack.code} (${v.id}) does not match its schema: ${parsed2.error.issues[0]?.message}`);
+    }
   }
   const havePacks = new Set((await tx.policyPack.findMany({ where: { id: { in: POLICY_PACKS.map((p) => p.id) } }, select: { id: true } })).map((r) => r.id));
-  const haveVersions = new Set((await tx.policyVersion.findMany({ where: { id: { in: POLICY_PACKS.map((p) => p.version.id) } }, select: { id: true } })).map((r) => r.id));
+  const haveVersions = new Set((await tx.policyVersion.findMany({ where: { id: { in: POLICY_PACKS.flatMap((p) => versionsOf(p).map((v) => v.id)) } }, select: { id: true } })).map((r) => r.id));
   const haveBindings = new Set((await tx.policyBinding.findMany({ where: { id: { in: POLICY_PACKS.map((p) => p.binding.id) } }, select: { id: true } })).map((r) => r.id));
   const packs = POLICY_PACKS.filter((p) => !havePacks.has(p.id));
   if (packs.length) {
@@ -3520,6 +4162,33 @@ async function seedCompanyPlatform(uow, actor) {
     for (const { pack, contentHash } of versions) auditCreate(uow, actor, "PolicyVersion", pack.version.id, "policy_version.activated", { pack: pack.code, versionNumber: 1, contentHash }, { metadata: { seed: true }, reason: "Initial verified policy load" });
     created.policyVersions = versions.length;
   }
+  for (const pack of POLICY_PACKS) {
+    const chain = versionsOf(pack);
+    for (let i = 1; i < chain.length; i++) {
+      const next = chain[i];
+      if (haveVersions.has(next.id)) continue;
+      const previous = chain[i - 1];
+      const contentHash = payloadHash({ rules: next.rules, sourceRefs: next.sourceRefs });
+      await tx.policyVersion.update({ where: { id: previous.id }, data: { effectiveTo: day(next.effectiveFrom) } });
+      await tx.policyVersion.create({
+        data: {
+          id: next.id,
+          packId: pack.id,
+          versionNumber: next.versionNumber,
+          effectiveFrom: day(next.effectiveFrom),
+          rules: toJsonValue(next.rules),
+          sourceRefs: toJsonValue(next.sourceRefs),
+          verifiedBy: "Openfront research (RESEARCH.md \xA712.1a)",
+          verifiedAt: /* @__PURE__ */ new Date("2026-11-08T12:00:00Z"),
+          status: "active",
+          contentHash
+        }
+      });
+      auditCreate(uow, actor, "PolicyVersion", previous.id, "policy_version.superseded", { pack: pack.code, effectiveTo: next.effectiveFrom, by: next.id }, { metadata: { seed: true }, reason: next.reason });
+      auditCreate(uow, actor, "PolicyVersion", next.id, "policy_version.activated", { pack: pack.code, versionNumber: next.versionNumber, contentHash }, { metadata: { seed: true }, reason: next.reason });
+      created.policyVersions += 1;
+    }
+  }
   const bindings = POLICY_PACKS.filter((p) => !haveBindings.has(p.binding.id));
   if (bindings.length) {
     await tx.policyBinding.createMany({ data: bindings.map((pack) => ({ id: pack.binding.id, packId: pack.id, scope: pack.binding.scope, scopeValue: pack.binding.scopeValue, priority: pack.binding.priority, status: "active" })) });
@@ -3529,395 +4198,43 @@ async function seedCompanyPlatform(uow, actor) {
   return created;
 }
 
-// features/keystone/mutations/setup.ts
-async function loadCompanySetup(_root, args, context) {
-  const actor = await actorFor(context);
-  await authorizeOperation(context.prisma, actor, "loadCompanySetup", ["canManageOnboarding"]);
-  const result = await command(context.prisma, { name: "setup.load_company", actor, idempotencyKey: args.idempotencyKey, params: {} }, async (uow) => {
-    const created = await seedCompanyPlatform(uow, actor);
-    await recordAgentAction(uow, actor, { tool: "loadCompanySetup", idempotencyKey: args.idempotencyKey, inputs: {}, output: created });
-    return created;
-  });
-  return { replay: result.replay, created: result.value };
-}
-var ONBOARDING = ["not_started", "in_progress", "completed", "dismissed"];
-async function setCompanyOnboardingStatus(_root, args, context) {
-  const actor = await actorFor(context);
-  requirePermission(actor, "canManageOnboarding");
-  if (!ONBOARDING.includes(args.status)) throw new DomainError(Codes.INVALID_INPUT, "Unknown onboarding status.", { field: "status" });
-  const result = await command(context.prisma, { name: "company.onboarding_status", actor, idempotencyKey: args.idempotencyKey, params: { status: args.status, expectedVersion: args.expectedVersion } }, async (uow) => {
-    const [company] = await uow.tx.$queryRaw`SELECT id, version, "onboardingStatus" FROM "CompanySettings" WHERE "singletonKey" = 'company' FOR UPDATE`;
-    if (!company) throw new DomainError(Codes.NOT_FOUND, "Company settings are not set up yet.");
-    if (company.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "Company settings changed since you loaded them. Reload and try again.", { currentVersion: company.version });
-    if (company.onboardingStatus === args.status) return { status: args.status, version: company.version };
-    const updated = await uow.tx.companySettings.updateMany({ where: { id: company.id, version: company.version }, data: { onboardingStatus: args.status, version: { increment: 1 } } });
-    if (updated.count !== 1) throw new DomainError(Codes.STALE_STATE, "Company settings changed since you loaded them. Reload and try again.");
-    uow.audit({ eventType: "company.onboarding_status_changed", entityType: "CompanySettings", entityId: String(company.id), actorUserId: actor.kind === "user" ? actor.userId : null, before: { onboardingStatus: company.onboardingStatus, version: company.version }, after: { onboardingStatus: args.status, version: company.version + 1 } });
-    return { status: args.status, version: company.version + 1 };
-  });
-  return { replay: result.replay, ...result.value };
-}
-
-// features/keystone/mutations/audit.ts
-async function verifyAuditChain2(_root, _args, context) {
-  const actor = await actorFor(context);
-  await authorizeOperation(context.prisma, actor, "verifyAuditChain", ["canReadAudit"]);
-  return verifyAuditChain(context.prisma);
-}
-
-// features/keystone/lib/separationOfDuties.ts
-var SELF_APPROVAL_MESSAGE = "You can't approve your own request.";
-var AGENT_APPROVAL_MESSAGE = "An agent can propose but never approve.";
-function assertCanDecide(actor, requesterUserId, requesterAgentOwnerId, strictAgentOwner = true) {
-  if (actor.kind !== "user") throw new DomainError(Codes.AGENT_CANNOT_APPROVE, AGENT_APPROVAL_MESSAGE);
-  if (requesterUserId && requesterUserId === actor.userId) throw new DomainError(Codes.SELF_APPROVAL, SELF_APPROVAL_MESSAGE);
-  if (strictAgentOwner && requesterAgentOwnerId && requesterAgentOwnerId === actor.userId) throw new DomainError(Codes.SELF_APPROVAL, "You can't approve a proposal made by your own agent.");
-}
-
-// features/keystone/lib/approval.ts
-async function requestApproval(uow, actor, input) {
-  const policy = await uow.tx.approvalPolicy.findUnique({ where: { action: input.action } });
-  const requiredPermission = policy?.requiredPermission ?? input.requiredPermission;
-  const minutes = input.expiresInMinutes ?? policy?.expiresAfterMinutes ?? 1440;
-  const created = await uow.tx.approvalRequest.create({
-    data: {
-      action: input.action,
-      summary: input.summary ?? "",
-      targetList: input.targetList,
-      targetId: input.targetId,
-      payload: toJsonValue(input.payload),
-      payloadHash: payloadHash(input.payload),
-      requiredPermission,
-      requestedById: actorUserId(actor),
-      requestedByAgentId: actorAgentId(actor),
-      status: "pending",
-      expiresAt: new Date(uow.now.getTime() + minutes * 6e4)
-    }
-  });
-  uow.audit({ eventType: "approval.requested", entityType: "ApprovalRequest", entityId: created.id, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { action: input.action, targetList: input.targetList, targetId: input.targetId, payloadHash: created.payloadHash, requiredPermission } });
-  uow.emit({ topic: "notify.approval", aggregateType: "ApprovalRequest", aggregateId: created.id, payload: { action: input.action, requiredPermission }, dedupeKey: `notify.approval:${created.id}` });
-  return created;
-}
-async function decideApproval(uow, actor, input) {
-  const request = await lockRow(uow.tx, "ApprovalRequest", input.requestId);
-  let agentOwnerId = null;
-  if (request.requestedByAgentId) {
-    const agent = await uow.tx.agentIdentity.findUnique({ where: { id: request.requestedByAgentId }, select: { ownerId: true } });
-    agentOwnerId = agent?.ownerId ?? null;
-  }
-  assertCanDecide(actor, request.requestedById, agentOwnerId, input.strictAgentOwner ?? true);
-  if (actor.kind !== "user" || !actor.permissions.has(request.requiredPermission)) {
-    throw new DomainError(Codes.NOT_AUTHORIZED, `Deciding this needs the ${request.requiredPermission} permission.`);
-  }
-  if (request.expiresAt && new Date(request.expiresAt).getTime() <= uow.now.getTime()) {
-    await transition(uow, { model: "ApprovalRequest", id: input.requestId, from: ["pending"], to: "expired", actor, eventType: "approval.expired" });
-    throw new DomainError(Codes.GUARD_FAILED, "This approval request has expired.");
-  }
-  const to = input.decision === "approve" ? "approved" : "rejected";
-  const updated = await transition(uow, {
-    model: "ApprovalRequest",
-    id: input.requestId,
-    from: ["pending"],
-    to,
-    expectedVersion: input.expectedVersion,
-    actor,
-    eventType: `approval.${to}`,
-    reason: input.reason ?? null,
-    approverId: actor.userId
-  });
-  await uow.tx.approvalDecision.create({ data: { requestId: input.requestId, decidedById: actor.userId, decision: input.decision, reason: input.reason ?? "", at: uow.now } });
-  return updated;
-}
-async function consumeApproval(uow, input) {
-  const request = await lockRow(uow.tx, "ApprovalRequest", input.requestId);
-  if (request.status !== "approved") throw new DomainError(Codes.APPROVAL_REQUIRED, "This action needs an approved request.");
-  if (request.consumedAt) throw new DomainError(Codes.APPROVAL_MISMATCH, "This approval was already used.");
-  if (request.action !== input.action || request.targetList !== input.targetList || request.targetId !== input.targetId || request.payloadHash !== payloadHash(input.payload)) {
-    throw new DomainError(Codes.APPROVAL_MISMATCH, "The approval was given for a different action or payload.");
-  }
-  if (request.expiresAt && new Date(request.expiresAt).getTime() <= uow.now.getTime()) throw new DomainError(Codes.GUARD_FAILED, "The approval has expired.");
-  const decision = await uow.tx.approvalDecision.findFirst({ where: { requestId: input.requestId, decision: "approve" }, orderBy: { at: "desc" } });
-  await uow.tx.approvalRequest.update({ where: { id: input.requestId }, data: { consumedAt: uow.now, version: { increment: 1 } } });
-  uow.audit({ eventType: "approval.consumed", entityType: "ApprovalRequest", entityId: input.requestId, approverId: decision?.decidedById ?? null, after: { action: input.action, targetId: input.targetId } });
-  return { approverId: decision?.decidedById ?? null };
-}
-
-// features/keystone/lib/approvalAppliers.ts
-var appliers = /* @__PURE__ */ new Map();
-function registerApplier(action, apply, options = {}) {
-  if (appliers.has(action)) throw new Error(`Applier for ${action} already registered`);
-  appliers.set(action, { apply, applyOnApprove: options.applyOnApprove ?? true });
-}
-function applierFor(action) {
-  return appliers.get(action) ?? null;
-}
-
-// features/keystone/lib/companyControls.ts
-var CONTROL_KEYS = ["discountApprovalThresholdBps", "refundApprovalThresholdMinor", "poApprovalThresholdMinor"];
-var minorIn = (value, name) => {
-  if (typeof value !== "string" || !/^\d{1,15}$/.test(value)) throw new DomainError(Codes.INVALID_INPUT, `${name} must be whole cents as a string, e.g. "50000".`, { field: name });
-  return BigInt(value);
-};
-function validateCompanyControls(input) {
-  const keys = Object.keys(input ?? {});
-  if (!keys.length) throw new DomainError(Codes.INVALID_INPUT, "Nothing to change.");
-  for (const key2 of keys) if (!CONTROL_KEYS.includes(key2)) throw new DomainError(Codes.INVALID_INPUT, `${key2} is not a company control.`, { field: key2 });
-  const out = {};
-  if (input.discountApprovalThresholdBps !== void 0) {
-    const v = input.discountApprovalThresholdBps;
-    if (!Number.isSafeInteger(v) || v < 0 || v > 1e4) throw new DomainError(Codes.INVALID_INPUT, "discountApprovalThresholdBps must be a whole number from 0 to 10000.", { field: "discountApprovalThresholdBps" });
-    out.discountApprovalThresholdBps = v;
-  }
-  if (input.refundApprovalThresholdMinor !== void 0) out.refundApprovalThresholdMinor = minorIn(input.refundApprovalThresholdMinor, "refundApprovalThresholdMinor").toString();
-  if (input.poApprovalThresholdMinor !== void 0) out.poApprovalThresholdMinor = minorIn(input.poApprovalThresholdMinor, "poApprovalThresholdMinor").toString();
-  return out;
-}
-var toData = (changes) => ({
-  ...changes.discountApprovalThresholdBps !== void 0 ? { discountApprovalThresholdBps: changes.discountApprovalThresholdBps } : {},
-  ...changes.refundApprovalThresholdMinor !== void 0 ? { refundApprovalThresholdMinor: BigInt(changes.refundApprovalThresholdMinor) } : {},
-  ...changes.poApprovalThresholdMinor !== void 0 ? { poApprovalThresholdMinor: BigInt(changes.poApprovalThresholdMinor) } : {}
-});
-async function requestCompanyControlsChange(uow, actor, input, reason) {
-  const changes = validateCompanyControls(input);
-  const company = await uow.tx.companySettings.findUnique({ where: { singletonKey: "company" } });
-  if (!company) throw new DomainError(Codes.NOT_FOUND, "Company settings are not set up yet.");
-  return requestApproval(uow, actor, {
-    action: "company.controls",
-    targetList: "CompanySettings",
-    targetId: String(company.id),
-    payload: { changes, baseVersion: company.version },
-    requiredPermission: "canApprovePolicies",
-    summary: `Change company controls: ${Object.keys(changes).join(", ")}${reason ? ` (${reason})` : ""}`
-  });
-}
-registerApplier("company.controls", async (uow, actor, request) => {
-  const [company] = await uow.tx.$queryRaw`SELECT id, version FROM "CompanySettings" WHERE "singletonKey" = 'company' FOR UPDATE`;
-  if (!company) throw new DomainError(Codes.NOT_FOUND, "Company settings are not set up yet.");
-  const { changes, baseVersion } = request.payload;
-  if (company.version !== baseVersion) throw new DomainError(Codes.STALE_STATE, "Company settings changed after this was approved. Request the change again.", { currentVersion: company.version });
-  const before = await uow.tx.companySettings.findUnique({ where: { id: company.id }, select: { discountApprovalThresholdBps: true, refundApprovalThresholdMinor: true, poApprovalThresholdMinor: true } });
-  const updated = await uow.tx.companySettings.updateMany({ where: { id: company.id, version: baseVersion }, data: { ...toData(changes), version: { increment: 1 } } });
-  if (updated.count !== 1) throw new DomainError(Codes.STALE_STATE, "Company settings changed while applying.");
-  uow.audit({
-    eventType: "company.controls_changed",
-    entityType: "CompanySettings",
-    entityId: String(company.id),
-    actorUserId: actor.kind === "user" ? actor.userId : null,
-    before: before ? { ...before, refundApprovalThresholdMinor: before.refundApprovalThresholdMinor.toString(), poApprovalThresholdMinor: before.poApprovalThresholdMinor.toString() } : null,
-    after: changes
-  });
-  return { applied: Object.keys(changes) };
-});
-
-// features/keystone/mutations/approvals.ts
-async function decideApprovalRequest(_root, args, context) {
-  const actor = await actorFor(context);
-  requirePermission(actor, "canAccessDashboard");
-  if (args.decision !== "approve" && args.decision !== "reject") throw new DomainError(Codes.INVALID_INPUT, "Decision must be approve or reject.");
-  if (args.decision === "reject" && !args.reason?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Say why you are rejecting it.", { field: "reason" });
-  const result = await command(context.prisma, { name: "approval.decide", actor, idempotencyKey: args.idempotencyKey, params: { requestId: args.requestId, decision: args.decision, reason: args.reason ?? "", expectedVersion: args.expectedVersion } }, async (uow) => {
-    const decided = await decideApproval(uow, actor, { requestId: args.requestId, decision: args.decision, reason: args.reason ?? void 0, expectedVersion: args.expectedVersion, strictAgentOwner: true });
-    let applied = null;
-    const registration = applierFor(String(decided.action));
-    if (args.decision === "approve" && registration?.applyOnApprove) {
-      const request = await uow.tx.approvalRequest.findUniqueOrThrow({ where: { id: args.requestId } });
-      await consumeApproval(uow, { requestId: request.id, action: request.action, targetList: request.targetList, targetId: request.targetId, payload: request.payload });
-      applied = await registration.apply(uow, actor, request);
-    }
-    return { id: decided.id, status: decided.status, applied };
-  });
-  return { replay: result.replay, ...result.value };
-}
-async function cancelApprovalRequest(_root, args, context) {
-  const actor = await actorFor(context);
-  requirePermission(actor, "canAccessDashboard");
-  const result = await command(context.prisma, { name: "approval.cancel", actor, idempotencyKey: args.idempotencyKey, params: args }, async (uow) => {
-    const row = await transition(uow, {
-      model: "ApprovalRequest",
-      id: args.requestId,
-      from: ["pending"],
-      to: "cancelled",
-      expectedVersion: args.expectedVersion,
-      actor,
-      eventType: "approval.cancelled",
-      reason: args.reason ?? null,
-      guard: (request) => {
-        if (actor.kind !== "user" || request.requestedById !== actor.userId) throw new DomainError(Codes.NOT_AUTHORIZED, "Only the person who asked can withdraw a request.");
-      }
-    });
-    return { id: row.id, status: row.status };
-  });
-  return { replay: result.replay, ...result.value };
-}
-async function requestCompanyControls(_root, args, context) {
-  const actor = await actorFor(context);
-  requirePermission(actor, "canManageCompany", "canManagePolicies");
-  if (!args.reason?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Say why the controls should change.", { field: "reason" });
-  const result = await command(context.prisma, { name: "company.controls.request", actor, idempotencyKey: args.idempotencyKey, params: args }, async (uow) => {
-    const request = await requestCompanyControlsChange(uow, actor, args.changes, args.reason.trim());
-    return { id: request.id, status: request.status };
-  });
-  return { replay: result.replay, ...result.value };
-}
-
-// features/keystone/domain/policy.ts
-var SCOPE_SPECIFICITY = { company: 0, branch: 1, state: 2, county: 3, city: 4, zip: 5 };
-function matches(binding, place) {
-  switch (binding.scope) {
-    case "company":
-      return true;
-    case "branch":
-      return !!place.branchId && binding.scopeValue === place.branchId;
-    case "state":
-      return !!place.state && binding.scopeValue === place.state;
-    case "county":
-      return !!place.county && binding.scopeValue === place.county;
-    case "city":
-      return !!place.city && binding.scopeValue === place.city;
-    case "zip":
-      return !!place.zip && binding.scopeValue === place.zip;
-    default:
-      return false;
-  }
-}
-function versionInEffect(binding, on) {
-  const live = binding.pack.versions.filter((v) => v.status === "active" && v.effectiveFrom <= on && (!v.effectiveTo || on < v.effectiveTo));
-  if (!live.length) throw new DomainError(Codes.POLICY_MISSING, `No ${binding.pack.kind.replaceAll("_", " ")} policy is in effect on ${on} for ${binding.pack.code}.`, { reason: "no_version" });
-  if (live.length > 1) throw new DomainError(Codes.POLICY_AMBIGUOUS, `More than one ${binding.pack.code} policy version is in effect on ${on}.`, { reason: "overlapping_versions" });
-  return live[0];
-}
-function parsed(kind, binding, version) {
-  const result = parsePolicyRules(kind, version.rules);
-  if (!result.success) throw new DomainError(Codes.POLICY_INVALID, `${binding.pack.code} version ${version.versionNumber} has invalid ${kind} rules.`, { reason: result.error.issues.slice(0, 3).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") });
-  return result.data;
-}
-var later = (a, b) => a > b ? a : b;
-var earlier = (a, b) => a < b ? a : b;
-function intersect(a, b) {
-  const start = later(a.start, b.start);
-  const end = earlier(a.end, b.end);
-  return start < end ? { start, end } : { start: "00:00", end: "00:00" };
-}
-function stricterContactHours(layers) {
-  return layers.slice(1).reduce((acc, next) => ({
-    purposes: [.../* @__PURE__ */ new Set([...acc.purposes, ...next.purposes])],
-    basis: "recipient_local_time",
-    weekdays: intersect(acc.weekdays, next.weekdays),
-    saturday: intersect(acc.saturday, next.saturday),
-    sunday: intersect(acc.sunday, next.sunday),
-    // An exemption survives only when every layer grants it.
-    exemptions: acc.exemptions.filter((e) => next.exemptions.includes(e))
-  }), layers[0]);
-}
-function resolvePolicy(kind, place, on, candidates) {
-  if (!POLICY_KINDS.includes(kind)) throw new DomainError(Codes.INVALID_INPUT, `Unknown policy kind ${kind}.`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(on)) throw new DomainError(Codes.INVALID_INPUT, "Policy date must be YYYY-MM-DD.");
-  const applicable = candidates.filter((b) => b.status === "active" && b.pack.kind === kind && matches(b, place)).sort((a, b) => SCOPE_SPECIFICITY[b.scope] - SCOPE_SPECIFICITY[a.scope] || b.priority - a.priority);
-  if (!applicable.length) throw new DomainError(Codes.POLICY_MISSING, `No ${kind.replaceAll("_", " ")} policy applies here.`, { reason: "no_binding" });
-  if (kind === "contact_hours") {
-    const layers = applicable.map((binding) => {
-      const version2 = versionInEffect(binding, on);
-      return { binding, version: version2, rules: parsed(kind, binding, version2) };
-    });
-    const top = layers[0];
-    return {
-      kind,
-      packCode: top.binding.pack.code,
-      versionId: top.version.id,
-      versionNumber: top.version.versionNumber,
-      contentHash: top.version.contentHash,
-      bindingId: top.binding.id,
-      rules: stricterContactHours(layers.map((l) => l.rules)),
-      layers: layers.map((l) => ({ packCode: l.binding.pack.code, versionId: l.version.id, scope: l.binding.scope }))
-    };
-  }
-  const [winner, runnerUp] = applicable;
-  if (runnerUp && SCOPE_SPECIFICITY[runnerUp.scope] === SCOPE_SPECIFICITY[winner.scope] && runnerUp.priority === winner.priority && runnerUp.pack.id !== winner.pack.id) {
-    throw new DomainError(Codes.POLICY_AMBIGUOUS, `Two ${kind.replaceAll("_", " ")} policies (${winner.pack.code}, ${runnerUp.pack.code}) apply equally here. Set a priority on one binding.`, { reason: "tied_bindings" });
-  }
-  const version = versionInEffect(winner, on);
-  return {
-    kind,
-    packCode: winner.pack.code,
-    versionId: version.id,
-    versionNumber: version.versionNumber,
-    contentHash: version.contentHash,
-    bindingId: winner.id,
-    rules: parsed(kind, winner, version),
-    layers: [{ packCode: winner.pack.code, versionId: version.id, scope: winner.scope }]
-  };
-}
-var isoDay = (d) => d === null ? null : typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10);
-async function loadPolicyCandidates(db, kind) {
-  const rows = await db.policyBinding.findMany({
-    where: { status: "active", pack: { kind } },
-    include: { pack: { include: { versions: { where: { status: "active" } } } } }
-  });
-  return rows.map((b) => ({
-    id: b.id,
-    scope: b.scope,
-    scopeValue: b.scopeValue,
-    priority: b.priority,
-    status: b.status,
-    pack: {
-      id: b.pack.id,
-      code: b.pack.code,
-      kind: b.pack.kind,
-      versions: b.pack.versions.map((v) => ({ id: v.id, versionNumber: v.versionNumber, status: v.status, effectiveFrom: isoDay(v.effectiveFrom), effectiveTo: isoDay(v.effectiveTo), rules: v.rules, contentHash: v.contentHash, sourceRefs: v.sourceRefs }))
-    }
-  }));
-}
-async function resolvePolicyFromDb(db, kind, place, on) {
-  return resolvePolicy(kind, place, on, await loadPolicyCandidates(db, kind));
-}
-
-// features/keystone/mutations/policy.ts
-async function resolvePolicyQuery(_root, args, context) {
-  const actor = await actorFor(context);
-  await authorizeOperation(context.prisma, actor, "policy.resolve", ["canAccessDashboard"], args);
-  if (!POLICY_KINDS.includes(args.kind)) throw new DomainError(Codes.INVALID_INPUT, `Unknown policy kind ${args.kind}.`, { field: "kind" });
-  return resolvePolicyFromDb(context.prisma, args.kind, { state: args.state, county: args.county, city: args.city, zip: args.zip, branchId: args.branchId }, args.on);
-}
-
-// features/keystone/lib/sequence.ts
+// features/keystone/domain/contact.ts
 var import_node_crypto5 = require("node:crypto");
-async function nextReference(tx, prefix, now = /* @__PURE__ */ new Date(), width = 6) {
-  if (!/^[A-Z]{2,5}$/.test(prefix)) throw new Error("Reference prefix must be 2-5 capital letters");
-  const key2 = `${prefix}-${now.getUTCFullYear()}`;
-  await advisoryLock(tx, `sequence:${key2}`);
-  const row = await tx.sequence.upsert({ where: { key: key2 }, create: { key: key2, nextValue: 2 }, update: { nextValue: { increment: 1 } } });
-  const value = row.nextValue - 1;
-  return `${key2}-${String(value).padStart(width, "0")}`;
+function normalizePhone(input) {
+  const raw = String(input ?? "").trim();
+  if (raw.startsWith("+")) {
+    const digits2 = raw.slice(1).replace(/[\s().-]/g, "");
+    if (!/^[1-9]\d{7,14}$/.test(digits2)) throw new DomainError(Codes.INVALID_INPUT, "That phone number is not valid.", { field: "phone" });
+    return `+${digits2}`;
+  }
+  const digits = raw.replace(/\D/g, "");
+  const national = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(national)) throw new DomainError(Codes.INVALID_INPUT, "That phone number is not valid.", { field: "phone" });
+  return `+1${national}`;
 }
-var CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-function publicCode(prefix, groups = 2) {
-  const bytes = (0, import_node_crypto5.randomBytes)(groups * 4);
-  const chars = Array.from(bytes, (byte) => CROCKFORD[byte % 32]);
-  const parts = Array.from({ length: groups }, (_, i) => chars.slice(i * 4, i * 4 + 4).join(""));
-  return `${prefix}-${parts.join("-")}`;
+function normalizeEmail(input) {
+  const value = String(input ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) || value.length > 254) throw new DomainError(Codes.INVALID_INPUT, "That email address is not valid.", { field: "email" });
+  return value;
 }
-
-// features/keystone/domain/capacity.ts
-function windowsForDate(templates, date, timeZone, isOpen) {
-  assertDate(date);
-  if (!isOpen(date)) return [];
-  const day2 = weekday(date);
-  return templates.filter((t) => t.active && t.weekday === day2).map((t) => {
-    const startsAt = zonedInstant(timeZone, date, t.startLocal);
-    const endsAt = zonedInstant(timeZone, date, t.endLocal);
-    if (endsAt <= startsAt) throw new Error(`Window ${t.label} ends before it starts on ${date}`);
-    const factor = t.capacityFactor === null || t.capacityFactor === void 0 ? dec(1) : dec(t.capacityFactor);
-    return { templateId: t.id, businessUnitId: t.businessUnitId, date, startsAt, endsAt, label: t.label, capacityHours: toScale(dec(t.capacityHours).times(factor), "qty") };
-  }).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+var contactHash = (normalized) => (0, import_node_crypto5.createHash)("sha256").update(`contact:${normalized}`).digest("hex");
+function maskPhone(e164) {
+  if (!e164) return "";
+  return `(\u2022\u2022\u2022) \u2022\u2022\u2022-${e164.slice(-4)}`;
 }
-function dateRange(from, days) {
-  assertDate(from);
-  return Array.from({ length: Math.max(0, days) }, (_, i) => addDays(from, i));
+function maskEmail(email) {
+  if (!email) return "";
+  const [user, domain] = email.split("@");
+  return `${user.slice(0, 1)}\u2022\u2022\u2022@${domain ?? ""}`;
 }
-function holdExpiry(now, source, requestedMinutes) {
-  const max = source === "csr" ? 30 : 10;
-  const minutes = requestedMinutes ? Math.min(Math.max(1, Math.floor(requestedMinutes)), max) : max;
-  return new Date(now.getTime() + minutes * 6e4);
+function maskAddress(line1) {
+  if (!line1) return "";
+  const [number, ...rest] = line1.trim().split(/\s+/);
+  const street = rest.join(" ");
+  return street ? `${number} ${street.slice(0, 1)}\u2022\u2022\u2022` : `${number.slice(0, 1)}\u2022\u2022\u2022`;
+}
+function maskName(first, last) {
+  return [first?.trim(), last?.trim() ? `${last.trim()[0]}.` : ""].filter(Boolean).join(" ");
 }
 
 // features/integrations/maps/index.ts
@@ -3965,43 +4282,338 @@ function manualGeocoder(timeZone = "America/Chicago") {
 var current = manualGeocoder();
 var geocoder = () => current;
 
-// features/keystone/domain/contact.ts
-var import_node_crypto6 = require("node:crypto");
-function normalizePhone(input) {
-  const raw = String(input ?? "").trim();
-  if (raw.startsWith("+")) {
-    const digits2 = raw.slice(1).replace(/[\s().-]/g, "");
-    if (!/^[1-9]\d{7,14}$/.test(digits2)) throw new DomainError(Codes.INVALID_INPUT, "That phone number is not valid.", { field: "phone" });
-    return `+${digits2}`;
+// features/keystone/seed/operationsData.ts
+var acr = (cls, number) => ({ kind: "state_trade_license", trade: "hvac", issuer: "TDLR", number, licenseClass: cls, expiresOn: "2027-06-30" });
+var epa = (type, number) => ({ kind: "epa_608", trade: "hvac", issuer: "EPA-approved certifying organization", number, epaType: type });
+var plb = (cls, number, extra = {}) => ({ kind: "state_trade_license", trade: "plumbing", issuer: "TSBPE", number, licenseClass: cls, expiresOn: "2027-03-31", ...extra });
+var ele = (cls, number, extra = {}) => ({ kind: "state_trade_license", trade: "electrical", issuer: "TDLR", number, licenseClass: cls, expiresOn: "2027-09-30", ...extra });
+var TECHS = [
+  { key: "morrison", first: "Jake", last: "Morrison", title: "HVAC Technician", kind: "technician", units: ["seed_bu_hvac_service"], zip: "78745", phone: "+15125550110", skills: ["hvac_diag", "heat_pump", "refrigerant"], credentials: [acr("acr_certified_technician", "TACLR-CT-104512"), epa("universal", "EPA608-U-88213"), { kind: "nate", trade: "hvac", issuer: "NATE", number: "NATE-551204" }], saturday: true },
+  { key: "alvarez", first: "Sofia", last: "Alvarez", title: "HVAC Technician", kind: "technician", units: ["seed_bu_hvac_service"], zip: "78723", phone: "+15125550111", skills: ["hvac_diag", "refrigerant"], credentials: [acr("acr_registered_technician", "TACLR-RT-209331"), epa("type_ii", "EPA608-II-44120")] },
+  { key: "chu", first: "Derek", last: "Chu", title: "HVAC Install Lead", kind: "technician", units: ["seed_bu_hvac_service", "seed_bu_hvac_install"], zip: "78759", phone: "+15125550112", skills: ["hvac_diag", "install", "heat_pump", "refrigerant"], credentials: [acr("acr_certified_technician", "TACLR-CT-118870"), epa("universal", "EPA608-U-90157")] },
+  { key: "lee", first: "Brandon", last: "Lee", title: "HVAC Apprentice", kind: "apprentice", units: ["seed_bu_hvac_service"], zip: "78741", phone: "+15125550113", skills: ["maintenance"], credentials: [acr("acr_registered_technician", "TACLR-RT-311046"), epa("type_i", "EPA608-I-12007")], saturday: true },
+  { key: "castillo", first: "Ray", last: "Castillo", title: "Master Plumber", kind: "technician", units: ["seed_bu_plumbing_service"], zip: "78704", phone: "+15125550114", skills: ["water_heater", "repipe", "gas_line", "drain"], credentials: [plb("master_plumber", "M-40122")] },
+  { key: "patel", first: "Nina", last: "Patel", title: "Journeyman Plumber", kind: "technician", units: ["seed_bu_plumbing_service"], zip: "78757", phone: "+15125550115", skills: ["water_heater", "drain", "leak_detection"], credentials: [plb("journeyman_plumber", "J-55418")], saturday: true },
+  { key: "harris", first: "Cody", last: "Harris", title: "Plumber Apprentice", kind: "apprentice", units: ["seed_bu_plumbing_service"], zip: "78744", phone: "+15125550116", skills: ["drain"], credentials: [plb("plumber_apprentice", "AP-77310")] },
+  { key: "haddad", first: "Omar", last: "Haddad", title: "Journeyman Plumber (drains)", kind: "technician", units: ["seed_bu_plumbing_service"], zip: "78660", phone: "+15125550117", skills: ["drain", "sewer_camera", "hydro_jet"], credentials: [plb("journeyman_plumber", "J-58902", { status: "pending_verification" })] },
+  { key: "bennett", first: "Grace", last: "Bennett", title: "Master Electrician", kind: "technician", units: ["seed_bu_electrical"], zip: "78703", phone: "+15125550118", skills: ["panel", "ev_charger", "troubleshooting"], credentials: [ele("master_electrician", "ME-21877")] },
+  { key: "dawson", first: "Luke", last: "Dawson", title: "Journeyman Electrician", kind: "technician", units: ["seed_bu_electrical"], zip: "78681", phone: "+15125550119", skills: ["troubleshooting", "ev_charger"], credentials: [ele("journeyman_electrician", "JE-63540")], saturday: true },
+  { key: "ford", first: "Maya", last: "Ford", title: "Residential Wireman", kind: "technician", units: ["seed_bu_electrical"], zip: "78613", phone: "+15125550120", skills: ["troubleshooting"], credentials: [ele("residential_wireman", "RW-70215", { expiresOn: "2026-11-30" })] },
+  { key: "turner", first: "Eli", last: "Turner", title: "Electrical Apprentice", kind: "apprentice", units: ["seed_bu_electrical"], zip: "78748", phone: "+15125550121", skills: [], credentials: [ele("electrical_apprentice", "EA-90551")] }
+];
+var SKILLS = [
+  ["hvac_diag", "HVAC diagnostics", "hvac"],
+  ["heat_pump", "Heat pumps", "hvac"],
+  ["refrigerant", "Refrigerant recovery and charging", "hvac"],
+  ["install", "System installs", "hvac"],
+  ["maintenance", "Tune-ups", "hvac"],
+  ["water_heater", "Water heaters", "plumbing"],
+  ["repipe", "Repipes", "plumbing"],
+  ["gas_line", "Gas lines", "plumbing"],
+  ["drain", "Drain cleaning", "plumbing"],
+  ["leak_detection", "Leak detection", "plumbing"],
+  ["sewer_camera", "Sewer camera", "plumbing"],
+  ["hydro_jet", "Hydro-jetting", "plumbing"],
+  ["panel", "Panels and services", "electrical"],
+  ["ev_charger", "EV chargers", "electrical"],
+  ["troubleshooting", "Electrical troubleshooting", "electrical"]
+];
+var REQUIREMENTS = [
+  { id: "seed_req_acr_refrigerant", name: "ACR work with refrigerant", licensingTags: ["acr_service", "refrigerant_handling"], skills: ["hvac_diag"] },
+  { id: "seed_req_acr", name: "ACR work, no refrigerant", licensingTags: ["acr_service"], skills: [] },
+  { id: "seed_req_plumbing", name: "Licensed plumbing", licensingTags: ["plumbing_service"], skills: [] },
+  { id: "seed_req_drain", name: "Drain and sewer", licensingTags: ["plumbing_service"], skills: ["drain"] },
+  { id: "seed_req_electrical", name: "Licensed electrical", licensingTags: ["electrical_service"], skills: [] },
+  { id: "seed_req_sales", name: "Comfort advisor visit (no field work)", licensingTags: [], skills: [] }
+];
+var GAS = { keywords: ["smell gas", "gas smell", "smells like gas", "carbon monoxide", "co alarm", "co detector"], script: "If you smell gas or your CO alarm is going off, leave the house now with everyone, do not switch anything on or off, and call Texas Gas Service or 911 from outside. I am paging our on-call technician.", page: true };
+var WATER = { keywords: ["burst pipe", "pipe burst", "flooding", "water everywhere", "gushing", "water pouring"], script: "Please turn off the main water shut-off now; it is usually where the water line enters the house or at the meter box by the street. I am paging our on-call plumber.", page: true };
+var SPARKS = { keywords: ["sparking", "sparks", "burning smell", "smoke from", "panel is hot", "outlet melted"], script: "If you see smoke or sparks, stay away from it. If it is safe, switch off the main breaker. If there is fire or smoke, leave and call 911. I am paging our on-call electrician.", page: true };
+var JOB_TYPES = [
+  { id: "seed_jt_ac_diag", code: "AC-DIAG", name: "AC not cooling: diagnostic", bu: "seed_bu_hvac_service", trade: "hvac", priority: "urgent", minutes: 90, hours: "2", req: "seed_req_acr_refrigerant", ai: true, keywords: ["ac", "air conditioner", "not cooling", "warm air", "hot air", "compressor", "refrigerant", "freon", "frozen coil", "ice on", "thermostat", "cooling"], emergency: null },
+  { id: "seed_jt_heat_diag", code: "HEAT-DIAG", name: "No heat: diagnostic", bu: "seed_bu_hvac_service", trade: "hvac", priority: "urgent", minutes: 90, hours: "2", req: "seed_req_acr", ai: true, keywords: ["heat", "heater", "furnace", "no heat", "cold air", "heat pump", "pilot"], emergency: GAS },
+  { id: "seed_jt_ac_tune", code: "AC-TUNE", name: "Cooling tune-up", bu: "seed_bu_hvac_service", trade: "hvac", priority: "maintenance", minutes: 60, hours: "1.5", req: "seed_req_acr_refrigerant", ai: true, keywords: ["tune-up", "tune up", "maintenance", "check-up", "checkup", "service my ac"], emergency: null },
+  { id: "seed_jt_heat_tune", code: "HEAT-TUNE", name: "Heating tune-up", bu: "seed_bu_hvac_service", trade: "hvac", priority: "maintenance", minutes: 60, hours: "1.5", req: "seed_req_acr", ai: true, keywords: ["furnace tune", "heating tune", "heating maintenance", "safety check"], emergency: null },
+  { id: "seed_jt_hvac_est", code: "HVAC-EST", name: "System replacement estimate", bu: "seed_bu_hvac_install", trade: "hvac", priority: "standard", minutes: 75, hours: "1.5", req: "seed_req_sales", ai: true, keywords: ["replace", "replacement", "new system", "new ac", "new unit", "quote", "estimate", "old unit"], emergency: null },
+  { id: "seed_jt_drain", code: "DRAIN-CLR", name: "Clogged drain", bu: "seed_bu_plumbing_service", trade: "plumbing", priority: "standard", minutes: 60, hours: "1.5", req: "seed_req_drain", ai: true, keywords: ["clog", "clogged", "drain", "slow drain", "backed up", "toilet", "sink", "shower"], emergency: null },
+  { id: "seed_jt_leak", code: "LEAK-REP", name: "Water leak", bu: "seed_bu_plumbing_service", trade: "plumbing", priority: "urgent", minutes: 90, hours: "2", req: "seed_req_plumbing", ai: true, keywords: ["leak", "leaking", "drip", "dripping", "water on floor", "pipe"], emergency: WATER },
+  { id: "seed_jt_wh_diag", code: "WH-DIAG", name: "Water heater not working", bu: "seed_bu_plumbing_service", trade: "plumbing", priority: "urgent", minutes: 90, hours: "2", req: "seed_req_plumbing", ai: true, keywords: ["water heater", "hot water", "no hot water", "tankless", "pilot light"], emergency: GAS },
+  { id: "seed_jt_sewer_cam", code: "SEWER-CAM", name: "Sewer camera inspection", bu: "seed_bu_plumbing_service", trade: "plumbing", priority: "standard", minutes: 75, hours: "1.5", req: "seed_req_drain", ai: false, keywords: ["sewer", "camera", "main line", "roots"], emergency: null },
+  { id: "seed_jt_elec_diag", code: "ELEC-DIAG", name: "Electrical problem: diagnostic", bu: "seed_bu_electrical", trade: "electrical", priority: "urgent", minutes: 75, hours: "1.5", req: "seed_req_electrical", ai: true, keywords: ["outlet", "breaker", "tripping", "lights flicker", "flickering", "no power", "switch", "electrical"], emergency: SPARKS },
+  { id: "seed_jt_panel_est", code: "PANEL-EST", name: "Panel upgrade estimate", bu: "seed_bu_electrical", trade: "electrical", priority: "standard", minutes: 60, hours: "1", req: "seed_req_electrical", ai: true, keywords: ["panel", "upgrade", "200 amp", "fuse box", "service upgrade"], emergency: null },
+  { id: "seed_jt_ev", code: "EV-CHG", name: "EV charger install estimate", bu: "seed_bu_electrical", trade: "electrical", priority: "standard", minutes: 60, hours: "1", req: "seed_req_electrical", ai: true, keywords: ["ev", "charger", "tesla", "level 2", "car charger"], emergency: null }
+];
+var SERVICE_WINDOWS = [["08:00", "10:00", "8\u201310 AM"], ["10:00", "12:00", "10 AM\u201312 PM"], ["12:00", "14:00", "12\u20132 PM"], ["14:00", "16:00", "2\u20134 PM"]];
+var INSTALL_WINDOWS = [["08:00", "12:00", "8 AM\u201312 PM"], ["12:00", "16:00", "12\u20134 PM"]];
+var WINDOW_TEMPLATES = BUSINESS_UNITS.flatMap((bu) => {
+  const slots = bu.kind === "install" ? INSTALL_WINDOWS : SERVICE_WINDOWS;
+  const hours = bu.kind === "install" ? "3" : "6";
+  return [1, 2, 3, 4, 5, 6].flatMap((weekday2) => slots.map(([start, end, label]) => ({
+    id: `seed_awt_${bu.code.toLowerCase().replace(/[^a-z]/g, "")}_${weekday2}_${start.replace(":", "")}`,
+    businessUnitId: bu.id,
+    weekday: weekday2,
+    startLocal: start,
+    endLocal: end,
+    label,
+    capacityHours: hours,
+    capacityFactor: weekday2 === 6 ? "0.5" : null
+  })));
+});
+var CAMPAIGNS = [
+  { id: "seed_campaign_lsa", name: "Google Local Services", channel: "google_lsa", monthlyCostMinor: 450000n, number: "+15125550190" },
+  { id: "seed_campaign_ads", name: "Google Ads: AC repair", channel: "google_ads", monthlyCostMinor: 300000n, number: "+15125550191" },
+  { id: "seed_campaign_yard", name: "Yard signs", channel: "yard_sign", monthlyCostMinor: 20000n, number: "+15125550192" },
+  { id: "seed_campaign_truck", name: "Truck wraps", channel: "truck_wrap", monthlyCostMinor: 0n, number: "+15125550193" }
+];
+var FIRST = ["Emily", "Michael", "Ashley", "David", "Jessica", "Chris", "Sarah", "Daniel", "Laura", "James", "Megan", "Robert", "Olivia", "Carlos", "Hannah", "Kevin", "Rebecca", "Jason", "Natalie", "Andrew"];
+var LAST = ["Garcia", "Nguyen", "Johnson", "Martinez", "Brown", "Wilson", "Lopez", "Anderson", "Thomas", "Hernandez", "Moore", "Jackson", "White", "Clark", "Lewis", "Walker", "Young", "Allen", "King", "Wright"];
+var STREETS = ["Shoal Creek Blvd", "Bluebonnet Ln", "Oak Hollow Dr", "Mesquite Trl", "Pecan Grove Rd", "Cedar Elm Way", "Live Oak St", "Prairie Dawn Dr", "Limestone Ridge", "Agave Ct", "Sycamore Bend", "Hill Country Dr"];
+var CITY = { "78613": "Cedar Park", "78660": "Pflugerville", "78664": "Round Rock", "78665": "Round Rock", "78681": "Round Rock", "78717": "Austin", "78727": "Austin", "78728": "Austin", "78729": "Austin", "78750": "Austin" };
+var ZIPS = Object.keys(ZIP_CENTROIDS);
+var jitter = (base, i, salt) => {
+  const offsetMicro = (i * 7919 + salt * 104729) % 4e3 - 2e3;
+  return toScale(dec(base).plus(dec(offsetMicro).div(1e5)), 6);
+};
+var MAIL_DOMAINS = ["gmail.com", "yahoo.com", "outlook.com", "icloud.com", "att.net", "hotmail.com"];
+var HOUSEHOLDS = Array.from({ length: 60 }, (_, i) => {
+  const first = FIRST[i % FIRST.length];
+  const last = LAST[(i * 7 + 3) % LAST.length];
+  const zip = ZIPS[i * 11 % ZIPS.length];
+  const [lat, lng] = ZIP_CENTROIDS[zip];
+  const n = String(i + 1).padStart(3, "0");
+  return {
+    id: `seed_cus_${n}`,
+    ref: `CUS-SEED-${n}`,
+    first,
+    last,
+    displayName: `${first} ${last}`,
+    phone: `+1512555${String(130 + i).padStart(4, "0")}`,
+    email: `${first}.${last}${i + 1}@${MAIL_DOMAINS[i % MAIL_DOMAINS.length]}`.toLowerCase(),
+    location: { id: `seed_loc_${n}`, ref: `LOC-SEED-${n}`, address1: `${1e3 + i * 37 % 8900} ${STREETS[i % STREETS.length]}`, city: CITY[zip] ?? "Austin", postalCode: zip, lat: jitter(lat, i, 1), lng: jitter(lng, i, 2), propertyType: i % 9 === 4 ? "townhome" : "single_family", yearBuilt: 1972 + i * 13 % 52 },
+    // Three households never agreed to texts; one has opted out by STOP.
+    smsConsent: ![7, 23, 41].includes(i),
+    optedOut: i === 52
+  };
+});
+var COMMERCIAL = { id: "seed_cus_hcpm", ref: "CUS-SEED-HCPM", displayName: "Hill Country Property Management", first: "Jordan", last: "Reese", phone: "+15125550199", email: "maintenance@hillcountrypm.com", location: { id: "seed_loc_hcpm_1", ref: "LOC-SEED-HCPM-1", address1: "2200 Riverside Commons, Bldg C", city: "Austin", postalCode: "78741", lat: "30.238100", lng: "-97.723300", propertyType: "multifamily", yearBuilt: 1998 } };
+
+// features/keystone/seed/operations.ts
+var UNUSABLE_PASSWORD_HASH2 = "$2a$10$3dITCbIvf5zFA.1U8KZDhOHC3EEexi3KYy5ysZK1cRF6LHMm0H.ya";
+var day2 = (iso) => /* @__PURE__ */ new Date(`${iso}T00:00:00Z`);
+async function seedOperations(uow, actor) {
+  const { tx, now } = uow;
+  const created = { skills: 0, technicians: 0, credentials: 0, requirements: 0, jobTypes: 0, windowTemplates: 0, shiftTemplates: 0, onCall: 0, campaigns: 0, customers: 0, locations: 0, consents: 0 };
+  const meta = { metadata: { seed: true } };
+  const haveSkills = new Set((await tx.skill.findMany({ select: { code: true } })).map((s) => s.code));
+  const newSkills = SKILLS.filter(([code]) => !haveSkills.has(code));
+  if (newSkills.length) {
+    await tx.skill.createMany({ data: newSkills.map(([code, name, trade2]) => ({ id: `seed_skill_${code}`, code, name, trade: trade2 })) });
+    created.skills = newSkills.length;
   }
-  const digits = raw.replace(/\D/g, "");
-  const national = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
-  if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(national)) throw new DomainError(Codes.INVALID_INPUT, "That phone number is not valid.", { field: "phone" });
-  return `+1${national}`;
+  const skillId = (code) => `seed_skill_${code}`;
+  const techIds = TECHS.map((t) => `seed_emp_${t.key}`);
+  const haveEmployees = new Set((await tx.employee.findMany({ where: { id: { in: [...techIds, "seed_emp_kim"] } }, select: { id: true } })).map((e) => e.id));
+  const newTechs = TECHS.filter((t) => !haveEmployees.has(`seed_emp_${t.key}`));
+  if (newTechs.length) {
+    const emails = newTechs.map((t) => `${t.first}.${t.last}@summitplumbingair.com`.toLowerCase());
+    const existingUsers = new Set((await tx.user.findMany({ where: { email: { in: emails } }, select: { email: true } })).map((u) => u.email));
+    await tx.user.createMany({ data: newTechs.filter((t) => !existingUsers.has(`${t.first}.${t.last}@summitplumbingair.com`.toLowerCase())).map((t) => ({ id: `seed_user_${t.key}`, name: `${t.first} ${t.last}`, email: `${t.first}.${t.last}@summitplumbingair.com`.toLowerCase(), title: t.title, phone: t.phone, password: UNUSABLE_PASSWORD_HASH2, kind: "staff", roleId: "seed_role_technician", onboardingStatus: "dismissed" })) });
+    for (const [i, t] of newTechs.entries()) {
+      const [lat, lng] = ZIP_CENTROIDS[t.zip];
+      await tx.employee.create({
+        data: {
+          id: `seed_emp_${t.key}`,
+          userId: `seed_user_${t.key}`,
+          firstName: t.first,
+          lastName: t.last,
+          displayName: `${t.first} ${t.last}`,
+          employeeNumber: `E-${String(1101 + TECHS.indexOf(t))}`,
+          homeBranchId: BRANCH.id,
+          kind: t.kind,
+          employmentType: "w2_hourly",
+          hireDate: day2(`20${String(14 + i % 10).padStart(2, "0")}-0${1 + i % 9}-15`),
+          phoneE164: t.phone,
+          email: `${t.first}.${t.last}@summitplumbingair.com`.toLowerCase(),
+          lat: jitter(lat, i, 3),
+          lng: jitter(lng, i, 4),
+          dispatchable: true,
+          status: "active",
+          businessUnits: { connect: t.units.map((id) => ({ id })) },
+          skills: { connect: t.skills.map((code) => ({ id: skillId(code) })) }
+        }
+      });
+      auditCreate(uow, actor, "Employee", `seed_emp_${t.key}`, "employee.created", { name: `${t.first} ${t.last}`, kind: t.kind, units: t.units }, meta);
+    }
+    const credentials = newTechs.flatMap((t) => t.credentials.map((c, j) => ({
+      id: `seed_cred_${t.key}_${j}`,
+      employeeId: `seed_emp_${t.key}`,
+      kind: c.kind,
+      trade: c.trade,
+      jurisdictionCode: c.kind === "epa_608" ? "US" : "US-TX",
+      issuer: c.issuer,
+      number: c.number,
+      licenseClass: c.licenseClass ?? "",
+      epaType: c.epaType ?? "none",
+      issuedOn: day2("2022-01-15"),
+      expiresOn: c.expiresOn ? day2(c.expiresOn) : null,
+      status: c.status ?? "verified",
+      verifiedById: (c.status ?? "verified") === "verified" ? "seed_user_ortega" : null,
+      verifiedAt: (c.status ?? "verified") === "verified" ? /* @__PURE__ */ new Date("2026-10-01T15:00:00Z") : null
+    })));
+    await tx.credential.createMany({ data: credentials });
+    for (const c of credentials) auditCreate(uow, actor, "Credential", c.id, c.status === "verified" ? "credential.verified" : "credential.created", { employeeId: c.employeeId, kind: c.kind, licenseClass: c.licenseClass, epaType: c.epaType, expiresOn: c.expiresOn }, meta);
+    created.technicians = newTechs.length;
+    created.credentials = credentials.length;
+    const shiftTemplates = newTechs.flatMap((t) => [1, 2, 3, 4, 5].map((weekday2) => ({ employeeId: `seed_emp_${t.key}`, weekday: weekday2, startLocal: "07:30", endLocal: "17:00" })).concat(t.saturday ? [{ employeeId: `seed_emp_${t.key}`, weekday: 6, startLocal: "08:00", endLocal: "14:00" }] : []));
+    await tx.shiftTemplate.createMany({ data: shiftTemplates, skipDuplicates: true });
+    created.shiftTemplates = shiftTemplates.length;
+  }
+  if (!haveEmployees.has("seed_emp_kim")) {
+    await tx.employee.create({ data: { id: "seed_emp_kim", userId: "seed_user_kim", firstName: "Rachel", lastName: "Kim", displayName: "Rachel Kim", employeeNumber: "E-1201", homeBranchId: BRANCH.id, kind: "sales", employmentType: "w2_salaried_nonexempt", phoneE164: "+15125550109", email: "rachel.kim@summitplumbingair.com", lat: "30.351600", lng: "-97.731700", dispatchable: true, status: "active", businessUnits: { connect: [{ id: "seed_bu_hvac_install" }] } } });
+    await tx.shiftTemplate.createMany({ data: [1, 2, 3, 4, 5].map((weekday2) => ({ employeeId: "seed_emp_kim", weekday: weekday2, startLocal: "08:00", endLocal: "17:00" })), skipDuplicates: true });
+    auditCreate(uow, actor, "Employee", "seed_emp_kim", "employee.created", { name: "Rachel Kim", kind: "sales" }, meta);
+    created.technicians += 1;
+  }
+  const haveReqs = new Set((await tx.jobTypeRequirement.findMany({ where: { id: { in: REQUIREMENTS.map((r) => r.id) } }, select: { id: true } })).map((r) => r.id));
+  for (const r of REQUIREMENTS.filter((r2) => !haveReqs.has(r2.id))) {
+    await tx.jobTypeRequirement.create({ data: { id: r.id, name: r.name, licensingTags: [...r.licensingTags], requiredCredentialKinds: [], requiresSupervisorOnJob: false, skills: { connect: r.skills.map((code) => ({ id: skillId(code) })) } } });
+    created.requirements += 1;
+  }
+  if (!await tx.checklistTemplate.findUnique({ where: { id: "seed_checklist_ac" } })) {
+    await tx.checklistTemplate.create({ data: { id: "seed_checklist_ac", name: "Cooling system check", required: true, items: [{ key: "thermostat", label: "Thermostat set and responding" }, { key: "filter", label: "Filter condition" }, { key: "pressures", label: "Suction and liquid pressures recorded" }, { key: "delta_t", label: "Supply/return temperature split" }, { key: "condensate", label: "Condensate drain clear" }] } });
+  }
+  const haveTypes = new Set((await tx.jobType.findMany({ where: { id: { in: JOB_TYPES.map((j) => j.id) } }, select: { id: true } })).map((j) => j.id));
+  const newTypes = JOB_TYPES.filter((j) => !haveTypes.has(j.id));
+  if (newTypes.length) {
+    await tx.jobType.createMany({
+      data: newTypes.map((j) => ({
+        id: j.id,
+        code: j.code,
+        name: j.name,
+        businessUnitId: j.bu,
+        trade: j.trade,
+        priority: j.priority,
+        defaultDurationMinutes: j.minutes,
+        capacityHours: j.hours,
+        crewSize: 1,
+        requirementsId: j.req,
+        keywords: [...j.keywords],
+        bookableOnline: j.ai,
+        bookableByAi: j.ai,
+        emergencyPolicy: j.emergency ?? void 0,
+        checklistTemplateId: j.code === "AC-DIAG" || j.code === "AC-TUNE" ? "seed_checklist_ac" : null,
+        refrigerantWork: j.req === "seed_req_acr_refrigerant",
+        permitLikely: false,
+        bookingQuestions: [],
+        active: true
+      }))
+    });
+    for (const j of newTypes) auditCreate(uow, actor, "JobType", j.id, "job_type.created", { code: j.code, businessUnitId: j.bu, requirement: j.req, bookableByAi: j.ai, emergency: !!j.emergency }, meta);
+    created.jobTypes = newTypes.length;
+  }
+  const haveTemplates = new Set((await tx.arrivalWindowTemplate.findMany({ select: { id: true } })).map((t) => t.id));
+  const newTemplates = WINDOW_TEMPLATES.filter((t) => !haveTemplates.has(t.id));
+  if (newTemplates.length) {
+    await tx.arrivalWindowTemplate.createMany({ data: newTemplates.map((t) => ({ ...t, active: true })), skipDuplicates: true });
+    uow.audit({ eventType: "capacity.templates_loaded", entityType: "ArrivalWindowTemplate", entityId: "seed", actorUserId: actor.kind === "user" ? actor.userId : null, after: { count: newTemplates.length } });
+    created.windowTemplates = newTemplates.length;
+  }
+  if (!await tx.onCallRotation.count()) {
+    const sixAm = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 6);
+    const start = new Date(sixAm > now.getTime() ? sixAm - 864e5 : sixAm);
+    const rota = {
+      seed_bu_hvac_service: [["morrison", "chu"], ["alvarez", "chu"], ["chu", "morrison"], ["morrison", "chu"]],
+      seed_bu_plumbing_service: [["patel", "castillo"], ["haddad", "castillo"], ["castillo", "patel"], ["patel", "castillo"]],
+      seed_bu_electrical: [["dawson", "bennett"], ["bennett", "dawson"], ["dawson", "bennett"], ["bennett", "dawson"]]
+    };
+    const rows = Object.entries(rota).flatMap(([bu, weeks]) => weeks.flatMap(([primary, backup], w) => [primary, backup].map((key2, order) => ({
+      businessUnitId: bu,
+      employeeId: `seed_emp_${key2}`,
+      startsAt: new Date(start.getTime() + w * 7 * 864e5),
+      endsAt: new Date(start.getTime() + (w + 1) * 7 * 864e5),
+      phoneE164: TECHS.find((t) => t.key === key2).phone,
+      escalationOrder: order + 1
+    }))));
+    await tx.onCallRotation.createMany({ data: rows });
+    created.onCall = rows.length;
+  }
+  const haveCampaigns = new Set((await tx.campaign.findMany({ select: { id: true } })).map((c) => c.id));
+  for (const c of CAMPAIGNS.filter((c2) => !haveCampaigns.has(c2.id))) {
+    await tx.campaign.create({ data: { id: c.id, name: c.name, channel: c.channel, monthlyCostMinor: c.monthlyCostMinor, active: true, trackingNumbers: { create: [{ phoneE164: c.number, provider: "manual", forwardTo: "+15125550100" }] } } });
+    created.campaigns += 1;
+  }
+  const all2 = [...HOUSEHOLDS.map((h) => ({ ...h, kind: "residential", organizationName: "" })), { ...COMMERCIAL, kind: "commercial", organizationName: COMMERCIAL.displayName, smsConsent: true, optedOut: false }];
+  const haveCustomers = new Set((await tx.customer.findMany({ where: { id: { in: all2.map((c) => c.id) } }, select: { id: true } })).map((c) => c.id));
+  const fresh = all2.filter((c) => !haveCustomers.has(c.id));
+  if (fresh.length) {
+    await tx.customer.createMany({ data: fresh.map((c) => ({ id: c.id, ref: c.ref, kind: c.kind, displayName: c.displayName, organizationName: c.organizationName })) });
+    await tx.contact.createMany({ data: fresh.map((c) => ({ id: `${c.id}_contact`, customerId: c.id, firstName: c.first, lastName: c.last, role: c.kind === "commercial" ? "property_manager" : "owner" })) });
+    await tx.$executeRaw`UPDATE "Customer" SET "primaryContact" = id || '_contact' WHERE id = ANY(${fresh.map((c) => c.id)}::text[])`;
+    await tx.contactPoint.createMany({
+      data: fresh.flatMap((c) => [
+        { id: `${c.id}_mobile`, contactId: `${c.id}_contact`, kind: "mobile", value: c.phone, valueHash: contactHash(c.phone), isPrimary: true, carrierLineType: "mobile" },
+        { id: `${c.id}_email`, contactId: `${c.id}_contact`, kind: "email", value: c.email, valueHash: contactHash(c.email), isPrimary: false, carrierLineType: "unknown" }
+      ])
+    });
+    const serviceArea = (zip) => ["78613", "78660", "78664", "78665", "78681", "78717", "78727", "78728", "78729", "78750"].includes(zip) ? "seed_area_north" : "seed_area_austin";
+    await tx.serviceLocation.createMany({
+      data: fresh.map((c) => ({ id: c.location.id, ref: c.location.ref, customerId: c.id, address1: c.location.address1, city: c.location.city, state: "TX", county: ["78613", "78660", "78664", "78665", "78681", "78717", "78729"].includes(c.location.postalCode) ? "Williamson" : "Travis", postalCode: c.location.postalCode, country: "US", lat: c.location.lat, lng: c.location.lng, geocodeQuality: "interpolated", timeZone: "America/Chicago", serviceAreaId: serviceArea(c.location.postalCode), propertyClass: c.kind === "commercial" ? "nonresidential" : "residential", propertyType: c.location.propertyType, yearBuilt: c.location.yearBuilt }))
+    });
+    await tx.locationOwnership.createMany({ data: fresh.map((c) => ({ locationId: c.location.id, customerId: c.id, from: day2("2020-01-01"), reason: "import" })) });
+    const consents = fresh.flatMap((c) => [
+      ...c.smsConsent ? [{ contactPointId: `${c.id}_mobile`, purpose: "transactional_sms", action: "grant", channel: "import", evidence: { source: "prior system export", capturedAt: "2026-06-01" }, wordingVersion: "booking-texts-v1", recordedAt: /* @__PURE__ */ new Date("2026-06-01T15:00:00Z"), actorKind: "system", actorId: "seed" }] : [],
+      ...c.optedOut ? [{ contactPointId: `${c.id}_mobile`, purpose: "transactional_sms", action: "revoke", channel: "sms_keyword", evidence: { keyword: "STOP" }, wordingVersion: "ctia-keywords", recordedAt: /* @__PURE__ */ new Date("2026-09-12T19:20:00Z"), actorKind: "customer", actorId: "" }] : []
+    ]);
+    await tx.consentRecord.createMany({ data: consents });
+    const optedOut = fresh.filter((c) => c.optedOut);
+    if (optedOut.length) await tx.dncEntry.createMany({ data: optedOut.map((c) => ({ valueHash: contactHash(c.phone), kind: "internal", source: "sms_stop", addedAt: /* @__PURE__ */ new Date("2026-09-12T19:20:00Z") })) });
+    for (const c of fresh) auditCreate(uow, actor, "Customer", c.id, "customer.created", { ref: c.ref, kind: c.kind, locationId: c.location.id, smsConsent: c.smsConsent }, meta);
+    created.customers = fresh.length;
+    created.locations = fresh.length;
+    created.consents = consents.length;
+  }
+  return created;
 }
-function normalizeEmail(input) {
-  const value = String(input ?? "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) || value.length > 254) throw new DomainError(Codes.INVALID_INPUT, "That email address is not valid.", { field: "email" });
-  return value;
+
+// features/keystone/lib/sequence.ts
+var import_node_crypto6 = require("node:crypto");
+async function nextReference(tx, prefix, now = /* @__PURE__ */ new Date(), width = 6) {
+  if (!/^[A-Z]{2,5}$/.test(prefix)) throw new Error("Reference prefix must be 2-5 capital letters");
+  const key2 = `${prefix}-${now.getUTCFullYear()}`;
+  await advisoryLock(tx, `sequence:${key2}`);
+  const row = await tx.sequence.upsert({ where: { key: key2 }, create: { key: key2, nextValue: 2 }, update: { nextValue: { increment: 1 } } });
+  const value = row.nextValue - 1;
+  return `${key2}-${String(value).padStart(width, "0")}`;
 }
-var contactHash = (normalized) => (0, import_node_crypto6.createHash)("sha256").update(`contact:${normalized}`).digest("hex");
-function maskPhone(e164) {
-  if (!e164) return "";
-  return `(\u2022\u2022\u2022) \u2022\u2022\u2022-${e164.slice(-4)}`;
+var CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+function publicCode(prefix, groups = 2) {
+  const bytes = (0, import_node_crypto6.randomBytes)(groups * 4);
+  const chars = Array.from(bytes, (byte) => CROCKFORD[byte % 32]);
+  const parts = Array.from({ length: groups }, (_, i) => chars.slice(i * 4, i * 4 + 4).join(""));
+  return `${prefix}-${parts.join("-")}`;
 }
-function maskEmail(email) {
-  if (!email) return "";
-  const [user, domain] = email.split("@");
-  return `${user.slice(0, 1)}\u2022\u2022\u2022@${domain ?? ""}`;
+
+// features/keystone/domain/capacity.ts
+function windowsForDate(templates, date, timeZone, isOpen) {
+  assertDate(date);
+  if (!isOpen(date)) return [];
+  const day3 = weekday(date);
+  return templates.filter((t) => t.active && t.weekday === day3).map((t) => {
+    const startsAt = zonedInstant(timeZone, date, t.startLocal);
+    const endsAt = zonedInstant(timeZone, date, t.endLocal);
+    if (endsAt <= startsAt) throw new Error(`Window ${t.label} ends before it starts on ${date}`);
+    const factor = t.capacityFactor === null || t.capacityFactor === void 0 ? dec(1) : dec(t.capacityFactor);
+    return { templateId: t.id, businessUnitId: t.businessUnitId, date, startsAt, endsAt, label: t.label, capacityHours: toScale(dec(t.capacityHours).times(factor), "qty") };
+  }).sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }
-function maskAddress(line1) {
-  if (!line1) return "";
-  const [number, ...rest] = line1.trim().split(/\s+/);
-  const street = rest.join(" ");
-  return street ? `${number} ${street.slice(0, 1)}\u2022\u2022\u2022` : `${number.slice(0, 1)}\u2022\u2022\u2022`;
+function dateRange(from, days) {
+  assertDate(from);
+  return Array.from({ length: Math.max(0, days) }, (_, i) => addDays(from, i));
 }
-function maskName(first, last) {
-  return [first?.trim(), last?.trim() ? `${last.trim()[0]}.` : ""].filter(Boolean).join(" ");
+function holdExpiry(now, source, requestedMinutes) {
+  const max = source === "csr" ? 30 : 10;
+  const minutes = requestedMinutes ? Math.min(Math.max(1, Math.floor(requestedMinutes)), max) : max;
+  return new Date(now.getTime() + minutes * 6e4);
 }
 
 // features/keystone/services/booking.ts
@@ -4041,37 +4653,52 @@ async function serviceAreaFor(db, businessUnitId, postalCode) {
   const areas = await db.serviceArea.findMany({ where: { zips: { array_contains: [zip] }, ...businessUnitId ? { businessUnits: { some: { id: businessUnitId } } } : {} }, select: { id: true, name: true, travelZone: true } });
   return areas[0] ?? null;
 }
-async function loadBranchCalendar(db, businessUnitId) {
-  const bu = await db.businessUnit.findUnique({ where: { id: businessUnitId }, select: { id: true, capacityEnabled: true, branch: { select: { timeZone: true, calendar: { select: { code: true, weekendDays: true, coverageThrough: true, exceptions: { where: { kind: { in: ["holiday", "closure"] } }, select: { date: true } }, composedOf: { select: { code: true, exceptions: { select: { date: true } } } } } } } } } });
-  if (!bu) throw new DomainError(Codes.NOT_FOUND, "Business unit not found.");
-  const timeZone = bu.branch?.timeZone ?? "America/Chicago";
-  const cal = bu.branch?.calendar;
+async function branchCalendar(db, branchId) {
+  const branch = branchId ? await db.branch.findUnique({ where: { id: branchId }, select: { timeZone: true, calendar: { select: { code: true, weekendDays: true, coverageThrough: true, exceptions: { where: { kind: { in: ["holiday", "closure"] } }, select: { date: true } } } } } }) : null;
+  const timeZone = branch?.timeZone || "America/Chicago";
+  const cal = branch?.calendar;
   const spec = cal ? { code: cal.code, timeZone, weekendDays: cal.weekendDays ?? [0], holidays: new Set(cal.exceptions.map((e) => e.date.toISOString().slice(0, 10))), coverageThrough: cal.coverageThrough ? cal.coverageThrough.toISOString().slice(0, 10) : US_FEDERAL.coverageThrough } : { code: "DEFAULT", timeZone, weekendDays: [0], holidays: new Set(FEDERAL_HOLIDAYS.map((h) => h.date)), coverageThrough: US_FEDERAL.coverageThrough };
-  const isOpen = (date) => date <= spec.coverageThrough && isBusinessDay(spec, date);
-  return { timeZone, isOpen, capacityEnabled: bu.capacityEnabled };
+  return { timeZone, isOpen: (date) => date <= spec.coverageThrough && isBusinessDay(spec, date) };
 }
 async function materializeWindows(db, actor, args) {
   await authorizeOperation(db, actor, "capacity.materialize", ["canDispatch", "canManageCompany"], args);
   if (!Number.isSafeInteger(args.days) || args.days < 1 || args.days > 120) throw new DomainError(Codes.INVALID_INPUT, "Materialise between 1 and 120 days.", { field: "days" });
-  const templates = await db.arrivalWindowTemplate.findMany({ where: { active: true, ...args.businessUnitIds?.length ? { businessUnitId: { in: args.businessUnitIds } } : {} } });
-  const byBu = /* @__PURE__ */ new Map();
-  for (const t of templates) if (t.businessUnitId) byBu.set(t.businessUnitId, [...byBu.get(t.businessUnitId) ?? [], t]);
-  const planned = [];
-  for (const [buId, list14] of byBu) {
-    const branch = await loadBranchCalendar(db, buId);
-    if (!branch.capacityEnabled) continue;
-    const specs = list14.map((t) => ({ id: t.id, businessUnitId: buId, weekday: t.weekday, startLocal: t.startLocal, endLocal: t.endLocal, label: t.label, capacityHours: t.capacityHours.toString(), capacityFactor: t.capacityFactor?.toString() ?? null, active: t.active }));
-    for (const date of dateRange(args.from, args.days)) {
-      for (const w of windowsForDate(specs, date, branch.timeZone, branch.isOpen)) {
-        planned.push({ businessUnitId: buId, templateId: w.templateId, date: /* @__PURE__ */ new Date(`${date}T00:00:00Z`), startsAt: w.startsAt, endsAt: w.endsAt, label: w.label, capacityHours: w.capacityHours, bookedHours: "0" });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.from)) throw new DomainError(Codes.INVALID_INPUT, "Start date must be YYYY-MM-DD.", { field: "from" });
+  const dates = dateRange(args.from, args.days);
+  const units = await db.businessUnit.findMany({ where: { active: true, capacityEnabled: true, ...args.businessUnitIds?.length ? { id: { in: args.businessUnitIds } } : {} }, select: { id: true, branchId: true } });
+  const templates = await db.arrivalWindowTemplate.findMany({ where: { active: true, businessUnitId: { in: units.map((u) => u.id) } } });
+  const calendars = /* @__PURE__ */ new Map();
+  const calendarFor = async (branchId) => {
+    const key2 = branchId ?? "";
+    if (!calendars.has(key2)) calendars.set(key2, await branchCalendar(db, branchId));
+    return calendars.get(key2);
+  };
+  const windows = [];
+  for (const unit of units) {
+    const cal = await calendarFor(unit.branchId);
+    const specs = templates.filter((t) => t.businessUnitId === unit.id).map((t) => ({ id: t.id, businessUnitId: unit.id, weekday: t.weekday, startLocal: t.startLocal, endLocal: t.endLocal, label: t.label, capacityHours: t.capacityHours.toString(), capacityFactor: t.capacityFactor?.toString() ?? null, active: t.active }));
+    for (const date of dates) {
+      for (const w of windowsForDate(specs, date, cal.timeZone, cal.isOpen)) {
+        windows.push({ businessUnitId: unit.id, templateId: w.templateId, date: /* @__PURE__ */ new Date(`${date}T00:00:00Z`), startsAt: w.startsAt, endsAt: w.endsAt, label: w.label, capacityHours: w.capacityHours, bookedHours: "0" });
       }
     }
   }
+  const shiftTemplates = await db.shiftTemplate.findMany({ where: { employee: { status: "active" } }, select: { employeeId: true, weekday: true, startLocal: true, endLocal: true, employee: { select: { homeBranchId: true } } } });
+  const shifts = [];
+  for (const t of shiftTemplates) {
+    const cal = await calendarFor(t.employee?.homeBranchId ?? null);
+    for (const date of dates) {
+      if (weekday(date) !== t.weekday || !cal.isOpen(date)) continue;
+      shifts.push({ employeeId: t.employeeId, date: /* @__PURE__ */ new Date(`${date}T00:00:00Z`), startsAt: zonedInstant(cal.timeZone, date, t.startLocal), endsAt: zonedInstant(cal.timeZone, date, t.endLocal), kind: "regular" });
+    }
+  }
   const result = await command(db, { name: "capacity.materialize", actor, idempotencyKey: args.idempotencyKey, params: args }, async (uow) => {
-    const created = planned.length ? await uow.tx.arrivalWindow.createMany({ data: planned, skipDuplicates: true }) : { count: 0 };
-    uow.audit({ eventType: "capacity.windows_materialized", entityType: "ArrivalWindow", entityId: `${args.from}+${args.days}`, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { planned: planned.length, created: created.count } });
-    await recordAgentAction(uow, actor, { tool: "capacity.materialize", idempotencyKey: args.idempotencyKey, inputs: args, output: { created: created.count } });
-    return { planned: planned.length, created: created.count };
+    const createdWindows = windows.length ? await uow.tx.arrivalWindow.createMany({ data: windows, skipDuplicates: true }) : { count: 0 };
+    const createdShifts = shifts.length ? await uow.tx.shift.createMany({ data: shifts, skipDuplicates: true }) : { count: 0 };
+    uow.audit({ eventType: "capacity.windows_materialized", entityType: "ArrivalWindow", entityId: `${args.from}+${args.days}`, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { windows: createdWindows.count, shifts: createdShifts.count } });
+    const value = { planned: windows.length, created: createdWindows.count, shifts: createdShifts.count };
+    await recordAgentAction(uow, actor, { tool: "capacity.materialize", idempotencyKey: args.idempotencyKey, inputs: args, output: value });
+    return value;
   });
   return { replay: result.replay, ...result.value };
 }
@@ -4288,8 +4915,3383 @@ async function queueTransactionalSms(uow, actor, spec) {
   return message.id;
 }
 
-// features/keystone/services/dispatch.ts
+// features/keystone/lib/separationOfDuties.ts
+var SELF_APPROVAL_MESSAGE = "You can't approve your own request.";
+var AGENT_APPROVAL_MESSAGE = "An agent can propose but never approve.";
+function assertCanDecide(actor, requesterUserId, requesterAgentOwnerId, strictAgentOwner = true) {
+  if (actor.kind !== "user") throw new DomainError(Codes.AGENT_CANNOT_APPROVE, AGENT_APPROVAL_MESSAGE);
+  if (requesterUserId && requesterUserId === actor.userId) throw new DomainError(Codes.SELF_APPROVAL, SELF_APPROVAL_MESSAGE);
+  if (strictAgentOwner && requesterAgentOwnerId && requesterAgentOwnerId === actor.userId) throw new DomainError(Codes.SELF_APPROVAL, "You can't approve a proposal made by your own agent.");
+}
+
+// features/keystone/lib/approval.ts
+async function requestApproval(uow, actor, input) {
+  const policy = await uow.tx.approvalPolicy.findUnique({ where: { action: input.action } });
+  const requiredPermission = policy?.requiredPermission ?? input.requiredPermission;
+  const minutes = input.expiresInMinutes ?? policy?.expiresAfterMinutes ?? 1440;
+  const created = await uow.tx.approvalRequest.create({
+    data: {
+      action: input.action,
+      summary: input.summary ?? "",
+      targetList: input.targetList,
+      targetId: input.targetId,
+      payload: toJsonValue(input.payload),
+      payloadHash: payloadHash(input.payload),
+      requiredPermission,
+      requestedById: actorUserId(actor),
+      requestedByAgentId: actorAgentId(actor),
+      status: "pending",
+      expiresAt: new Date(uow.now.getTime() + minutes * 6e4)
+    }
+  });
+  uow.audit({ eventType: "approval.requested", entityType: "ApprovalRequest", entityId: created.id, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { action: input.action, targetList: input.targetList, targetId: input.targetId, payloadHash: created.payloadHash, requiredPermission } });
+  uow.emit({ topic: "notify.approval", aggregateType: "ApprovalRequest", aggregateId: created.id, payload: { action: input.action, requiredPermission }, dedupeKey: `notify.approval:${created.id}` });
+  return created;
+}
+async function decideApproval(uow, actor, input) {
+  const request = await lockRow(uow.tx, "ApprovalRequest", input.requestId);
+  let agentOwnerId = null;
+  if (request.requestedByAgentId) {
+    const agent = await uow.tx.agentIdentity.findUnique({ where: { id: request.requestedByAgentId }, select: { ownerId: true } });
+    agentOwnerId = agent?.ownerId ?? null;
+  }
+  assertCanDecide(actor, request.requestedById, agentOwnerId, input.strictAgentOwner ?? true);
+  if (actor.kind !== "user" || !actor.permissions.has(request.requiredPermission)) {
+    throw new DomainError(Codes.NOT_AUTHORIZED, `Deciding this needs the ${request.requiredPermission} permission.`);
+  }
+  if (request.expiresAt && new Date(request.expiresAt).getTime() <= uow.now.getTime()) {
+    await transition(uow, { model: "ApprovalRequest", id: input.requestId, from: ["pending"], to: "expired", actor, eventType: "approval.expired" });
+    throw new DomainError(Codes.GUARD_FAILED, "This approval request has expired.");
+  }
+  const to = input.decision === "approve" ? "approved" : "rejected";
+  const updated = await transition(uow, {
+    model: "ApprovalRequest",
+    id: input.requestId,
+    from: ["pending"],
+    to,
+    expectedVersion: input.expectedVersion,
+    actor,
+    eventType: `approval.${to}`,
+    reason: input.reason ?? null,
+    approverId: actor.userId
+  });
+  await uow.tx.approvalDecision.create({ data: { requestId: input.requestId, decidedById: actor.userId, decision: input.decision, reason: input.reason ?? "", at: uow.now } });
+  return updated;
+}
+async function consumeApproval(uow, input) {
+  const request = await lockRow(uow.tx, "ApprovalRequest", input.requestId);
+  if (request.status !== "approved") throw new DomainError(Codes.APPROVAL_REQUIRED, "This action needs an approved request.");
+  if (request.consumedAt) throw new DomainError(Codes.APPROVAL_MISMATCH, "This approval was already used.");
+  if (request.action !== input.action || request.targetList !== input.targetList || request.targetId !== input.targetId || request.payloadHash !== payloadHash(input.payload)) {
+    throw new DomainError(Codes.APPROVAL_MISMATCH, "The approval was given for a different action or payload.");
+  }
+  if (request.expiresAt && new Date(request.expiresAt).getTime() <= uow.now.getTime()) throw new DomainError(Codes.GUARD_FAILED, "The approval has expired.");
+  const decision = await uow.tx.approvalDecision.findFirst({ where: { requestId: input.requestId, decision: "approve" }, orderBy: { at: "desc" } });
+  await uow.tx.approvalRequest.update({ where: { id: input.requestId }, data: { consumedAt: uow.now, version: { increment: 1 } } });
+  uow.audit({ eventType: "approval.consumed", entityType: "ApprovalRequest", entityId: input.requestId, approverId: decision?.decidedById ?? null, after: { action: input.action, targetId: input.targetId } });
+  return { approverId: decision?.decidedById ?? null };
+}
+
+// features/keystone/lib/approvalAppliers.ts
+var appliers = /* @__PURE__ */ new Map();
+function registerApplier(action, apply, options = {}) {
+  if (appliers.has(action)) throw new Error(`Applier for ${action} already registered`);
+  appliers.set(action, { apply, applyOnApprove: options.applyOnApprove ?? true });
+}
+function applierFor(action) {
+  return appliers.get(action) ?? null;
+}
+
+// features/keystone/lib/companyControls.ts
+var CONTROL_KEYS = ["discountApprovalThresholdBps", "refundApprovalThresholdMinor", "poApprovalThresholdMinor"];
+var minorIn = (value, name) => {
+  if (typeof value !== "string" || !/^\d{1,15}$/.test(value)) throw new DomainError(Codes.INVALID_INPUT, `${name} must be whole cents as a string, e.g. "50000".`, { field: name });
+  return BigInt(value);
+};
+function validateCompanyControls(input) {
+  const keys = Object.keys(input ?? {});
+  if (!keys.length) throw new DomainError(Codes.INVALID_INPUT, "Nothing to change.");
+  for (const key2 of keys) if (!CONTROL_KEYS.includes(key2)) throw new DomainError(Codes.INVALID_INPUT, `${key2} is not a company control.`, { field: key2 });
+  const out = {};
+  if (input.discountApprovalThresholdBps !== void 0) {
+    const v = input.discountApprovalThresholdBps;
+    if (!Number.isSafeInteger(v) || v < 0 || v > 1e4) throw new DomainError(Codes.INVALID_INPUT, "discountApprovalThresholdBps must be a whole number from 0 to 10000.", { field: "discountApprovalThresholdBps" });
+    out.discountApprovalThresholdBps = v;
+  }
+  if (input.refundApprovalThresholdMinor !== void 0) out.refundApprovalThresholdMinor = minorIn(input.refundApprovalThresholdMinor, "refundApprovalThresholdMinor").toString();
+  if (input.poApprovalThresholdMinor !== void 0) out.poApprovalThresholdMinor = minorIn(input.poApprovalThresholdMinor, "poApprovalThresholdMinor").toString();
+  return out;
+}
+var toData = (changes) => ({
+  ...changes.discountApprovalThresholdBps !== void 0 ? { discountApprovalThresholdBps: changes.discountApprovalThresholdBps } : {},
+  ...changes.refundApprovalThresholdMinor !== void 0 ? { refundApprovalThresholdMinor: BigInt(changes.refundApprovalThresholdMinor) } : {},
+  ...changes.poApprovalThresholdMinor !== void 0 ? { poApprovalThresholdMinor: BigInt(changes.poApprovalThresholdMinor) } : {}
+});
+async function requestCompanyControlsChange(uow, actor, input, reason) {
+  const changes = validateCompanyControls(input);
+  const company = await uow.tx.companySettings.findUnique({ where: { singletonKey: "company" } });
+  if (!company) throw new DomainError(Codes.NOT_FOUND, "Company settings are not set up yet.");
+  return requestApproval(uow, actor, {
+    action: "company.controls",
+    targetList: "CompanySettings",
+    targetId: String(company.id),
+    payload: { changes, baseVersion: company.version },
+    requiredPermission: "canApprovePolicies",
+    summary: `Change company controls: ${Object.keys(changes).join(", ")}${reason ? ` (${reason})` : ""}`
+  });
+}
+registerApplier("company.controls", async (uow, actor, request) => {
+  const [company] = await uow.tx.$queryRaw`SELECT id, version FROM "CompanySettings" WHERE "singletonKey" = 'company' FOR UPDATE`;
+  if (!company) throw new DomainError(Codes.NOT_FOUND, "Company settings are not set up yet.");
+  const { changes, baseVersion } = request.payload;
+  if (company.version !== baseVersion) throw new DomainError(Codes.STALE_STATE, "Company settings changed after this was approved. Request the change again.", { currentVersion: company.version });
+  const before = await uow.tx.companySettings.findUnique({ where: { id: company.id }, select: { discountApprovalThresholdBps: true, refundApprovalThresholdMinor: true, poApprovalThresholdMinor: true } });
+  const updated = await uow.tx.companySettings.updateMany({ where: { id: company.id, version: baseVersion }, data: { ...toData(changes), version: { increment: 1 } } });
+  if (updated.count !== 1) throw new DomainError(Codes.STALE_STATE, "Company settings changed while applying.");
+  uow.audit({
+    eventType: "company.controls_changed",
+    entityType: "CompanySettings",
+    entityId: String(company.id),
+    actorUserId: actor.kind === "user" ? actor.userId : null,
+    before: before ? { ...before, refundApprovalThresholdMinor: before.refundApprovalThresholdMinor.toString(), poApprovalThresholdMinor: before.poApprovalThresholdMinor.toString() } : null,
+    after: changes
+  });
+  return { applied: Object.keys(changes) };
+});
+
+// features/keystone/mutations/approvals.ts
+async function decideApprovalRequest(_root, args, context) {
+  return decideApprovalAs(context.prisma, await actorFor(context), args);
+}
+async function decideApprovalAs(db, actor, args) {
+  requirePermission(actor, "canAccessDashboard");
+  if (args.decision !== "approve" && args.decision !== "reject") throw new DomainError(Codes.INVALID_INPUT, "Decision must be approve or reject.");
+  if (args.decision === "reject" && !args.reason?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Say why you are rejecting it.", { field: "reason" });
+  const result = await command(db, { name: "approval.decide", actor, idempotencyKey: args.idempotencyKey, params: { requestId: args.requestId, decision: args.decision, reason: args.reason ?? "", expectedVersion: args.expectedVersion }, now: args.now }, async (uow) => {
+    const decided = await decideApproval(uow, actor, { requestId: args.requestId, decision: args.decision, reason: args.reason ?? void 0, expectedVersion: args.expectedVersion, strictAgentOwner: true });
+    let applied = null;
+    const registration = applierFor(String(decided.action));
+    if (args.decision === "approve" && registration?.applyOnApprove) {
+      const request = await uow.tx.approvalRequest.findUniqueOrThrow({ where: { id: args.requestId } });
+      await consumeApproval(uow, { requestId: request.id, action: request.action, targetList: request.targetList, targetId: request.targetId, payload: request.payload });
+      applied = await registration.apply(uow, actor, request);
+    }
+    return { id: decided.id, status: decided.status, applied };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function cancelApprovalRequest(_root, args, context) {
+  const actor = await actorFor(context);
+  requirePermission(actor, "canAccessDashboard");
+  const result = await command(context.prisma, { name: "approval.cancel", actor, idempotencyKey: args.idempotencyKey, params: args }, async (uow) => {
+    const row = await transition(uow, {
+      model: "ApprovalRequest",
+      id: args.requestId,
+      from: ["pending"],
+      to: "cancelled",
+      expectedVersion: args.expectedVersion,
+      actor,
+      eventType: "approval.cancelled",
+      reason: args.reason ?? null,
+      guard: (request) => {
+        if (actor.kind !== "user" || request.requestedById !== actor.userId) throw new DomainError(Codes.NOT_AUTHORIZED, "Only the person who asked can withdraw a request.");
+      }
+    });
+    return { id: row.id, status: row.status };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requestCompanyControls(_root, args, context) {
+  const actor = await actorFor(context);
+  requirePermission(actor, "canManageCompany", "canManagePolicies");
+  if (!args.reason?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Say why the controls should change.", { field: "reason" });
+  const result = await command(context.prisma, { name: "company.controls.request", actor, idempotencyKey: args.idempotencyKey, params: args }, async (uow) => {
+    const request = await requestCompanyControlsChange(uow, actor, args.changes, args.reason.trim());
+    return { id: request.id, status: request.status };
+  });
+  return { replay: result.replay, ...result.value };
+}
+
+// features/keystone/lib/money.ts
+function allocateMinor(total, weights) {
+  if (weights.length === 0) throw new Error("allocateMinor needs at least one weight");
+  const w = weights.map(dec);
+  if (w.some((x) => x.isNegative())) throw new Error("allocateMinor weights must be non-negative");
+  const weightSum = w.reduce((a, b) => a.plus(b), new Decimal(0));
+  if (weightSum.isZero()) throw new Error("allocateMinor weights must not all be zero");
+  const negative = total < 0n;
+  const abs = negative ? -total : total;
+  const exact2 = w.map((x) => dec(abs).times(x).div(weightSum));
+  const floors = exact2.map((x) => BigInt(x.floor().toFixed(0)));
+  let leftover = abs - floors.reduce((a, b) => a + b, 0n);
+  const order = exact2.map((x, index) => ({ index, remainder: x.minus(x.floor()) })).sort((a, b) => b.remainder.comparedTo(a.remainder) || a.index - b.index);
+  const shares = [...floors];
+  for (let i = 0; leftover > 0n; i = (i + 1) % order.length, leftover -= 1n) shares[order[i].index] += 1n;
+  return negative ? shares.map((x) => -x) : shares;
+}
+function extendLine(unitPriceMinor, quantity) {
+  const q = dec(quantity);
+  if (q.isNegative()) throw new Error("Quantity must not be negative");
+  return BigInt(dec(unitPriceMinor).times(q).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(0));
+}
+function roundMinor(value, rounding = Decimal.ROUND_HALF_UP) {
+  return BigInt(dec(value).toDecimalPlaces(0, rounding).toFixed(0));
+}
+function ratioBps(numerator, denominator) {
+  if (denominator === 0n) return null;
+  return dec(numerator).times(1e4).div(dec(denominator)).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(0);
+}
+function bpsOf(amountMinor, bps2) {
+  if (!Number.isInteger(bps2) || bps2 < 0 || bps2 > 1e4) throw new Error("Basis points must be a whole number from 0 to 10000");
+  return roundMinor(dec(amountMinor).times(bps2).div(1e4));
+}
+
+// features/keystone/domain/pricing.ts
+var PricingError = class extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.code = code;
+    this.details = details;
+  }
+};
+function markupFor(table, costMinor) {
+  const tier = table.tiers.find((t) => costMinor >= BigInt(t.fromCostMinor) && (t.toCostMinor === null || costMinor < BigInt(t.toCostMinor)));
+  if (!tier) throw new PricingError("INVALID_INPUT", `Markup table ${table.name} has no tier for a cost of ${costMinor} cents.`);
+  return dec(tier.multiplier);
+}
+function validateMarkupTiers(tiers) {
+  if (!tiers.length) throw new PricingError("INVALID_INPUT", "A markup table needs at least one tier.");
+  let expected = 0n;
+  tiers.forEach((tier, index) => {
+    if (BigInt(tier.fromCostMinor) !== expected) throw new PricingError("INVALID_INPUT", `Markup tier ${index + 1} must start at ${expected} cents.`);
+    if (dec(tier.multiplier).lessThan(1)) throw new PricingError("INVALID_INPUT", `Markup tier ${index + 1} multiplier must be at least 1.`);
+    const last = index === tiers.length - 1;
+    if (last !== (tier.toCostMinor === null)) throw new PricingError("INVALID_INPUT", last ? "The last markup tier must be open-ended." : `Markup tier ${index + 1} needs an upper bound.`);
+    if (!last) {
+      if (BigInt(tier.toCostMinor) <= expected) throw new PricingError("INVALID_INPUT", `Markup tier ${index + 1} must end above where it starts.`);
+      expected = BigInt(tier.toCostMinor);
+    }
+  });
+}
+function formulaPrice(item, ctx) {
+  const rate2 = ctx.laborRates.find((r) => r.businessUnitId === item.businessUnitId) ?? ctx.laborRates.find((r) => r.businessUnitId === null);
+  if (!rate2) throw new PricingError("GUARD_FAILED", `No labour rate covers ${item.itemKey}.`, { itemKey: item.itemKey });
+  const hours = dec(item.laborHours ?? "0");
+  const labor = extendLine(rate2.hourlyMinor, hours);
+  let materials2 = 0n;
+  let materialCost = 0n;
+  for (const ref of item.materials) {
+    const material = ctx.materials.get(ref.itemKey);
+    if (!material) throw new PricingError("GUARD_FAILED", `${item.itemKey} uses ${ref.itemKey}, which is not in this version.`, { itemKey: item.itemKey, material: ref.itemKey });
+    if (!ctx.markup) throw new PricingError("GUARD_FAILED", "Formula pricing with materials needs a markup table.", { itemKey: item.itemKey });
+    const multiplier = markupFor(ctx.markup, material.costMinor);
+    materials2 += roundMinor(dec(material.costMinor).times(dec(ref.quantity)).times(multiplier));
+    materialCost += extendLine(material.costMinor, ref.quantity);
+  }
+  return { unitPriceMinor: labor + materials2, laborMinor: labor, materialsMinor: materials2, costMinor: materialCost, hourlyMinor: rate2.hourlyMinor };
+}
+function submitFindings(items, uoms) {
+  const findings = [];
+  const keys = /* @__PURE__ */ new Set();
+  for (const item of items) {
+    const add = (code, message) => findings.push({ itemKey: item.itemKey, code, message });
+    if (keys.has(item.itemKey)) add("duplicate_key", "Item key is used twice.");
+    keys.add(item.itemKey);
+    if (!item.active) continue;
+    if (item.unitPriceMinor < 0n) add("negative_price", "Price must not be negative.");
+    if (item.memberUnitPriceMinor !== null && item.memberUnitPriceMinor > item.unitPriceMinor) add("member_above_list", "Member price is above the list price.");
+    if (!uoms.has(item.uom)) add("unknown_uom", `Unit ${item.uom} is not set up.`);
+    if (item.kind === "service_task" && !(item.laborHours && dec(item.laborHours).greaterThan(0))) add("task_hours_missing", "A service task needs labour hours.");
+    if (!item.taxCategory) add("tax_category_missing", "Tax category is required.");
+    if (item.kind === "equipment" && !item.warrantyText.trim()) add("warranty_missing", "Equipment needs warranty text.");
+    if (item.kind !== "material" && !item.customerDescription.trim()) add("description_missing", "Customers see a description; add one.");
+    if (item.tier && !item.ladderKey) add("tier_without_ladder", "A good/better/best tier needs a ladder.");
+  }
+  return findings;
+}
+function itemContent(item) {
+  return {
+    itemKey: item.itemKey,
+    kind: item.kind,
+    categoryKey: item.categoryKey,
+    name: item.name,
+    customerDescription: item.customerDescription,
+    trade: item.trade,
+    businessUnitId: item.businessUnitId,
+    pricingMethod: item.pricingMethod,
+    unitPriceMinor: item.unitPriceMinor,
+    memberUnitPriceMinor: item.memberUnitPriceMinor,
+    costMinor: item.costMinor,
+    laborHours: item.laborHours,
+    uom: item.uom,
+    taxCategory: item.taxCategory,
+    warrantyText: item.warrantyText,
+    materials: item.materials,
+    cancellationClassDefault: item.cancellationClassDefault,
+    ladderKey: item.ladderKey,
+    tier: item.tier,
+    active: item.active,
+    equipmentModelId: item.equipmentModelId ?? null
+  };
+}
+function versionContentHash(content) {
+  return payloadHash({
+    items: [...content.items].sort((a, b) => a.itemKey.localeCompare(b.itemKey)).map(itemContent),
+    categories: content.categories,
+    laborRates: content.laborRates,
+    markupTables: content.markupTables,
+    memberPricingRules: content.memberPricingRules
+  });
+}
+function diffItems(before, after) {
+  const prev = new Map(before.filter((i) => i.active).map((i) => [i.itemKey, i]));
+  const next = new Map(after.filter((i) => i.active).map((i) => [i.itemKey, i]));
+  const diff = { added: [], removed: [], repriced: [], changed: [], unchanged: 0 };
+  for (const [key2, item] of next) {
+    const old = prev.get(key2);
+    if (!old) {
+      diff.added.push({ itemKey: key2, name: item.name, unitPriceMinor: item.unitPriceMinor.toString() });
+      continue;
+    }
+    if (old.unitPriceMinor !== item.unitPriceMinor) {
+      const changeBps = ratioBps(item.unitPriceMinor - old.unitPriceMinor, old.unitPriceMinor);
+      diff.repriced.push({ itemKey: key2, name: item.name, fromMinor: old.unitPriceMinor.toString(), toMinor: item.unitPriceMinor.toString(), changeBps });
+      continue;
+    }
+    const a = itemContent(old);
+    const b = itemContent(item);
+    const fields = Object.keys(b).filter((k) => payloadHash(a[k] ?? null) !== payloadHash(b[k] ?? null));
+    if (fields.length) diff.changed.push({ itemKey: key2, name: item.name, fields });
+    else diff.unchanged += 1;
+  }
+  for (const [key2, item] of prev) if (!next.has(key2)) diff.removed.push({ itemKey: key2, name: item.name, unitPriceMinor: item.unitPriceMinor.toString() });
+  return diff;
+}
+function costChangeReport(items, costs) {
+  const byKey = new Map(items.map((i) => [i.itemKey, i]));
+  const changes = [];
+  const unknown = [];
+  for (const row of costs) {
+    if (row.costMinor < 0n) throw new PricingError("INVALID_INPUT", `Cost for ${row.itemKey} must not be negative.`);
+    const item = byKey.get(row.itemKey);
+    if (!item) {
+      unknown.push(row.itemKey);
+      continue;
+    }
+    if (item.costMinor === row.costMinor) continue;
+    const marginBpsAfter = ratioBps(item.unitPriceMinor - row.costMinor, item.unitPriceMinor);
+    changes.push({ itemKey: row.itemKey, name: item.name, fromMinor: item.costMinor.toString(), toMinor: row.costMinor.toString(), marginBpsAfter });
+  }
+  return { changes, unknown };
+}
+function quoteLine(versionId, input, uom) {
+  const quantity = dec(input.quantity);
+  if (quantity.lessThanOrEqualTo(0)) throw new PricingError("INVALID_INPUT", `Quantity for ${input.item.itemKey} must be more than zero.`);
+  if (quantity.decimalPlaces() > uom.maxDecimals) throw new PricingError("INVALID_INPUT", `${input.item.uom} quantities allow ${uom.maxDecimals} decimal places.`);
+  if (!input.item.active) throw new PricingError("GUARD_FAILED", `${input.item.itemKey} is not sold any more.`);
+  const memberPriced = input.memberPricing && input.item.memberUnitPriceMinor !== null;
+  const unit = memberPriced ? input.item.memberUnitPriceMinor : input.item.unitPriceMinor;
+  return {
+    priceBookVersionId: versionId,
+    priceBookItemId: input.item.id,
+    itemKey: input.item.itemKey,
+    name: input.item.name,
+    description: input.description?.trim() || input.item.customerDescription || input.item.name,
+    quantity: plain(quantity),
+    uom: input.item.uom,
+    unitPriceMinor: unit.toString(),
+    listUnitPriceMinor: input.item.unitPriceMinor.toString(),
+    memberPriced,
+    costMinor: extendLine(input.item.costMinor, quantity).toString(),
+    taxCategory: input.item.taxCategory,
+    trade: input.item.trade,
+    warrantyText: input.item.warrantyText,
+    cancellationClass: input.cancellationClass ?? input.item.cancellationClassDefault,
+    amountMinor: extendLine(unit, quantity)
+  };
+}
+function optionTotals(lines, discountBps) {
+  if (!Number.isInteger(discountBps) || discountBps < 0 || discountBps > 1e4) throw new PricingError("INVALID_INPUT", "Discount must be between 0 and 100%.");
+  const subtotal = lines.reduce((s, l) => s + l.amountMinor, 0n);
+  const discount = bpsOf(subtotal, discountBps);
+  const lineDiscounts = discount === 0n || subtotal === 0n ? lines.map(() => 0n) : allocateMinor(discount, lines.map((l) => l.amountMinor));
+  const cost = lines.reduce((s, l) => s + l.costMinor, 0n);
+  const net = subtotal - discount;
+  const marginBps = ratioBps(net - cost, net);
+  return { subtotalMinor: subtotal, discountMinor: discount, lineDiscounts, totalBeforeTaxMinor: net, costMinor: cost, marginBps };
+}
+var quoteHash = (versionId, lines, discountBps = 0) => payloadHash({ versionId, discountBps, lines });
+var optionHash = (option2) => payloadHash({ tier: option2.tier, name: option2.name, subtotalMinor: option2.subtotalMinor, discountMinor: option2.discountMinor, totalMinor: option2.totalMinor, lines: option2.lines.map((l) => ({ ...l })) });
+function depositCap(totalMinor, rules2) {
+  const caps = [];
+  if (rules2.depositCapPct !== null) caps.push(roundMinor(dec(totalMinor).times(dec(rules2.depositCapPct)).div(100), Decimal.ROUND_DOWN));
+  if (rules2.depositCapMinor !== null) caps.push(BigInt(rules2.depositCapMinor));
+  return caps.length ? caps.reduce((a, b) => a < b ? a : b) : null;
+}
+function estimateSalesTax(lines, ctx) {
+  const local = ctx.rules.localRates.find((r) => r.code === ctx.cityCode);
+  const rate2 = dec(ctx.rules.stateRate).plus(local ? local.rate : ctx.rules.maxLocalRate);
+  let base = 0n;
+  const rows = lines.map((line) => {
+    const row = ctx.rules.matrix.find((m) => m.propertyClass === ctx.propertyClass && (m.contractTaxMode === "any" || m.contractTaxMode === ctx.contractTaxMode) && (m.taxCategory === "any" || m.taxCategory === line.taxCategory));
+    if (!row) throw new PricingError("GUARD_FAILED", `No sales-tax rule covers ${line.taxCategory} on ${ctx.propertyClass} work.`);
+    const lineBase = !row.taxable || row.basis === "none" ? 0n : row.basis === "at_least_cost" && line.costMinor > line.netMinor ? line.costMinor : line.netMinor;
+    base += lineBase;
+    return { taxable: lineBase > 0n, baseMinor: lineBase };
+  });
+  return { taxMinor: roundMinor(dec(base).times(rate2)), rate: plain(rate2), localRateCode: local?.code ?? null, rows };
+}
+
+// features/keystone/services/pricebook.ts
+var EDIT = ["canManagePriceBook"];
+var READ = ["canManagePriceBook", "canApprovePriceBook", "canPresentEstimates", "canSellEstimates", "canBook", "canManageCustomers"];
+var fail = (error) => {
+  if (error instanceof PricingError) throw new DomainError(error.code === "GUARD_FAILED" ? Codes.GUARD_FAILED : Codes.INVALID_INPUT, error.message, error.details);
+  throw error;
+};
+var minorIn2 = (value, field, allowNull = false) => {
+  if ((value === null || value === void 0 || value === "") && allowNull) return null;
+  if (typeof value === "bigint") {
+    if (value < 0n) throw new DomainError(Codes.INVALID_INPUT, `${field} must not be negative.`, { field });
+    return value;
+  }
+  if (typeof value !== "string" || !/^\d{1,13}$/.test(value)) throw new DomainError(Codes.INVALID_INPUT, `${field} must be whole cents as a string, e.g. "32500".`, { field });
+  return BigInt(value);
+};
+var oneOf = (values, value, field, fallback) => {
+  if ((value === void 0 || value === null || value === "") && fallback !== void 0) return fallback;
+  if (!values.includes(value)) throw new DomainError(Codes.INVALID_INPUT, `${field} must be one of ${values.join(", ")}.`, { field });
+  return value;
+};
+var decimalText2 = (value, field, max = 4) => {
+  if (value === null || value === void 0 || value === "") return null;
+  if (typeof value !== "string" || !/^\d{1,10}(\.\d+)?$/.test(value)) throw new DomainError(Codes.INVALID_INPUT, `${field} must be a decimal string, e.g. "1.5".`, { field });
+  if (dec(value).decimalPlaces() > max) throw new DomainError(Codes.INVALID_INPUT, `${field} allows ${max} decimal places.`, { field });
+  return plain(value);
+};
+function draftOf(row) {
+  return {
+    id: row.id,
+    itemKey: row.itemKey,
+    kind: row.kind,
+    categoryKey: row.categoryKey,
+    name: row.name,
+    customerDescription: row.customerDescription,
+    trade: row.trade,
+    businessUnitId: row.businessUnitId,
+    pricingMethod: row.pricingMethod,
+    unitPriceMinor: row.unitPriceMinor,
+    memberUnitPriceMinor: row.memberUnitPriceMinor,
+    costMinor: row.costMinor,
+    laborHours: row.laborHours ? plain(row.laborHours.toString()) : null,
+    uom: row.uom,
+    taxCategory: row.taxCategory,
+    warrantyText: row.warrantyText,
+    materials: row.materials ?? [],
+    cancellationClassDefault: row.cancellationClassDefault,
+    ladderKey: row.ladderKey,
+    tier: row.tier,
+    active: row.active,
+    equipmentModelId: row.equipmentModelId
+  };
+}
+async function loadVersionContent(db, versionId) {
+  const [items, categories, laborRates, markupTables, memberPricingRules] = await Promise.all([
+    db.priceBookItem.findMany({ where: { priceBookVersionId: versionId }, orderBy: [{ categoryKey: "asc" }, { sortOrder: "asc" }, { itemKey: "asc" }] }),
+    db.priceBookCategory.findMany({ where: { priceBookVersionId: versionId }, orderBy: [{ sortOrder: "asc" }, { categoryKey: "asc" }] }),
+    db.laborRate.findMany({ where: { priceBookVersionId: versionId } }),
+    db.markupTable.findMany({ where: { priceBookVersionId: versionId }, orderBy: { name: "asc" } }),
+    db.memberPricingRule.findMany({ where: { priceBookVersionId: versionId } })
+  ]);
+  return {
+    items: items.map(draftOf),
+    rows: items,
+    categories: categories.map((c) => ({ categoryKey: c.categoryKey, name: c.name, trade: c.trade, parentKey: c.parentKey, sortOrder: c.sortOrder })),
+    laborRates: laborRates.map((r) => ({ businessUnitId: r.businessUnitId, hourlyMinor: r.hourlyMinor, afterHoursMultiplier: r.afterHoursMultiplier ? plain(r.afterHoursMultiplier.toString()) : null })).sort((a, b) => (a.businessUnitId ?? "").localeCompare(b.businessUnitId ?? "")),
+    markupTables: markupTables.map((t) => ({ name: t.name, appliesTo: t.appliesTo, tiers: t.tiers ?? [] })),
+    memberPricingRules: memberPricingRules.map((r) => ({ planCode: r.planCode, scope: r.scope, scopeKey: r.scopeKey, discountBps: r.discountBps, waiveTripFee: r.waiveTripFee })).sort((a, b) => `${a.planCode}:${a.scope}:${a.scopeKey}`.localeCompare(`${b.planCode}:${b.scope}:${b.scopeKey}`))
+  };
+}
+var hashOf = (content) => versionContentHash({ items: content.items, categories: content.categories, laborRates: content.laborRates, markupTables: content.markupTables, memberPricingRules: content.memberPricingRules });
+async function lockVersion(tx, versionId) {
+  const [row] = await tx.$queryRaw`SELECT id, status, version, "priceBook", "versionNumber" FROM "PriceBookVersion" WHERE id = ${versionId} FOR UPDATE`;
+  if (!row) throw new DomainError(Codes.NOT_FOUND, "Price book version not found.");
+  return row;
+}
+async function lockDraft(tx, versionId, expectedVersion) {
+  const row = await lockVersion(tx, versionId);
+  if (expectedVersion !== void 0 && expectedVersion !== null && row.version !== expectedVersion) throw new DomainError(Codes.STALE_STATE, "This price book version changed since you loaded it. Reload and try again.", { currentStatus: row.status, currentVersion: row.version });
+  if (row.status !== "draft") throw new DomainError(Codes.INVALID_TRANSITION, `This version is ${row.status.replaceAll("_", " ")}; only a draft can be edited. Start a new draft.`, { currentStatus: row.status });
+  return row;
+}
+var touchDraft = (tx, versionId) => tx.priceBookVersion.update({ where: { id: versionId }, data: { version: { increment: 1 } }, select: { version: true } });
+async function priceBookFor(db, businessUnitId) {
+  const books = await db.priceBook.findMany({ select: { id: true, code: true, activeVersionId: true, businessUnits: { select: { id: true } } }, orderBy: { code: "asc" } });
+  const specific = businessUnitId ? books.find((b) => b.businessUnits.some((bu) => bu.id === businessUnitId)) : void 0;
+  const book = specific ?? books.find((b) => b.businessUnits.length === 0) ?? (books.length === 1 ? books[0] : void 0);
+  if (!book) throw new DomainError(Codes.GUARD_FAILED, "No price book covers this department yet.", { reason: "no_price_book" });
+  return book;
+}
+async function activeVersionFor(db, businessUnitId) {
+  const book = await priceBookFor(db, businessUnitId);
+  if (!book.activeVersionId) throw new DomainError(Codes.GUARD_FAILED, `Price book ${book.code} has no active version yet.`, { reason: "no_active_version" });
+  return { priceBookId: book.id, versionId: book.activeVersionId };
+}
+async function createPriceBook(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.create", EDIT, args);
+  const name = args.name?.trim();
+  if (!name) throw new DomainError(Codes.INVALID_INPUT, "Name the price book.", { field: "name" });
+  if (!/^[A-Z0-9][A-Z0-9-]{1,23}$/.test(args.code ?? "")) throw new DomainError(Codes.INVALID_INPUT, "Code is 2-24 capital letters, digits or dashes.", { field: "code" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.create", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const company = await uow.tx.companySettings.findFirst({ select: { currencyCode: true } });
+    const book = await uow.tx.priceBook.create({ data: { name, code: args.code, currencyCode: company?.currencyCode || "USD", businessUnits: { connect: (args.businessUnitIds ?? []).map((id) => ({ id })) } }, select: { id: true } });
+    auditCreate(uow, actor, "PriceBook", book.id, "pricebook.created", { name, code: args.code, businessUnitIds: args.businessUnitIds ?? [] });
+    const draft = await createDraftInTx(uow, actor, book.id, { label: "Initial", source: "manual" });
+    return { priceBookId: book.id, draftVersionId: draft.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function createDraftInTx(uow, actor, priceBookId, opts) {
+  const { tx } = uow;
+  await tx.$queryRaw`SELECT id FROM "PriceBook" WHERE id = ${priceBookId} FOR UPDATE`;
+  const open = await tx.priceBookVersion.findFirst({ where: { priceBookId, status: { in: ["draft", "pending_approval"] } }, select: { id: true, versionNumber: true, status: true } });
+  if (open) throw new DomainError(Codes.GUARD_FAILED, `Version ${open.versionNumber} is already ${open.status === "draft" ? "a draft" : "waiting for approval"}; finish or discard it first.`, { reason: "open_draft", versionId: open.id });
+  const book = await tx.priceBook.findUniqueOrThrow({ where: { id: priceBookId }, select: { activeVersionId: true } });
+  const last = await tx.priceBookVersion.findFirst({ where: { priceBookId }, orderBy: { versionNumber: "desc" }, select: { versionNumber: true } });
+  const base = book.activeVersionId ?? (await tx.priceBookVersion.findFirst({ where: { priceBookId, status: { in: ["published", "active", "retired"] } }, orderBy: { versionNumber: "desc" }, select: { id: true } }))?.id ?? null;
+  const versionNumber = (last?.versionNumber ?? 0) + 1;
+  const draft = await tx.priceBookVersion.create({
+    data: { priceBookId, versionNumber, label: opts.label?.trim() || `Version ${versionNumber}`, status: "draft", source: base ? opts.source === "manual" ? "copy" : opts.source : "manual", basedOnId: base, notes: opts.notes ?? "" },
+    select: { id: true, versionNumber: true }
+  });
+  if (base) {
+    const content = await loadVersionContent(tx, base);
+    const rates = await tx.laborRate.findMany({ where: { priceBookVersionId: base } });
+    const tables = await tx.markupTable.findMany({ where: { priceBookVersionId: base } });
+    if (content.categories.length) await tx.priceBookCategory.createMany({ data: content.categories.map((c) => ({ ...c, priceBookVersionId: draft.id })) });
+    if (content.rows.length) await tx.priceBookItem.createMany({ data: content.rows.map(({ id: _id, createdAt: _c, updatedAt: _u, priceBookVersionId: _v, ...row }) => ({ ...row, materials: row.materials ?? void 0, priceBookVersionId: draft.id })) });
+    if (rates.length) await tx.laborRate.createMany({ data: rates.map((r) => ({ priceBookVersionId: draft.id, businessUnitId: r.businessUnitId, hourlyMinor: r.hourlyMinor, afterHoursMultiplier: r.afterHoursMultiplier })) });
+    if (tables.length) await tx.markupTable.createMany({ data: tables.map((t) => ({ priceBookVersionId: draft.id, name: t.name, appliesTo: t.appliesTo, tiers: t.tiers ?? void 0 })) });
+    if (content.memberPricingRules.length) await tx.memberPricingRule.createMany({ data: content.memberPricingRules.map((r) => ({ ...r, priceBookVersionId: draft.id })) });
+  }
+  auditCreate(uow, actor, "PriceBookVersion", draft.id, "pricebook_version.drafted", { priceBookId, versionNumber, basedOn: base, source: opts.source });
+  return draft;
+}
+async function startPriceBookDraft(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.draft", EDIT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.draft", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const draft = await createDraftInTx(uow, actor, args.priceBookId, { label: args.label, source: "copy" });
+    return { versionId: draft.id, versionNumber: draft.versionNumber };
+  });
+  return { replay: result.replay, ...result.value };
+}
+function itemData(input) {
+  const itemKey = String(input.itemKey ?? "").trim().toUpperCase();
+  if (!/^[A-Z0-9][A-Z0-9-]{1,47}$/.test(itemKey)) throw new DomainError(Codes.INVALID_INPUT, "Item key is 2-48 capital letters, digits or dashes.", { field: "itemKey" });
+  const name = input.name?.trim();
+  if (!name) throw new DomainError(Codes.INVALID_INPUT, "Name the item.", { field: "name" });
+  const pricingMethod = oneOf(["fixed", "formula"], input.pricingMethod, "pricingMethod", "fixed");
+  const materials2 = (input.materials ?? []).map((m, i) => {
+    const key2 = String(m?.itemKey ?? "").trim().toUpperCase();
+    if (!key2) throw new DomainError(Codes.INVALID_INPUT, `Material ${i + 1} needs an item key.`, { field: "materials" });
+    const quantity = decimalText2(m.quantity, `materials[${i}].quantity`);
+    if (!quantity || dec(quantity).lessThanOrEqualTo(0)) throw new DomainError(Codes.INVALID_INPUT, `Material ${key2} needs a quantity above zero.`, { field: "materials" });
+    return { itemKey: key2, quantity };
+  });
+  const unitPriceMinor = pricingMethod === "formula" ? minorIn2(input.unitPriceMinor ?? "0", "unitPriceMinor") : minorIn2(input.unitPriceMinor, "unitPriceMinor");
+  const tier = oneOf(["", "good", "better", "best"], input.tier ?? "", "tier", "");
+  return {
+    itemKey,
+    name,
+    pricingMethod,
+    unitPriceMinor,
+    tier,
+    materials: materials2,
+    kind: oneOf(ITEM_KINDS, input.kind, "kind"),
+    categoryKey: input.categoryKey?.trim() ?? "",
+    customerDescription: input.customerDescription?.trim() ?? "",
+    internalNotes: input.internalNotes?.trim() ?? "",
+    trade: oneOf(TRADE_OR_GENERAL, input.trade, "trade", "general"),
+    businessUnitId: input.businessUnitId || null,
+    memberUnitPriceMinor: minorIn2(input.memberUnitPriceMinor, "memberUnitPriceMinor", true),
+    costMinor: minorIn2(input.costMinor ?? "0", "costMinor"),
+    laborHours: decimalText2(input.laborHours, "laborHours"),
+    uom: String(input.uom ?? "").trim(),
+    taxCategory: oneOf(TAX_CATEGORIES, input.taxCategory, "taxCategory"),
+    warrantyText: input.warrantyText?.trim() ?? "",
+    equipmentModelId: input.equipmentModelId || null,
+    commissionCode: input.commissionCode?.trim() ?? "",
+    spiffCode: input.spiffCode?.trim() ?? "",
+    cancellationClassDefault: oneOf(CANCELLATION_CLASSES, input.cancellationClassDefault, "cancellationClassDefault", "requested_repair"),
+    ladderKey: input.ladderKey?.trim() ?? "",
+    sortOrder: Number.isSafeInteger(input.sortOrder) ? input.sortOrder : 0,
+    active: input.active ?? true
+  };
+}
+async function saveDraftItems(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.edit", EDIT, args);
+  if (!Array.isArray(args.items) || !args.items.length || args.items.length > 500) throw new DomainError(Codes.INVALID_INPUT, "Send between 1 and 500 items.", { field: "items" });
+  const rows = args.items.map(itemData);
+  const keys = /* @__PURE__ */ new Set();
+  for (const r of rows) {
+    if (keys.has(r.itemKey)) throw new DomainError(Codes.INVALID_INPUT, `${r.itemKey} appears twice.`, { field: "items" });
+    keys.add(r.itemKey);
+  }
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.edit", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    await lockDraft(uow.tx, args.versionId, args.expectedVersion);
+    const uoms = new Set((await uow.tx.unitOfMeasure.findMany({ select: { code: true } })).map((u) => u.code));
+    for (const r of rows) if (!uoms.has(r.uom)) throw new DomainError(Codes.INVALID_INPUT, `Unit ${r.uom || "(blank)"} is not set up.`, { field: "uom", itemKey: r.itemKey });
+    const existing = new Map((await uow.tx.priceBookItem.findMany({ where: { priceBookVersionId: args.versionId, itemKey: { in: [...keys] } }, select: { id: true, itemKey: true } })).map((r) => [r.itemKey, r.id]));
+    const fresh = [];
+    for (const { materials: materials2, ...r } of rows) {
+      const data = { ...r, materials: materials2, laborHours: r.laborHours };
+      const id = existing.get(r.itemKey);
+      if (id) await uow.tx.priceBookItem.update({ where: { id }, data });
+      else fresh.push({ ...data, priceBookVersionId: args.versionId });
+    }
+    if (fresh.length) await uow.tx.priceBookItem.createMany({ data: fresh });
+    const { version } = await touchDraft(uow.tx, args.versionId);
+    auditCreate(uow, actor, "PriceBookVersion", args.versionId, "pricebook_version.items_saved", { added: rows.filter((r) => !existing.has(r.itemKey)).map((r) => r.itemKey), changed: rows.filter((r) => existing.has(r.itemKey)).map((r) => r.itemKey) });
+    return { versionId: args.versionId, version, saved: rows.length };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function removeDraftItems(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.edit", EDIT, args);
+  if (!args.itemKeys?.length) throw new DomainError(Codes.INVALID_INPUT, "Choose items to remove.", { field: "itemKeys" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.remove_items", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    await lockDraft(uow.tx, args.versionId, args.expectedVersion);
+    const { count } = await uow.tx.priceBookItem.deleteMany({ where: { priceBookVersionId: args.versionId, itemKey: { in: args.itemKeys } } });
+    const { version } = await touchDraft(uow.tx, args.versionId);
+    auditCreate(uow, actor, "PriceBookVersion", args.versionId, "pricebook_version.items_removed", { itemKeys: args.itemKeys, removed: count });
+    return { versionId: args.versionId, version, removed: count };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function saveDraftSettings(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.edit", EDIT, args);
+  const categories = args.categories?.map((c, i) => {
+    if (!/^[a-z0-9][a-z0-9-]{0,47}$/.test(c.categoryKey ?? "")) throw new DomainError(Codes.INVALID_INPUT, `Category ${i + 1}: key is lower-case letters, digits and dashes.`, { field: "categories" });
+    if (!c.name?.trim()) throw new DomainError(Codes.INVALID_INPUT, `Category ${c.categoryKey} needs a name.`, { field: "categories" });
+    return { categoryKey: c.categoryKey, name: c.name.trim(), trade: oneOf(TRADE_OR_GENERAL, c.trade, "trade", "general"), parentKey: c.parentKey ?? "", sortOrder: c.sortOrder ?? i };
+  });
+  const laborRates = args.laborRates?.map((r) => {
+    const hourly = minorIn2(r.hourlyMinor, "hourlyMinor");
+    if (hourly <= 0n) throw new DomainError(Codes.INVALID_INPUT, "An hourly rate must be above zero.", { field: "laborRates" });
+    const multiplier = decimalText2(r.afterHoursMultiplier, "afterHoursMultiplier", 6);
+    if (multiplier && dec(multiplier).lessThan(1)) throw new DomainError(Codes.INVALID_INPUT, "The after-hours multiplier is at least 1.", { field: "laborRates" });
+    return { businessUnitId: r.businessUnitId || null, hourlyMinor: hourly, afterHoursMultiplier: multiplier ? toScale(multiplier, "rate") : null };
+  });
+  if (laborRates && new Set(laborRates.map((r) => r.businessUnitId ?? "")).size !== laborRates.length) throw new DomainError(Codes.INVALID_INPUT, "One labour rate per department (and one default).", { field: "laborRates" });
+  const markupTables = args.markupTables?.map((t) => {
+    if (!t.name?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Name the markup table.", { field: "markupTables" });
+    try {
+      validateMarkupTiers(t.tiers ?? []);
+    } catch (error) {
+      fail(error);
+    }
+    return { name: t.name.trim(), appliesTo: oneOf(["material", "equipment"], t.appliesTo, "appliesTo", "material"), tiers: t.tiers.map((x) => ({ fromCostMinor: String(x.fromCostMinor), toCostMinor: x.toCostMinor === null ? null : String(x.toCostMinor), multiplier: plain(x.multiplier) })) };
+  });
+  if (markupTables && new Set(markupTables.map((t) => t.appliesTo)).size !== markupTables.length) throw new DomainError(Codes.INVALID_INPUT, "One markup table for materials and one for equipment.", { field: "markupTables" });
+  const memberPricingRules = args.memberPricingRules?.map((r) => {
+    if (!r.planCode?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Member pricing needs a plan code.", { field: "memberPricingRules" });
+    if (!Number.isInteger(r.discountBps) || r.discountBps < 0 || r.discountBps > 1e4) throw new DomainError(Codes.INVALID_INPUT, "Member discount is 0 to 10000 basis points.", { field: "memberPricingRules" });
+    return { planCode: r.planCode.trim(), scope: oneOf(["all", "category", "item"], r.scope, "scope", "all"), scopeKey: r.scopeKey ?? "", discountBps: r.discountBps, waiveTripFee: !!r.waiveTripFee };
+  });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.settings", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const versionId = args.versionId;
+    await lockDraft(tx, versionId, args.expectedVersion);
+    if (categories) {
+      await tx.priceBookCategory.deleteMany({ where: { priceBookVersionId: versionId } });
+      if (categories.length) await tx.priceBookCategory.createMany({ data: categories.map((c) => ({ ...c, priceBookVersionId: versionId })) });
+    }
+    if (laborRates) {
+      await tx.laborRate.deleteMany({ where: { priceBookVersionId: versionId } });
+      if (laborRates.length) await tx.laborRate.createMany({ data: laborRates.map((r) => ({ ...r, priceBookVersionId: versionId })) });
+    }
+    if (markupTables) {
+      await tx.markupTable.deleteMany({ where: { priceBookVersionId: versionId } });
+      if (markupTables.length) await tx.markupTable.createMany({ data: markupTables.map((t) => ({ ...t, tiers: t.tiers, priceBookVersionId: versionId })) });
+    }
+    if (memberPricingRules) {
+      await tx.memberPricingRule.deleteMany({ where: { priceBookVersionId: versionId } });
+      if (memberPricingRules.length) await tx.memberPricingRule.createMany({ data: memberPricingRules.map((r) => ({ ...r, priceBookVersionId: versionId })) });
+    }
+    const { version } = await touchDraft(tx, versionId);
+    auditCreate(uow, actor, "PriceBookVersion", versionId, "pricebook_version.settings_saved", { categories: categories?.length ?? null, laborRates: laborRates ?? null, markupTables: markupTables ?? null, memberPricingRules: memberPricingRules ?? null });
+    return { versionId, version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+function memberPriceFor(item, unit, rules2) {
+  for (const scope of ["item", "category", "all"]) {
+    const matching = rules2.filter((r) => r.scope === scope && (scope === "all" || r.scopeKey === (scope === "item" ? item.itemKey : item.categoryKey)));
+    if (matching.length) return unit - bpsOf(unit, Math.min(...matching.map((r) => r.discountBps)));
+  }
+  return item.memberUnitPriceMinor;
+}
+function recomputeFormulaPrices(content) {
+  const materials2 = new Map(content.items.map((i) => [i.itemKey, i]));
+  const markup = content.markupTables.find((t) => t.appliesTo === "material") ?? null;
+  const changed = [];
+  for (const item of content.items) {
+    if (item.pricingMethod !== "formula" || !item.active) continue;
+    let price;
+    try {
+      price = formulaPrice(item, { laborRates: content.laborRates, markup, materials: materials2 });
+    } catch (error) {
+      return fail(error);
+    }
+    const member = memberPriceFor(item, price.unitPriceMinor, content.memberPricingRules);
+    if (price.unitPriceMinor !== item.unitPriceMinor || price.costMinor !== item.costMinor || member !== item.memberUnitPriceMinor) {
+      changed.push({ id: item.id, itemKey: item.itemKey, unitPriceMinor: price.unitPriceMinor, memberUnitPriceMinor: member, costMinor: price.costMinor });
+    }
+  }
+  return changed;
+}
+async function submitPriceBookVersion(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.submit", EDIT, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents do not submit price books.");
+  const effectiveAt = args.effectiveAt ? new Date(args.effectiveAt) : null;
+  if (effectiveAt && Number.isNaN(effectiveAt.getTime())) throw new DomainError(Codes.INVALID_INPUT, "effectiveAt must be an ISO date-time.", { field: "effectiveAt" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.submit", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const version = await lockDraft(tx, args.versionId, args.expectedVersion);
+    let content = await loadVersionContent(tx, args.versionId);
+    if (!content.items.some((i) => i.active)) throw new DomainError(Codes.GUARD_FAILED, "A price book version needs at least one item.", { reason: "empty" });
+    const frozen = recomputeFormulaPrices(content);
+    for (const row of frozen) await tx.priceBookItem.update({ where: { id: row.id }, data: { unitPriceMinor: row.unitPriceMinor, memberUnitPriceMinor: row.memberUnitPriceMinor, costMinor: row.costMinor } });
+    if (frozen.length) content = await loadVersionContent(tx, args.versionId);
+    const uoms = new Map((await tx.unitOfMeasure.findMany({ select: { code: true, maxDecimals: true } })).map((u) => [u.code, { maxDecimals: u.maxDecimals }]));
+    const findings = submitFindings(content.items, uoms);
+    if (findings.length) throw new DomainError(Codes.GUARD_FAILED, `${findings.length} item${findings.length === 1 ? "" : "s"} need attention before this version can be submitted.`, { reason: "findings", findings });
+    const book = await tx.priceBook.findUniqueOrThrow({ where: { id: version.priceBook }, select: { activeVersionId: true, code: true } });
+    const before = book.activeVersionId ? (await loadVersionContent(tx, book.activeVersionId)).items : [];
+    const diff = diffItems(before, content.items);
+    const contentHash = hashOf(content);
+    const approval = await requestApproval(uow, actor, {
+      action: "pricebook.publish",
+      targetList: "PriceBookVersion",
+      targetId: args.versionId,
+      payload: { versionId: args.versionId, contentHash, effectiveAt: effectiveAt?.toISOString() ?? null },
+      requiredPermission: "canApprovePriceBook",
+      summary: `Publish ${book.code} v${version.versionNumber}: ${diff.added.length} added, ${diff.repriced.length} repriced, ${diff.removed.length} removed${args.note ? ` (${args.note})` : ""}`
+    });
+    const next = await casUpdate(uow, {
+      model: "PriceBookVersion",
+      id: args.versionId,
+      version: version.version,
+      from: ["draft"],
+      to: "pending_approval",
+      actor,
+      eventType: "pricebook_version.submitted",
+      reason: args.note ?? null,
+      data: { contentHash, diffReport: diff, approvalId: approval.id, submittedById: actorUserId(actor), submittedAt: uow.now, effectiveAt },
+      audit: { contentHash, approvalId: approval.id, frozenFormulaPrices: frozen.map((f) => f.itemKey), diff: { added: diff.added.length, removed: diff.removed.length, repriced: diff.repriced.length, changed: diff.changed.length } }
+    });
+    return { versionId: args.versionId, status: "pending_approval", version: next, approvalRequestId: approval.id, contentHash, diff };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function applyPriceBookPublish(uow, actor, request) {
+  const { tx } = uow;
+  const version = await lockVersion(tx, request.targetId);
+  if (version.status !== "pending_approval") throw new DomainError(Codes.INVALID_TRANSITION, `This version is ${version.status}; only a version waiting for approval can be published.`, { currentStatus: version.status });
+  const content = await loadVersionContent(tx, request.targetId);
+  if (hashOf(content) !== request.payload.contentHash) throw new DomainError(Codes.APPROVAL_MISMATCH, "The version changed after it was submitted; submit it again.");
+  const requested = request.payload.effectiveAt ? new Date(request.payload.effectiveAt) : uow.now;
+  const effectiveAt = requested.getTime() < uow.now.getTime() ? uow.now : requested;
+  const approverId = actorUserId(actor);
+  const v = await casUpdate(uow, {
+    model: "PriceBookVersion",
+    id: request.targetId,
+    version: version.version,
+    from: ["pending_approval"],
+    to: "published",
+    actor,
+    eventType: "pricebook_version.published",
+    approverId,
+    data: { publishedById: approverId, publishedAt: uow.now, effectiveAt },
+    metadata: { approvalRequestId: request.id }
+  });
+  const activated = effectiveAt.getTime() <= uow.now.getTime() ? await activateInTx(uow, actor, request.targetId, version.priceBook, v) : null;
+  return { versionId: request.targetId, status: activated ? "active" : "published", effectiveAt: effectiveAt.toISOString() };
+}
+async function activateInTx(uow, actor, versionId, priceBookId, versionRow) {
+  const { tx } = uow;
+  await tx.$queryRaw`SELECT id FROM "PriceBook" WHERE id = ${priceBookId} FOR UPDATE`;
+  const prior = await tx.priceBookVersion.findFirst({ where: { priceBookId, status: "active" }, select: { id: true, version: true } });
+  if (prior) await casUpdate(uow, { model: "PriceBookVersion", id: prior.id, version: prior.version, from: ["active"], to: "retired", actor, eventType: "pricebook_version.retired", data: { retiredAt: uow.now }, metadata: { supersededBy: versionId } });
+  await casUpdate(uow, { model: "PriceBookVersion", id: versionId, version: versionRow, from: ["published"], to: "active", actor, eventType: "pricebook_version.activated", data: { activatedAt: uow.now }, metadata: { retired: prior?.id ?? null } });
+  await tx.priceBook.update({ where: { id: priceBookId }, data: { activeVersionId: versionId, version: { increment: 1 } } });
+  return true;
+}
+async function reopenPriceBookDraft(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.reopen", EDIT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.reopen", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await transition(uow, {
+      model: "PriceBookVersion",
+      id: args.versionId,
+      from: ["pending_approval"],
+      to: "draft",
+      expectedVersion: args.expectedVersion,
+      actor,
+      eventType: "pricebook_version.reopened",
+      reason: args.reason ?? null,
+      data: { approvalId: null, contentHash: "", submittedAt: null, submittedById: null },
+      guard: async (v) => {
+        const approval = v.approvalId ? await uow.tx.approvalRequest.findUnique({ where: { id: v.approvalId }, select: { status: true } }) : null;
+        if (approval?.status === "approved") throw new DomainError(Codes.GUARD_FAILED, "This version was approved; it is being published.");
+      }
+    });
+    const pending = await uow.tx.approvalRequest.findFirst({ where: { action: "pricebook.publish", targetId: args.versionId, status: "pending" }, select: { id: true, version: true } });
+    if (pending) await casUpdate(uow, { model: "ApprovalRequest", id: pending.id, version: pending.version, from: ["pending"], to: "cancelled", actor, eventType: "approval.cancelled", reason: "Price book version reopened for editing" });
+    return { versionId: row.id, status: "draft", version: row.version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function discardPriceBookVersion(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.discard", EDIT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.discard", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await transition(uow, { model: "PriceBookVersion", id: args.versionId, from: ["draft"], to: "discarded", expectedVersion: args.expectedVersion, actor, eventType: "pricebook_version.discarded", reason: args.reason ?? null });
+    return { versionId: row.id, status: "discarded", version: row.version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function importSupplierCosts(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.import_costs", EDIT, args);
+  if (!args.supplier?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Name the supplier.", { field: "supplier" });
+  if (!Array.isArray(args.costs) || !args.costs.length || args.costs.length > 5e3) throw new DomainError(Codes.INVALID_INPUT, "Send between 1 and 5000 cost rows.", { field: "costs" });
+  const costs = args.costs.map((c) => ({ itemKey: String(c.itemKey ?? "").trim().toUpperCase(), costMinor: minorIn2(c.costMinor, `costs.${c.itemKey}`) }));
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "pricebook.import_costs", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    await tx.$queryRaw`SELECT id FROM "PriceBook" WHERE id = ${args.priceBookId} FOR UPDATE`;
+    const open = await tx.priceBookVersion.findFirst({ where: { priceBookId: args.priceBookId, status: { in: ["draft", "pending_approval"] } }, select: { id: true, status: true, versionNumber: true } });
+    if (open?.status === "pending_approval") throw new DomainError(Codes.GUARD_FAILED, `Version ${open.versionNumber} is waiting for approval; reopen it or wait before importing costs.`, { reason: "pending_approval" });
+    const draft = open ?? await createDraftInTx(uow, actor, args.priceBookId, { label: `${args.supplier.trim()} costs`, source: "supplier_import", notes: `Supplier cost import from ${args.supplier.trim()}` });
+    let content = await loadVersionContent(tx, draft.id);
+    let report;
+    try {
+      report = costChangeReport(content.items, costs);
+    } catch (error) {
+      return fail(error);
+    }
+    const byKey = new Map(content.rows.map((r) => [r.itemKey, r.id]));
+    for (const change of report.changes) await tx.priceBookItem.update({ where: { id: byKey.get(change.itemKey) }, data: { costMinor: BigInt(change.toMinor) } });
+    content = await loadVersionContent(tx, draft.id);
+    const repriced = recomputeFormulaPrices(content);
+    for (const row of repriced) await tx.priceBookItem.update({ where: { id: row.id }, data: { unitPriceMinor: row.unitPriceMinor, memberUnitPriceMinor: row.memberUnitPriceMinor, costMinor: row.costMinor } });
+    const stored = { supplier: args.supplier.trim(), importedAt: uow.now.toISOString(), changes: report.changes, unknown: report.unknown, formulaRepriced: repriced.map((r) => ({ itemKey: r.itemKey, unitPriceMinor: r.unitPriceMinor.toString() })) };
+    const updated = await tx.priceBookVersion.update({ where: { id: draft.id }, data: { costChangeReport: stored, version: { increment: 1 } }, select: { version: true } });
+    auditCreate(uow, actor, "PriceBookVersion", draft.id, "pricebook_version.costs_imported", { supplier: stored.supplier, changed: report.changes.length, unknown: report.unknown.length, formulaRepriced: repriced.length });
+    return { versionId: draft.id, version: updated.version, ...stored };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function searchPriceBook(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.search", [...READ], args);
+  const { versionId } = await activeVersionFor(db, args.businessUnitId ?? null);
+  const q = args.query?.trim() ?? "";
+  const rows = await db.priceBookItem.findMany({
+    where: {
+      priceBookVersionId: versionId,
+      active: true,
+      ...args.kind ? { kind: args.kind } : {},
+      ...q ? { OR: [{ name: { contains: q, mode: "insensitive" } }, { itemKey: { contains: q.toUpperCase() } }, { customerDescription: { contains: q, mode: "insensitive" } }] } : {}
+    },
+    orderBy: [{ ladderKey: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+    take: Math.min(Math.max(args.limit ?? 20, 1), 100)
+  });
+  const items = rows.map((r) => ({
+    itemKey: r.itemKey,
+    name: r.name,
+    description: r.customerDescription,
+    kind: r.kind,
+    trade: r.trade,
+    uom: r.uom,
+    unitPriceMinor: r.unitPriceMinor.toString(),
+    memberUnitPriceMinor: r.memberUnitPriceMinor?.toString() ?? null,
+    ladderKey: r.ladderKey,
+    tier: r.tier,
+    warrantyText: r.warrantyText
+  }));
+  const output = { priceBookVersionId: versionId, items };
+  await recordAgentRead(db, actor, { tool: "pricebook.search", inputs: args, output: { priceBookVersionId: versionId, count: items.length } });
+  return output;
+}
+async function quoteFromVersion(db, versionId, lines, memberPricing) {
+  if (!Array.isArray(lines) || !lines.length || lines.length > 200) throw new DomainError(Codes.INVALID_INPUT, "Quote between 1 and 200 lines.", { field: "lines" });
+  const keys = [...new Set(lines.map((l) => String(l.itemKey ?? "").trim().toUpperCase()))];
+  const [rows, uoms] = await Promise.all([
+    db.priceBookItem.findMany({ where: { priceBookVersionId: versionId, itemKey: { in: keys } } }),
+    db.unitOfMeasure.findMany({ select: { code: true, maxDecimals: true } })
+  ]);
+  const byKey = new Map(rows.map((r) => [r.itemKey, draftOf(r)]));
+  const uomOf = new Map(uoms.map((u) => [u.code, { maxDecimals: u.maxDecimals }]));
+  return lines.map((line) => {
+    const item = byKey.get(String(line.itemKey ?? "").trim().toUpperCase());
+    if (!item) throw new DomainError(Codes.NOT_FOUND, `${line.itemKey} is not in the active price book.`, { field: "itemKey", itemKey: line.itemKey });
+    const cancellationClass = line.cancellationClass ? oneOf(CANCELLATION_CLASSES, line.cancellationClass, "cancellationClass") : void 0;
+    try {
+      return quoteLine(versionId, { item, quantity: String(line.quantity ?? ""), memberPricing, cancellationClass, description: line.description ?? void 0 }, uomOf.get(item.uom) ?? { maxDecimals: 0 });
+    } catch (error) {
+      return fail(error);
+    }
+  });
+}
+async function quotePriceBook(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.quote", [...READ], args);
+  const { versionId } = await activeVersionFor(db, args.businessUnitId ?? null);
+  const lines = await quoteFromVersion(db, versionId, args.lines, !!args.memberPricing);
+  let totals;
+  try {
+    totals = optionTotals(lines.map((l) => ({ amountMinor: l.amountMinor, costMinor: BigInt(l.costMinor) })), args.discountBps ?? 0);
+  } catch (error) {
+    return fail(error);
+  }
+  const snapshots = lines.map(({ amountMinor: _a, ...s }) => s);
+  const output = {
+    priceBookVersionId: versionId,
+    // Internal cost and margin never leave the shop: a quote is what the customer may hear.
+    lines: lines.map(({ costMinor: _c, ...l }) => ({ ...l, amountMinor: l.amountMinor.toString() })),
+    subtotalMinor: totals.subtotalMinor.toString(),
+    discountMinor: totals.discountMinor.toString(),
+    totalBeforeTaxMinor: totals.totalBeforeTaxMinor.toString(),
+    taxNote: "Plus applicable sales tax, calculated on the invoice.",
+    quoteHash: quoteHash(versionId, snapshots, args.discountBps ?? 0)
+  };
+  await recordAgentRead(db, actor, { tool: "pricebook.quote", inputs: args, output: { priceBookVersionId: versionId, quoteHash: output.quoteHash, totalBeforeTaxMinor: output.totalBeforeTaxMinor } });
+  return output;
+}
+async function priceBookVersionReview(db, actor, args) {
+  await authorizeOperation(db, actor, "pricebook.review", ["canManagePriceBook", "canApprovePriceBook"], args);
+  const version = await db.priceBookVersion.findUnique({ where: { id: args.versionId }, select: { id: true, status: true, priceBookId: true, versionNumber: true, diffReport: true, costChangeReport: true, contentHash: true } });
+  if (!version) throw new DomainError(Codes.NOT_FOUND, "Price book version not found.");
+  if (version.status !== "draft") return { ...version, live: null };
+  const content = await loadVersionContent(db, version.id);
+  const book = await db.priceBook.findUniqueOrThrow({ where: { id: version.priceBookId }, select: { activeVersionId: true } });
+  const before = book.activeVersionId ? (await loadVersionContent(db, book.activeVersionId)).items : [];
+  const formula2 = (() => {
+    try {
+      return recomputeFormulaPrices(content);
+    } catch (error) {
+      return { error: error.message };
+    }
+  })();
+  const uoms = new Map((await db.unitOfMeasure.findMany({ select: { code: true, maxDecimals: true } })).map((u) => [u.code, { maxDecimals: u.maxDecimals }]));
+  return { ...version, live: { diff: diffItems(before, content.items), findings: submitFindings(content.items, uoms), formula: Array.isArray(formula2) ? formula2.map((f) => ({ itemKey: f.itemKey, unitPriceMinor: f.unitPriceMinor.toString() })) : formula2 } };
+}
+
+// features/keystone/domain/policy.ts
+var SCOPE_SPECIFICITY = { company: 0, branch: 1, state: 2, county: 3, city: 4, zip: 5 };
+function matches(binding, place) {
+  switch (binding.scope) {
+    case "company":
+      return true;
+    case "branch":
+      return !!place.branchId && binding.scopeValue === place.branchId;
+    case "state":
+      return !!place.state && binding.scopeValue === place.state;
+    case "county":
+      return !!place.county && binding.scopeValue === place.county;
+    case "city":
+      return !!place.city && binding.scopeValue === place.city;
+    case "zip":
+      return !!place.zip && binding.scopeValue === place.zip;
+    default:
+      return false;
+  }
+}
+function versionInEffect(binding, on) {
+  const live = binding.pack.versions.filter((v) => v.status === "active" && v.effectiveFrom <= on && (!v.effectiveTo || on < v.effectiveTo));
+  if (!live.length) throw new DomainError(Codes.POLICY_MISSING, `No ${binding.pack.kind.replaceAll("_", " ")} policy is in effect on ${on} for ${binding.pack.code}.`, { reason: "no_version" });
+  if (live.length > 1) throw new DomainError(Codes.POLICY_AMBIGUOUS, `More than one ${binding.pack.code} policy version is in effect on ${on}.`, { reason: "overlapping_versions" });
+  return live[0];
+}
+function parsed(kind, binding, version) {
+  const result = parsePolicyRules(kind, version.rules);
+  if (!result.success) throw new DomainError(Codes.POLICY_INVALID, `${binding.pack.code} version ${version.versionNumber} has invalid ${kind} rules.`, { reason: result.error.issues.slice(0, 3).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") });
+  return result.data;
+}
+var later = (a, b) => a > b ? a : b;
+var earlier = (a, b) => a < b ? a : b;
+function intersect(a, b) {
+  const start = later(a.start, b.start);
+  const end = earlier(a.end, b.end);
+  return start < end ? { start, end } : { start: "00:00", end: "00:00" };
+}
+function stricterContactHours(layers) {
+  return layers.slice(1).reduce((acc, next) => ({
+    purposes: [.../* @__PURE__ */ new Set([...acc.purposes, ...next.purposes])],
+    basis: "recipient_local_time",
+    weekdays: intersect(acc.weekdays, next.weekdays),
+    saturday: intersect(acc.saturday, next.saturday),
+    sunday: intersect(acc.sunday, next.sunday),
+    // An exemption survives only when every layer grants it.
+    exemptions: acc.exemptions.filter((e) => next.exemptions.includes(e))
+  }), layers[0]);
+}
+function resolvePolicy(kind, place, on, candidates) {
+  if (!POLICY_KINDS.includes(kind)) throw new DomainError(Codes.INVALID_INPUT, `Unknown policy kind ${kind}.`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(on)) throw new DomainError(Codes.INVALID_INPUT, "Policy date must be YYYY-MM-DD.");
+  const applicable = candidates.filter((b) => b.status === "active" && b.pack.kind === kind && matches(b, place)).sort((a, b) => SCOPE_SPECIFICITY[b.scope] - SCOPE_SPECIFICITY[a.scope] || b.priority - a.priority);
+  if (!applicable.length) throw new DomainError(Codes.POLICY_MISSING, `No ${kind.replaceAll("_", " ")} policy applies here.`, { reason: "no_binding" });
+  if (kind === "contact_hours") {
+    const layers = applicable.map((binding) => {
+      const version2 = versionInEffect(binding, on);
+      return { binding, version: version2, rules: parsed(kind, binding, version2) };
+    });
+    const top = layers[0];
+    return {
+      kind,
+      packCode: top.binding.pack.code,
+      versionId: top.version.id,
+      versionNumber: top.version.versionNumber,
+      contentHash: top.version.contentHash,
+      bindingId: top.binding.id,
+      rules: stricterContactHours(layers.map((l) => l.rules)),
+      layers: layers.map((l) => ({ packCode: l.binding.pack.code, versionId: l.version.id, scope: l.binding.scope }))
+    };
+  }
+  const [winner, runnerUp] = applicable;
+  if (runnerUp && SCOPE_SPECIFICITY[runnerUp.scope] === SCOPE_SPECIFICITY[winner.scope] && runnerUp.priority === winner.priority && runnerUp.pack.id !== winner.pack.id) {
+    throw new DomainError(Codes.POLICY_AMBIGUOUS, `Two ${kind.replaceAll("_", " ")} policies (${winner.pack.code}, ${runnerUp.pack.code}) apply equally here. Set a priority on one binding.`, { reason: "tied_bindings" });
+  }
+  const version = versionInEffect(winner, on);
+  return {
+    kind,
+    packCode: winner.pack.code,
+    versionId: version.id,
+    versionNumber: version.versionNumber,
+    contentHash: version.contentHash,
+    bindingId: winner.id,
+    rules: parsed(kind, winner, version),
+    layers: [{ packCode: winner.pack.code, versionId: version.id, scope: winner.scope }]
+  };
+}
+var isoDay = (d) => d === null ? null : typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10);
+async function loadPolicyCandidates(db, kind) {
+  const rows = await db.policyBinding.findMany({
+    where: { status: "active", pack: { kind } },
+    include: { pack: { include: { versions: { where: { status: "active" } } } } }
+  });
+  return rows.map((b) => ({
+    id: b.id,
+    scope: b.scope,
+    scopeValue: b.scopeValue,
+    priority: b.priority,
+    status: b.status,
+    pack: {
+      id: b.pack.id,
+      code: b.pack.code,
+      kind: b.pack.kind,
+      versions: b.pack.versions.map((v) => ({ id: v.id, versionNumber: v.versionNumber, status: v.status, effectiveFrom: isoDay(v.effectiveFrom), effectiveTo: isoDay(v.effectiveTo), rules: v.rules, contentHash: v.contentHash, sourceRefs: v.sourceRefs }))
+    }
+  }));
+}
+async function resolvePolicyFromDb(db, kind, place, on) {
+  return resolvePolicy(kind, place, on, await loadPolicyCandidates(db, kind));
+}
+
+// features/keystone/domain/noticeTexts.ts
+var NoticeTextError = class extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+};
+var FTC_429 = (f) => ({
+  template: "ftc_429_notice_of_cancellation",
+  citation: "16 CFR 429.1(a)-(b)",
+  receiptStatement: "You, the buyer, may cancel this transaction at any time prior to midnight of the third business day after the date of this transaction. See the attached notice of cancellation form for an explanation of this right.",
+  caption: "NOTICE OF CANCELLATION",
+  formParagraphs: [
+    `${f.transactionDate}`,
+    "You may CANCEL this transaction, without any Penalty or Obligation, within THREE BUSINESS DAYS from the above date.",
+    "If you cancel, any property traded in, any payments made by you under the contract or sale, and any negotiable instrument executed by you will be returned within TEN BUSINESS DAYS following receipt by the seller of your cancellation notice, and any security interest arising out of the transaction will be cancelled.",
+    "If you cancel, you must make available to the seller at your residence, in substantially as good condition as when received, any goods delivered to you under this contract or sale, or you may, if you wish, comply with the instructions of the seller regarding the return shipment of the goods at the seller's expense and risk.",
+    "If you do make the goods available to the seller and the seller does not pick them up within 20 days of the date of your Notice of Cancellation, you may retain or dispose of the goods without any further obligation. If you fail to make the goods available to the seller, or if you agree to return the goods to the seller and fail to do so, then you remain liable for performance of all obligations under the contract.",
+    `To cancel this transaction, mail or deliver a signed and dated copy of this Cancellation Notice or any other written notice, or send a telegram, to ${f.sellerName}, at ${f.sellerAddress} NOT LATER THAN MIDNIGHT OF ${f.cancelByDate}.`,
+    "I HEREBY CANCEL THIS TRANSACTION."
+  ],
+  signatureLines: ["(Date)", "(Buyer's signature)"],
+  upperCase: false
+});
+var TX_6012 = (f) => ({
+  template: "tx_601_notice_of_cancellation",
+  citation: "Tex. Bus. & Com. Code \xA7601.052-.053",
+  receiptStatement: "YOU, THE BUYER, MAY CANCEL THIS TRANSACTION AT ANY TIME PRIOR TO MIDNIGHT OF THE THIRD BUSINESS DAY AFTER THE DATE OF THIS TRANSACTION. SEE THE ATTACHED NOTICE OF CANCELLATION FORM FOR AN EXPLANATION OF THIS RIGHT.",
+  caption: "NOTICE OF CANCELLATION",
+  formParagraphs: [
+    `${f.transactionDate}`,
+    "YOU MAY CANCEL THIS TRANSACTION, WITHOUT ANY PENALTY OR OBLIGATION, WITHIN THREE BUSINESS DAYS FROM THE ABOVE DATE.",
+    "IF YOU CANCEL, ANY PROPERTY TRADED IN, ANY PAYMENTS MADE BY YOU UNDER THE CONTRACT OR SALE, AND ANY NEGOTIABLE INSTRUMENT EXECUTED BY YOU WILL BE RETURNED WITHIN 10 BUSINESS DAYS FOLLOWING RECEIPT BY THE MERCHANT OF YOUR CANCELLATION NOTICE, AND ANY SECURITY INTEREST ARISING OUT OF THE TRANSACTION WILL BE CANCELLED.",
+    "IF YOU CANCEL, YOU MUST MAKE AVAILABLE TO THE MERCHANT AT YOUR RESIDENCE, IN SUBSTANTIALLY AS GOOD CONDITION AS WHEN RECEIVED, ANY GOODS DELIVERED TO YOU UNDER THIS CONTRACT OR SALE; OR YOU MAY IF YOU WISH, COMPLY WITH THE INSTRUCTIONS OF THE MERCHANT REGARDING THE RETURN SHIPMENT OF THE GOODS AT THE MERCHANT'S EXPENSE AND RISK.",
+    "IF YOU DO NOT AGREE TO RETURN THE GOODS TO THE MERCHANT OR IF THE MERCHANT DOES NOT PICK THEM UP WITHIN 20 DAYS OF THE DATE OF YOUR NOTICE OF CANCELLATION, YOU MAY RETAIN OR DISPOSE OF THE GOODS WITHOUT ANY FURTHER OBLIGATION.",
+    `TO CANCEL THIS TRANSACTION, MAIL OR DELIVER A SIGNED AND DATED COPY OF THIS CANCELLATION NOTICE OR ANY OTHER WRITTEN NOTICE, OR SEND A TELEGRAM, TO ${f.sellerName.toUpperCase()}, AT ${f.sellerAddress.toUpperCase()} NOT LATER THAN MIDNIGHT OF ${f.cancelByDate.toUpperCase()}.`,
+    "I HEREBY CANCEL THIS TRANSACTION."
+  ],
+  signatureLines: ["(DATE)", "(BUYER'S SIGNATURE)"],
+  upperCase: true
+});
+var TEMPLATES = {
+  ftc_429_notice_of_cancellation: FTC_429,
+  tx_601_notice_of_cancellation: TX_6012
+};
+var LANGUAGES = { ftc_429_notice_of_cancellation: ["en"], tx_601_notice_of_cancellation: ["en"] };
+function noticeText(template, language, fill) {
+  const make = TEMPLATES[template];
+  if (!make) throw new NoticeTextError("POLICY_INVALID", `Notice template ${template} is not available.`);
+  if (!(LANGUAGES[template] ?? []).includes(language)) throw new NoticeTextError("POLICY_INVALID", `There is no verified ${language} text for ${template}; the sale must be in a language we can give notice in.`);
+  for (const [k, v] of Object.entries(fill)) if (!String(v).trim()) throw new NoticeTextError("POLICY_INVALID", `The notice needs the ${k}.`);
+  return make(fill);
+}
+var TX_HOMESTEAD_WARNING = "IMPORTANT NOTICE: You and your contractor are responsible for meeting the terms and conditions of this contract. If you sign this contract and you fail to meet the terms and conditions of this contract, you may lose your legal ownership rights in your home. KNOW YOUR RIGHTS AND DUTIES UNDER THE LAW.";
+var TX_LIEN_DISCLOSURE = [
+  "KNOW YOUR RIGHTS AND RESPONSIBILITIES UNDER THE LAW. You are about to enter into a transaction to build a new home or remodel existing residential property. Texas law requires your contractor to provide you with this brief overview of some of your rights, responsibilities, and risks in this transaction.",
+  "CONVEYANCE TO CONTRACTOR NOT REQUIRED. Your contractor may not require you to convey your real property to your contractor as a condition to the agreement for the construction of improvements on your property.",
+  "KNOW YOUR CONTRACTOR. Before you enter into your agreement for the construction of improvements to your real property, make sure that you have investigated your contractor. Obtain and verify references from other people who have used the contractor for the type and size of construction project on your property.",
+  "GET IT IN WRITING. Make sure that you have a written agreement with your contractor that includes: (1) a description of the work the contractor is to perform; (2) the required or estimated time for completion of the work; (3) the cost of the work or how the cost will be determined; and (4) the procedure and method of payment, including provisions for statutory reservation of funds and conditions for final payment. If your contractor made a promise, warranty, or representation to you concerning the work the contractor is to perform, make sure that promise, warranty, or representation is specified in the written agreement. An oral promise that is not included in the written agreement may not be enforceable under Texas law.",
+  "READ BEFORE YOU SIGN. Do not sign any document before you have read and understood it. NEVER SIGN A DOCUMENT THAT INCLUDES AN UNTRUE STATEMENT. Take your time in reviewing documents. If you borrow money from a lender to pay for the improvements, you are entitled to have the loan closing documents furnished to you for review at least one business day before the closing. Do not waive this requirement unless a bona fide emergency or another good cause exists, and make sure you understand the documents before you sign them. If you fail to comply with the terms of the documents, you could lose your property. You are entitled to have your own attorney review any documents. If you have any question about the meaning of a document, consult an attorney.",
+  "GET A LIST OF SUBCONTRACTORS AND SUPPLIERS. Before construction commences, your contractor is required to provide you with a list of the subcontractors and suppliers the contractor intends to use on your project. Your contractor is required to supply updated information on any subcontractors and suppliers added after the list is provided. Your contractor is not required to supply this information if you sign a written waiver of your rights to receive this information.",
+  "MONITOR THE WORK. Lenders and governmental authorities may inspect the work in progress from time to time for their own purposes. These inspections are not intended as quality control inspections. Quality control is a matter for you and your contractor. To ensure that your home is being constructed in accordance with your wishes and specifications, you should inspect the work yourself or have your own independent inspector review the work in progress.",
+  "MONITOR PAYMENTS. If you use a lender, your lender is required to provide you with a periodic statement showing the money disbursed by the lender from the proceeds of your loan. Each time your contractor requests payment from you or your lender for work performed, your contractor is also required to furnish you with a disbursement statement that lists the name and address of each subcontractor or supplier that the contractor intends to pay from the requested funds. Review these statements and make sure that the money is being properly disbursed.",
+  "CLAIMS BY SUBCONTRACTORS AND SUPPLIERS. Under Texas law, if a subcontractor or supplier who furnishes labor or materials for the construction of improvements on your property is not paid, you may become liable and your property may be subject to a lien for the unpaid amount, even if you have not contracted directly with the subcontractor or supplier. To avoid liability, you should take the following actions: (1) If you receive a written notice from a subcontractor or supplier, you should withhold payment from your contractor for the amount of the claim stated in the notice until the dispute between your contractor and the subcontractor or supplier is resolved. If your lender is disbursing money directly to your contractor, you should immediately provide a copy of the notice to your lender and instruct the lender to withhold payment in the amount of the claim stated in the notice. If you continue to pay the contractor after receiving the written notice without withholding the amount of the claim, you may be liable and your property may be subject to a lien for the amount you failed to withhold. (2) During construction and for 30 days after final completion, termination, or abandonment of the contract by the contractor, you should reserve or cause your lender to reserve 10 percent of the amount of payments made for the work performed by your contractor. If you choose not to reserve the 10 percent for at least 30 days after final completion, termination, or abandonment of the contract by the contractor and if a valid claim is timely made by a claimant and your contractor fails to pay the claim, you may be personally liable and your property may be subject to a lien up to the amount that you failed to reserve.",
+  "If a claim is not paid within a certain time period, the claimant is required to file a mechanic's lien affidavit in the real property records in the county where the property is located. A mechanic's lien affidavit is not a lien on your property, but the filing of the affidavit could result in a court imposing a lien on your property if the claimant is successful in litigation to enforce the lien claim.",
+  "SOME CLAIMS MAY NOT BE VALID. When you receive a written notice of a claim or when a mechanic's lien affidavit is filed on your property, you should know your legal rights and responsibilities regarding the claim. Not all claims are valid. A notice of a claim by a subcontractor or supplier is required to be sent, and the mechanic's lien affidavit is required to be filed, within strict time periods. The notice and the affidavit must contain certain information. All claimants may not fully comply with the legal requirements to collect on a claim. If you have paid the contractor in full before receiving a notice of a claim and have withheld the 10 percent of the contract price or value of work, you may not be liable for that claim. Accordingly, you should consult your attorney when you receive a written notice of a claim to determine the true extent of your liability or potential liability for that claim.",
+  "OBTAIN A LIEN RELEASE AND A BILLS-PAID AFFIDAVIT. When you receive a notice of claim, do not release withheld funds without obtaining a signed and notarized release of lien and claim from the claimant. You can also reduce the risk of having a claim filed by a subcontractor or supplier by requiring as a condition of each payment made by you or your lender that your contractor furnish you with an affidavit stating that all bills have been paid. Under Texas law, on final completion of the work and before final payment, the contractor is required to furnish you with an affidavit stating that all bills have been paid. If the contractor discloses any unpaid bill in the affidavit, you should withhold payment in the amount of the unpaid bill until you receive a waiver of lien or release from that subcontractor or supplier.",
+  "OBTAIN TITLE INSURANCE PROTECTION. You may be able to obtain a title insurance policy to insure that the title to your property and the existing improvements on your property are free from liens claimed by subcontractors and suppliers. If your policy is issued before the improvements are completed and covers the value of the improvements to be completed, you should obtain, on the completion of the improvements and as a condition of your final payment, a 'completion of improvements' policy endorsement. This endorsement will protect your property from liens claimed by subcontractors and suppliers that may arise from the date the original title policy is issued to the date of the endorsement."
+];
+function noticeDate(isoDate) {
+  const [y, m, d] = isoDate.split("-");
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${months[Number(m) - 1]} ${Number(d)}, ${y}`;
+}
+
+// lib/pdf.ts
+var PAGE_W = 612;
+var PAGE_H = 792;
+var MARGIN = 54;
+var W = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
+var WB = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
+function ansi(text16) {
+  const map = { "\u20AC": 128, "\u201A": 130, "\u201E": 132, "\u2026": 133, "\u2018": 145, "\u2019": 146, "\u201C": 147, "\u201D": 148, "\u2022": 149, "\u2013": 150, "\u2014": 151, "\u2122": 153, "\u2212": 45, "\xB7": 183, "\xA7": 167 };
+  let out = "";
+  for (const ch of text16) {
+    const c = ch.codePointAt(0);
+    const b = map[ch] ?? (c >= 32 && c <= 255 && !(c >= 127 && c < 160) ? c : 63);
+    out += String.fromCharCode(b);
+  }
+  return out;
+}
+var esc = (s) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+function textWidth(text16, size, font = "regular") {
+  if (font === "mono") return ansi(text16).length * 600 * size / 1e3;
+  const table = font === "bold" ? WB : W;
+  let w = 0;
+  for (const ch of ansi(text16)) {
+    const c = ch.charCodeAt(0);
+    w += c >= 32 && c <= 126 ? table[c - 32] : 556;
+  }
+  return w * size / 1e3;
+}
+function wrap(text16, width, size, font = "regular") {
+  const lines = [];
+  for (const para of text16.split("\n")) {
+    let line = "";
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      const next = line ? `${line} ${word}` : word;
+      if (textWidth(next, size, font) <= width || !line) line = next;
+      else {
+        lines.push(line);
+        line = word;
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+var PdfDoc = class {
+  constructor() {
+    this.pages = [[]];
+    /** Distance from the top of the current page, in points. */
+    this.y = MARGIN;
+    this.width = PAGE_W - MARGIN * 2;
+  }
+  get ops() {
+    return this.pages[this.pages.length - 1];
+  }
+  newPage() {
+    this.pages.push([]);
+    this.y = MARGIN;
+  }
+  /** Start a new page if fewer than `points` remain. */
+  need(points) {
+    if (this.y + points > PAGE_H - MARGIN - 18) this.newPage();
+  }
+  text(s, x, size = 10, font = "regular", align = "left", gray = 0) {
+    const f = font === "bold" ? "F2" : font === "mono" ? "F3" : "F1";
+    const left = align === "right" ? x - textWidth(s, size, font) : x;
+    this.ops.push(`${gray} g BT /${f} ${size} Tf ${left.toFixed(2)} ${(PAGE_H - this.y - size).toFixed(2)} Td (${esc(ansi(s))}) Tj ET 0 g`);
+  }
+  /** A wrapped paragraph from the current y; advances y. */
+  paragraph(s, size = 9, font = "regular", gray = 0, x = MARGIN, width = this.width) {
+    for (const line of wrap(s, width, size, font)) {
+      this.need(size * 1.35);
+      this.text(line, x, size, font, "left", gray);
+      this.y += size * 1.35;
+    }
+  }
+  rule(gray = 0.8, weight = 0.5) {
+    const y = (PAGE_H - this.y).toFixed(2);
+    this.ops.push(`${gray} G ${weight} w ${MARGIN} ${y} m ${PAGE_W - MARGIN} ${y} l S 0 G`);
+  }
+  toBytes(meta = { title: "Document" }) {
+    const objs = [];
+    const add = (body) => {
+      objs.push(body);
+      return objs.length;
+    };
+    const catalog = add("");
+    const pagesId = add("");
+    const fonts = [add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"), add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"), add("<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>")];
+    const kids = [];
+    this.pages.forEach((ops, i) => {
+      const footer = this.footer ? this.footer(i + 1, this.pages.length) : "";
+      const all2 = footer ? [...ops, `0.45 g BT /F1 8 Tf ${MARGIN} ${MARGIN - 20} Td (${esc(ansi(footer))}) Tj ET 0 g`] : ops;
+      const stream = all2.join("\n");
+      const content = add(`<< /Length ${latin1Length(stream)} >>
+stream
+${stream}
+endstream`);
+      kids.push(add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 ${fonts[0]} 0 R /F2 ${fonts[1]} 0 R /F3 ${fonts[2]} 0 R >> >> /Contents ${content} 0 R >>`));
+    });
+    objs[catalog - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+    objs[pagesId - 1] = `<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(" ")}] /Count ${kids.length} >>`;
+    const info = add(`<< /Title (${esc(ansi(meta.title))}) /Producer (Openfront Home Services)${meta.author ? ` /Author (${esc(ansi(meta.author))})` : ""} >>`);
+    let out = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+    const offsets = [];
+    objs.forEach((body, i) => {
+      offsets.push(latin1Length(out));
+      out += `${i + 1} 0 obj
+${body}
+endobj
+`;
+    });
+    const xref = latin1Length(out);
+    out += `xref
+0 ${objs.length + 1}
+0000000000 65535 f 
+${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n 
+`).join("")}`;
+    out += `trailer
+<< /Size ${objs.length + 1} /Root ${catalog} 0 R /Info ${info} 0 R >>
+startxref
+${xref}
+%%EOF
+`;
+    const bytes = new Uint8Array(out.length);
+    for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+    return bytes;
+  }
+};
+var latin1Length = (s) => s.length;
+
+// lib/salesPdf.ts
+function usd(minor2) {
+  const s = String(minor2 ?? "0");
+  if (!/^-?\d+$/.test(s)) return "";
+  const neg = s.startsWith("-");
+  const abs = s.replace("-", "").padStart(3, "0");
+  const whole = abs.slice(0, -2).replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${neg ? "-" : ""}$${whole}.${abs.slice(-2)}`;
+}
+var TIER = { good: "Good", better: "Better", best: "Best", single: "", custom: "" };
+var presentedLabel = (s) => `Presented ${new Intl.DateTimeFormat("en-US", { timeZone: s.timeZone, dateStyle: "medium" }).format(new Date(s.presentedAt))}${s.validUntil ? ` \xB7 good through ${s.validUntil}` : ""}`;
+function renderEstimatePdf(s, subtitle) {
+  const pdf = new PdfDoc();
+  const right = MARGIN + pdf.width;
+  const col = { qty: right - 200, each: right - 110, amount: right };
+  pdf.footer = (p, n) => `${s.ref} v${s.versionNumber} \xB7 ${s.company.name} \xB7 page ${p} of ${n}`;
+  pdf.text(s.company.legalName || s.company.name, MARGIN, 16, "bold");
+  pdf.text("ESTIMATE", right, 16, "bold", "right");
+  pdf.y += 22;
+  pdf.text([s.company.address, s.company.phone].filter(Boolean).join(" \xB7 "), MARGIN, 9, "regular", "left", 0.35);
+  pdf.text(`${s.ref} \xB7 version ${s.versionNumber}`, right, 9, "regular", "right", 0.35);
+  pdf.y += 13;
+  if (s.company.licenses.length) {
+    pdf.text(s.company.licenses.map((l) => `${l.label} ${l.number}`).join(" \xB7 "), MARGIN, 8.5, "regular", "left", 0.35);
+  }
+  pdf.text(subtitle, right, 9, "regular", "right", 0.35);
+  pdf.y += 22;
+  pdf.text(s.customer.name, MARGIN, 11, "bold");
+  pdf.y += 15;
+  if (s.location) {
+    pdf.text(s.location.address, MARGIN, 10);
+    pdf.y += 15;
+  }
+  pdf.text(s.title, MARGIN, 10, "regular", "left", 0.3);
+  pdf.y += 16;
+  if (s.notes) {
+    pdf.paragraph(s.notes, 9, "regular", 0.25);
+    pdf.y += 4;
+  }
+  pdf.rule(0.2, 1);
+  pdf.y += 10;
+  const many = s.options.length > 1;
+  for (const [i, o] of s.options.entries()) {
+    pdf.need(80);
+    const label = [many ? `Option ${i + 1}` : "", TIER[o.tier] ?? "", o.name].filter(Boolean).join(" \xB7 ");
+    pdf.text(label, MARGIN, 11.5, "bold");
+    pdf.text(usd(o.totalMinor), right, 11.5, "bold", "right");
+    pdf.y += 16;
+    if (o.description) pdf.paragraph(o.description, 9, "regular", 0.3);
+    pdf.y += 2;
+    pdf.text("Qty", col.qty, 8, "regular", "right", 0.45);
+    pdf.text("Each", col.each, 8, "regular", "right", 0.45);
+    pdf.text("Amount", col.amount, 8, "regular", "right", 0.45);
+    pdf.y += 12;
+    for (const l of o.lines) {
+      pdf.need(26);
+      pdf.text(l.description, MARGIN + 10, 9.5);
+      pdf.text(`${l.quantity} ${l.uom}`, col.qty, 9.5, "regular", "right");
+      pdf.text(usd(l.unitPriceMinor), col.each, 9.5, "regular", "right");
+      pdf.text(usd(l.amountMinor), col.amount, 9.5, "regular", "right");
+      pdf.y += 12;
+      const detail = [l.memberPriced ? "member price" : "", l.isAddOn ? "additional work" : "", l.warrantyText].filter(Boolean).join(" \xB7 ");
+      if (detail) {
+        pdf.paragraph(detail, 8, "regular", 0.45, MARGIN + 10, col.qty - MARGIN - 60);
+      }
+    }
+    pdf.y += 2;
+    const parts = [`Subtotal ${usd(o.subtotalMinor)}`, o.discountMinor !== "0" ? `Discount -${usd(o.discountMinor)}` : "", `Estimated tax ${usd(o.estimatedTaxMinor)}`].filter(Boolean);
+    pdf.text(parts.join(" \xB7 "), right, 8.5, "regular", "right", 0.35);
+    pdf.y += 12;
+    if (o.monthlyPaymentDisplay) {
+      pdf.text(o.monthlyPaymentDisplay, right, 8.5, "regular", "right", 0.35);
+      pdf.y += 12;
+    }
+    pdf.rule();
+    pdf.y += 10;
+  }
+  pdf.need(40);
+  if (s.discount) {
+    pdf.paragraph(`Discount applied: ${s.discount.reason}`, 8.5, "regular", 0.25);
+    pdf.y += 2;
+  }
+  pdf.paragraph(s.disclosures.taxNote, 8.5, "regular", 0.25);
+  if (s.validUntil) pdf.paragraph(`Prices are good through ${s.validUntil}.`, 8.5, "regular", 0.25);
+  pdf.y += 6;
+  if (s.disclosures.cancellationStatement) {
+    pdf.need(40);
+    pdf.paragraph(s.disclosures.cancellationStatement, 10, "bold");
+    pdf.y += 6;
+  }
+  if (s.disclosures.homesteadWarning) {
+    pdf.need(50);
+    pdf.paragraph(s.disclosures.homesteadWarning, 10, "bold");
+    pdf.y += 6;
+  }
+  if (s.disclosures.lienDisclosure?.length) {
+    pdf.newPage();
+    for (const para of s.disclosures.lienDisclosure) {
+      pdf.paragraph(para, 8.5);
+      pdf.y += 4;
+    }
+  }
+  return pdf.toBytes({ title: `Estimate ${s.ref}`, author: s.company.name });
+}
+function renderNoticePdf(s) {
+  const pdf = new PdfDoc();
+  const right = MARGIN + pdf.width;
+  pdf.footer = (p, n) => `${s.ref} \xB7 ${s.seller.name} \xB7 page ${p} of ${n}`;
+  pdf.text(s.seller.name, MARGIN, 14, "bold");
+  pdf.text(s.ref, right, 10, "regular", "right", 0.35);
+  pdf.y += 18;
+  pdf.text(s.seller.address, MARGIN, 9, "regular", "left", 0.35);
+  pdf.y += 18;
+  pdf.text(`Buyer: ${s.buyer.name}`, MARGIN, 10);
+  pdf.y += 13;
+  pdf.text(s.buyer.address, MARGIN, 10);
+  pdf.y += 13;
+  pdf.text(`Date of transaction: ${s.transactionDate}`, MARGIN, 10);
+  pdf.y += 18;
+  pdf.text("Work covered by this right to cancel", MARGIN, 9, "bold");
+  pdf.y += 13;
+  for (const l of s.coveredLines) {
+    pdf.need(14);
+    pdf.text(l.description, MARGIN + 10, 9);
+    pdf.text(usd(l.amountMinor), right, 9, "regular", "right");
+    pdf.y += 12;
+  }
+  pdf.text(`Total ${usd(s.coveredAmountMinor)}`, right, 9, "bold", "right");
+  pdf.y += 18;
+  for (const n of s.notices) {
+    pdf.need(50);
+    pdf.paragraph(n.receiptStatement, 10, "bold");
+    pdf.y += 8;
+  }
+  for (const n of s.notices) {
+    for (const copy of ["Copy for the buyer to keep", "Copy for the buyer to send"]) {
+      pdf.newPage();
+      pdf.text(copy, right, 8, "regular", "right", 0.45);
+      pdf.text(n.citation, MARGIN, 8, "regular", "left", 0.45);
+      pdf.y += 18;
+      pdf.text(n.caption, MARGIN, 12, "bold");
+      pdf.y += 20;
+      for (const p of n.formParagraphs) {
+        pdf.paragraph(p, 10, "bold");
+        pdf.y += 6;
+      }
+      pdf.y += 24;
+      for (const sig of n.signatureLines) {
+        pdf.rule(0.3, 0.5);
+        pdf.y += 4;
+        pdf.text(sig, MARGIN, 9, "bold");
+        pdf.y += 30;
+      }
+    }
+  }
+  return pdf.toBytes({ title: `Notice of cancellation ${s.ref}`, author: s.seller.name });
+}
+
+// features/keystone/domain/cancellation-rights.ts
+var CancellationRightsError = class extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+};
+var KNOWN_EXCLUSIONS = /* @__PURE__ */ new Set(["retail_prior_negotiation", "tila_rescission", "emergency_waiver", "mail_or_phone_only", "requested_repair"]);
+function thresholdFor(rule2, location) {
+  if (location === "buyer_residence") return BigInt(rule2.thresholdAtResidenceMinor);
+  if (location === "other_non_merchant") return rule2.thresholdElsewhereMinor === null ? null : BigInt(rule2.thresholdElsewhereMinor);
+  return null;
+}
+var meets = (amount, threshold, comparison) => comparison === "at_least" ? amount >= threshold : amount > threshold;
+function waiverValid(rule2, facts) {
+  const w = facts.emergencyWaiver;
+  if (!w?.present || !rule2.emergencyWaiver.allowed) return false;
+  if (facts.initiatedBy !== "customer_request") return false;
+  if (rule2.emergencyWaiver.handwritten && !w.handwritten) return false;
+  if (rule2.emergencyWaiver.signedAndDated && !w.signedAndDated) return false;
+  return true;
+}
+function linesInScope(rule2, facts, reasons) {
+  const perLine = new Set(rule2.exclusions.filter((e) => e.perLine).map((e) => e.code));
+  let lines = facts.lines.filter((line) => line.amountMinor > 0n);
+  if (rule2.scope === "personal_solicitation") {
+    if (facts.initiatedBy === "customer_request") {
+      const before = lines.length;
+      lines = lines.filter((line) => line.cancellationClass === "additional_goods_services");
+      if (lines.length < before) reasons.push("requested_work_not_solicited");
+    }
+  } else if (perLine.has("requested_repair") && facts.initiatedBy === "customer_request") {
+    const before = lines.length;
+    lines = lines.filter((line) => line.cancellationClass === "additional_goods_services");
+    if (lines.length < before) reasons.push("requested_repair_lines_excluded");
+  }
+  for (const exemption of rule2.exemptions) {
+    if (exemption.when !== "consumer_initiated" || facts.initiatedBy !== "customer_request") continue;
+    if ((facts.acrContext ?? []).some((code) => exemption.except.includes(code))) {
+      reasons.push(`${exemption.code}_not_available`);
+      continue;
+    }
+    const before = lines.length;
+    lines = lines.filter((line) => !exemption.trades.includes(line.trade));
+    if (lines.length < before) reasons.push(exemption.code);
+  }
+  return lines;
+}
+function evaluateRule(rule2, facts, calendar) {
+  if (rule2.calendar !== calendar.code) throw new CancellationRightsError("POLICY_INVALID", `Rule ${rule2.code} counts business days on ${rule2.calendar}, but ${calendar.code} was supplied.`);
+  for (const code of facts.exclusions ?? []) {
+    if (!KNOWN_EXCLUSIONS.has(code)) throw new CancellationRightsError("INVALID_INPUT", `Unknown exclusion ${code}.`);
+  }
+  const reasons = [];
+  const { transactionDate, lastDay, deadline } = cancelByDeadline(calendar, facts.transactionAt, facts.timeZone, rule2.businessDays);
+  const base = {
+    rule: rule2.code,
+    title: rule2.title,
+    comparison: rule2.thresholdComparison,
+    businessDays: rule2.businessDays,
+    transactionDate,
+    noticeTemplate: rule2.noticeTemplate,
+    refundBusinessDays: rule2.refundBusinessDays
+  };
+  const none = (why, threshold2 = null) => ({
+    ...base,
+    applies: false,
+    reasons: [...reasons, why],
+    coveredLineIds: [],
+    coveredAmountMinor: "0",
+    thresholdMinor: threshold2?.toString() ?? null,
+    lastDay: null,
+    cancelBy: null,
+    waived: false
+  });
+  const threshold = thresholdFor(rule2, facts.location);
+  if (threshold === null) return none(facts.location === "merchant_place" ? "at_merchant_place_of_business" : "not_a_covered_location");
+  const ruleExclusions = new Set(rule2.exclusions.filter((e) => !e.perLine).map((e) => e.code));
+  const whole = (facts.exclusions ?? []).find((code) => ruleExclusions.has(code) && code !== "emergency_waiver");
+  if (whole) return none(`excluded_${whole}`, threshold);
+  if (rule2.scope === "personal_solicitation" && facts.location === "remote") return none("not_personally_solicited", threshold);
+  const lines = linesInScope(rule2, facts, reasons);
+  const covered2 = lines.reduce((sum, line) => sum + line.amountMinor, 0n);
+  if (!lines.length) return none("no_covered_lines", threshold);
+  if (!meets(covered2, threshold, rule2.thresholdComparison)) return none(rule2.thresholdComparison === "at_least" ? "below_threshold" : "not_more_than_threshold", threshold);
+  const waived = waiverValid(rule2, facts);
+  if (facts.emergencyWaiver?.present && !waived) reasons.push(rule2.emergencyWaiver.allowed ? "emergency_waiver_incomplete" : "emergency_waiver_not_available");
+  return {
+    ...base,
+    applies: true,
+    reasons: [...reasons, waived ? "waived_by_buyer_emergency" : "right_applies"],
+    coveredLineIds: lines.map((line) => line.id),
+    coveredAmountMinor: covered2.toString(),
+    thresholdMinor: threshold.toString(),
+    lastDay,
+    cancelBy: deadline.toISOString(),
+    waived
+  };
+}
+function evaluateCancellationRights(rules2, facts, calendars) {
+  if (!facts.lines.length) throw new CancellationRightsError("INVALID_INPUT", "A sale needs at least one line.");
+  if (facts.lines.some((line) => line.amountMinor < 0n)) throw new CancellationRightsError("INVALID_INPUT", "Line amounts must not be negative.");
+  const results = rules2.rules.map((rule2) => {
+    const calendar = calendars[rule2.calendar];
+    if (!calendar) throw new CancellationRightsError("POLICY_INVALID", `No ${rule2.calendar} calendar is loaded for rule ${rule2.code}.`);
+    return evaluateRule(rule2, facts, calendar);
+  });
+  const live = results.filter((r) => r.applies && !r.waived);
+  const governing = [...live].sort((a, b) => b.cancelBy < a.cancelBy ? -1 : b.cancelBy > a.cancelBy ? 1 : b.coveredLineIds.length - a.coveredLineIds.length)[0] ?? null;
+  const ids = new Set(live.flatMap((r) => r.coveredLineIds));
+  const coveredAmount = facts.lines.filter((line) => ids.has(line.id)).reduce((sum, line) => sum + line.amountMinor, 0n);
+  return {
+    applies: live.length > 0,
+    governing,
+    results,
+    coveredLineIds: facts.lines.filter((line) => ids.has(line.id)).map((line) => line.id),
+    coveredAmountMinor: coveredAmount.toString(),
+    language: facts.language ?? "en"
+  };
+}
+var noticeRuleOf = (code) => code === "ftc_cooling_off" ? "ftc_16cfr429" : code === "tx_601" ? "tx_bcc_601" : "other";
+
+// features/keystone/services/salesShared.ts
 var import_node_crypto7 = require("node:crypto");
+var placeOfLocation = (loc) => {
+  const state = loc?.state ? `US-${loc.state}` : "US-TX";
+  return { state, zip: loc?.postalCode || null, city: loc?.city ? `${state}-${loc.city.toUpperCase().replace(/\s+/g, "-")}` : null };
+};
+var addressLine = (loc) => loc ? [loc.address1, loc.address2, `${loc.city}, ${loc.state} ${loc.postalCode}`].filter(Boolean).join(", ") : "";
+async function sellerBlock(tx, businessUnitId, jurisdiction, trades) {
+  const [company, brand, bu] = await Promise.all([
+    tx.companySettings.findFirst({ select: { legalName: true, displayName: true, homeTimeZone: true, estimateValidityDays: true } }),
+    tx.brand.findFirst({ orderBy: { createdAt: "asc" }, select: { name: true, phone: true, email: true } }),
+    businessUnitId ? tx.businessUnit.findUnique({ where: { id: businessUnitId }, select: { branch: { select: { line1: true, line2: true, city: true, region: true, postalCode: true } } } }) : null
+  ]);
+  if (!company) throw new Error("Company settings are not set up.");
+  const branch = bu?.branch ?? await tx.branch.findFirst({ orderBy: { createdAt: "asc" }, select: { line1: true, line2: true, city: true, region: true, postalCode: true } });
+  const licenses = await tx.contractorLicense.findMany({ where: { displayOnDocuments: true, jurisdictionCode: jurisdiction, trade: { in: [...new Set(trades)] } }, orderBy: { trade: "asc" }, select: { issuer: true, licenseNumber: true } });
+  return {
+    company,
+    block: {
+      name: brand?.name || company.displayName,
+      legalName: company.legalName,
+      phone: brand?.phone || "",
+      email: brand?.email || "",
+      address: branch ? [branch.line1, branch.line2, `${branch.city}, ${branch.region} ${branch.postalCode}`].filter(Boolean).join(", ") : "",
+      licenses: licenses.map((l) => ({ label: l.issuer, number: l.licenseNumber }))
+    }
+  };
+}
+var sha256Bytes = (bytes) => (0, import_node_crypto7.createHash)("sha256").update(bytes).digest("hex");
+async function storeRenderedPdf(uow, actor, spec) {
+  const digest = sha256Bytes(spec.bytes);
+  const doc = await uow.tx.document.create({ data: { title: spec.title, kind: spec.kind, visibility: "customer", subjectType: spec.subjectType, subjectId: spec.subjectId }, select: { id: true } });
+  await uow.tx.documentVersion.create({ data: { documentId: doc.id, versionNumber: 1, storageKey: spec.storageKey, sha256: digest, mimeType: "application/pdf", sizeBytes: spec.bytes.length, createdById: actorUserId(actor) } });
+  auditCreate(uow, actor, "Document", doc.id, "document.rendered", { kind: spec.kind, subjectType: spec.subjectType, subjectId: spec.subjectId, sha256: digest, sizeBytes: spec.bytes.length });
+  return { documentId: doc.id, sha256: digest };
+}
+async function storeRecordedDocument(uow, actor, spec) {
+  const digest = (0, import_node_crypto7.createHash)("sha256").update(spec.content).digest("hex");
+  const doc = await uow.tx.document.create({ data: { title: spec.title, kind: spec.kind, visibility: "internal", subjectType: spec.subjectType, subjectId: spec.subjectId }, select: { id: true } });
+  await uow.tx.documentVersion.create({ data: { documentId: doc.id, versionNumber: 1, storageKey: spec.storageKey, sha256: digest, mimeType: spec.mimeType, sizeBytes: Buffer.byteLength(spec.content), createdById: actorUserId(actor) } });
+  auditCreate(uow, actor, "Document", doc.id, "document.recorded", { kind: spec.kind, subjectType: spec.subjectType, subjectId: spec.subjectId, sha256: digest });
+  return { documentId: doc.id, sha256: digest };
+}
+
+// features/keystone/services/cancellation.ts
+var CALENDARS = { "US-FEDERAL": US_FEDERAL };
+var SELLERS = ["canSellEstimates", "canManageCustomers", "canBook"];
+var OFFICE = ["canManageCustomers", "canBook", "canDispatch", "canManageInvoices"];
+var OPEN = ["issued", "delivered"];
+var rightsError = (error) => {
+  if (error instanceof CancellationRightsError || error instanceof NoticeTextError) {
+    throw new DomainError(error.code === "INVALID_INPUT" ? Codes.INVALID_INPUT : Codes.POLICY_INVALID, error.message);
+  }
+  throw error;
+};
+async function evaluateSaleRights(uow, actor, input) {
+  const { tx } = uow;
+  const loc = input.serviceLocation;
+  const place = placeOfLocation(loc);
+  const on = localDate({ timeZone: loc.timeZone }, input.transactionAt);
+  const policy = await resolvePolicyFromDb(tx, "home_solicitation", place, on);
+  const facts = {
+    location: input.location,
+    initiatedBy: input.initiatedBy,
+    transactionAt: input.transactionAt,
+    timeZone: loc.timeZone,
+    lines: input.lines.map((l) => ({ id: l.id, amountMinor: l.amountMinor, trade: l.trade, cancellationClass: l.cancellationClass, description: l.description })),
+    exclusions: input.exclusions,
+    emergencyWaiver: input.emergencyWaiver ? { present: input.emergencyWaiver.present, handwritten: input.emergencyWaiver.handwritten, signedAndDated: input.emergencyWaiver.signedAndDated } : null,
+    acrContext: input.acrContext,
+    language: input.language
+  };
+  let result;
+  try {
+    result = evaluateCancellationRights(policy.rules, facts, CALENDARS);
+  } catch (error) {
+    return rightsError(error);
+  }
+  const waivedOnly = !result.applies && result.results.some((r) => r.applies && r.waived);
+  const evaluation = await tx.cancellationEvaluation.create({
+    data: {
+      jobId: input.jobId,
+      authorizationId: input.authorizationId,
+      subjectType: input.subjectType,
+      subjectId: input.subjectId,
+      policyVersionId: policy.versionId,
+      inputs: { ...facts, transactionAt: facts.transactionAt.toISOString(), lines: facts.lines.map((l) => ({ ...l, amountMinor: l.amountMinor.toString() })), packCode: policy.packCode, place },
+      results: result,
+      rightApplies: result.applies,
+      governingRule: result.governing?.rule ?? "",
+      evaluatedAt: uow.now
+    },
+    select: { id: true }
+  });
+  auditCreate(uow, actor, "CancellationEvaluation", evaluation.id, "cancellation.evaluated", { subject: `${input.subjectType}:${input.subjectId}`, policyVersionId: policy.versionId, applies: result.applies, waived: waivedOnly, governing: result.governing?.rule ?? null, coveredAmountMinor: result.coveredAmountMinor });
+  if (!result.applies && !waivedOnly) return { evaluationId: evaluation.id, applies: false, noticeId: null, reasons: result.results.map((r) => ({ rule: r.rule, reasons: r.reasons })) };
+  const live = result.results.filter((r) => r.applies && (waivedOnly ? r.waived : !r.waived));
+  const governing = waivedOnly ? live[0] : result.governing;
+  const coveredIds = waivedOnly ? [...new Set(live.flatMap((r) => r.coveredLineIds))] : result.coveredLineIds;
+  const covered2 = input.lines.filter((l) => coveredIds.includes(l.id));
+  const coveredAmount = covered2.reduce((s, l) => s + l.amountMinor, 0n);
+  const { block } = await sellerBlock(tx, input.businessUnitId, place.state, []);
+  const fill = { sellerName: block.legalName || block.name, sellerAddress: block.address, transactionDate: noticeDate(governing.transactionDate), cancelByDate: noticeDate(governing.lastDay) };
+  const templates = [...new Set(live.map((r) => r.noticeTemplate))];
+  let notices;
+  try {
+    notices = templates.map((t) => noticeText(t, input.language, fill));
+  } catch (error) {
+    return rightsError(error);
+  }
+  const ref = await nextReference(tx, "NOC", uow.now);
+  const snapshot = {
+    ref,
+    transactionDate: governing.transactionDate,
+    cancelByDate: governing.lastDay,
+    cancelBy: governing.cancelBy,
+    timeZone: loc.timeZone,
+    language: input.language,
+    seller: { name: fill.sellerName, address: fill.sellerAddress },
+    buyer: { name: input.buyerName, address: addressLine(loc) },
+    notices,
+    coveredLines: covered2.map((l) => ({ description: l.description, amountMinor: l.amountMinor.toString() })),
+    coveredAmountMinor: coveredAmount.toString()
+  };
+  const notice = await tx.cancellationNotice.create({
+    data: {
+      ref,
+      evaluationId: evaluation.id,
+      jobId: input.jobId,
+      customerId: input.customerId,
+      estimateVersionId: input.estimateVersionId,
+      changeOrderId: input.changeOrderId,
+      rule: noticeRuleOf(governing.rule),
+      rules: live.map((r) => ({ rule: r.rule, title: r.title, cancelBy: r.cancelBy, lastDay: r.lastDay, refundBusinessDays: r.refundBusinessDays, coveredLineIds: r.coveredLineIds, waived: r.waived })),
+      policyVersionId: policy.versionId,
+      noticeTemplate: governing.noticeTemplate,
+      language: input.language,
+      coveredWorkLines: { connect: coveredIds.map((id) => ({ id })) },
+      coveredAmountMinor: coveredAmount,
+      transactionAt: input.transactionAt,
+      cancelBy: new Date(governing.cancelBy),
+      timeZone: loc.timeZone,
+      status: "issued",
+      snapshot
+    },
+    select: { id: true, version: true }
+  });
+  const pdf = await storeRenderedPdf(uow, actor, { title: `${ref} notice of cancellation`, kind: "cancellation_notice", subjectType: "CancellationNotice", subjectId: notice.id, storageKey: `render:cancellation-notice/${notice.id}`, bytes: renderNoticePdf(snapshot) });
+  await tx.cancellationNotice.update({ where: { id: notice.id }, data: { noticeDocumentId: pdf.documentId } });
+  auditCreate(uow, actor, "CancellationNotice", notice.id, "cancellation_notice.issued", { ref, rule: governing.rule, cancelBy: governing.cancelBy, coveredAmountMinor: coveredAmount.toString(), coveredLines: coveredIds.length, templates, documentSha256: pdf.sha256 });
+  if (waivedOnly) {
+    const waiver = await recordWaiver(uow, actor, notice.id, ref, input.emergencyWaiver);
+    await casUpdate(uow, { model: "CancellationNotice", id: notice.id, version: notice.version, from: ["issued"], to: "waived", actor, eventType: "cancellation_notice.waived", data: { waiverDocumentId: waiver.documentId }, audit: { waiverSha256: waiver.sha256 } });
+  }
+  return { evaluationId: evaluation.id, applies: !waivedOnly, waived: waivedOnly, noticeId: notice.id, ref, cancelBy: governing.cancelBy, coveredAmountMinor: coveredAmount.toString(), documentId: pdf.documentId };
+}
+async function recordWaiver(uow, actor, noticeId, ref, waiver) {
+  const statement = waiver.statement?.trim();
+  if (!statement) throw new DomainError(Codes.INVALID_INPUT, "Transcribe the buyer's handwritten emergency statement.", { field: "emergencyWaiver.statement" });
+  if (!waiver.mediaRef?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Attach the photo or scan of the buyer's handwritten statement.", { field: "emergencyWaiver.mediaRef" });
+  return storeRecordedDocument(uow, actor, { title: `${ref} emergency waiver`, kind: "emergency_waiver", subjectType: "CancellationNotice", subjectId: noticeId, storageKey: `media:${waiver.mediaRef.trim()}`, content: statement, mimeType: "text/plain" });
+}
+async function lockNotice(tx, id, expectedVersion) {
+  const [row] = await tx.$queryRaw`SELECT id, ref, status, version, job, "cancelBy", "transactionAt", "timeZone", rules, evaluation, "startOverride", "estimateVersion" FROM "CancellationNotice" WHERE id = ${id} FOR UPDATE`;
+  if (!row) throw new DomainError(Codes.NOT_FOUND, "Cancellation notice not found.");
+  if (expectedVersion !== void 0 && expectedVersion !== null && row.version !== expectedVersion) throw new DomainError(Codes.STALE_STATE, "This notice changed since you loaded it. Reload and try again.", { currentStatus: row.status, currentVersion: row.version });
+  return row;
+}
+async function assertNoticeAccess(tx, actor, jobId) {
+  if (actor.kind !== "user" || OFFICE.some((p) => can(actor, p))) return;
+  if (await tx.visitAssignment.count({ where: { active: true, visit: { jobId }, employee: { userId: actor.userId } } })) return;
+  throw new DomainError(Codes.NOT_AUTHORIZED, "This notice is on a job you are not assigned to.");
+}
+var DELIVERY = ["signed_on_device", "emailed", "printed_acknowledged", "handed_paper_copy"];
+async function deliverCancellationNotice(db, actor, args) {
+  await authorizeOperation(db, actor, "cancellation.deliver", SELLERS, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person records delivery of a notice.");
+  if (!DELIVERY.includes(args.method)) throw new DomainError(Codes.INVALID_INPUT, `Delivery is one of ${DELIVERY.join(", ")}.`, { field: "method" });
+  if (!args.acknowledgedBy?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Who received the notice?", { field: "acknowledgedBy" });
+  if (args.method === "signed_on_device" && (args.signature === void 0 || args.signature === null || args.signature === "")) throw new DomainError(Codes.INVALID_INPUT, "Capture the buyer's signature acknowledging the notice.", { field: "signature" });
+  if (args.method === "emailed" && !args.messageId) throw new DomainError(Codes.INVALID_INPUT, "Link the sent email.", { field: "messageId" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "cancellation.deliver", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockNotice(uow.tx, args.noticeId, args.expectedVersion);
+    if (row.status !== "issued") throw new DomainError(Codes.INVALID_TRANSITION, `A ${row.status.replaceAll("_", " ")} notice can't be delivered.`, { currentStatus: row.status });
+    await assertNoticeAccess(uow.tx, actor, row.job);
+    if (args.messageId) {
+      const message = await uow.tx.message.findUnique({ where: { id: args.messageId }, select: { status: true } });
+      if (!message || !["sent", "delivered"].includes(message.status)) throw new DomainError(Codes.GUARD_FAILED, "That email has not been sent.", { reason: "message_not_sent" });
+    }
+    const evidence = { method: args.method, acknowledgedBy: args.acknowledgedBy.trim(), signature: args.signature ?? null, messageId: args.messageId ?? null, recordedBy: actorUserId(actor), at: uow.now.toISOString() };
+    const version = await casUpdate(uow, { model: "CancellationNotice", id: row.id, version: row.version, from: ["issued"], to: "delivered", actor, eventType: "cancellation_notice.delivered", data: { deliveryEvidence: evidence, deliveredAt: uow.now }, audit: { method: args.method } });
+    return { noticeId: row.id, version, status: "delivered" };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function waiveCancellationNotice(db, actor, args) {
+  await authorizeOperation(db, actor, "cancellation.waive", SELLERS, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person records a waiver.");
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "cancellation.waive", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const row = await lockNotice(tx, args.noticeId, args.expectedVersion);
+    if (!OPEN.includes(row.status)) throw new DomainError(Codes.INVALID_TRANSITION, `A ${row.status.replaceAll("_", " ")} notice can't be waived.`, { currentStatus: row.status });
+    if (uow.now.getTime() >= row.cancelBy.getTime()) throw new DomainError(Codes.GUARD_FAILED, "The cancellation window has closed.", { reason: "window_closed" });
+    await assertNoticeAccess(tx, actor, row.job);
+    const evaluation = await tx.cancellationEvaluation.findUniqueOrThrow({ where: { id: row.evaluation }, select: { inputs: true, policyVersionId: true } });
+    const inputs = evaluation.inputs;
+    if (inputs.initiatedBy !== "customer_request") throw new DomainError(Codes.GUARD_FAILED, "Only a buyer who called for an emergency can waive the right.", { reason: "not_buyer_initiated" });
+    const version = await tx.policyVersion.findUniqueOrThrow({ where: { id: evaluation.policyVersionId }, select: { rules: true } });
+    const policyRules = version.rules.rules;
+    for (const r of row.rules) {
+      const rule2 = policyRules.find((p) => p.code === r.rule);
+      if (!rule2?.emergencyWaiver.allowed) throw new DomainError(Codes.GUARD_FAILED, `${rule2?.title ?? r.rule} can't be waived; the buyer keeps the right to cancel.`, { reason: "waiver_not_available", rule: r.rule });
+      if (rule2.emergencyWaiver.handwritten && !args.waiver.handwritten || rule2.emergencyWaiver.signedAndDated && !args.waiver.signedAndDated) throw new DomainError(Codes.GUARD_FAILED, "The waiver must be the buyer's own handwritten statement, signed and dated.", { reason: "waiver_incomplete" });
+    }
+    const waiver = await recordWaiver(uow, actor, row.id, row.ref, { ...args.waiver, present: true });
+    const next = await casUpdate(uow, { model: "CancellationNotice", id: row.id, version: row.version, from: OPEN, to: "waived", actor, eventType: "cancellation_notice.waived", data: { waiverDocumentId: waiver.documentId }, audit: { waiverSha256: waiver.sha256 } });
+    return { noticeId: row.id, version: next, status: "waived" };
+  });
+  return { replay: result.replay, ...result.value };
+}
+var RECEIVED_VIA = ["signed_form", "mail", "email", "in_person", "portal"];
+async function recordBuyerCancellation(db, actor, args) {
+  await authorizeOperation(db, actor, "cancellation.record_buyer_cancel", OFFICE, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person records a buyer's cancellation.");
+  if (!RECEIVED_VIA.includes(args.via)) throw new DomainError(Codes.INVALID_INPUT, `Received via one of ${RECEIVED_VIA.join(", ")}.`, { field: "via" });
+  const sentAt = new Date(args.sentAt);
+  if (Number.isNaN(sentAt.getTime())) throw new DomainError(Codes.INVALID_INPUT, "When did the buyer send it?", { field: "sentAt" });
+  const typedPaid = args.amountPaidMinor ? /^\d{1,13}$/.test(args.amountPaidMinor) ? BigInt(args.amountPaidMinor) : (() => {
+    throw new DomainError(Codes.INVALID_INPUT, "Amount paid is whole cents.", { field: "amountPaidMinor" });
+  })() : null;
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "cancellation.record_buyer_cancel", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const row = await lockNotice(tx, args.noticeId, args.expectedVersion);
+    if (!OPEN.includes(row.status)) throw new DomainError(Codes.INVALID_TRANSITION, `A ${row.status.replaceAll("_", " ")} notice can't be cancelled.`, { currentStatus: row.status });
+    if (sentAt.getTime() > uow.now.getTime()) throw new DomainError(Codes.INVALID_INPUT, "The send time is in the future.", { field: "sentAt" });
+    if (sentAt.getTime() < row.transactionAt.getTime()) throw new DomainError(Codes.INVALID_INPUT, "The send time is before the sale.", { field: "sentAt" });
+    if (sentAt.getTime() >= row.cancelBy.getTime()) throw new DomainError(Codes.GUARD_FAILED, "This was sent after the cancellation deadline. Handle it as a customer-service cancellation, not a cooling-off cancellation.", { reason: "after_deadline", cancelBy: row.cancelBy.toISOString() });
+    const recorded = await tx.cancellationNotice.findUnique({ where: { id: row.id }, select: { evaluation: { select: { authorization: { select: { depositMinor: true } } } } } });
+    const paid = typedPaid ?? recorded?.evaluation?.authorization?.depositMinor ?? 0n;
+    const covered2 = await tx.workLine.findMany({ where: { cancellationNotices: { some: { id: row.id } } }, select: { id: true, version: true, status: true, amountMinor: true } });
+    const cancelled = [];
+    for (const w of covered2) {
+      if (!["planned", "completed"].includes(w.status)) continue;
+      await casUpdate(uow, { model: "WorkLine", id: w.id, version: w.version, from: ["planned", "completed"], to: "cancelled_by_buyer", actor, eventType: "work_line.cancelled_by_buyer", metadata: { noticeId: row.id } });
+      cancelled.push(w.id);
+    }
+    const days = Math.min(...row.rules.filter((r) => !r.waived).map((r) => r.refundBusinessDays));
+    const cal = inZone(US_FEDERAL, row.timeZone);
+    const lastRefundDay = addBusinessDays(cal, localDate(cal, sentAt), Number.isFinite(days) ? days : 10);
+    const refundDueBy = zonedInstant(row.timeZone, addDays(lastRefundDay, 1), "00:00");
+    const version = await casUpdate(uow, {
+      model: "CancellationNotice",
+      id: row.id,
+      version: row.version,
+      from: OPEN,
+      to: "cancelled_by_buyer",
+      actor,
+      eventType: "cancellation_notice.cancelled_by_buyer",
+      reason: args.note ?? null,
+      data: { cancelledAt: sentAt, cancellationReceivedVia: args.via, refundDueBy, refundDueMinor: paid },
+      audit: { via: args.via, sentAt: sentAt.toISOString(), refundDueBy: lastRefundDay, refundDueMinor: paid.toString(), workLines: cancelled.length }
+    });
+    if (row.estimateVersion) {
+      const remaining = await tx.workLine.count({ where: { estimateLine: { option: { estimateVersionId: row.estimateVersion } }, status: { in: ["planned", "completed"] } } });
+      if (!remaining) {
+        const ev = await tx.estimateVersion.findUniqueOrThrow({ where: { id: row.estimateVersion }, select: { id: true, version: true, status: true, estimateId: true } });
+        if (ev.status === "sold") {
+          await casUpdate(uow, { model: "EstimateVersion", id: ev.id, version: ev.version, from: ["sold"], to: "cancelled", actor, eventType: "estimate_version.cancelled_by_buyer", metadata: { noticeId: row.id } });
+          if (ev.estimateId) await tx.estimate.update({ where: { id: ev.estimateId }, data: { status: "cancelled", version: { increment: 1 } } });
+        }
+      }
+    }
+    await tx.task.upsert({
+      where: { dedupeKey: `cancellation.refund:${row.id}` },
+      create: { kind: "cancellation.refund", title: `${row.ref}: buyer cancelled. ${paid > 0n ? "Refund the payment and " : ""}release any security interest by ${lastRefundDay}; cancel the scheduled work.`.slice(0, 200), subjectType: "CancellationNotice", subjectId: row.id, status: "open", priority: "high", dueAt: refundDueBy, dedupeKey: `cancellation.refund:${row.id}` },
+      update: {}
+    });
+    return { noticeId: row.id, version, status: "cancelled_by_buyer", refundDueBy: lastRefundDay, workLineIds: cancelled };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function markCancellationRefunded(db, actor, args) {
+  await authorizeOperation(db, actor, "cancellation.refunded", ["canIssueRefunds", "canManagePayments"], args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person records refunds.");
+  const e = args.evidence;
+  if (!e || !["processor_refund", "check", "nothing_paid"].includes(e.method)) throw new DomainError(Codes.INVALID_INPUT, "Refund evidence is a processor refund, a check, or nothing was paid.", { field: "evidence.method" });
+  if (!/^\d{1,13}$/.test(e.amountMinor ?? "")) throw new DomainError(Codes.INVALID_INPUT, "Amount is whole cents.", { field: "evidence.amountMinor" });
+  if (e.method !== "nothing_paid" && !e.reference?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Give the refund or check reference.", { field: "evidence.reference" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "cancellation.refunded", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockNotice(uow.tx, args.noticeId, args.expectedVersion);
+    if (row.status !== "cancelled_by_buyer") throw new DomainError(Codes.INVALID_TRANSITION, `A ${row.status.replaceAll("_", " ")} notice has no refund to record.`, { currentStatus: row.status });
+    const due = await uow.tx.cancellationNotice.findUniqueOrThrow({ where: { id: row.id }, select: { refundDueMinor: true } });
+    const amount = BigInt(e.amountMinor);
+    if (amount !== due.refundDueMinor) throw new DomainError(Codes.GUARD_FAILED, `The refund must be the full amount paid (${due.refundDueMinor.toString()}\xA2).`, { reason: "refund_amount_mismatch" });
+    if (e.method === "nothing_paid" !== (amount === 0n)) throw new DomainError(Codes.INVALID_INPUT, '"Nothing paid" means an amount of zero.', { field: "evidence.method" });
+    const version = await casUpdate(uow, { model: "CancellationNotice", id: row.id, version: row.version, from: ["cancelled_by_buyer"], to: "refunded", actor, eventType: "cancellation_notice.refunded", data: { refundEvidence: { ...e, recordedBy: actorUserId(actor), at: uow.now.toISOString() } }, audit: { method: e.method, amountMinor: e.amountMinor } });
+    await uow.tx.task.updateMany({ where: { dedupeKey: `cancellation.refund:${row.id}`, status: "open" }, data: { status: "done", closedAt: uow.now, closedById: actorUserId(actor), resolution: "Refund recorded", version: { increment: 1 } } });
+    return { noticeId: row.id, version, status: "refunded" };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function cancellationHoldsFor(db, jobId, now) {
+  const notices = await db.cancellationNotice.findMany({
+    where: { jobId, status: { in: OPEN } },
+    select: { id: true, ref: true, status: true, cancelBy: true, startOverrideId: true, startOverride: { select: { status: true } }, coveredWorkLines: { select: { id: true, status: true } } }
+  });
+  return notices.filter((n) => !(n.startOverride?.status === "approved")).filter((n) => n.status === "issued" || n.cancelBy.getTime() > now.getTime()).map((n) => ({ id: n.id, ref: n.ref, status: n.status, cancelBy: n.cancelBy, lineIds: n.coveredWorkLines.filter((w) => w.status === "planned").map((w) => w.id) })).filter((n) => n.lineIds.length > 0);
+}
+async function assertCanStartWork(tx, jobId, now) {
+  const holds = await cancellationHoldsFor(tx, jobId, now);
+  if (!holds.length) return { holds: [] };
+  const held = new Set(holds.flatMap((h) => h.lineIds));
+  const free = await tx.workLine.count({ where: { jobId, status: "planned", id: { notIn: [...held] } } });
+  if (free > 0) return { holds };
+  const first = holds.sort((a, b) => a.cancelBy.getTime() - b.cancelBy.getTime())[0];
+  throw new DomainError(
+    Codes.GUARD_FAILED,
+    first.status === "issued" ? `The buyer's notice of cancellation (${first.ref}) hasn't been recorded as delivered, so the work it covers can't start.` : `The buyer can still cancel this work until ${first.cancelBy.toISOString()} (${first.ref}). Wait, record an emergency waiver, or ask a manager to approve starting early.`,
+    { reason: "cancellation_hold", noticeId: first.id, cancelBy: first.cancelBy.toISOString() }
+  );
+}
+var MIN_OVERRIDE_REASON = 10;
+async function assertMayRequestOverride(tx, actor, jobId) {
+  if (actor.kind !== "user") throw new DomainError(Codes.NOT_AUTHORIZED, "A person asks to start early.");
+  if (actor.permissions.has("canDispatch")) return;
+  const assigned = await tx.visit.count({ where: { jobId, assignments: { some: { active: true, employee: { user: { id: { equals: actor.userId } } } } } } });
+  if (!assigned) throw new DomainError(Codes.NOT_AUTHORIZED, "Only the technician assigned to this job, or dispatch, can ask to start early.");
+}
+async function requestCancellationHoldOverride(db, actor, args) {
+  await authorizeOperation(db, actor, "cancellation.override_hold", ["canDispatch", "canSellEstimates"], args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents do not override cancellation holds.");
+  const reasonText = args.reason?.trim() ?? "";
+  if (reasonText.length < MIN_OVERRIDE_REASON) throw new DomainError(Codes.INVALID_INPUT, `Say why the work must start before the window closes (at least ${MIN_OVERRIDE_REASON} characters).`, { field: "reason" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "cancellation.override_hold", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockNotice(uow.tx, args.noticeId, args.expectedVersion);
+    if (!OPEN.includes(row.status)) throw new DomainError(Codes.INVALID_TRANSITION, `A ${row.status.replaceAll("_", " ")} notice holds nothing back.`, { currentStatus: row.status });
+    await assertMayRequestOverride(uow.tx, actor, row.job);
+    if (row.startOverride) {
+      const existing = await uow.tx.approvalRequest.findUnique({ where: { id: row.startOverride }, select: { status: true } });
+      if (existing && ["pending", "approved"].includes(existing.status)) throw new DomainError(Codes.GUARD_FAILED, `An override is already ${existing.status}.`, { reason: "override_exists" });
+    }
+    const approval = await requestApproval(uow, actor, { action: "cancellation.start_override", targetList: "CancellationNotice", targetId: row.id, requiredPermission: "canApprovePolicies", payload: { noticeId: row.id, cancelBy: row.cancelBy.toISOString(), reason: args.reason.trim() }, summary: `${row.ref}: start covered work before ${row.cancelBy.toISOString()} \u2014 ${args.reason.trim()}` });
+    const version = await casUpdate(uow, { model: "CancellationNotice", id: row.id, version: row.version, from: OPEN, to: row.status, actor, eventType: "cancellation_notice.override_requested", reason: args.reason, data: { startOverrideId: approval.id }, audit: { approvalId: approval.id } });
+    return { noticeId: row.id, version, approvalRequestId: approval.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+registerApplier("cancellation.start_override", async (uow, actor, request) => {
+  const row = await lockNotice(uow.tx, request.targetId);
+  if (row.startOverride !== request.id) throw new DomainError(Codes.APPROVAL_MISMATCH, "A different override is on this notice now.");
+  auditCreate(uow, actor, "CancellationNotice", row.id, "cancellation_notice.override_approved", { approvalRequestId: request.id });
+  return { noticeId: row.id, overridden: true };
+});
+
+// features/keystone/services/estimates.ts
+var PRESENT = ["canPresentEstimates"];
+var SELL = ["canSellEstimates"];
+var OFFICE2 = [...OFFICE_READ, "canManagePriceBook"];
+var fail2 = (error) => {
+  if (error instanceof PricingError) throw new DomainError(error.code === "GUARD_FAILED" ? Codes.GUARD_FAILED : Codes.INVALID_INPUT, error.message, error.details);
+  throw error;
+};
+var ESTIMATE_SELECT = {
+  id: true,
+  ref: true,
+  title: true,
+  status: true,
+  version: true,
+  source: true,
+  jobId: true,
+  opportunityId: true,
+  customerId: true,
+  businessUnitId: true,
+  currentVersionId: true,
+  createdById: true,
+  presentedBy: { select: { userId: true } },
+  customer: { select: { id: true, displayName: true, primaryContact: { select: { preferredLanguage: true } } } },
+  location: { select: { id: true, address1: true, address2: true, city: true, state: true, postalCode: true, timeZone: true, propertyClass: true } },
+  job: { select: { id: true, ref: true, businessUnitId: true, status: true } }
+};
+async function loadEstimate(db, estimateId) {
+  const row = await db.estimate.findUnique({ where: { id: estimateId }, select: ESTIMATE_SELECT });
+  if (!row) throw new DomainError(Codes.NOT_FOUND, "Estimate not found.");
+  return row;
+}
+async function assertEstimateAccess(tx, actor, est) {
+  if (actor.kind !== "user") return;
+  if (OFFICE2.some((p) => can(actor, p))) return;
+  if (est.createdById === actor.userId || est.presentedBy?.userId === actor.userId) return;
+  if (est.jobId && await tx.visitAssignment.count({ where: { active: true, visit: { jobId: est.jobId }, employee: { userId: actor.userId } } })) return;
+  throw new DomainError(Codes.NOT_AUTHORIZED, "This estimate is on a job you are not assigned to.");
+}
+async function lockEstimateVersion(tx, versionId, expectedVersion) {
+  const [row] = await tx.$queryRaw`SELECT id, status, version, estimate, "versionNumber", "priceBookVersion", "discountBps", "discountApproval", "validUntil" FROM "EstimateVersion" WHERE id = ${versionId} FOR UPDATE`;
+  if (!row) throw new DomainError(Codes.NOT_FOUND, "Estimate version not found.");
+  if (expectedVersion !== void 0 && expectedVersion !== null && row.version !== expectedVersion) throw new DomainError(Codes.STALE_STATE, "This estimate changed since you loaded it. Reload and try again.", { currentStatus: row.status, currentVersion: row.version });
+  return row;
+}
+var requireStatus = (row, allowed, to) => {
+  if (!allowed.includes(row.status)) throw new DomainError(Codes.INVALID_TRANSITION, `A ${row.status.replaceAll("_", " ")} estimate can't be ${to}.`, { currentStatus: row.status });
+};
+async function discountLimitBps(tx, actor) {
+  if (actor.kind !== "user") return 0;
+  const user = await tx.user.findUnique({ where: { id: actor.userId }, select: { roleId: true } });
+  const limit = user?.roleId ? await tx.roleLimit.findFirst({ where: { roleId: user.roleId, kind: "discount_bps" }, select: { limit: true } }) : null;
+  if (limit) return Number(limit.limit);
+  const company = await tx.companySettings.findFirst({ select: { discountApprovalThresholdBps: true } });
+  return company?.discountApprovalThresholdBps ?? 0;
+}
+async function taxContext(tx, est, on) {
+  const loc = est.location;
+  if (!loc) throw new DomainError(Codes.GUARD_FAILED, "Add the service address before pricing; sales tax depends on it.", { reason: "no_location" });
+  const place = placeOfLocation(loc);
+  const policy = await resolvePolicyFromDb(tx, "sales_tax", place, localDate({ timeZone: loc.timeZone }, on));
+  const company = await tx.companySettings.findFirst({ select: { features: true } });
+  const mode = company?.features?.contractTaxMode === "separated" ? "separated" : "lump_sum";
+  return { propertyClass: loc.propertyClass, contractTaxMode: mode, cityCode: place.city, rules: policy.rules };
+}
+async function recomputeOption(uow, optionId, discountBps, tax) {
+  const { tx } = uow;
+  const option2 = await tx.estimateOption.findUniqueOrThrow({ where: { id: optionId }, select: { id: true, tier: true, name: true } });
+  const lines = await tx.estimateLine.findMany({ where: { optionId }, orderBy: [{ sortOrder: "asc" }, { id: "asc" }] });
+  let totals;
+  let taxed;
+  try {
+    totals = optionTotals(lines.map((l) => ({ amountMinor: l.amountMinor, costMinor: l.costMinor })), discountBps);
+    taxed = estimateSalesTax(lines.map((l, i) => ({ taxCategory: l.taxCategory, netMinor: l.amountMinor - totals.lineDiscounts[i], costMinor: l.costMinor })), tax);
+  } catch (error) {
+    return fail2(error);
+  }
+  for (const [i, l] of lines.entries()) if (l.discountMinor !== totals.lineDiscounts[i]) await tx.estimateLine.update({ where: { id: l.id }, data: { discountMinor: totals.lineDiscounts[i] } });
+  const totalMinor = totals.subtotalMinor - totals.discountMinor + taxed.taxMinor;
+  const contentHash = optionHash({
+    tier: option2.tier,
+    name: option2.name,
+    subtotalMinor: totals.subtotalMinor,
+    discountMinor: totals.discountMinor,
+    totalMinor,
+    lines: lines.map((l, i) => ({ ...l.snapshot, id: l.id, amountMinor: l.amountMinor, discountMinor: totals.lineDiscounts[i] }))
+  });
+  await tx.estimateOption.update({ where: { id: optionId }, data: { subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor, estimatedTaxMinor: taxed.taxMinor, totalMinor, contentHash } });
+  return { optionId, subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor, estimatedTaxMinor: taxed.taxMinor, totalMinor, marginBps: totals.marginBps, contentHash };
+}
+var TIERS = ["good", "better", "best", "single", "custom"];
+async function writeOption(uow, est, version, input, tax, sortOrder) {
+  const { tx } = uow;
+  if (!TIERS.includes(input.tier)) throw new DomainError(Codes.INVALID_INPUT, `Tier must be one of ${TIERS.join(", ")}.`, { field: "tier" });
+  const name = input.name?.trim();
+  if (!name) throw new DomainError(Codes.INVALID_INPUT, "Name the option.", { field: "name" });
+  if (input.memberPricing) throw new DomainError(Codes.GUARD_FAILED, "This customer has no active membership, so member prices do not apply.", { reason: "no_active_membership" });
+  const active = await activeVersionFor(tx, est.businessUnitId ?? est.job?.businessUnitId ?? null);
+  if (version.priceBookVersion && version.priceBookVersion !== active.versionId) {
+    throw new DomainError(Codes.GUARD_FAILED, "A new price book is active since this estimate was started. Re-price it first.", { reason: "pricebook_changed" });
+  }
+  if (!version.priceBookVersion) await tx.estimateVersion.update({ where: { id: version.id }, data: { priceBookVersionId: active.versionId } });
+  const quoted = await quoteFromVersion(tx, active.versionId, input.lines, false);
+  let optionId = input.optionId ?? null;
+  if (optionId) {
+    const existing = await tx.estimateOption.findFirst({ where: { id: optionId, estimateVersionId: version.id }, select: { id: true } });
+    if (!existing) throw new DomainError(Codes.NOT_FOUND, "That option is not on this estimate version.", { field: "optionId" });
+    await tx.estimateLine.deleteMany({ where: { optionId } });
+    await tx.estimateOption.update({ where: { id: optionId }, data: { tier: input.tier, name, description: input.description?.trim() ?? "" } });
+  } else {
+    optionId = (await tx.estimateOption.create({ data: { estimateVersionId: version.id, tier: input.tier, name, description: input.description?.trim() ?? "", sortOrder }, select: { id: true } })).id;
+  }
+  await tx.estimateLine.createMany({
+    data: quoted.map(({ amountMinor, ...snap }, i) => ({
+      optionId,
+      pricebookItemId: snap.priceBookItemId,
+      itemKey: snap.itemKey,
+      snapshot: snap,
+      description: snap.description,
+      quantity: snap.quantity,
+      uom: snap.uom,
+      unitPriceMinor: BigInt(snap.unitPriceMinor),
+      amountMinor,
+      discountMinor: 0n,
+      memberPriced: snap.memberPriced,
+      costMinor: BigInt(snap.costMinor),
+      taxCategory: snap.taxCategory,
+      trade: snap.trade,
+      cancellationClass: snap.cancellationClass,
+      isAddOn: snap.cancellationClass === "additional_goods_services",
+      sortOrder: i
+    }))
+  });
+  return recomputeOption(uow, optionId, version.discountBps, tax);
+}
+async function createEstimateInTx(uow, actor, args, source) {
+  const { tx } = uow;
+  const title = args.title?.trim();
+  if (!title) throw new DomainError(Codes.INVALID_INPUT, "Give the estimate a title.", { field: "title" });
+  let customerId = args.customerId ?? null;
+  let locationId = args.locationId ?? null;
+  let businessUnitId = args.businessUnitId ?? null;
+  if (args.jobId) {
+    const job = await tx.job.findUnique({ where: { id: args.jobId }, select: { customerId: true, locationId: true, businessUnitId: true, status: true } });
+    if (!job) throw new DomainError(Codes.NOT_FOUND, "Job not found.", { field: "jobId" });
+    if (["cancelled", "closed"].includes(job.status)) throw new DomainError(Codes.GUARD_FAILED, `The job is ${job.status}.`, { reason: "job_closed" });
+    customerId = job.customerId;
+    locationId = job.locationId;
+    businessUnitId = businessUnitId ?? job.businessUnitId;
+  } else if (args.opportunityId) {
+    const opp = await tx.opportunity.findUnique({ where: { id: args.opportunityId }, select: { customerId: true, locationId: true } });
+    if (!opp) throw new DomainError(Codes.NOT_FOUND, "Opportunity not found.", { field: "opportunityId" });
+    customerId = opp.customerId;
+    locationId = opp.locationId;
+  }
+  if (!customerId || !locationId) throw new DomainError(Codes.INVALID_INPUT, "An estimate needs a job, an opportunity, or a customer and service address.", { field: "jobId" });
+  const loc = await tx.serviceLocation.findUnique({ where: { id: locationId }, select: { customerId: true } });
+  if (!loc) throw new DomainError(Codes.NOT_FOUND, "Service address not found.", { field: "locationId" });
+  const ref = await nextReference(tx, "EST", uow.now);
+  const estimate = await tx.estimate.create({
+    data: {
+      ref,
+      publicCode: publicCode("EST"),
+      title,
+      jobId: args.jobId ?? null,
+      opportunityId: args.opportunityId ?? null,
+      customerId,
+      locationId,
+      businessUnitId,
+      status: "open",
+      source,
+      createdById: actorUserId(actor),
+      createdByAgentId: actorAgentId(actor)
+    },
+    select: { id: true }
+  });
+  const version = await tx.estimateVersion.create({ data: { estimateId: estimate.id, versionNumber: 1, label: "Version 1", status: "draft" }, select: { id: true } });
+  await tx.estimate.update({ where: { id: estimate.id }, data: { currentVersionId: version.id } });
+  auditCreate(uow, actor, "Estimate", estimate.id, "estimate.created", { ref, title, jobId: args.jobId ?? null, opportunityId: args.opportunityId ?? null, customerId, locationId, source });
+  const options = [];
+  if (args.options?.length) {
+    const est = await loadEstimate(tx, estimate.id);
+    const tax = await taxContext(tx, est, uow.now);
+    const row = await lockEstimateVersion(tx, version.id);
+    for (const [i, o] of args.options.entries()) {
+      options.push(await writeOption(uow, est, { ...row, priceBookVersion: (await tx.estimateVersion.findUniqueOrThrow({ where: { id: version.id }, select: { priceBookVersionId: true } })).priceBookVersionId }, o, tax, i));
+    }
+    auditCreate(uow, actor, "EstimateVersion", version.id, "estimate_version.options_saved", { options: options.map((o) => ({ optionId: o.optionId, totalMinor: o.totalMinor.toString() })) });
+  }
+  return { estimateId: estimate.id, ref, versionId: version.id, options: options.map(({ marginBps: _m, ...o }) => ({ ...o, subtotalMinor: o.subtotalMinor.toString(), discountMinor: o.discountMinor.toString(), estimatedTaxMinor: o.estimatedTaxMinor.toString(), totalMinor: o.totalMinor.toString() })) };
+}
+async function createEstimate(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.create", PRESENT, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents draft estimates with estimate.draft.");
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.create", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    if (args.jobId && actor.kind === "user" && !OFFICE2.some((p) => can(actor, p))) await assertEstimateAccess(uow.tx, actor, { jobId: args.jobId, createdById: null, presentedBy: null });
+    return createEstimateInTx(uow, actor, args, can(actor, "canWorkVisits") && !OFFICE2.some((p) => can(actor, p)) ? "technician" : "staff");
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function draftEstimate(db, actor, args) {
+  const tool = args.visitId ? "estimate.draft_from_capture" : "estimate.draft";
+  await authorizeOperation(db, actor, tool, PRESENT, args);
+  if (!args.options?.length) throw new DomainError(Codes.INVALID_INPUT, "A draft needs at least one option.", { field: "options" });
+  const { idempotencyKey, now: _now, visitId, ...rest } = args;
+  const result = await command(db, { name: tool, actor, idempotencyKey, params: { ...rest, visitId }, now: args.now }, async (uow) => {
+    let jobId = args.jobId ?? null;
+    if (visitId) {
+      const visit = await uow.tx.visit.findUnique({ where: { id: visitId }, select: { jobId: true } });
+      if (!visit?.jobId) throw new DomainError(Codes.NOT_FOUND, "Visit not found.", { field: "visitId" });
+      jobId = visit.jobId;
+    }
+    if (jobId && actor.kind === "user") await assertEstimateAccess(uow.tx, actor, { jobId, createdById: null, presentedBy: null });
+    const value = await createEstimateInTx(uow, actor, { ...rest, jobId, idempotencyKey }, actor.kind === "agent" ? "agent_draft" : "technician");
+    await recordAgentAction(uow, actor, { tool, idempotencyKey, inputs: rest, output: value });
+    return value;
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function saveEstimateOption(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.edit", PRESENT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.save_option", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockEstimateVersion(uow.tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["draft"], "edited");
+    const est = await loadEstimate(uow.tx, row.estimate);
+    await assertEstimateAccess(uow.tx, actor, est);
+    const count = await uow.tx.estimateOption.count({ where: { estimateVersionId: row.id } });
+    if (!args.optionId && count >= 6) throw new DomainError(Codes.INVALID_INPUT, "An estimate shows at most six options.", { field: "optionId" });
+    const option2 = await writeOption(uow, est, row, args, await taxContext(uow.tx, est, uow.now), count);
+    const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "draft", actor, eventType: "estimate_version.option_saved", audit: { optionId: option2.optionId, tier: args.tier, name: args.name, lines: args.lines.length, totalMinor: option2.totalMinor.toString() } });
+    return { versionId: row.id, version, optionId: option2.optionId, totalMinor: option2.totalMinor.toString(), subtotalMinor: option2.subtotalMinor.toString(), discountMinor: option2.discountMinor.toString(), estimatedTaxMinor: option2.estimatedTaxMinor.toString(), ...actor.kind === "user" ? { marginBps: option2.marginBps } : {} };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function removeEstimateOption(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.edit", PRESENT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.remove_option", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockEstimateVersion(uow.tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["draft"], "edited");
+    await assertEstimateAccess(uow.tx, actor, await loadEstimate(uow.tx, row.estimate));
+    const option2 = await uow.tx.estimateOption.findFirst({ where: { id: args.optionId, estimateVersionId: row.id }, select: { id: true } });
+    if (!option2) throw new DomainError(Codes.NOT_FOUND, "That option is not on this estimate version.");
+    await uow.tx.estimateLine.deleteMany({ where: { optionId: option2.id } });
+    await uow.tx.estimateOption.delete({ where: { id: option2.id } });
+    const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "draft", actor, eventType: "estimate_version.option_removed", audit: { optionId: option2.id } });
+    return { versionId: row.id, version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function repriceEstimateVersion(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.edit", PRESENT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.reprice", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockEstimateVersion(uow.tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["draft"], "re-priced");
+    const est = await loadEstimate(uow.tx, row.estimate);
+    await assertEstimateAccess(uow.tx, actor, est);
+    const repriced = await requoteOptionsInto(uow, est, row.id, { ...row, priceBookVersion: null });
+    const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "draft", actor, eventType: "estimate_version.repriced", audit: { from: row.priceBookVersion, options: repriced } });
+    return { versionId: row.id, version, options: repriced };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requoteOptionsInto(uow, est, sourceVersionId, target) {
+  const { tx } = uow;
+  const options = await tx.estimateOption.findMany({ where: { estimateVersionId: sourceVersionId }, orderBy: { sortOrder: "asc" }, select: { id: true, tier: true, name: true, description: true, sortOrder: true, lines: { orderBy: { sortOrder: "asc" }, select: { itemKey: true, quantity: true, cancellationClass: true, description: true } } } });
+  if (sourceVersionId === target.id) {
+    await tx.estimateLine.deleteMany({ where: { option: { estimateVersionId: target.id } } });
+    await tx.estimateOption.deleteMany({ where: { estimateVersionId: target.id } });
+  }
+  await tx.estimateVersion.update({ where: { id: target.id }, data: { priceBookVersionId: null } });
+  const tax = await taxContext(tx, est, uow.now);
+  const out = [];
+  for (const o of options) {
+    const r = await writeOption(uow, est, { ...target, priceBookVersion: null }, {
+      tier: o.tier,
+      name: o.name,
+      description: o.description,
+      lines: o.lines.map((l) => ({ itemKey: l.itemKey, quantity: l.quantity.toString(), cancellationClass: l.cancellationClass, description: l.description }))
+    }, tax, o.sortOrder);
+    out.push({ optionId: r.optionId, totalMinor: r.totalMinor.toString() });
+  }
+  return out;
+}
+async function setEstimateDiscount(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.discount", PRESENT, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents do not set discounts.");
+  if (!Number.isInteger(args.discountBps) || args.discountBps < 0 || args.discountBps > 1e4) throw new DomainError(Codes.INVALID_INPUT, "Discount is 0 to 10000 basis points.", { field: "discountBps" });
+  if (args.discountBps > 0 && !args.reason?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Say why the discount is given.", { field: "reason" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.discount", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const row = await lockEstimateVersion(tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["draft"], "discounted");
+    const est = await loadEstimate(tx, row.estimate);
+    await assertEstimateAccess(tx, actor, est);
+    await tx.estimateVersion.update({ where: { id: row.id }, data: { discountBps: args.discountBps, discountReason: args.reason?.trim() ?? "", discountApprovalId: null } });
+    const tax = await taxContext(tx, est, uow.now);
+    const options = await tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, select: { id: true } });
+    const totals = [];
+    for (const o of options) totals.push(await recomputeOption(uow, o.id, args.discountBps, tax));
+    const limit = await discountLimitBps(tx, actor);
+    if (args.discountBps <= limit) {
+      const version2 = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version + 0, from: ["draft"], to: "draft", actor, eventType: "estimate_version.discounted", reason: args.reason ?? null, audit: { discountBps: args.discountBps, limitBps: limit } });
+      return { versionId: row.id, version: version2, status: "draft", approvalRequestId: null };
+    }
+    const approval = await requestApproval(uow, actor, {
+      action: "estimate.discount",
+      targetList: "EstimateVersion",
+      targetId: row.id,
+      requiredPermission: "canApproveDiscounts",
+      payload: { versionId: row.id, discountBps: args.discountBps, options: totals.map((t) => ({ optionId: t.optionId, contentHash: t.contentHash })) },
+      summary: `${est.ref}: ${args.discountBps / 100}% discount (limit ${limit / 100}%) \u2014 ${args.reason?.trim()}`
+    });
+    const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "pending_approval", actor, eventType: "estimate_version.discount_requested", reason: args.reason ?? null, data: { discountApprovalId: approval.id }, audit: { discountBps: args.discountBps, limitBps: limit, approvalId: approval.id } });
+    return { versionId: row.id, version, status: "pending_approval", approvalRequestId: approval.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function applyEstimateDiscount(uow, actor, request) {
+  const row = await lockEstimateVersion(uow.tx, request.targetId);
+  if (row.status !== "pending_approval" || row.discountApproval !== request.id || row.discountBps !== request.payload.discountBps) throw new DomainError(Codes.APPROVAL_MISMATCH, "The estimate changed after the discount was requested.");
+  const hashes = await uow.tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, select: { id: true, contentHash: true } });
+  const expected = new Map(request.payload.options.map((o) => [o.optionId, o.contentHash]));
+  if (hashes.length !== expected.size || hashes.some((h) => expected.get(h.id) !== h.contentHash)) throw new DomainError(Codes.APPROVAL_MISMATCH, "The options changed after the discount was requested.");
+  await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["pending_approval"], to: "draft", actor, eventType: "estimate_version.discount_approved", approverId: actorUserId(actor), metadata: { approvalRequestId: request.id } });
+  return { versionId: row.id, status: "draft", discountBps: row.discountBps };
+}
+async function reopenEstimateVersion(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.edit", PRESENT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.reopen", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockEstimateVersion(uow.tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["pending_approval"], "reopened");
+    await assertEstimateAccess(uow.tx, actor, await loadEstimate(uow.tx, row.estimate));
+    if (row.discountApproval) {
+      const req = await uow.tx.approvalRequest.findUnique({ where: { id: row.discountApproval }, select: { id: true, status: true, version: true } });
+      if (req?.status === "pending") await casUpdate(uow, { model: "ApprovalRequest", id: req.id, version: req.version, from: ["pending"], to: "cancelled", actor, eventType: "approval.cancelled", reason: "Estimate reopened for editing" });
+    }
+    const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["pending_approval"], to: "draft", actor, eventType: "estimate_version.reopened", data: { discountApprovalId: null } });
+    return { versionId: row.id, version, status: "draft" };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function presentEstimate(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.present", PRESENT, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person presents estimates; agents draft them.");
+  const via = args.via ?? "in_person";
+  if (!["in_person", "email", "printed"].includes(via)) throw new DomainError(Codes.INVALID_INPUT, "Present in person, by email, or printed.", { field: "via" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.present", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const row = await lockEstimateVersion(tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["draft"], "presented");
+    const est = await loadEstimate(tx, row.estimate);
+    await assertEstimateAccess(tx, actor, est);
+    const options = await tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, orderBy: { sortOrder: "asc" }, include: { lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } } });
+    if (!options.length || options.some((o) => !o.lines.length)) throw new DomainError(Codes.GUARD_FAILED, "Every option needs at least one line, and the estimate needs an option.", { reason: "empty_option" });
+    const active = await activeVersionFor(tx, est.businessUnitId ?? est.job?.businessUnitId ?? null);
+    const stale = row.priceBookVersion !== active.versionId || options.some((o) => o.lines.some((l) => l.snapshot.priceBookVersionId !== active.versionId));
+    if (stale) throw new DomainError(Codes.GUARD_FAILED, "A new price book is active since this estimate was priced. Re-price it, then present.", { reason: "pricebook_changed" });
+    const limit = await discountLimitBps(tx, actor);
+    if (row.discountBps > limit) {
+      const approval = row.discountApproval ? await tx.approvalRequest.findUnique({ where: { id: row.discountApproval }, select: { status: true, payload: true } }) : null;
+      const ok = approval && ["approved"].includes(approval.status) && approval.payload?.discountBps === row.discountBps;
+      if (!ok) throw new DomainError(Codes.APPROVAL_REQUIRED, `A ${row.discountBps / 100}% discount is over your ${limit / 100}% limit and needs approval.`, { reason: "discount_over_limit" });
+    }
+    const tax = await taxContext(tx, est, uow.now);
+    for (const o of options) await recomputeOption(uow, o.id, row.discountBps, tax);
+    const fresh = await tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, orderBy: { sortOrder: "asc" }, include: { lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } } });
+    const trades = new Set(fresh.flatMap((o) => o.lines.map((l) => l.trade)));
+    const { company, block } = await sellerBlock(tx, est.businessUnitId, placeOfLocation(est.location).state, trades);
+    const tz = est.location?.timeZone || company.homeTimeZone;
+    const today = localDate({ timeZone: tz }, uow.now);
+    const lastValidDay = addDays(today, company.estimateValidityDays);
+    const validUntil = zonedInstant(tz, addDays(lastValidDay, 1), "00:00");
+    const place = placeOfLocation(est.location);
+    let hic = null;
+    try {
+      hic = (await resolvePolicyFromDb(tx, "home_improvement_contract", place, today)).rules;
+    } catch (error) {
+      if (!(error instanceof DomainError && error.code === Codes.POLICY_MISSING)) throw error;
+    }
+    const residential = est.location?.propertyClass === "residential";
+    const employee = await tx.employee.findFirst({ where: { userId: actorUserId(actor) }, select: { id: true } });
+    const snapshot = {
+      ref: est.ref,
+      versionNumber: row.versionNumber,
+      title: est.title,
+      presentedAt: uow.now.toISOString(),
+      validUntil: lastValidDay,
+      timeZone: tz,
+      company: block,
+      customer: { name: est.customer?.displayName ?? "" },
+      location: est.location ? { address: addressLine(est.location) } : null,
+      notes: args.notes?.trim() ?? "",
+      discount: row.discountBps > 0 ? { bps: row.discountBps, reason: (await tx.estimateVersion.findUniqueOrThrow({ where: { id: row.id }, select: { discountReason: true } })).discountReason } : null,
+      options: fresh.map((o) => ({
+        id: o.id,
+        tier: o.tier,
+        name: o.name,
+        description: o.description,
+        contentHash: o.contentHash,
+        monthlyPaymentDisplay: "",
+        subtotalMinor: o.subtotalMinor.toString(),
+        discountMinor: o.discountMinor.toString(),
+        estimatedTaxMinor: o.estimatedTaxMinor.toString(),
+        totalMinor: o.totalMinor.toString(),
+        lines: o.lines.map((l) => ({ description: l.description, quantity: l.quantity.toString(), uom: l.uom, unitPriceMinor: l.unitPriceMinor.toString(), amountMinor: l.amountMinor.toString(), discountMinor: l.discountMinor.toString(), memberPriced: l.memberPriced, warrantyText: l.snapshot.warrantyText, isAddOn: l.isAddOn }))
+      })),
+      disclosures: {
+        taxNote: "Sales tax shown is an estimate for this address; the invoice states the final amount.",
+        homesteadWarning: residential && hic?.requiredFields.includes("homestead_warning") ? TX_HOMESTEAD_WARNING : null,
+        lienDisclosure: residential && hic?.requiredFields.includes("lien_disclosure") ? TX_LIEN_DISCLOSURE : null,
+        cancellationStatement: null
+      },
+      priceBookVersionId: active.versionId,
+      contentHash: ""
+    };
+    snapshot.contentHash = payloadHash({ ...snapshot, contentHash: void 0 });
+    const pdf = await storeRenderedPdf(uow, actor, {
+      title: `${est.ref} v${row.versionNumber}`,
+      kind: "estimate_pdf",
+      subjectType: "EstimateVersion",
+      subjectId: row.id,
+      storageKey: `render:estimate-version/${row.id}`,
+      bytes: renderEstimatePdf(snapshot, presentedLabel(snapshot))
+    });
+    const version = await casUpdate(uow, {
+      model: "EstimateVersion",
+      id: row.id,
+      version: row.version,
+      from: ["draft"],
+      to: "presented",
+      actor,
+      eventType: "estimate_version.presented",
+      data: { snapshot, contentHash: snapshot.contentHash, presentedAt: uow.now, presentedById: actorUserId(actor), presentedVia: via, validUntil, notes: snapshot.notes, pdfId: pdf.documentId },
+      audit: { contentHash: snapshot.contentHash, via, validUntil: lastValidDay, options: fresh.map((o) => ({ id: o.id, totalMinor: o.totalMinor.toString(), contentHash: o.contentHash })), pdfSha256: pdf.sha256 }
+    });
+    await tx.estimate.update({ where: { id: est.id }, data: { currentVersionId: row.id, presentedById: employee?.id ?? void 0, version: { increment: 1 } } });
+    if (est.opportunityId) await tx.opportunity.updateMany({ where: { id: est.opportunityId, stage: { in: ["open", "appointment_set"] } }, data: { stage: "estimate_presented", version: { increment: 1 } } });
+    if (via === "email") uow.emit({ topic: "notify.estimate", aggregateType: "EstimateVersion", aggregateId: row.id, payload: { estimateId: est.id, ref: est.ref }, dedupeKey: `notify.estimate:${row.id}` });
+    return { versionId: row.id, version, status: "presented", contentHash: snapshot.contentHash, documentId: pdf.documentId, validUntil: lastValidDay };
+  });
+  return { replay: result.replay, ...result.value };
+}
+function validateAuthorization(a, location) {
+  if (!a?.signerName?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Who authorized it?", { field: "signerName" });
+  if (!["signature_on_device", "verbal_recorded", "written_paper", "po_number"].includes(a.method)) throw new DomainError(Codes.INVALID_INPUT, "Authorization is a signature on the device, a recorded verbal approval, a signed paper copy, or a purchase order.", { field: "method" });
+  if (a.method === "signature_on_device" && (a.signature === void 0 || a.signature === null || a.signature === "")) throw new DomainError(Codes.INVALID_INPUT, "Capture the signature.", { field: "signature" });
+  if (a.method === "verbal_recorded" && (!a.callId || location !== "remote")) throw new DomainError(Codes.INVALID_INPUT, "A verbal approval is taken on a recorded call; link the call.", { field: "callId" });
+  if (a.method === "po_number" && !a.poNumber?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Enter the purchase order number.", { field: "poNumber" });
+  const role = a.signerRole ?? "owner";
+  if (role === "tenant" && !a.ownerApproval?.trim()) throw new DomainError(Codes.GUARD_FAILED, "A tenant can authorize work only with the owner's approval; record how the owner approved.", { reason: "tenant_without_owner" });
+  if (role === "property_manager" && a.method !== "po_number" && !a.ownerApproval?.trim()) throw new DomainError(Codes.GUARD_FAILED, "A property manager authorizes with a purchase order or the owner's recorded approval.", { reason: "pm_without_po" });
+  return role;
+}
+async function sellEstimate(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.sell", SELL, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person records a sale.");
+  if (!SALE_LOCATIONS.includes(args.saleLocation)) throw new DomainError(Codes.INVALID_INPUT, `Sale location must be one of ${SALE_LOCATIONS.join(", ")}.`, { field: "saleLocation" });
+  if (!["customer_request", "solicited"].includes(args.initiatedBy)) throw new DomainError(Codes.INVALID_INPUT, "Say whether the customer asked for this visit or it was solicited.", { field: "initiatedBy" });
+  const signerRole = validateAuthorization(args.authorization, args.saleLocation);
+  const deposit = args.depositMinor ? /^\d{1,13}$/.test(args.depositMinor) ? BigInt(args.depositMinor) : (() => {
+    throw new DomainError(Codes.INVALID_INPUT, "Deposit is whole cents.", { field: "depositMinor" });
+  })() : 0n;
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.sell", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const row = await lockEstimateVersion(tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["presented"], "sold");
+    if (row.validUntil && row.validUntil.getTime() <= uow.now.getTime()) throw new DomainError(Codes.GUARD_FAILED, "This estimate has expired. Re-quote it.", { reason: "expired" });
+    const est = await loadEstimate(tx, row.estimate);
+    await assertEstimateAccess(tx, actor, est);
+    if (!est.jobId) throw new DomainError(Codes.GUARD_FAILED, "Attach the estimate to a job before selling it, so the work can be scheduled.", { reason: "no_job" });
+    const option2 = await tx.estimateOption.findFirst({ where: { id: args.optionId, estimateVersionId: row.id }, include: { lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } } });
+    if (!option2) throw new DomainError(Codes.INVALID_INPUT, "Choose one of the presented options.", { field: "optionId" });
+    if (args.authorization.signerContactId) {
+      const contact = await tx.contact.findUnique({ where: { id: args.authorization.signerContactId }, select: { customerId: true } });
+      if (contact?.customerId !== est.customerId) throw new DomainError(Codes.INVALID_INPUT, "The signer is not a contact of this customer.", { field: "signerContactId" });
+    }
+    if (args.authorization.callId && !await tx.call.findUnique({ where: { id: args.authorization.callId }, select: { id: true } })) throw new DomainError(Codes.NOT_FOUND, "Call not found.", { field: "callId" });
+    const tz = est.location.timeZone;
+    const place = placeOfLocation(est.location);
+    if (deposit > 0n) {
+      if (deposit > option2.totalMinor) throw new DomainError(Codes.INVALID_INPUT, "The deposit is more than the price.", { field: "depositMinor" });
+      const hic = await resolvePolicyFromDb(tx, "home_improvement_contract", place, localDate({ timeZone: tz }, uow.now));
+      const cap = depositCap(option2.totalMinor, hic.rules);
+      if (cap !== null && deposit > cap) throw new DomainError(Codes.GUARD_FAILED, `The deposit is over the ${cap.toString()}\xA2 cap for this address.`, { reason: "deposit_over_cap", capMinor: cap.toString() });
+    }
+    const authorization = await tx.authorization.create({
+      data: {
+        subjectType: "EstimateVersion",
+        subjectId: row.id,
+        jobId: est.jobId,
+        method: args.authorization.method,
+        signerName: args.authorization.signerName.trim(),
+        signerContactId: args.authorization.signerContactId ?? null,
+        signerRole,
+        signature: args.authorization.signature ?? void 0,
+        callId: args.authorization.callId ?? null,
+        poNumber: args.authorization.poNumber?.trim() ?? "",
+        ip: args.authorization.ip ?? "",
+        userAgent: args.authorization.userAgent ?? "",
+        location: args.saleLocation,
+        initiatedBy: args.initiatedBy,
+        selectedLineIds: option2.lines.map((l) => l.id),
+        depositMinor: deposit,
+        contentHash: option2.contentHash,
+        authorizedAt: uow.now,
+        recordedById: actorUserId(actor)
+      },
+      select: { id: true }
+    });
+    auditCreate(uow, actor, "Authorization", authorization.id, "authorization.recorded", { subject: `EstimateVersion:${row.id}`, optionId: option2.id, method: args.authorization.method, signerRole, location: args.saleLocation, initiatedBy: args.initiatedBy, contentHash: option2.contentHash, ownerApproval: args.authorization.ownerApproval ?? null });
+    const workLines = [];
+    for (const l of option2.lines) {
+      workLines.push(await tx.workLine.create({
+        data: {
+          jobId: est.jobId,
+          source: "estimate_line",
+          description: l.description,
+          snapshot: { ...l.snapshot, estimateRef: est.ref, listAmountMinor: l.amountMinor.toString(), discountMinor: l.discountMinor.toString() },
+          quantity: l.quantity,
+          uom: l.uom,
+          unitPriceMinor: l.unitPriceMinor,
+          amountMinor: l.amountMinor - l.discountMinor,
+          taxCategory: l.taxCategory,
+          trade: l.trade,
+          cancellationClass: l.cancellationClass,
+          status: "planned",
+          estimateLineId: l.id
+        },
+        select: { id: true, amountMinor: true, trade: true, cancellationClass: true, description: true }
+      }));
+    }
+    const version = await casUpdate(uow, {
+      model: "EstimateVersion",
+      id: row.id,
+      version: row.version,
+      from: ["presented"],
+      to: "sold",
+      actor,
+      eventType: "estimate_version.sold",
+      data: { soldOptionId: option2.id, authorizationId: authorization.id, soldAt: uow.now, depositRequiredMinor: deposit, closedAt: uow.now },
+      audit: { optionId: option2.id, totalMinor: option2.totalMinor.toString(), depositMinor: deposit.toString(), workLines: workLines.length }
+    });
+    await tx.estimate.update({ where: { id: est.id }, data: { status: "sold", soldVersionId: row.id, version: { increment: 1 } } });
+    if (est.opportunityId) await tx.opportunity.updateMany({ where: { id: est.opportunityId }, data: { stage: "won", version: { increment: 1 } } });
+    const rights = await evaluateSaleRights(uow, actor, {
+      jobId: est.jobId,
+      customerId: est.customerId,
+      subjectType: "EstimateVersion",
+      subjectId: row.id,
+      estimateVersionId: row.id,
+      changeOrderId: null,
+      authorizationId: authorization.id,
+      location: args.saleLocation,
+      initiatedBy: args.initiatedBy,
+      transactionAt: uow.now,
+      serviceLocation: est.location,
+      businessUnitId: est.businessUnitId,
+      buyerName: est.customer?.displayName ?? "",
+      language: est.customer?.primaryContact?.preferredLanguage || "en",
+      lines: workLines.map((w) => ({ id: w.id, amountMinor: w.amountMinor, trade: w.trade, cancellationClass: w.cancellationClass, description: w.description })),
+      exclusions: args.exclusions ?? [],
+      emergencyWaiver: args.emergencyWaiver ?? null,
+      acrContext: args.acrContext ?? []
+    });
+    return { versionId: row.id, version, status: "sold", authorizationId: authorization.id, workLineIds: workLines.map((w) => w.id), cancellation: rights };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function declineEstimate(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.decline", PRESENT, args);
+  if (!DECLINE_REASONS.includes(args.reason)) throw new DomainError(Codes.INVALID_INPUT, `Reason must be one of ${DECLINE_REASONS.join(", ")}.`, { field: "reason" });
+  if (args.reason === "other" && !args.note?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Say why.", { field: "note" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.decline", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockEstimateVersion(uow.tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["presented"], "declined");
+    const est = await loadEstimate(uow.tx, row.estimate);
+    await assertEstimateAccess(uow.tx, actor, est);
+    const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["presented"], to: "declined", actor, eventType: "estimate_version.declined", reason: args.note ?? null, data: { declineReason: args.reason, declineNote: args.note?.trim() ?? "", closedAt: uow.now } });
+    await uow.tx.estimate.update({ where: { id: est.id }, data: { status: "declined", version: { increment: 1 } } });
+    if (est.opportunityId && ["chose_competitor", "no_longer_needed"].includes(args.reason)) await uow.tx.opportunity.updateMany({ where: { id: est.opportunityId }, data: { stage: "lost", version: { increment: 1 } } });
+    return { versionId: row.id, version, status: "declined" };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requoteInTx(uow, actor, versionId, expectedVersion, followup) {
+  const { tx } = uow;
+  const row = await lockEstimateVersion(tx, versionId, expectedVersion);
+  requireStatus(row, followup ? ["declined", "expired"] : ["presented", "declined", "expired"], "re-quoted");
+  const est = await loadEstimate(tx, row.estimate);
+  if (actor.kind === "user") await assertEstimateAccess(tx, actor, est);
+  const latest = await tx.estimateVersion.findFirst({ where: { estimateId: est.id }, orderBy: { versionNumber: "desc" }, select: { id: true, versionNumber: true } });
+  if (latest?.id !== row.id) throw new DomainError(Codes.GUARD_FAILED, "A newer version of this estimate exists; re-quote that one.", { reason: "not_latest" });
+  if (row.status === "presented") await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["presented"], to: "superseded", actor, eventType: "estimate_version.superseded", data: { closedAt: uow.now } });
+  const versionNumber = row.versionNumber + 1;
+  const next = await tx.estimateVersion.create({ data: { estimateId: est.id, versionNumber, label: `Version ${versionNumber}`, status: "draft", supersedesId: row.id }, select: { id: true } });
+  await tx.estimate.update({ where: { id: est.id }, data: { status: "open", currentVersionId: next.id, version: { increment: 1 } } });
+  auditCreate(uow, actor, "EstimateVersion", next.id, "estimate_version.drafted", { estimateId: est.id, versionNumber, supersedes: row.id, followup });
+  const target = await lockEstimateVersion(tx, next.id);
+  const options = await requoteOptionsInto(uow, est, row.id, target);
+  return { estimateId: est.id, ref: est.ref, versionId: next.id, versionNumber, options };
+}
+async function requoteEstimate(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.requote", PRESENT, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents use estimate.draft_followup.");
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.requote", actor, idempotencyKey, params, now: args.now }, (uow) => requoteInTx(uow, actor, args.versionId, args.expectedVersion, false));
+  return { replay: result.replay, ...result.value };
+}
+async function draftFollowupEstimate(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.draft_followup", PRESENT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.draft_followup", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const value = await requoteInTx(uow, actor, args.versionId, null, true);
+    await recordAgentAction(uow, actor, { tool: "estimate.draft_followup", idempotencyKey, inputs: params, output: value });
+    return value;
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function discardEstimateVersion(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.discard", PRESENT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "estimate.discard", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockEstimateVersion(uow.tx, args.versionId, args.expectedVersion);
+    requireStatus(row, ["draft"], "discarded");
+    const est = await loadEstimate(uow.tx, row.estimate);
+    await assertEstimateAccess(uow.tx, actor, est);
+    const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "discarded", actor, eventType: "estimate_version.discarded", reason: args.reason ?? null, data: { closedAt: uow.now } });
+    const previous = row.versionNumber > 1 ? await uow.tx.estimateVersion.findFirst({ where: { estimateId: est.id, versionNumber: row.versionNumber - 1 }, select: { id: true, status: true } }) : null;
+    await uow.tx.estimate.update({ where: { id: est.id }, data: previous ? { currentVersionId: previous.id, status: previous.status === "declined" ? "declined" : previous.status === "expired" ? "expired" : "open", version: { increment: 1 } } : { status: "discarded", version: { increment: 1 } } });
+    return { versionId: row.id, version, status: "discarded" };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function draftChangeOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "change_order.draft", PRESENT, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person drafts change orders.");
+  if (!args.reason?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Say why the scope changes.", { field: "reason" });
+  if (!args.add?.length && !args.removeWorkLineIds?.length) throw new DomainError(Codes.INVALID_INPUT, "Add or remove at least one line.", { field: "add" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "change_order.draft", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const job = await tx.job.findUnique({ where: { id: args.jobId }, select: { id: true, status: true, businessUnitId: true } });
+    if (!job) throw new DomainError(Codes.NOT_FOUND, "Job not found.");
+    if (["cancelled", "closed", "completed"].includes(job.status)) throw new DomainError(Codes.GUARD_FAILED, `The job is ${job.status}.`, { reason: "job_closed" });
+    await assertEstimateAccess(tx, actor, { jobId: job.id, createdById: null, presentedBy: null });
+    const sold = await tx.estimate.findFirst({ where: { jobId: job.id, status: "sold" }, orderBy: { createdAt: "desc" }, select: { id: true } });
+    const active = await activeVersionFor(tx, job.businessUnitId);
+    const quoted = args.add?.length ? await quoteFromVersion(tx, active.versionId, args.add, false) : [];
+    const removing = args.removeWorkLineIds?.length ? await tx.workLine.findMany({ where: { id: { in: args.removeWorkLineIds }, jobId: job.id }, select: { id: true, description: true, amountMinor: true, status: true } }) : [];
+    if (removing.length !== (args.removeWorkLineIds?.length ?? 0)) throw new DomainError(Codes.INVALID_INPUT, "Some lines to remove are not on this job.", { field: "removeWorkLineIds" });
+    const done = removing.find((w) => w.status !== "planned");
+    if (done) throw new DomainError(Codes.GUARD_FAILED, `"${done.description}" is ${done.status}; only planned work can be removed.`, { reason: "line_not_planned" });
+    const lines = {
+      add: quoted.map((q) => ({ ...q, amountMinor: q.amountMinor.toString() })),
+      remove: removing.map((w) => ({ workLineId: w.id, description: w.description, amountMinor: w.amountMinor.toString() }))
+    };
+    const delta = quoted.reduce((s, q) => s + q.amountMinor, 0n) - removing.reduce((s, w) => s + w.amountMinor, 0n);
+    const ref = await nextReference(tx, "CO", uow.now);
+    const co = await tx.changeOrder.create({ data: { ref, jobId: job.id, estimateId: sold?.id ?? null, priceBookVersionId: active.versionId, status: "draft", reason: args.reason.trim(), lines, deltaMinor: delta, createdById: actorUserId(actor) }, select: { id: true, version: true } });
+    auditCreate(uow, actor, "ChangeOrder", co.id, "change_order.drafted", { ref, jobId: job.id, deltaMinor: delta.toString(), add: lines.add.length, remove: lines.remove.length });
+    return { changeOrderId: co.id, ref, version: co.version, deltaMinor: delta.toString() };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function lockChangeOrder(tx, id, expectedVersion) {
+  const [row] = await tx.$queryRaw`SELECT id, status, version, job, lines, "deltaMinor", "contentHash", ref, "priceBookVersion" FROM "ChangeOrder" WHERE id = ${id} FOR UPDATE`;
+  if (!row) throw new DomainError(Codes.NOT_FOUND, "Change order not found.");
+  if (row.version !== expectedVersion) throw new DomainError(Codes.STALE_STATE, "This change order changed since you loaded it. Reload and try again.", { currentStatus: row.status, currentVersion: row.version });
+  return row;
+}
+async function presentChangeOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "change_order.present", PRESENT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "change_order.present", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockChangeOrder(uow.tx, args.changeOrderId, args.expectedVersion);
+    requireStatus(row, ["draft"], "presented");
+    await assertEstimateAccess(uow.tx, actor, { jobId: row.job, createdById: null, presentedBy: null });
+    const job = await uow.tx.job.findUniqueOrThrow({ where: { id: row.job }, select: { businessUnitId: true } });
+    const active = await activeVersionFor(uow.tx, job.businessUnitId);
+    if (row.lines.add.length && row.priceBookVersion !== active.versionId) throw new DomainError(Codes.GUARD_FAILED, "A new price book is active since this change order was priced. Draft it again.", { reason: "pricebook_changed" });
+    const contentHash = payloadHash({ changeOrderId: row.id, ref: row.ref, lines: row.lines, deltaMinor: row.deltaMinor.toString() });
+    const version = await casUpdate(uow, { model: "ChangeOrder", id: row.id, version: row.version, from: ["draft"], to: "presented", actor, eventType: "change_order.presented", data: { contentHash, presentedAt: uow.now } });
+    return { changeOrderId: row.id, version, status: "presented", contentHash };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function acceptChangeOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "change_order.accept", SELL, args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person records a customer's approval.");
+  const signerRole = validateAuthorization(args.authorization, args.saleLocation);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "change_order.accept", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const row = await lockChangeOrder(tx, args.changeOrderId, args.expectedVersion);
+    requireStatus(row, ["presented"], "approved");
+    await assertEstimateAccess(tx, actor, { jobId: row.job, createdById: null, presentedBy: null });
+    const job = await tx.job.findUniqueOrThrow({ where: { id: row.job }, select: { id: true, customerId: true, businessUnitId: true, location: { select: { id: true, address1: true, address2: true, city: true, state: true, postalCode: true, timeZone: true, propertyClass: true } }, customer: { select: { displayName: true, primaryContact: { select: { preferredLanguage: true } } } } } });
+    const authorization = await tx.authorization.create({
+      data: {
+        subjectType: "ChangeOrder",
+        subjectId: row.id,
+        jobId: row.job,
+        method: args.authorization.method,
+        signerName: args.authorization.signerName.trim(),
+        signerContactId: args.authorization.signerContactId ?? null,
+        signerRole,
+        signature: args.authorization.signature ?? void 0,
+        callId: args.authorization.callId ?? null,
+        poNumber: args.authorization.poNumber?.trim() ?? "",
+        ip: args.authorization.ip ?? "",
+        userAgent: args.authorization.userAgent ?? "",
+        location: args.saleLocation,
+        initiatedBy: args.initiatedBy,
+        selectedLineIds: [],
+        depositMinor: 0n,
+        contentHash: row.contentHash,
+        authorizedAt: uow.now,
+        recordedById: actorUserId(actor)
+      },
+      select: { id: true }
+    });
+    auditCreate(uow, actor, "Authorization", authorization.id, "authorization.recorded", { subject: `ChangeOrder:${row.id}`, method: args.authorization.method, signerRole, contentHash: row.contentHash });
+    const added = [];
+    for (const a of row.lines.add) {
+      const { amountMinor, ...snap } = a;
+      added.push(await tx.workLine.create({
+        data: { jobId: row.job, source: "change_order", changeOrderId: row.id, description: snap.description, snapshot: { ...snap, changeOrderRef: row.ref }, quantity: snap.quantity, uom: snap.uom, unitPriceMinor: BigInt(snap.unitPriceMinor), amountMinor: BigInt(amountMinor), taxCategory: snap.taxCategory, trade: snap.trade, cancellationClass: snap.cancellationClass, status: "planned" },
+        select: { id: true, amountMinor: true, trade: true, cancellationClass: true, description: true }
+      }));
+    }
+    for (const r of row.lines.remove) {
+      const w = await tx.workLine.findUniqueOrThrow({ where: { id: r.workLineId }, select: { id: true, version: true, status: true } });
+      await casUpdate(uow, { model: "WorkLine", id: w.id, version: w.version, from: ["planned"], to: "removed", actor, eventType: "work_line.removed", metadata: { changeOrderId: row.id } });
+    }
+    const rights = added.length ? await evaluateSaleRights(uow, actor, {
+      jobId: row.job,
+      customerId: job.customerId,
+      subjectType: "ChangeOrder",
+      subjectId: row.id,
+      estimateVersionId: null,
+      changeOrderId: row.id,
+      authorizationId: authorization.id,
+      location: args.saleLocation,
+      initiatedBy: args.initiatedBy,
+      transactionAt: uow.now,
+      serviceLocation: job.location,
+      businessUnitId: job.businessUnitId,
+      buyerName: job.customer?.displayName ?? "",
+      language: job.customer?.primaryContact?.preferredLanguage || "en",
+      lines: added.map((w) => ({ id: w.id, amountMinor: w.amountMinor, trade: w.trade, cancellationClass: w.cancellationClass, description: w.description })),
+      exclusions: [],
+      emergencyWaiver: args.emergencyWaiver ?? null,
+      acrContext: args.acrContext ?? []
+    }) : null;
+    const version = await casUpdate(uow, { model: "ChangeOrder", id: row.id, version: row.version, from: ["presented"], to: "approved", actor, eventType: "change_order.approved", data: { authorizationId: authorization.id, decidedAt: uow.now, cancellationEvaluationId: rights?.evaluationId ?? null } });
+    return { changeOrderId: row.id, version, status: "approved", workLineIds: added.map((w) => w.id), cancellation: rights };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function declineChangeOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "change_order.decline", PRESENT, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "change_order.decline", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockChangeOrder(uow.tx, args.changeOrderId, args.expectedVersion);
+    requireStatus(row, ["draft", "presented"], "declined");
+    await assertEstimateAccess(uow.tx, actor, { jobId: row.job, createdById: null, presentedBy: null });
+    const version = await casUpdate(uow, { model: "ChangeOrder", id: row.id, version: row.version, from: [row.status], to: "declined", actor, eventType: "change_order.declined", reason: args.reason ?? null, data: { decidedAt: uow.now } });
+    return { changeOrderId: row.id, version, status: "declined" };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function estimateSummary(db, actor, args) {
+  await authorizeOperation(db, actor, "estimate.summary", PRESENT, args);
+  const est = await loadEstimate(db, args.estimateId);
+  if (actor.kind === "user") await assertEstimateAccess(db, actor, est);
+  const version = est.currentVersionId ? await db.estimateVersion.findUnique({ where: { id: est.currentVersionId }, select: { id: true, versionNumber: true, status: true, validUntil: true, declineReason: true, options: { orderBy: { sortOrder: "asc" }, select: { id: true, tier: true, name: true, totalMinor: true } } } }) : null;
+  const out = { estimateId: est.id, ref: est.ref, title: est.title, status: est.status, version: version ? { ...version, options: version.options.map((o) => ({ ...o, totalMinor: o.totalMinor.toString() })) } : null };
+  await recordAgentRead(db, actor, { tool: "estimate.summary", inputs: args, output: { ref: est.ref, status: est.status } });
+  return out;
+}
+
+// features/keystone/services/salesAppliers.ts
+registerApplier("pricebook.publish", (uow, actor, request) => applyPriceBookPublish(uow, actor, request));
+registerApplier("estimate.discount", (uow, actor, request) => applyEstimateDiscount(uow, actor, request));
+
+// features/keystone/seed/pricebookData.ts
+var usd2 = (dollars) => (BigInt(dollars) * 100n).toString();
+var PRICE_BOOK = { name: "Summit standard price book", code: "SUMMIT-STD" };
+var SUPPLIER = "Hill Country Supply";
+var UNITS = [
+  { code: "ea", name: "Each", kind: "count", maxDecimals: 0 },
+  { code: "ft", name: "Foot", kind: "length", maxDecimals: 2 },
+  { code: "lb", name: "Pound", kind: "weight", maxDecimals: 2 },
+  { code: "hr", name: "Hour", kind: "time", maxDecimals: 2 },
+  { code: "job", name: "Job", kind: "count", maxDecimals: 0 },
+  { code: "pkg", name: "Package", kind: "package", maxDecimals: 0 }
+];
+var BU = { hvac: "seed_bu_hvac_service", install: "seed_bu_hvac_install", plumbing: "seed_bu_plumbing_service", electrical: "seed_bu_electrical" };
+var LABOR_RATES = [
+  { businessUnitId: null, hourlyMinor: usd2(150), afterHoursMultiplier: "1.5" },
+  { businessUnitId: BU.hvac, hourlyMinor: usd2(158), afterHoursMultiplier: "1.5" },
+  { businessUnitId: BU.install, hourlyMinor: usd2(135), afterHoursMultiplier: "1.5" },
+  { businessUnitId: BU.plumbing, hourlyMinor: usd2(148), afterHoursMultiplier: "1.5" },
+  { businessUnitId: BU.electrical, hourlyMinor: usd2(155), afterHoursMultiplier: "1.5" }
+];
+var MATERIAL_TIERS = [
+  { fromCostMinor: "0", toCostMinor: "1000", multiplier: "2.5" },
+  { fromCostMinor: "1000", toCostMinor: "5000", multiplier: "2" },
+  { fromCostMinor: "5000", toCostMinor: "20000", multiplier: "1.75" },
+  { fromCostMinor: "20000", toCostMinor: "100000", multiplier: "1.5" },
+  { fromCostMinor: "100000", toCostMinor: null, multiplier: "1.35" }
+];
+var EQUIPMENT_TIERS = [
+  { fromCostMinor: "0", toCostMinor: "100000", multiplier: "1.6" },
+  { fromCostMinor: "100000", toCostMinor: "500000", multiplier: "1.45" },
+  { fromCostMinor: "500000", toCostMinor: null, multiplier: "1.35" }
+];
+var MARKUP_TABLES = [
+  { name: "Materials", appliesTo: "material", tiers: MATERIAL_TIERS },
+  { name: "Equipment", appliesTo: "equipment", tiers: EQUIPMENT_TIERS }
+];
+var CATEGORIES = [
+  ["hvac-diagnostic", "HVAC diagnostics", "hvac"],
+  ["hvac-repair", "HVAC repairs", "hvac"],
+  ["hvac-maintenance", "HVAC maintenance", "hvac"],
+  ["hvac-ductwork", "Ductwork", "hvac"],
+  ["hvac-iaq", "Indoor air quality", "hvac"],
+  ["hvac-replacement", "HVAC system replacement", "hvac"],
+  ["plumbing-drain", "Drains", "plumbing"],
+  ["plumbing-repair", "Plumbing repairs", "plumbing"],
+  ["plumbing-fixtures", "Fixtures", "plumbing"],
+  ["plumbing-water-heater", "Water heaters", "plumbing"],
+  ["plumbing-sewer", "Sewer", "plumbing"],
+  ["plumbing-repipe", "Repiping", "plumbing"],
+  ["plumbing-gas", "Gas lines", "plumbing"],
+  ["plumbing-water-quality", "Water quality", "plumbing"],
+  ["electrical-diagnostic", "Electrical diagnostics", "electrical"],
+  ["electrical-repair", "Electrical repairs", "electrical"],
+  ["electrical-panel", "Panels and service", "electrical"],
+  ["electrical-lighting", "Lighting and fans", "electrical"],
+  ["electrical-safety", "Safety devices", "electrical"],
+  ["electrical-ev", "EV charging", "electrical"],
+  ["fees", "Fees", "general"],
+  ["materials", "Materials", "general"]
+].map(([categoryKey, name, trade2], sortOrder) => ({ categoryKey, name, trade: trade2, sortOrder }));
+var MATERIALS = [
+  ["MAT-CAP-4555", "Dual run capacitor 45/5 \xB5F 440 V", "ea", 1850, "hvac"],
+  ["MAT-CAP-355", "Dual run capacitor 35/5 \xB5F 440 V", "ea", 1640, "hvac"],
+  ["MAT-CAP-10", "Single run capacitor 10 \xB5F 370 V", "ea", 920, "hvac"],
+  ["MAT-HARDSTART", "Hard-start kit", "ea", 3480, "hvac"],
+  ["MAT-CONTACTOR", "Contactor 2-pole 40 A", "ea", 1590, "hvac"],
+  ["MAT-FAN-MOTOR-14", "Condenser fan motor 1/4 hp", "ea", 11200, "hvac"],
+  ["MAT-FAN-MOTOR-13", "Condenser fan motor 1/3 hp", "ea", 12900, "hvac"],
+  ["MAT-ECM-MOTOR", "Blower motor ECM 1/2 hp", "ea", 38500, "hvac"],
+  ["MAT-PSC-MOTOR", "Blower motor PSC 1/2 hp", "ea", 14800, "hvac"],
+  ["MAT-IGNITER", "Hot surface igniter", "ea", 2650, "hvac"],
+  ["MAT-FLAME-SENSOR", "Flame sensor", "ea", 1180, "hvac"],
+  ["MAT-PRESSURE-SW", "Draft inducer pressure switch", "ea", 3120, "hvac"],
+  ["MAT-INDUCER", "Draft inducer motor", "ea", 18900, "hvac"],
+  ["MAT-GAS-VALVE", "Furnace gas valve", "ea", 14200, "hvac"],
+  ["MAT-CONTROL-BOARD", "Furnace control board", "ea", 21500, "hvac"],
+  ["MAT-TXV", "Thermal expansion valve", "ea", 16800, "hvac"],
+  ["MAT-FILTER-DRIER", "Liquid line filter drier", "ea", 1490, "hvac"],
+  ["MAT-R410A", "R-410A refrigerant", "lb", 1650, "hvac"],
+  ["MAT-R454B", "R-454B refrigerant", "lb", 2480, "hvac"],
+  ["MAT-NITROGEN", "Nitrogen (pressure test)", "ea", 1200, "hvac"],
+  ["MAT-FLOAT-SW", "Condensate float switch", "ea", 1550, "hvac"],
+  ["MAT-COND-PUMP", "Condensate pump", "ea", 5900, "hvac"],
+  ["MAT-PVC-34", "3/4 in PVC condensate pipe", "ft", 85, "hvac"],
+  ["MAT-THERMOSTAT-PROG", "Programmable thermostat", "ea", 4800, "hvac"],
+  ["MAT-THERMOSTAT-SMART", "Wi-Fi smart thermostat", "ea", 14900, "hvac"],
+  ["MAT-FILTER-1IN", "Pleated filter 1 in MERV 8", "ea", 640, "hvac"],
+  ["MAT-FILTER-4IN", "Media filter 4 in MERV 13", "ea", 3450, "hvac"],
+  ["MAT-FLEX-DUCT-8", "Insulated flex duct 8 in", "ft", 310, "hvac"],
+  ["MAT-FLEX-DUCT-6", "Insulated flex duct 6 in", "ft", 260, "hvac"],
+  ["MAT-DUCT-MASTIC", "Duct mastic (1 gal)", "ea", 1850, "hvac"],
+  ["MAT-REGISTER", "Supply register", "ea", 1100, "hvac"],
+  ["MAT-UV-LAMP", "UV-C coil lamp", "ea", 9800, "hvac"],
+  ["MAT-PAD", "Condenser pad", "ea", 4200, "hvac"],
+  ["MAT-DISCONNECT", "AC disconnect 60 A", "ea", 2900, "electrical"],
+  ["MAT-WHIP", "Flexible whip 3/4 in \xD7 6 ft", "ea", 2100, "electrical"],
+  ["MAT-LINESET-3T", "Line set 3/8 \xD7 3/4 \xD7 25 ft", "ea", 18500, "hvac"],
+  ["MAT-PEX-12", "PEX-A tubing 1/2 in", "ft", 62, "plumbing"],
+  ["MAT-PEX-34", "PEX-A tubing 3/4 in", "ft", 108, "plumbing"],
+  ["MAT-PEX-RING", "PEX expansion ring", "ea", 28, "plumbing"],
+  ["MAT-PEX-TEE-12", "PEX tee 1/2 in", "ea", 290, "plumbing"],
+  ["MAT-COPPER-12", "Type L copper 1/2 in", "ft", 540, "plumbing"],
+  ["MAT-COPPER-34", "Type L copper 3/4 in", "ft", 860, "plumbing"],
+  ["MAT-SHARKBITE-12", "Push-fit coupling 1/2 in", "ea", 880, "plumbing"],
+  ["MAT-BALL-VALVE-34", "Full-port ball valve 3/4 in", "ea", 1790, "plumbing"],
+  ["MAT-ANGLE-STOP", "Quarter-turn angle stop", "ea", 840, "plumbing"],
+  ["MAT-SUPPLY-LINE", "Braided supply line", "ea", 690, "plumbing"],
+  ["MAT-WAX-RING", "Toilet wax ring and bolts", "ea", 590, "plumbing"],
+  ["MAT-FLAPPER", "Toilet flapper", "ea", 640, "plumbing"],
+  ["MAT-FILL-VALVE", "Toilet fill valve", "ea", 1150, "plumbing"],
+  ["MAT-PTRAP", "P-trap 1-1/2 in", "ea", 720, "plumbing"],
+  ["MAT-ABS-3", "ABS drain pipe 3 in", "ft", 410, "plumbing"],
+  ["MAT-PVC-4", "PVC sewer pipe 4 in", "ft", 520, "plumbing"],
+  ["MAT-CLEANOUT", "Two-way cleanout 4 in", "ea", 4800, "plumbing"],
+  ["MAT-HOSE-BIB", "Frost-free hose bib", "ea", 2650, "plumbing"],
+  ["MAT-PRV", "Pressure reducing valve 3/4 in", "ea", 11800, "plumbing"],
+  ["MAT-EXP-TANK", "Thermal expansion tank 2 gal", "ea", 4600, "plumbing"],
+  ["MAT-T-AND-P", "Temperature and pressure relief valve", "ea", 2200, "plumbing"],
+  ["MAT-ANODE", "Water heater anode rod", "ea", 3100, "plumbing"],
+  ["MAT-WH-ELEMENT", "Water heater element 4500 W", "ea", 2350, "plumbing"],
+  ["MAT-WH-THERMO", "Water heater thermostat", "ea", 2600, "plumbing"],
+  ["MAT-THERMOCOUPLE", "Thermocouple", "ea", 1250, "plumbing"],
+  ["MAT-GAS-FLEX", "Gas appliance connector", "ea", 2300, "plumbing"],
+  ["MAT-CSST-12", "CSST gas line 1/2 in", "ft", 480, "plumbing"],
+  ["MAT-DISPOSAL-12", "Garbage disposal 1/2 hp", "ea", 9800, "plumbing"],
+  ["MAT-DISPOSAL-34", "Garbage disposal 3/4 hp", "ea", 16500, "plumbing"],
+  ["MAT-FAUCET-KITCHEN", "Kitchen faucet (builder grade)", "ea", 12900, "plumbing"],
+  ["MAT-FAUCET-LAV", "Lavatory faucet (builder grade)", "ea", 7400, "plumbing"],
+  ["MAT-CARTRIDGE", "Shower valve cartridge", "ea", 3900, "plumbing"],
+  ["MAT-TOILET", "Toilet, elongated, 1.28 gpf", "ea", 21500, "plumbing"],
+  ["MAT-SUMP-PUMP", "Sump pump 1/3 hp", "ea", 14500, "plumbing"],
+  ["MAT-WATER-FILTER", "Whole-home sediment filter", "ea", 18900, "plumbing"],
+  ["MAT-SOFTENER", "Water softener 40k grain", "ea", 78e3, "plumbing"],
+  ["MAT-RO", "Under-sink reverse osmosis system", "ea", 24500, "plumbing"],
+  ["MAT-GFCI-20A", "GFCI receptacle 20 A", "ea", 1890, "electrical"],
+  ["MAT-AFCI-BRK", "AFCI/GFCI dual-function breaker", "ea", 5400, "electrical"],
+  ["MAT-BRK-20A", "Breaker 20 A single pole", "ea", 890, "electrical"],
+  ["MAT-BRK-50A", "Breaker 50 A double pole", "ea", 2150, "electrical"],
+  ["MAT-RECEPT", "Receptacle 15 A tamper resistant", "ea", 340, "electrical"],
+  ["MAT-SWITCH", "Single-pole switch", "ea", 290, "electrical"],
+  ["MAT-DIMMER", "LED dimmer switch", "ea", 2450, "electrical"],
+  ["MAT-NM-12", "NM-B 12/2 cable", "ft", 105, "electrical"],
+  ["MAT-NM-6", "NM-B 6/3 cable", "ft", 420, "electrical"],
+  ["MAT-BOX", "Old-work device box", "ea", 210, "electrical"],
+  ["MAT-SMOKE-CO", "Combination smoke/CO alarm (hardwired)", "ea", 4400, "electrical"],
+  ["MAT-SURGE", "Whole-home surge protector", "ea", 12500, "electrical"],
+  ["MAT-FAN-BOX", "Fan-rated ceiling box", "ea", 1450, "electrical"],
+  ["MAT-LED-CAN", "LED wafer light 6 in", "ea", 1650, "electrical"],
+  ["MAT-EV-RECEPT", "NEMA 14-50 receptacle", "ea", 2900, "electrical"],
+  ["MAT-GROUND-ROD", "Ground rod and clamp", "ea", 2400, "electrical"]
+];
+var materials = MATERIALS.map(([itemKey, name, uom, cost, trade2]) => {
+  const costMinor = BigInt(cost);
+  const tier = MATERIAL_TIERS.find((t) => costMinor >= BigInt(t.fromCostMinor) && (t.toCostMinor === null || costMinor < BigInt(t.toCostMinor)));
+  const price = roundMinor(dec(costMinor).times(dec(tier.multiplier)));
+  return { since: 1, itemKey, kind: "material", categoryKey: "materials", name, uom, trade: trade2, costMinor: costMinor.toString(), unitPriceMinor: price.toString(), taxCategory: "material", cancellationClassDefault: "necessary_replacement_parts" };
+});
+function tasks(trade2, businessUnitId, categoryKey, rows) {
+  return rows.map(([itemKey, name, laborHours, dollars, cls, description, since, v3], i) => ({
+    since: since ?? 1,
+    itemKey,
+    kind: "service_task",
+    categoryKey,
+    name,
+    trade: trade2,
+    businessUnitId,
+    laborHours,
+    uom: "job",
+    unitPriceMinor: usd2(dollars),
+    customerDescription: description ?? `${name}. Flat rate, including labour and standard parts.`,
+    taxCategory: "labor",
+    cancellationClassDefault: cls ?? "requested_repair",
+    sortOrder: i,
+    ...v3 ? { v3UnitPriceMinor: usd2(v3) } : {}
+  }));
+}
+var P = "necessary_replacement_parts";
+var ADD = "additional_goods_services";
+var HVAC = [
+  ...tasks("hvac", BU.hvac, "hvac-diagnostic", [
+    ["HVAC-DIAG", "HVAC diagnostic", "1", 89, void 0, "Full system diagnosis by a licensed technician; credited toward the repair if you go ahead today.", 1, 99],
+    ["HVAC-DIAG-AH", "HVAC diagnostic, evenings and weekends", "1", 179],
+    ["HVAC-SECOND-OPINION", "Second-opinion system evaluation", "1.5", 129],
+    ["HVAC-LEAK-SEARCH", "Refrigerant leak search (electronic and bubble test)", "2", 395],
+    ["HVAC-DYE-TEST", "Refrigerant UV dye leak test", "1.5", 285],
+    ["HVAC-STATIC-TEST", "Static pressure and airflow test", "1", 149],
+    ["HVAC-CO-TEST", "Combustion and carbon monoxide test", "1", 129],
+    ["HVAC-DUCT-LEAK-TEST", "Duct leakage test", "2", 349]
+  ]),
+  ...tasks("hvac", BU.hvac, "hvac-repair", [
+    ["HVAC-CAP-DUAL", "Replace dual run capacitor", "0.5", 245, P, void 0, 1, 259],
+    ["HVAC-CAP-SINGLE", "Replace single run capacitor", "0.5", 195, P],
+    ["HVAC-HARDSTART", "Install hard-start kit", "0.75", 345, P],
+    ["HVAC-CONTACTOR", "Replace contactor", "0.75", 265, P, void 0, 1, 279],
+    ["HVAC-COND-FAN", "Replace condenser fan motor", "1.5", 645, P, void 0, 1, 679],
+    ["HVAC-BLOWER-PSC", "Replace blower motor (PSC)", "2", 795, P],
+    ["HVAC-BLOWER-ECM", "Replace blower motor (ECM, variable speed)", "2.5", 1395, P],
+    ["HVAC-IGNITER", "Replace furnace igniter", "0.75", 285, P, void 0, 1, 299],
+    ["HVAC-FLAME-SENSOR", "Clean or replace flame sensor", "0.5", 175, P],
+    ["HVAC-PRESSURE-SW", "Replace pressure switch", "1", 345, P],
+    ["HVAC-INDUCER", "Replace draft inducer motor", "2", 945, P],
+    ["HVAC-GAS-VALVE", "Replace furnace gas valve", "1.5", 745, P],
+    ["HVAC-BOARD", "Replace furnace control board", "1.5", 895, P, void 0, 1, 945],
+    ["HVAC-TXV", "Replace expansion valve (with recovery and evacuation)", "4", 1495, P],
+    ["HVAC-DRIER", "Replace liquid line filter drier", "1.5", 425, P],
+    ["HVAC-RECHARGE-410", "Refrigerant charge R-410A (per lb)", "0.25", 115, P, "Refrigerant added after leak check, per pound."],
+    ["HVAC-RECHARGE-454", "Refrigerant charge R-454B (per lb)", "0.25", 135, P, "Refrigerant added after leak check, per pound.", 3],
+    ["HVAC-LEAK-REPAIR-BRAZE", "Braze repair of accessible refrigerant leak", "2.5", 695],
+    ["HVAC-EVAP-CLEAN", "Clean evaporator coil (in place)", "2", 395],
+    ["HVAC-COND-CLEAN", "Clean condenser coil (chemical)", "1", 225],
+    ["HVAC-DRAIN-CLEAR", "Clear condensate drain line", "0.75", 185],
+    ["HVAC-FLOAT-SW", "Install condensate safety float switch", "0.75", 215, P],
+    ["HVAC-COND-PUMP", "Replace condensate pump", "1", 395, P],
+    ["HVAC-T-STAT-PROG", "Replace thermostat (programmable)", "1", 295, P],
+    ["HVAC-T-STAT-SMART", "Upgrade to Wi-Fi smart thermostat", "1.25", 495, ADD],
+    ["HVAC-DISCONNECT", "Replace AC disconnect and whip", "1.25", 395, P],
+    ["HVAC-COMPRESSOR-WARRANTY", "Compressor replacement labour (parts under manufacturer warranty)", "6", 1895],
+    ["HVAC-COIL-WARRANTY", "Evaporator coil replacement labour (parts under warranty)", "6", 1795],
+    ["HVAC-REFRIG-RECOVERY", "Refrigerant recovery and disposal", "1", 245],
+    ["HVAC-PAD-LEVEL", "Re-level condenser on new pad", "1", 295, P]
+  ]),
+  ...tasks("hvac", BU.hvac, "hvac-maintenance", [
+    ["HVAC-TUNE-COOL", "Cooling tune-up", "1.5", 129, void 0, "21-point cooling tune-up: coil rinse, electrical tightening, refrigerant check and drain flush.", 1, 139],
+    ["HVAC-TUNE-HEAT", "Heating tune-up", "1.5", 129, void 0, "Furnace safety inspection: burners, heat exchanger, flue, igniter and carbon monoxide test.", 1, 139],
+    ["HVAC-TUNE-HP", "Heat pump tune-up", "1.75", 149],
+    ["HVAC-FILTER-CHANGE", "Replace standard filter", "0.25", 39, P],
+    ["HVAC-MEDIA-FILTER", "Replace 4 in media filter", "0.25", 95, P],
+    ["HVAC-TUNE-COMMERCIAL-RTU", "Rooftop unit preventive maintenance (per unit)", "2", 245]
+  ]),
+  ...tasks("hvac", BU.hvac, "hvac-ductwork", [
+    ["DUCT-SEAL", "Seal accessible ductwork with mastic", "4", 895, ADD],
+    ["DUCT-RUN-6", "Add or replace 6 in supply run", "2", 495, ADD],
+    ["DUCT-RUN-8", "Add or replace 8 in supply run", "2.25", 565, ADD],
+    ["DUCT-RETURN", "Add return air drop", "4", 1195, ADD],
+    ["DUCT-REPAIR", "Repair disconnected or crushed duct", "1.5", 345],
+    ["DUCT-CLEAN", "Whole-home duct cleaning (up to 12 vents)", "4", 549, ADD],
+    ["DUCT-REPLACE-ATTIC", "Replace attic duct system (single-storey, up to 2,000 sq ft)", "16", 6495, ADD]
+  ]),
+  ...tasks("hvac", BU.hvac, "hvac-iaq", [
+    ["IAQ-UV", "Install UV-C coil purifier", "1.5", 895, ADD, "Ultraviolet lamp over the indoor coil to keep it free of mould and bacterial growth.", 2],
+    ["IAQ-MEDIA-CABINET", "Install 4 in media filter cabinet", "2", 695, ADD, void 0, 2],
+    ["IAQ-ELECTRONIC-AC", "Install electronic air cleaner", "2.5", 1695, ADD, void 0, 2],
+    ["IAQ-HUMIDIFIER", "Install whole-home bypass humidifier", "3", 1295, ADD, void 0, 2],
+    ["IAQ-DEHUMIDIFIER", "Install whole-home dehumidifier (70 pint)", "4", 2895, ADD, void 0, 2],
+    ["IAQ-ERV", "Install energy recovery ventilator", "6", 3895, ADD, void 0, 2],
+    ["IAQ-ZONE-2", "Add two-zone damper system", "6", 2695, ADD, void 0, 2]
+  ])
+];
+var PLUMBING = [
+  ...tasks("plumbing", BU.plumbing, "plumbing-drain", [
+    ["DRAIN-SINK", "Clear sink or lavatory drain", "1", 189, void 0, "Clear one sink drain by cable from the trap or cleanout.", 1, 199],
+    ["DRAIN-TUB", "Clear tub or shower drain", "1", 199, void 0, void 0, 1, 209],
+    ["DRAIN-TOILET", "Clear toilet (auger)", "0.75", 169],
+    ["DRAIN-TOILET-PULL", "Pull toilet and clear line", "1.5", 329],
+    ["DRAIN-MAIN-CLEANOUT", "Clear main line from accessible cleanout", "1.5", 295, void 0, void 0, 1, 319],
+    ["DRAIN-MAIN-ROOF", "Clear main line through roof vent", "2.5", 495],
+    ["DRAIN-LAUNDRY", "Clear laundry standpipe", "1", 199],
+    ["DRAIN-HYDROJET", "Hydro-jet main line (up to 100 ft)", "3", 695, ADD],
+    ["DRAIN-CAMERA", "Sewer camera inspection with recording", "1", 299],
+    ["DRAIN-LOCATE", "Locate and mark sewer line", "0.75", 175],
+    ["DRAIN-ENZYME", "Monthly enzyme drain treatment (6-month supply)", "0.25", 129, ADD],
+    ["DRAIN-PTRAP", "Replace P-trap", "0.75", 215, P]
+  ]),
+  ...tasks("plumbing", BU.plumbing, "plumbing-repair", [
+    ["PLB-LEAK-LOCATE", "Locate hidden water leak (acoustic and thermal)", "2", 395],
+    ["PLB-SLAB-LEAK-DETECT", "Slab leak detection", "2.5", 495],
+    ["PLB-PIPE-REPAIR-12", "Repair 1/2 in water line (accessible)", "1.5", 345],
+    ["PLB-PIPE-REPAIR-34", "Repair 3/4 in water line (accessible)", "1.75", 395],
+    ["PLB-SLAB-REROUTE", "Re-route slab leak line through attic (single fixture group)", "8", 2895],
+    ["PLB-ANGLE-STOP", "Replace angle stop and supply line", "0.75", 195, P],
+    ["PLB-MAIN-VALVE", "Replace main shut-off valve", "2", 595, P],
+    ["PLB-PRV", "Replace pressure reducing valve", "2", 745, P, void 0, 1, 785],
+    ["PLB-EXP-TANK", "Install thermal expansion tank", "1", 395, P],
+    ["PLB-TOILET-REBUILD", "Rebuild toilet tank (fill valve and flapper)", "1", 245, P],
+    ["PLB-TOILET-RESET", "Reset toilet with new wax ring", "1", 265, P],
+    ["PLB-CARTRIDGE", "Replace shower valve cartridge", "1", 295, P],
+    ["PLB-SHOWER-VALVE", "Replace shower valve (open wall, tile not included)", "4", 1095],
+    ["PLB-DISPOSAL-REPAIR", "Free jammed disposal and reset", "0.5", 149],
+    ["PLB-ICE-LINE", "Install refrigerator ice-maker line", "1", 245, ADD],
+    ["PLB-WASHER-BOX", "Replace washing machine valve box", "2.5", 645],
+    ["PLB-SUMP", "Replace sump pump", "1.5", 645, P]
+  ]),
+  ...tasks("plumbing", BU.plumbing, "plumbing-fixtures", [
+    ["FIX-FAUCET-KITCHEN", "Install kitchen faucet (customer or Summit supplied)", "1.25", 295],
+    ["FIX-FAUCET-LAV", "Install lavatory faucet", "1", 245],
+    ["FIX-TOILET", "Install new toilet (1.28 gpf, elongated)", "1.5", 645, ADD],
+    ["FIX-DISPOSAL-12", "Install 1/2 hp garbage disposal", "1", 445, ADD],
+    ["FIX-DISPOSAL-34", "Install 3/4 hp garbage disposal", "1", 595, ADD],
+    ["FIX-DISHWASHER", "Connect dishwasher (water and drain)", "1.5", 295],
+    ["FIX-HOSE-BIB-ADD", "Add new hose bib", "2.5", 495, ADD],
+    ["FIX-TUB-SPOUT", "Replace tub spout", "0.5", 145]
+  ]),
+  ...tasks("plumbing", BU.plumbing, "plumbing-water-heater", [
+    ["WH-FLUSH", "Flush water heater", "1", 189],
+    ["WH-ANODE", "Replace anode rod", "1", 295, P],
+    ["WH-TP-VALVE", "Replace temperature and pressure relief valve", "0.75", 245, P],
+    ["WH-ELEMENT", "Replace electric element", "1", 295, P],
+    ["WH-THERMOSTAT", "Replace electric thermostat", "1", 295, P],
+    ["WH-THERMOCOUPLE", "Replace gas thermocouple", "0.75", 225, P],
+    ["WH-GAS-CONTROL", "Replace gas control valve", "1.5", 595, P],
+    ["WH-TANKLESS-DESCALE", "Descale tankless water heater", "1.5", 295],
+    ["WH-PAN", "Install drain pan and line", "1.5", 345, ADD],
+    ["WH-HAUL", "Remove and dispose of old water heater", "0.5", 125]
+  ]),
+  ...tasks("plumbing", BU.plumbing, "plumbing-gas", [
+    ["GAS-LEAK-TEST", "Gas line pressure test", "1.5", 295],
+    ["GAS-CONNECTOR", "Replace appliance gas connector", "0.75", 225, P],
+    ["GAS-LINE-RUN", "Run new gas line (up to 25 ft CSST)", "4", 1095, ADD],
+    ["GAS-SHUTOFF", "Replace gas shut-off valve", "1", 295, P]
+  ]),
+  ...tasks("plumbing", BU.plumbing, "plumbing-water-quality", [
+    ["WQ-TEST", "Water quality test (hardness, chlorine, TDS)", "0.5", 0, void 0, "Free water test with any plumbing visit."],
+    ["WQ-SEDIMENT", "Install whole-home sediment filter", "2.5", 895, ADD],
+    ["WQ-SOFTENER", "Install water softener (40k grain)", "4", 2495, ADD],
+    ["WQ-RO", "Install under-sink reverse osmosis", "2", 895, ADD]
+  ])
+];
+var ELECTRICAL = [
+  ...tasks("electrical", BU.electrical, "electrical-diagnostic", [
+    ["ELE-DIAG", "Electrical diagnostic", "1", 99, void 0, "Trace and diagnose one electrical problem; credited toward the repair if you go ahead today."],
+    ["ELE-SAFETY-INSPECT", "Whole-home electrical safety inspection", "2", 199],
+    ["ELE-THERMAL-SCAN", "Panel thermal imaging scan", "0.75", 149]
+  ]),
+  ...tasks("electrical", BU.electrical, "electrical-repair", [
+    ["ELE-RECEPT", "Replace receptacle", "0.5", 145, P, void 0, 1, 155],
+    ["ELE-SWITCH", "Replace switch", "0.5", 135, P],
+    ["ELE-DIMMER", "Install LED dimmer", "0.75", 195, ADD],
+    ["ELE-BREAKER-20", "Replace 20 A breaker", "0.75", 225, P],
+    ["ELE-BREAKER-50", "Replace 50 A double-pole breaker", "1", 295, P],
+    ["ELE-LOOSE-NEUTRAL", "Repair loose neutral or connection in panel", "1.5", 345],
+    ["ELE-CIRCUIT-TRACE", "Trace and repair open circuit", "2", 395],
+    ["ELE-NEW-CIRCUIT-20", "Add dedicated 20 A circuit (up to 50 ft)", "3", 695, ADD],
+    ["ELE-NEW-OUTLET", "Add new outlet on existing circuit", "1.5", 295, ADD],
+    ["ELE-OUTDOOR-OUTLET", "Add weather-resistant outdoor outlet", "2", 395, ADD],
+    ["ELE-DOORBELL", "Replace doorbell transformer", "1", 195, P],
+    ["ELE-ALUMINUM-PIGTAIL", "Pigtail aluminum branch wiring (per device)", "0.5", 95]
+  ]),
+  ...tasks("electrical", BU.electrical, "electrical-panel", [
+    ["PANEL-INSPECT", "Panel inspection and torque check", "1", 175],
+    ["PANEL-SUBPANEL", "Install 100 A sub-panel", "8", 2495, ADD],
+    ["PANEL-METER-BASE", "Replace meter base (utility coordination)", "6", 1895],
+    ["PANEL-GROUNDING", "Upgrade grounding and bonding", "3", 795],
+    ["PANEL-GENERATOR-INLET", "Install generator inlet and interlock", "4", 1295, ADD]
+  ]),
+  ...tasks("electrical", BU.electrical, "electrical-lighting", [
+    ["LIGHT-FIXTURE", "Replace light fixture (customer supplied)", "1", 195],
+    ["LIGHT-FAN", "Install ceiling fan on fan-rated box", "1.5", 295, ADD],
+    ["LIGHT-FAN-BOX", "Install ceiling fan with new fan-rated box", "2", 395, ADD],
+    ["LIGHT-CAN-4", "Install four LED wafer lights", "3", 795, ADD],
+    ["LIGHT-CAN-6", "Install six LED wafer lights", "4", 1095, ADD],
+    ["LIGHT-MOTION", "Install motion security light", "1.25", 295, ADD],
+    ["LIGHT-LANDSCAPE-XFMR", "Replace landscape lighting transformer", "1", 345, P]
+  ]),
+  ...tasks("electrical", BU.electrical, "electrical-safety", [
+    ["SAFE-GFCI", "Install GFCI receptacle", "0.75", 225, P],
+    ["SAFE-AFCI", "Install AFCI/GFCI breaker", "0.75", 295, P],
+    ["SAFE-SMOKE-CO", "Replace hardwired smoke/CO alarm", "0.5", 175, P],
+    ["SAFE-SURGE", "Install whole-home surge protector", "1", 495, ADD, "Type 2 surge protective device at the panel; protects every circuit in the home.", 1, 525],
+    ["SAFE-SMOKE-ALL", "Replace all hardwired smoke/CO alarms (up to 6)", "2", 795, ADD]
+  ])
+];
+var COMMERCIAL2 = [
+  ...tasks("hvac", BU.hvac, "hvac-maintenance", [
+    ["COM-RTU-BELT", "Replace rooftop unit blower belt", "0.75", 165, P],
+    ["COM-RTU-FILTERS", "Replace rooftop unit filters (per unit)", "0.5", 95, P],
+    ["COM-RTU-COIL-CLEAN", "Clean rooftop condenser coil (per unit)", "1.5", 295],
+    ["COM-RTU-ECON", "Economizer inspection and actuator test", "1", 195],
+    ["COM-RTU-DIAG", "Commercial HVAC diagnostic (first hour)", "1", 189],
+    ["COM-RTU-HOURLY", "Commercial HVAC labour (each additional hour)", "1", 165],
+    ["COM-MINISPLIT-CLEAN", "Ductless mini-split deep clean (per head)", "1.5", 245],
+    ["COM-ICE-MACHINE-DRAIN", "Clear ice machine drain and air gap", "1", 215]
+  ]),
+  ...tasks("plumbing", BU.plumbing, "plumbing-repair", [
+    ["COM-BACKFLOW-TEST", "Annual backflow prevention assembly test", "0.75", 125],
+    ["COM-BACKFLOW-REPAIR", "Rebuild backflow prevention assembly", "2", 495, P],
+    ["COM-GREASE-TRAP-JET", "Hydro-jet grease line (up to 50 ft)", "2", 545],
+    ["COM-FLUSH-VALVE", "Rebuild commercial flush valve", "0.75", 185, P],
+    ["COM-MOP-SINK", "Replace mop sink faucet", "1.25", 345, P],
+    ["COM-PLUMB-HOURLY", "Commercial plumbing labour (per hour)", "1", 165]
+  ]),
+  ...tasks("electrical", BU.electrical, "electrical-repair", [
+    ["COM-EXIT-SIGN", "Replace exit sign with battery backup", "0.75", 195, P],
+    ["COM-EMERG-LIGHT", "Replace emergency light unit", "0.75", 215, P],
+    ["COM-LIGHT-RETROFIT", "LED retrofit of 2\xD74 troffer (per fixture)", "0.5", 145, ADD],
+    ["COM-PARKING-LIGHT", "Parking lot light repair (lift included)", "2", 595],
+    ["COM-ELEC-HOURLY", "Commercial electrical labour (per hour)", "1", 175],
+    ["COM-PANEL-LABEL", "Trace and label panel directory", "2", 295],
+    ["COM-IR-SCAN", "Commercial switchgear infrared scan", "2", 495]
+  ])
+];
+var FEES = [
+  { since: 1, itemKey: "FEE-TRIP", kind: "fee", categoryKey: "fees", name: "Service call", trade: "general", uom: "job", unitPriceMinor: usd2(79), taxCategory: "fee", customerDescription: "Trip and first look; credited toward any repair done today.", cancellationClassDefault: "requested_repair" },
+  { since: 1, itemKey: "FEE-AFTER-HOURS", kind: "fee", categoryKey: "fees", name: "After-hours dispatch", trade: "general", uom: "job", unitPriceMinor: usd2(149), taxCategory: "fee", customerDescription: "Evenings, weekends and holidays.", cancellationClassDefault: "requested_repair" },
+  { since: 1, itemKey: "FEE-PERMIT-MECH", kind: "fee", categoryKey: "fees", name: "Mechanical permit (City of Austin)", trade: "hvac", uom: "job", unitPriceMinor: usd2(195), costMinor: usd2(150), taxCategory: "permit_passthrough", customerDescription: "City permit and inspection scheduling.", cancellationClassDefault: "additional_goods_services" },
+  { since: 1, itemKey: "FEE-PERMIT-PLUMB", kind: "fee", categoryKey: "fees", name: "Plumbing permit (City of Austin)", trade: "plumbing", uom: "job", unitPriceMinor: usd2(175), costMinor: usd2(130), taxCategory: "permit_passthrough", customerDescription: "City permit and inspection scheduling.", cancellationClassDefault: "additional_goods_services" },
+  { since: 1, itemKey: "FEE-PERMIT-ELEC", kind: "fee", categoryKey: "fees", name: "Electrical permit (City of Austin)", trade: "electrical", uom: "job", unitPriceMinor: usd2(165), costMinor: usd2(120), taxCategory: "permit_passthrough", customerDescription: "City permit and inspection scheduling.", cancellationClassDefault: "additional_goods_services" },
+  { since: 1, itemKey: "FEE-DISPOSAL", kind: "fee", categoryKey: "fees", name: "Equipment haul-away and disposal", trade: "general", uom: "job", unitPriceMinor: usd2(125), costMinor: usd2(40), taxCategory: "disposal", customerDescription: "Removal and lawful disposal of old equipment, including refrigerant recovery.", cancellationClassDefault: "additional_goods_services" },
+  { since: 1, itemKey: "FEE-CRANE", kind: "fee", categoryKey: "fees", name: "Crane lift (rooftop equipment)", trade: "hvac", uom: "job", unitPriceMinor: usd2(1450), costMinor: usd2(1100), taxCategory: "fee", customerDescription: "Crane and operator for rooftop equipment.", cancellationClassDefault: "additional_goods_services" }
+];
+var FORMULA = [
+  ["F-HOSE-BIB", "Replace hose bib (frost-free)", "plumbing", BU.plumbing, "plumbing-repair", "1.25", [["MAT-HOSE-BIB", "1"], ["MAT-PEX-12", "3"], ["MAT-PEX-RING", "2"]], P],
+  ["F-SUPPLY-LINES", "Replace both supply lines and stops at one fixture", "plumbing", BU.plumbing, "plumbing-repair", "1", [["MAT-ANGLE-STOP", "2"], ["MAT-SUPPLY-LINE", "2"]], P],
+  ["F-TOILET-FILL", "Replace toilet fill valve and flapper", "plumbing", BU.plumbing, "plumbing-repair", "0.75", [["MAT-FILL-VALVE", "1"], ["MAT-FLAPPER", "1"]], P],
+  ["F-PRV-EXP", "Replace PRV and add expansion tank", "plumbing", BU.plumbing, "plumbing-repair", "2.5", [["MAT-PRV", "1"], ["MAT-EXP-TANK", "1"], ["MAT-COPPER-34", "4"]], P],
+  ["F-GAS-RUN-10", "Run gas line to new appliance (10 ft)", "plumbing", BU.plumbing, "plumbing-gas", "2.5", [["MAT-CSST-12", "10"], ["MAT-GAS-FLEX", "1"]], ADD],
+  ["F-DISPOSAL-12", "Replace garbage disposal 1/2 hp (installed)", "plumbing", BU.plumbing, "plumbing-fixtures", "1", [["MAT-DISPOSAL-12", "1"]], P],
+  ["F-DISPOSAL-34", "Replace garbage disposal 3/4 hp (installed)", "plumbing", BU.plumbing, "plumbing-fixtures", "1", [["MAT-DISPOSAL-34", "1"]], ADD],
+  ["F-CAP-DUAL-45", "Dual run capacitor 45/5 (installed)", "hvac", BU.hvac, "hvac-repair", "0.5", [["MAT-CAP-4555", "1"]], P],
+  ["F-IGNITER", "Furnace igniter (installed)", "hvac", BU.hvac, "hvac-repair", "0.75", [["MAT-IGNITER", "1"]], P],
+  ["F-FLOAT-PUMP", "Condensate pump with float switch (installed)", "hvac", BU.hvac, "hvac-repair", "1.25", [["MAT-COND-PUMP", "1"], ["MAT-FLOAT-SW", "1"], ["MAT-PVC-34", "10"]], P],
+  ["F-SMART-TSTAT", "Smart thermostat (installed and configured)", "hvac", BU.hvac, "hvac-repair", "1.25", [["MAT-THERMOSTAT-SMART", "1"]], ADD],
+  ["F-DUCT-RUN-8-25", "8 in supply run, 25 ft (installed)", "hvac", BU.hvac, "hvac-ductwork", "2", [["MAT-FLEX-DUCT-8", "25"], ["MAT-REGISTER", "1"], ["MAT-DUCT-MASTIC", "1"]], ADD],
+  ["F-GFCI-2", "Two GFCI receptacles (installed)", "electrical", BU.electrical, "electrical-safety", "1", [["MAT-GFCI-20A", "2"]], P],
+  ["F-CIRCUIT-20-50", "Dedicated 20 A circuit, 50 ft (formula)", "electrical", BU.electrical, "electrical-repair", "3", [["MAT-BRK-20A", "1"], ["MAT-NM-12", "50"], ["MAT-RECEPT", "1"], ["MAT-BOX", "1"]], ADD],
+  ["F-SMOKE-CO-4", "Four hardwired smoke/CO alarms (installed)", "electrical", BU.electrical, "electrical-safety", "1.5", [["MAT-SMOKE-CO", "4"]], ADD],
+  ["F-EV-1450-30", "NEMA 14-50 EV outlet, 30 ft run", "electrical", BU.electrical, "electrical-ev", "3.5", [["MAT-BRK-50A", "1"], ["MAT-NM-6", "30"], ["MAT-EV-RECEPT", "1"]], ADD]
+];
+var formula = FORMULA.map(([itemKey, name, trade2, businessUnitId, categoryKey, laborHours, mats, cls], i) => ({
+  since: itemKey.startsWith("F-EV") ? 3 : 1,
+  itemKey,
+  kind: "service_task",
+  pricingMethod: "formula",
+  categoryKey,
+  name,
+  trade: trade2,
+  businessUnitId,
+  laborHours,
+  uom: "job",
+  unitPriceMinor: "0",
+  materials: mats.map(([key2, quantity]) => ({ itemKey: key2, quantity })),
+  customerDescription: `${name}. Price includes labour and the parts listed.`,
+  taxCategory: "labor",
+  cancellationClassDefault: cls ?? "requested_repair",
+  sortOrder: 100 + i
+}));
+var EV = tasks("electrical", BU.electrical, "electrical-ev", [
+  ["EV-L2-HARDWIRE", "Install Level 2 charger, hardwired (customer supplied, up to 30 ft)", "4", 1195, ADD, void 0, 3],
+  ["EV-L2-OUTLET", "Install NEMA 14-50 outlet for Level 2 charging (up to 30 ft)", "3.5", 895, ADD, void 0, 3],
+  ["EV-LOAD-CALC", "Load calculation for EV charging", "1", 149, void 0, void 0, 3],
+  ["EV-LOAD-MANAGER", "Install EV load management device", "2", 795, ADD, void 0, 3]
+]);
+function ladder(ladderKey, trade2, businessUnitId, categoryKey, kind, rungs) {
+  return rungs.map(([tier, itemKey, name, customerDescription, laborHours, cost, price, warrantyText], i) => ({
+    since: 2,
+    itemKey,
+    kind,
+    categoryKey,
+    name,
+    trade: trade2,
+    businessUnitId,
+    laborHours,
+    uom: "job",
+    costMinor: usd2(cost),
+    unitPriceMinor: usd2(price),
+    customerDescription,
+    warrantyText,
+    taxCategory: kind === "equipment" ? "equipment" : "labor",
+    cancellationClassDefault: "additional_goods_services",
+    ladderKey,
+    tier,
+    sortOrder: i
+  }));
+}
+var LADDERS = [
+  ...ladder("AC-FURNACE-3T", "hvac", BU.install, "hvac-replacement", "equipment", [
+    ["good", "SYS-ACF-3T-GOOD", "3-ton AC and 80% furnace, single stage", "14.3 SEER2 air conditioner, 80% AFUE single-stage furnace, matched coil, new line set, pad, disconnect, programmable thermostat, permit and haul-away.", "12", 4850, 9895, "10-year parts, 2-year labour (with registration)."],
+    ["better", "SYS-ACF-3T-BETTER", "3-ton AC and 96% furnace, two stage", "16 SEER2 two-stage air conditioner, 96% AFUE two-stage variable-speed furnace, matched coil, new line set, media filter cabinet, smart thermostat, permit and haul-away.", "14", 6900, 13495, "10-year parts, 5-year labour (with registration)."],
+    ["best", "SYS-ACF-3T-BEST", "3-ton variable-speed AC and modulating furnace", "20 SEER2 variable-speed inverter air conditioner, 97% modulating furnace, communicating thermostat, UV-C coil purifier, permit and haul-away.", "16", 9800, 18995, "12-year parts, 10-year labour, 10-year unit replacement (with registration)."]
+  ]),
+  ...ladder("HEAT-PUMP-3T", "hvac", BU.install, "hvac-replacement", "equipment", [
+    ["good", "SYS-HP-3T-GOOD", "3-ton heat pump split, single stage", "15 SEER2 / 7.8 HSPF2 heat pump, matched air handler with 10 kW heat strip, new line set, programmable thermostat, permit and haul-away.", "12", 5200, 10495, "10-year parts, 2-year labour (with registration)."],
+    ["better", "SYS-HP-3T-BETTER", "3-ton heat pump split, two stage", "16.5 SEER2 / 8.5 HSPF2 two-stage heat pump, variable-speed air handler, smart thermostat, media filter cabinet, permit and haul-away.", "14", 7300, 14295, "10-year parts, 5-year labour (with registration)."],
+    ["best", "SYS-HP-3T-BEST", "3-ton inverter heat pump, cold-climate rated", "21 SEER2 / 10 HSPF2 inverter heat pump, communicating air handler and thermostat, UV-C coil purifier, permit and haul-away.", "16", 10400, 19995, "12-year parts, 10-year labour, 10-year unit replacement (with registration)."]
+  ]),
+  ...ladder("WATER-HEATER", "plumbing", BU.plumbing, "plumbing-water-heater", "equipment", [
+    ["good", "WH-50G-GAS-6", "50-gallon gas water heater, 6-year", "Atmospheric-vent 40,000 BTU tank, new gas connector, T&P valve and discharge, drain pan, expansion tank, permit and haul-away.", "4", 780, 2195, "6-year tank and parts, 1-year labour."],
+    ["better", "WH-50G-GAS-12", "50-gallon gas water heater, 12-year", "Commercial-grade 50,000 BTU tank with dual anodes, new gas connector, T&P valve, drain pan, expansion tank, permit and haul-away.", "4.5", 1180, 2895, "12-year tank and parts, 3-year labour."],
+    ["best", "WH-TANKLESS-199", "Tankless gas water heater, 199,000 BTU", "Condensing tankless water heater with recirculation-ready controls, new venting, gas line upsizing up to 20 ft, isolation valves, permit and haul-away of the old tank.", "9", 2150, 5495, "15-year heat exchanger, 5-year parts, 3-year labour."]
+  ]),
+  ...ladder("PANEL-200A", "electrical", BU.electrical, "electrical-panel", "service_task", [
+    ["good", "PANEL-200A-GOOD", "200 A panel replacement", "Replace main panel with a 200 A 40-space panel, new breakers for existing circuits, grounding and bonding to code, permit and utility coordination.", "10", 1100, 3895, "5-year workmanship; manufacturer warranty on panel and breakers."],
+    ["better", "PANEL-200A-BETTER", "200 A panel with surge and AFCI/GFCI protection", "Everything in the 200 A panel replacement plus whole-home surge protector and AFCI/GFCI breakers where code requires them.", "12", 1650, 5295, "10-year workmanship; manufacturer warranty on panel and breakers."],
+    ["best", "PANEL-200A-BEST", "200 A smart panel with EV-ready circuit", "Smart panel with per-circuit monitoring and load management, whole-home surge protector, AFCI/GFCI protection, and a 50 A EV-ready circuit.", "14", 3900, 8995, "10-year workmanship; manufacturer warranty on panel and breakers."]
+  ]),
+  ...ladder("SEWER-LINE", "plumbing", BU.plumbing, "plumbing-sewer", "service_task", [
+    ["good", "SEWER-SPOT-REPAIR", "Sewer spot repair (up to 10 ft, open trench)", "Excavate and replace up to 10 ft of the damaged section with SDR-35 PVC, camera verification, backfill and permit.", "12", 650, 3495, "2-year workmanship on the repaired section."],
+    ["better", "SEWER-TRENCHLESS-LINER", "Trenchless sewer lining (up to 60 ft)", "Hydro-jet, then cured-in-place liner from cleanout to tap, new two-way cleanout, camera verification and permit.", "16", 3200, 9995, "10-year workmanship on the lined section."],
+    ["best", "SEWER-REPLACE-FULL", "Full sewer line replacement (up to 60 ft)", "Replace the building sewer from foundation to tap with SDR-35 PVC by pipe-bursting or trench, new cleanout, camera verification and permit.", "24", 4200, 14995, "25-year workmanship on the new line."]
+  ]),
+  ...ladder("REPIPE", "plumbing", BU.plumbing, "plumbing-repipe", "service_task", [
+    ["good", "REPIPE-PEX-2BA", "Whole-home PEX repipe (up to 2 bathrooms)", "Replace supply piping with PEX-A home runs through the attic, new stops at every fixture, pressure test and permit; drywall patches ready for paint.", "28", 1800, 6995, "10-year workmanship; 25-year manufacturer warranty on PEX-A."],
+    ["better", "REPIPE-PEX-2BA-MANIFOLD", "PEX repipe with manifold and new main valve (up to 2 bathrooms)", "PEX-A repipe with a central manifold, new main shut-off, PRV and expansion tank, pressure test and permit; drywall repaired and textured.", "32", 2600, 8995, "15-year workmanship; 25-year manufacturer warranty on PEX-A."],
+    ["best", "REPIPE-COPPER-2BA", "Whole-home Type L copper repipe (up to 2 bathrooms)", "Type L copper supply throughout with new main shut-off, PRV, expansion tank and stops, pressure test and permit; drywall repaired, textured and painted.", "40", 5200, 13995, "20-year workmanship."]
+  ])
+];
+var CATALOG = [...materials, ...HVAC, ...PLUMBING, ...ELECTRICAL, ...COMMERCIAL2, ...FEES, ...formula, ...EV, ...LADDERS];
+var itemsFor = (version) => {
+  const strip = ({ since: _s, v3UnitPriceMinor: _v, ...item }) => item;
+  const added = CATALOG.filter((i) => i.since === version).map(strip);
+  const repriced = version === 3 ? CATALOG.filter((i) => i.since < 3 && i.v3UnitPriceMinor).map((i) => ({ ...strip(i), unitPriceMinor: i.v3UnitPriceMinor })) : [];
+  return [...added, ...repriced];
+};
+function supplierCosts() {
+  const pct = (key2) => key2.startsWith("MAT-COPPER") || key2.startsWith("MAT-PEX") ? 400 : key2.startsWith("MAT-BRK") ? -300 : 600;
+  return MATERIALS.filter(([key2, , , , trade2]) => trade2 === "hvac" || key2.startsWith("MAT-COPPER") || key2.startsWith("MAT-PEX") || key2.startsWith("MAT-BRK")).map(([itemKey, , , cost]) => ({ itemKey, costMinor: roundMinor(dec(cost).times(dec(1e4 + pct(itemKey))).div(1e4)).toString() }));
+}
+var VERSION_LABELS = { 1: "Launch 2026", 2: "Spring 2026: replacement ladders and IAQ", 3: "Fall 2026: EV charging and price review" };
+
+// features/keystone/seed/pricebook.ts
+var chunks = (rows, size) => Array.from({ length: Math.ceil(rows.length / size) }, (_, i) => rows.slice(i * size, (i + 1) * size));
+async function seedUnits(db, actor, key2) {
+  const result = await command(db, { name: "pricebook.units", actor, idempotencyKey: key2, params: {} }, async (uow) => {
+    const have = new Set((await uow.tx.unitOfMeasure.findMany({ select: { code: true } })).map((u) => u.code));
+    const missing = UNITS.filter((u) => !have.has(u.code));
+    if (missing.length) {
+      await uow.tx.unitOfMeasure.createMany({ data: missing.map((u) => ({ ...u })) });
+      auditCreate(uow, actor, "UnitOfMeasure", "seed", "unit_of_measure.created", { codes: missing.map((u) => u.code) }, { metadata: { seed: true } });
+    }
+    return { units: missing.length };
+  });
+  return result.value;
+}
+async function fillDraft(db, maker, prefix, draft, items, settings) {
+  let version = draft.version;
+  if (settings) {
+    const saved = await saveDraftSettings(db, maker, {
+      versionId: draft.versionId,
+      expectedVersion: version,
+      idempotencyKey: `${prefix}:settings`,
+      categories: CATEGORIES,
+      laborRates: LABOR_RATES,
+      markupTables: MARKUP_TABLES
+    });
+    version = saved.version;
+  }
+  for (const [i, chunk] of chunks(items, 150).entries()) {
+    const saved = await saveDraftItems(db, maker, { versionId: draft.versionId, items: chunk, expectedVersion: version, idempotencyKey: `${prefix}:items:${i}` });
+    version = saved.version;
+  }
+  return version;
+}
+async function publish(db, maker, checker, prefix, versionId, expectedVersion, note) {
+  const submitted = await submitPriceBookVersion(db, maker, { versionId, expectedVersion, note, idempotencyKey: `${prefix}:submit` });
+  const request = await db.approvalRequest.findUniqueOrThrow({ where: { id: submitted.approvalRequestId }, select: { id: true, version: true, status: true } });
+  if (request.status === "pending") await decideApprovalAs(db, checker, { requestId: request.id, decision: "approve", expectedVersion: request.version, idempotencyKey: `${prefix}:approve` });
+  return submitted;
+}
+async function seedPriceBook(db, opts) {
+  const prefix = opts.prefix ?? "seed:pricebook";
+  const { maker, checker } = opts;
+  const units = await seedUnits(db, maker, `${prefix}:units`);
+  const existing = await db.priceBook.findFirst({ where: { code: PRICE_BOOK.code }, select: { id: true } });
+  const created = existing ? null : await createPriceBook(db, maker, { ...PRICE_BOOK, idempotencyKey: `${prefix}:create` });
+  const priceBookId = existing?.id ?? created.priceBookId;
+  const versions = await db.priceBookVersion.findMany({ where: { priceBookId }, select: { id: true, versionNumber: true, status: true, version: true }, orderBy: { versionNumber: "asc" } });
+  const v1 = versions.find((v) => v.versionNumber === 1);
+  if (!checker) {
+    if (v1.status === "draft") {
+      const all2 = [1, 2, 3].flatMap((n) => itemsFor(n)).filter((item, i, rows) => rows.findLastIndex((r) => r.itemKey === item.itemKey) === i);
+      const version = await fillDraft(db, maker, `${prefix}:v1`, { versionId: v1.id, version: v1.version }, all2, true);
+      await submitPriceBookVersion(db, maker, { versionId: v1.id, expectedVersion: version, note: "Summit standard catalogue", idempotencyKey: `${prefix}:v1:submit` });
+    }
+    const now = await db.priceBookVersion.findFirst({ where: { priceBookId }, orderBy: { versionNumber: "desc" }, select: { versionNumber: true, status: true } });
+    return { units: units.units, priceBookId, items: CATALOG.length, latestVersion: now?.versionNumber ?? null, status: now?.status ?? null };
+  }
+  if (v1.status === "draft") {
+    const version = await fillDraft(db, maker, `${prefix}:v1`, { versionId: v1.id, version: v1.version }, itemsFor(1), true);
+    await publish(db, maker, checker, `${prefix}:v1`, v1.id, version, VERSION_LABELS[1]);
+  }
+  for (const n of [2, 3]) {
+    const have = await db.priceBookVersion.findFirst({ where: { priceBookId, versionNumber: n }, select: { id: true, status: true, version: true } });
+    if (have && have.status !== "draft") continue;
+    const draft = have ? { versionId: have.id, version: have.version } : await (async () => {
+      const started = await startPriceBookDraft(db, maker, { priceBookId, label: VERSION_LABELS[n], idempotencyKey: `${prefix}:v${n}:draft` });
+      const row = await db.priceBookVersion.findUniqueOrThrow({ where: { id: started.versionId }, select: { version: true } });
+      return { versionId: started.versionId, version: row.version };
+    })();
+    const version = await fillDraft(db, maker, `${prefix}:v${n}`, draft, itemsFor(n), false);
+    await publish(db, maker, checker, `${prefix}:v${n}`, draft.versionId, version, VERSION_LABELS[n]);
+  }
+  const v4 = await db.priceBookVersion.findFirst({ where: { priceBookId, versionNumber: 4 }, select: { id: true } });
+  const imported = v4 ? null : await importSupplierCosts(db, maker, { priceBookId, supplier: SUPPLIER, costs: supplierCosts(), idempotencyKey: `${prefix}:v4:costs` });
+  const book = await db.priceBook.findUniqueOrThrow({ where: { id: priceBookId }, select: { activeVersionId: true } });
+  return { units: units.units, priceBookId, activeVersionId: book.activeVersionId, items: CATALOG.length, supplierDraft: imported?.versionId ?? v4?.id ?? null, costChanges: imported?.changes.length ?? null };
+}
+
+// features/keystone/mutations/setup.ts
+async function loadCompanySetup(_root, args, context) {
+  const actor = await actorFor(context);
+  await authorizeOperation(context.prisma, actor, "loadCompanySetup", ["canManageOnboarding"]);
+  const result = await command(context.prisma, { name: "setup.load_company", actor, idempotencyKey: args.idempotencyKey, params: {} }, async (uow) => {
+    const created = await seedCompanyPlatform(uow, actor);
+    await recordAgentAction(uow, actor, { tool: "loadCompanySetup", idempotencyKey: args.idempotencyKey, inputs: {}, output: created });
+    return created;
+  });
+  return { replay: result.replay, created: result.value };
+}
+async function loadOperationsSetup(_root, args, context) {
+  const actor = await actorFor(context);
+  await authorizeOperation(context.prisma, actor, "loadOperationsSetup", ["canManageOnboarding"]);
+  if (!await context.prisma.businessUnit.count({ where: { id: { startsWith: "seed_bu_" } } })) throw new DomainError(Codes.GUARD_FAILED, "Load the company first.", { reason: "company_missing" });
+  const result = await command(context.prisma, { name: "setup.load_operations", actor, idempotencyKey: args.idempotencyKey, params: {} }, async (uow) => {
+    const created = await seedOperations(uow, actor);
+    await recordAgentAction(uow, actor, { tool: "loadOperationsSetup", idempotencyKey: args.idempotencyKey, inputs: {}, output: created });
+    return created;
+  });
+  const systemActorForWindows = actor.kind === "agent" ? { kind: "system", name: "setup" } : actor;
+  const windows = await materializeWindows(context.prisma, systemActorForWindows, { from: localDate({ timeZone: "America/Chicago" }, /* @__PURE__ */ new Date()), days: 21, idempotencyKey: `${args.idempotencyKey}:windows` });
+  return { replay: result.replay, created: { ...result.value, windows: windows.created, shifts: windows.shifts } };
+}
+async function loadPriceBookSetup(_root, args, context) {
+  const actor = await actorFor(context);
+  await authorizeOperation(context.prisma, actor, "loadPriceBookSetup", ["canManageOnboarding"]);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person loads the price book.");
+  if (!await context.prisma.businessUnit.count({ where: { id: { startsWith: "seed_bu_" } } })) throw new DomainError(Codes.GUARD_FAILED, "Load the company first.", { reason: "company_missing" });
+  const created = await seedPriceBook(context.prisma, { maker: actor, checker: null, prefix: `setup:pricebook:${actor.kind === "user" ? actor.userId : "system"}` });
+  return { replay: false, created };
+}
+var ONBOARDING = ["not_started", "in_progress", "completed", "dismissed"];
+async function setCompanyOnboardingStatus(_root, args, context) {
+  const actor = await actorFor(context);
+  requirePermission(actor, "canManageOnboarding");
+  if (!ONBOARDING.includes(args.status)) throw new DomainError(Codes.INVALID_INPUT, "Unknown onboarding status.", { field: "status" });
+  const result = await command(context.prisma, { name: "company.onboarding_status", actor, idempotencyKey: args.idempotencyKey, params: { status: args.status, expectedVersion: args.expectedVersion } }, async (uow) => {
+    const [company] = await uow.tx.$queryRaw`SELECT id, version, "onboardingStatus" FROM "CompanySettings" WHERE "singletonKey" = 'company' FOR UPDATE`;
+    if (!company) throw new DomainError(Codes.NOT_FOUND, "Company settings are not set up yet.");
+    if (company.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "Company settings changed since you loaded them. Reload and try again.", { currentVersion: company.version });
+    if (company.onboardingStatus === args.status) return { status: args.status, version: company.version };
+    const updated = await uow.tx.companySettings.updateMany({ where: { id: company.id, version: company.version }, data: { onboardingStatus: args.status, version: { increment: 1 } } });
+    if (updated.count !== 1) throw new DomainError(Codes.STALE_STATE, "Company settings changed since you loaded them. Reload and try again.");
+    uow.audit({ eventType: "company.onboarding_status_changed", entityType: "CompanySettings", entityId: String(company.id), actorUserId: actor.kind === "user" ? actor.userId : null, before: { onboardingStatus: company.onboardingStatus, version: company.version }, after: { onboardingStatus: args.status, version: company.version + 1 } });
+    return { status: args.status, version: company.version + 1 };
+  });
+  return { replay: result.replay, ...result.value };
+}
+
+// features/keystone/mutations/audit.ts
+async function verifyAuditChain2(_root, _args, context) {
+  const actor = await actorFor(context);
+  await authorizeOperation(context.prisma, actor, "verifyAuditChain", ["canReadAudit"]);
+  return verifyAuditChain(context.prisma);
+}
+
+// features/keystone/mutations/policy.ts
+async function resolvePolicyQuery(_root, args, context) {
+  const actor = await actorFor(context);
+  await authorizeOperation(context.prisma, actor, "policy.resolve", ["canAccessDashboard"], args);
+  if (!POLICY_KINDS.includes(args.kind)) throw new DomainError(Codes.INVALID_INPUT, `Unknown policy kind ${args.kind}.`, { field: "kind" });
+  return resolvePolicyFromDb(context.prisma, args.kind, { state: args.state, county: args.county, city: args.city, zip: args.zip, branchId: args.branchId }, args.on);
+}
+
+// features/keystone/services/dispatch.ts
+var import_node_crypto8 = require("node:crypto");
 
 // features/keystone/domain/eligibility.ts
 function credentialCurrent(c, date) {
@@ -4625,6 +8627,7 @@ async function setVisitStatus(db, actor, args) {
     if (!move.from.includes(ctx.status)) throw new DomainError(Codes.INVALID_TRANSITION, `A ${ctx.status.replaceAll("_", " ")} visit can't move to ${args.to.replaceAll("_", " ")}.`, { currentStatus: ctx.status, currentVersion: ctx.version, to: args.to });
     if (["en_route", "on_site"].includes(ctx.status) && args.to === "cancelled" && !dispatcher) throw new DomainError(Codes.NOT_AUTHORIZED, "Only a dispatcher can cancel a visit that is under way.");
     if (args.to === "done") await assertChecklistsDone(tx, ctx.id);
+    if (args.to === "working" && ctx.job) await assertCanStartWork(tx, ctx.job.id, uow.now);
     const data = {};
     if (args.to === "on_site") data.actualArrivalAt = clientAt ?? uow.now;
     if (args.to === "done") data.actualDoneAt = clientAt ?? uow.now;
@@ -4639,6 +8642,32 @@ async function setVisitStatus(db, actor, args) {
     }
     if (ctx.job) await rollJob(uow, actor, ctx.job.id, args.to === "no_access" ? "access" : null);
     return { visitId: ctx.id, status: args.to, version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function submitChecklist(db, actor, args) {
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents do not fill in visit checklists.");
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "visit.checklist", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const visit = await tx.visit.findUnique({ where: { id: args.visitId }, select: { id: true, status: true, job: { select: { jobType: { select: { checklistTemplate: { select: { id: true, name: true, items: true, templateVersion: true } } } } } } } });
+    if (!visit) throw new DomainError(Codes.NOT_FOUND, "Visit not found.");
+    const userId = actorUserId(actor);
+    const assigned = userId ? await tx.visitAssignment.count({ where: { visitId: visit.id, active: true, employee: { user: { id: userId } } } }) : 0;
+    if (!(can(actor, "canDispatch") || assigned > 0 && can(actor, "canWorkVisits"))) throw new DomainError(Codes.NOT_AUTHORIZED, "Only the assigned technician or a dispatcher can do this.");
+    if (!["on_site", "working", "paused"].includes(visit.status)) throw new DomainError(Codes.INVALID_TRANSITION, "Fill in the checklist on site.", { currentStatus: visit.status });
+    const template = visit.job?.jobType?.checklistTemplate;
+    if (!template) throw new DomainError(Codes.INVALID_INPUT, "This job type has no checklist.", { field: "visitId" });
+    const items = Array.isArray(template.items) ? template.items : [];
+    const answers = {};
+    for (const item of items) {
+      const value = args.answers?.[item.key];
+      if (typeof value !== "string" || !value.trim()) throw new DomainError(Codes.INVALID_INPUT, `Answer "${item.label}".`, { field: item.key });
+      answers[item.key] = value.trim().slice(0, 500);
+    }
+    const row = await tx.checklistResponse.create({ data: { visitId: visit.id, templateId: template.id, templateVersion: template.templateVersion, answers, completedById: userId, completedAt: uow.now }, select: { id: true } });
+    auditCreate(uow, actor, "ChecklistResponse", row.id, "visit.checklist_completed", { visitId: visit.id, templateId: template.id, templateVersion: template.templateVersion });
+    return { checklistResponseId: row.id, visitId: visit.id };
   });
   return { replay: result.replay, ...result.value };
 }
@@ -4767,7 +8796,7 @@ async function recommendDispatch(db, actor, args) {
   });
   const ranked = rankCandidates(candidates).slice(0, 10);
   const features = { model: DISPATCH_MODEL, features: DISPATCH_FEATURES, date, window: ctx.window?.label ?? null, requirement: req, licensingVersionId: licensing.versionId };
-  const inputsHash = (0, import_node_crypto7.createHash)("sha256").update(canonicalJson({ visitId: ctx.id, visitVersion: ctx.version, candidates })).digest("hex");
+  const inputsHash = (0, import_node_crypto8.createHash)("sha256").update(canonicalJson({ visitId: ctx.id, visitVersion: ctx.version, candidates })).digest("hex");
   const result = await command(db, { name: "dispatch.recommend", actor, idempotencyKey: args.idempotencyKey, params: { visitId: args.visitId }, now: args.now }, async (uow) => {
     const rec = await uow.tx.dispatchRecommendation.create({
       data: { visitId: ctx.id, rankedCandidates: ranked, inputsHash, features, modelRef: DISPATCH_MODEL, generatedById: actorAgentId(actor), requestedById: actorUserId(actor), decision: "proposed" },
@@ -4832,19 +8861,19 @@ async function markMessageSent(db, actor, args) {
 }
 
 // features/keystone/lib/secretBox.ts
-var import_node_crypto8 = require("node:crypto");
+var import_node_crypto9 = require("node:crypto");
 function key(version = 1) {
   const material = process.env.SECRET_BOX_KEY || process.env.SESSION_SECRET;
   if (!material) {
     if (process.env.NODE_ENV === "production") throw new Error("SECRET_BOX_KEY is not set");
-    return (0, import_node_crypto8.createHash)("sha256").update("openfront-home-services:development-secret-box").digest();
+    return (0, import_node_crypto9.createHash)("sha256").update("openfront-home-services:development-secret-box").digest();
   }
-  return (0, import_node_crypto8.createHash)("sha256").update(`openfront-home-services:secret-box:v${version}:${material}`).digest();
+  return (0, import_node_crypto9.createHash)("sha256").update(`openfront-home-services:secret-box:v${version}:${material}`).digest();
 }
 async function sealSecret(tx, purpose, plaintext, createdById) {
   if (!plaintext || plaintext.length > 4096) throw new Error("Secret must be 1-4096 characters");
-  const iv = (0, import_node_crypto8.randomBytes)(12);
-  const cipher = (0, import_node_crypto8.createCipheriv)("aes-256-gcm", key(1), iv);
+  const iv = (0, import_node_crypto9.randomBytes)(12);
+  const cipher = (0, import_node_crypto9.createCipheriv)("aes-256-gcm", key(1), iv);
   cipher.setAAD(Buffer.from(purpose));
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const row = await tx.secretBox.create({
@@ -4856,7 +8885,7 @@ async function sealSecret(tx, purpose, plaintext, createdById) {
 async function openSecret(tx, id, purpose) {
   const row = await tx.secretBox.findUnique({ where: { id } });
   if (!row || row.purpose !== purpose) throw new Error("Secret not found");
-  const decipher = (0, import_node_crypto8.createDecipheriv)("aes-256-gcm", key(row.keyVersion ?? 1), Buffer.from(row.iv, "base64"));
+  const decipher = (0, import_node_crypto9.createDecipheriv)("aes-256-gcm", key(row.keyVersion ?? 1), Buffer.from(row.iv, "base64"));
   decipher.setAAD(Buffer.from(purpose));
   decipher.setAuthTag(Buffer.from(row.authTag, "base64"));
   return Buffer.concat([decipher.update(Buffer.from(row.ciphertext, "base64")), decipher.final()]).toString("utf8");
@@ -4944,6 +8973,32 @@ async function customerHistory(db, actor, args) {
   await recordAgentRead(db, actor, { tool: "customer.history", inputs: args, output: { jobs: out.length } });
   return { customerId: args.customerId, jobs: out };
 }
+async function lookupLocations(db, actor, args) {
+  await authorizeOperation(db, actor, "location.lookup", ["canBook", "canManageCustomers", "canDispatch"], args);
+  const rows = await db.serviceLocation.findMany({
+    where: { customerId: args.customerId, mergedIntoId: null, ...args.postalCode ? { postalCode: { startsWith: args.postalCode.trim().slice(0, 5) } } : {} },
+    orderBy: { createdAt: "asc" },
+    take: 10,
+    select: { id: true, ref: true, address1: true, address2: true, city: true, state: true, postalCode: true, propertyClass: true, propertyType: true, serviceArea: { select: { name: true } }, accessSecrets: { where: { status: "active" }, select: { kind: true } }, jobs: { where: { status: { in: ["booked", "scheduled", "in_progress", "on_hold"] } }, select: { id: true } } }
+  });
+  const full = actor.kind === "user" && can(actor, "canReadCustomerPII");
+  const out = rows.map((l) => ({
+    locationId: l.id,
+    ref: l.ref,
+    address: full ? [l.address1, l.address2].filter(Boolean).join(", ") : maskAddress(l.address1),
+    city: l.city,
+    state: l.state,
+    postalCode: l.postalCode,
+    propertyClass: l.propertyClass,
+    propertyType: l.propertyType,
+    serviceArea: l.serviceArea?.name ?? null,
+    inServiceArea: !!l.serviceArea,
+    accessOnFile: [...new Set(l.accessSecrets.map((a) => a.kind))],
+    openJobs: l.jobs.length
+  }));
+  await recordAgentRead(db, actor, { tool: "location.lookup", inputs: { customerId: args.customerId, byZip: !!args.postalCode }, output: { locations: out.length } });
+  return { customerId: args.customerId, locations: out };
+}
 async function storeAccessSecret(db, actor, args) {
   await authorizeOperation(db, actor, "access_secret.store", ["canManageCustomers", "canBook"], {});
   if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents never handle access codes.");
@@ -4994,7 +9049,7 @@ async function ingestLead(db, actor, args) {
     const slaMinutes = Number(settings?.features?.leadFirstResponseMinutes ?? 5);
     const ref = await nextReference(tx, "LEAD", now);
     const lead = await tx.lead.create({
-      data: { ref, source: args.source, externalId: args.externalId ?? "", campaignId: args.campaignId ?? null, trackingNumberId: args.trackingNumberId ?? null, customerId: match?.contact?.customerId ?? null, contactName: args.contactName ?? "", phoneE164: phone ?? "", email: email ?? "", requestedJobTypeId: args.requestedJobTypeId ?? null, summary: args.summary ?? "", status: "new", respondDueAt: new Date(now.getTime() + slaMinutes * 6e4) },
+      data: { ref, createdAt: now, source: args.source, externalId: args.externalId ?? "", campaignId: args.campaignId ?? null, trackingNumberId: args.trackingNumberId ?? null, customerId: match?.contact?.customerId ?? null, contactName: args.contactName ?? "", phoneE164: phone ?? "", email: email ?? "", requestedJobTypeId: args.requestedJobTypeId ?? null, summary: args.summary ?? "", status: "new", respondDueAt: new Date(now.getTime() + slaMinutes * 6e4) },
       select: { id: true, ref: true }
     });
     auditCreate(uow, actor, "Lead", lead.id, "lead.created", { ref, source: args.source, matchedCustomer: !!match, campaignId: args.campaignId ?? null });
@@ -5059,14 +9114,14 @@ async function mergeLead(db, actor, args) {
 }
 async function matchJobType(db, actor, args) {
   await authorizeOperation(db, actor, "jobtype.match", ["canBook"], args);
-  const text15 = args.description.toLowerCase();
+  const text16 = args.description.toLowerCase();
   const types = await db.jobType.findMany({ where: { active: true }, select: { id: true, code: true, name: true, trade: true, priority: true, keywords: true, emergencyPolicy: true, bookableByAi: true, bookingQuestions: true, businessUnitId: true } });
-  const words = new Set(text15.split(/[^a-z0-9]+/).filter(Boolean));
+  const words = new Set(text16.split(/[^a-z0-9]+/).filter(Boolean));
   const scored = types.map((t) => {
     const keys = (t.keywords ?? []).map((k) => k.toLowerCase());
-    const hits = keys.filter((k) => k.includes(" ") ? text15.includes(k) : words.has(k));
+    const hits = keys.filter((k) => k.includes(" ") ? text16.includes(k) : words.has(k));
     const emergency = t.emergencyPolicy;
-    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text15.includes(k.toLowerCase()));
+    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text16.includes(k.toLowerCase()));
     return { jobTypeId: t.id, code: t.code, name: t.name, trade: t.trade, priority: t.priority, bookableByAi: t.bookableByAi, score: hits.length * 10 + emergencyHits.length * 25, matched: hits, emergency: emergencyHits.length ? { matched: emergencyHits, script: emergency?.script ?? "", page: !!emergency?.page } : null, questions: t.bookingQuestions ?? [], businessUnitId: t.businessUnitId };
   }).filter((t) => t.score > 0).sort((a, b) => b.score - a.score || a.code.localeCompare(b.code)).slice(0, 3);
   let inArea = null;
@@ -5142,16 +9197,17 @@ async function revokeCredential(db, actor, args) {
 }
 
 // features/keystone/mutations/phase1.ts
-var graphql = String.raw;
+var graphql2 = String.raw;
 var bind = (fn) => op(async (_root, args, context) => {
   const { now: _ignored, ...clean } = args;
   return fn(context.prisma, await actorFor(context), clean);
 });
-var phase1TypeDefs = graphql`
+var phase1TypeDefs = graphql2`
   type Query {
     availableWindows(jobTypeId: ID!, postalCode: String!, from: String!, days: Int): JSON
     lookupCustomer(phone: String, email: String, name: String, postalCode: String): JSON
     customerHistory(customerId: ID!, limit: Int): JSON
+    lookupLocations(customerId: ID!, postalCode: String): JSON
     matchJobType(description: String!, postalCode: String): JSON
     checkEligibility(visitId: ID!, employeeIds: [ID!]!): JSON
   }
@@ -5174,6 +9230,7 @@ var phase1TypeDefs = graphql`
     recommendDispatch(visitId: ID!, idempotencyKey: String!): JSON
     assignVisit(visitId: ID!, expectedVersion: Int!, employeeIds: [ID!]!, leadEmployeeId: ID, recommendationId: ID, overrideReason: String, idempotencyKey: String!): JSON
     unassignVisit(visitId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
+    submitChecklist(visitId: ID!, answers: JSON!, idempotencyKey: String!): JSON
     setVisitStatus(visitId: ID!, to: String!, expectedVersion: Int, reason: String, clientRecordedAt: String, deviceEventKey: String, lat: String, lng: String, idempotencyKey: String!): JSON
     holdJob(jobId: ID!, expectedVersion: Int!, reason: String!, followUpOn: String!, idempotencyKey: String!): JSON
     releaseJobHold(jobId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
@@ -5191,6 +9248,7 @@ var phase1Resolvers = {
   Query: {
     availableWindows: bind(availableWindows),
     lookupCustomer: bind(lookupCustomer),
+    lookupLocations: bind(lookupLocations),
     customerHistory: bind(customerHistory),
     matchJobType: bind(matchJobType),
     checkEligibility: bind(checkEligibility)
@@ -5215,6 +9273,7 @@ var phase1Resolvers = {
     assignVisit: bind(assignVisit),
     unassignVisit: bind(unassignVisit),
     setVisitStatus: bind(setVisitStatus),
+    submitChecklist: bind(submitChecklist),
     holdJob: bind(holdJob),
     releaseJobHold: bind(releaseJobHold),
     cancelJob: bind(cancelJob),
@@ -5228,12 +9287,105 @@ var phase1Resolvers = {
   }
 };
 
+// features/keystone/mutations/phase2.ts
+var graphql3 = String.raw;
+var bind2 = (fn) => op(async (_root, args, context) => {
+  const { now: _ignored, ...clean } = args;
+  return fn(context.prisma, await actorFor(context), clean);
+});
+var phase2TypeDefs = graphql3`
+  type Query {
+    searchPriceBook(query: String, businessUnitId: ID, kind: String, limit: Int): JSON
+    quotePriceBook(lines: JSON!, businessUnitId: ID, memberPricing: Boolean, discountBps: Int): JSON
+    priceBookVersionReview(versionId: ID!): JSON
+    estimateSummary(estimateId: ID!): JSON
+  }
+  type Mutation {
+    openPriceBook(name: String!, code: String!, businessUnitIds: [ID!], idempotencyKey: String!): JSON
+    startPriceBookDraft(priceBookId: ID!, label: String, idempotencyKey: String!): JSON
+    saveDraftItems(versionId: ID!, items: JSON!, expectedVersion: Int, idempotencyKey: String!): JSON
+    removeDraftItems(versionId: ID!, itemKeys: [String!]!, expectedVersion: Int, idempotencyKey: String!): JSON
+    saveDraftSettings(versionId: ID!, categories: JSON, laborRates: JSON, markupTables: JSON, memberPricingRules: JSON, expectedVersion: Int, idempotencyKey: String!): JSON
+    submitPriceBookVersion(versionId: ID!, effectiveAt: String, expectedVersion: Int!, note: String, idempotencyKey: String!): JSON
+    reopenPriceBookDraft(versionId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+    discardPriceBookVersion(versionId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+    importSupplierCosts(priceBookId: ID!, supplier: String!, costs: JSON!, idempotencyKey: String!): JSON
+
+    openEstimate(jobId: ID, opportunityId: ID, customerId: ID, locationId: ID, businessUnitId: ID, title: String!, options: JSON, idempotencyKey: String!): JSON
+    draftEstimate(jobId: ID, opportunityId: ID, customerId: ID, locationId: ID, businessUnitId: ID, title: String!, options: JSON!, idempotencyKey: String!): JSON
+    draftEstimateFromCapture(visitId: ID!, title: String!, options: JSON!, idempotencyKey: String!): JSON
+    draftFollowupEstimate(versionId: ID!, idempotencyKey: String!): JSON
+    saveEstimateOption(versionId: ID!, optionId: ID, tier: String!, name: String!, description: String, memberPricing: Boolean, lines: JSON!, expectedVersion: Int, idempotencyKey: String!): JSON
+    removeEstimateOption(versionId: ID!, optionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    repriceEstimateVersion(versionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    setEstimateDiscount(versionId: ID!, discountBps: Int!, reason: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+    reopenEstimateVersion(versionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    presentEstimate(versionId: ID!, via: String, notes: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+    sellEstimate(versionId: ID!, optionId: ID!, expectedVersion: Int!, authorization: JSON!, saleLocation: String!, initiatedBy: String!, depositMinor: String, emergencyWaiver: JSON, acrContext: [String!], exclusions: [String!], idempotencyKey: String!): JSON
+    declineEstimate(versionId: ID!, reason: String!, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+    requoteEstimate(versionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    discardEstimateVersion(versionId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+    draftChangeOrder(jobId: ID!, reason: String!, add: JSON, removeWorkLineIds: [ID!], idempotencyKey: String!): JSON
+    presentChangeOrder(changeOrderId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    acceptChangeOrder(changeOrderId: ID!, expectedVersion: Int!, authorization: JSON!, saleLocation: String!, initiatedBy: String!, emergencyWaiver: JSON, acrContext: [String!], idempotencyKey: String!): JSON
+    declineChangeOrder(changeOrderId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+
+    deliverCancellationNotice(noticeId: ID!, method: String!, acknowledgedBy: String!, signature: JSON, messageId: ID, expectedVersion: Int!, idempotencyKey: String!): JSON
+    waiveCancellationNotice(noticeId: ID!, waiver: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, amountPaidMinor: String, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+    markCancellationRefunded(noticeId: ID!, evidence: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    requestCancellationHoldOverride(noticeId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  }
+`;
+var phase2Resolvers = {
+  Query: {
+    searchPriceBook: bind2(searchPriceBook),
+    quotePriceBook: bind2(quotePriceBook),
+    priceBookVersionReview: bind2(priceBookVersionReview),
+    estimateSummary: bind2(estimateSummary)
+  },
+  Mutation: {
+    openPriceBook: bind2(createPriceBook),
+    startPriceBookDraft: bind2(startPriceBookDraft),
+    saveDraftItems: bind2(saveDraftItems),
+    removeDraftItems: bind2(removeDraftItems),
+    saveDraftSettings: bind2(saveDraftSettings),
+    submitPriceBookVersion: bind2(submitPriceBookVersion),
+    reopenPriceBookDraft: bind2(reopenPriceBookDraft),
+    discardPriceBookVersion: bind2(discardPriceBookVersion),
+    importSupplierCosts: bind2(importSupplierCosts),
+    openEstimate: bind2(createEstimate),
+    draftEstimate: bind2(draftEstimate),
+    draftEstimateFromCapture: bind2(draftEstimate),
+    draftFollowupEstimate: bind2(draftFollowupEstimate),
+    saveEstimateOption: bind2(saveEstimateOption),
+    removeEstimateOption: bind2(removeEstimateOption),
+    repriceEstimateVersion: bind2(repriceEstimateVersion),
+    setEstimateDiscount: bind2(setEstimateDiscount),
+    reopenEstimateVersion: bind2(reopenEstimateVersion),
+    presentEstimate: bind2(presentEstimate),
+    sellEstimate: bind2(sellEstimate),
+    declineEstimate: bind2(declineEstimate),
+    requoteEstimate: bind2(requoteEstimate),
+    discardEstimateVersion: bind2(discardEstimateVersion),
+    draftChangeOrder: bind2(draftChangeOrder),
+    presentChangeOrder: bind2(presentChangeOrder),
+    acceptChangeOrder: bind2(acceptChangeOrder),
+    declineChangeOrder: bind2(declineChangeOrder),
+    deliverCancellationNotice: bind2(deliverCancellationNotice),
+    waiveCancellationNotice: bind2(waiveCancellationNotice),
+    recordBuyerCancellation: bind2(recordBuyerCancellation),
+    markCancellationRefunded: bind2(markCancellationRefunded),
+    requestCancellationHoldOverride: bind2(requestCancellationHoldOverride)
+  }
+};
+
 // features/keystone/mutations/index.ts
-var graphql2 = String.raw;
+var graphql4 = String.raw;
 function extendGraphqlSchema(baseSchema) {
   const core = (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
-    typeDefs: graphql2`
+    typeDefs: graphql4`
       scalar JSON
       type Query {
         redirectToInit: Boolean
@@ -5244,6 +9396,8 @@ function extendGraphqlSchema(baseSchema) {
       type Mutation {
         updateActiveUser(data: UserUpdateProfileInput!): User
         loadCompanySetup(idempotencyKey: String!): JSON
+        loadOperationsSetup(idempotencyKey: String!): JSON
+        loadPriceBookSetup(idempotencyKey: String!): JSON
         decideApprovalRequest(requestId: ID!, decision: String!, reason: String, expectedVersion: Int!, idempotencyKey: String!): JSON
         cancelApprovalRequest(requestId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
         requestCompanyControls(changes: JSON!, reason: String!, idempotencyKey: String!): JSON
@@ -5259,6 +9413,8 @@ function extendGraphqlSchema(baseSchema) {
       Mutation: {
         updateActiveUser: updateActiveUser_default,
         loadCompanySetup: op(loadCompanySetup),
+        loadOperationsSetup: op(loadOperationsSetup),
+        loadPriceBookSetup: op(loadPriceBookSetup),
         decideApprovalRequest: op(decideApprovalRequest),
         cancelApprovalRequest: op(cancelApprovalRequest),
         requestCompanyControls: op(requestCompanyControls),
@@ -5266,7 +9422,7 @@ function extendGraphqlSchema(baseSchema) {
       }
     }
   });
-  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: phase1TypeDefs, resolvers: phase1Resolvers });
+  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs], resolvers: [phase1Resolvers, phase2Resolvers] });
 }
 
 // features/keystone/lib/mail.ts
@@ -5354,7 +9510,12 @@ var COMPOUND_UNIQUES = {
   ShiftTemplate: ['@@unique([employeeId, weekday], map: "ShiftTemplate_employee_day_key")'],
   Shift: ['@@unique([employeeId, date, kind], map: "Shift_employee_date_kind_key")'],
   CapacityPlan: ['@@unique([businessUnitId, date], map: "CapacityPlan_bu_date_key")'],
-  Visit: ['@@index([status, plannedStart], map: "Visit_status_planned_idx")']
+  Visit: ['@@index([status, plannedStart], map: "Visit_status_planned_idx")'],
+  // Phase 2: price book, estimates and cancellation rights
+  PriceBookVersion: ['@@unique([priceBookId, versionNumber], map: "PriceBookVersion_book_number_key")'],
+  PriceBookItem: ['@@unique([priceBookVersionId, itemKey], map: "PriceBookItem_version_key_key")'],
+  PriceBookCategory: ['@@unique([priceBookVersionId, categoryKey], map: "PriceBookCategory_version_key_key")'],
+  EstimateVersion: ['@@unique([estimateId, versionNumber], map: "EstimateVersion_estimate_number_key")']
 };
 function addDatabaseConstraints(schema) {
   for (const [modelName, directives] of Object.entries(COMPOUND_UNIQUES)) {
@@ -5368,6 +9529,66 @@ ${missing.map((directive) => `  ${directive}`).join("\n")}
 }`));
   }
   return schema;
+}
+
+// features/keystone/lib/keystonePrismaErrors.ts
+var RAW_METHOD = /^\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe|queryRawTyped|runCommandRaw)$/;
+var clients = /* @__PURE__ */ new WeakMap();
+var delegates = /* @__PURE__ */ new WeakMap();
+function isKeystonePrismaError(value) {
+  return value instanceof Error && value.extensions?.code === "KS_PRISMA_ERROR";
+}
+function rethrowKeystonePrismaError(value) {
+  if (!isKeystonePrismaError(value)) return value;
+  const prisma = value.extensions.prisma ?? {};
+  throw Object.assign(value, { code: prisma.code, meta: prisma.meta, clientVersion: prisma.clientVersion });
+}
+function throwing(result) {
+  if (!result || typeof result.then !== "function") return rethrowKeystonePrismaError(result);
+  const settled = () => result.then(rethrowKeystonePrismaError);
+  return new Proxy(result, {
+    get(target, key2) {
+      if (key2 === "then") return (ok, fail3) => settled().then(ok, fail3);
+      if (key2 === "catch") return (fail3) => settled().catch(fail3);
+      if (key2 === "finally") return (done) => settled().finally(done);
+      const value = Reflect.get(target, key2, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    }
+  });
+}
+function throwingDelegate(delegate) {
+  const cached = delegates.get(delegate);
+  if (cached) return cached;
+  const wrapped = new Proxy(delegate, {
+    get(target, key2) {
+      const value = Reflect.get(target, key2, target);
+      return typeof value === "function" ? (...args) => throwing(value.apply(target, args)) : value;
+    }
+  });
+  delegates.set(delegate, wrapped);
+  return wrapped;
+}
+function throwKeystonePrismaErrors(client) {
+  const cached = clients.get(client);
+  if (cached) return cached;
+  const wrapped = new Proxy(client, {
+    get(target, key2) {
+      const value = Reflect.get(target, key2, target);
+      if (key2 === "$transaction" && typeof value === "function") {
+        return (work, ...options) => {
+          if (typeof work === "function") return value.call(target, (tx) => work(throwKeystonePrismaErrors(tx)), ...options);
+          return Promise.resolve(value.call(target, work, ...options)).then((results) => Array.isArray(results) ? results.map(rethrowKeystonePrismaError) : results);
+        };
+      }
+      if (key2 === "$extends" && typeof value === "function") return (...args) => throwKeystonePrismaErrors(value.apply(target, args));
+      if (typeof key2 === "string" && RAW_METHOD.test(key2) && typeof value === "function") return (...args) => throwing(value.apply(target, args));
+      if (typeof value === "function") return value.bind(target);
+      if (typeof key2 === "string" && !key2.startsWith("$") && value && typeof value === "object" && typeof value.findFirst === "function") return throwingDelegate(value);
+      return value;
+    }
+  });
+  clients.set(client, wrapped);
+  return wrapped;
 }
 
 // features/keystone/index.ts
@@ -5418,11 +9639,13 @@ var { withAuth } = (0, import_auth.createAuth)({
   `
 });
 var keystone_default = withAuth(
-  (0, import_core17.config)({
+  (0, import_core19.config)({
     db: {
       provider: "postgresql",
       url: databaseURL,
-      extendPrismaSchema: addDatabaseConstraints
+      extendPrismaSchema: addDatabaseConstraints,
+      // Keystone 6.5 returns failed Prisma queries instead of throwing; make them throw so transactions roll back.
+      extendPrismaClient: throwKeystonePrismaErrors
     },
     lists: models,
     storage: {

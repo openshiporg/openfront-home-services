@@ -128,6 +128,17 @@ async function recordWaiver(uow: UnitOfWork, actor: Actor, noticeId: string, ref
 
 type NoticeRow = { id: string; ref: string; status: string; version: number; job: string; cancelBy: Date; transactionAt: Date; timeZone: string; rules: { rule: string; refundBusinessDays: number; waived: boolean }[]; evaluation: string; startOverride: string | null; estimateVersion: string | null }
 
+/** The payments recorded on the sale a notice came from, oldest first, with what is still refundable on each. */
+async function unrefundedPayments(tx: Tx, evaluationId: string | null) {
+  if (!evaluationId) return []
+  const rows = await tx.payment.findMany({
+    where: { authorization: { from_CancellationEvaluation_authorization: { some: { id: evaluationId } } } },
+    orderBy: [{ receivedAt: 'asc' }, { id: 'asc' }],
+    select: { id: true, ref: true, amountMinor: true, refunds: { select: { amountMinor: true } } },
+  })
+  return rows.map(p => ({ id: p.id, ref: p.ref, remainingMinor: p.amountMinor - p.refunds.reduce((sum, r) => sum + r.amountMinor, 0n) })).filter(p => p.remainingMinor > 0n)
+}
+
 async function lockNotice(tx: Tx, id: string, expectedVersion?: number | null) {
   const [row] = await tx.$queryRaw<NoticeRow[]>`SELECT id, ref, status, version, job, "cancelBy", "transactionAt", "timeZone", rules, evaluation, "startOverride", "estimateVersion" FROM "CancellationNotice" WHERE id = ${id} FOR UPDATE`
   if (!row) throw new DomainError(Codes.NOT_FOUND, 'Cancellation notice not found.')
@@ -201,13 +212,12 @@ const RECEIVED_VIA = ['signed_form', 'mail', 'email', 'in_person', 'portal'] as 
  * The buyer cancelled. `sentAt` is when the buyer gave notice: the postmark for mail, the send time for
  * email, the moment it was handed over in person. It must fall before the deadline.
  */
-export async function recordBuyerCancellation(db: Db, actor: Actor, args: { noticeId: string; via: (typeof RECEIVED_VIA)[number]; sentAt: string; amountPaidMinor?: string | null; note?: string | null; expectedVersion: number; idempotencyKey: string; now?: Date }) {
+export async function recordBuyerCancellation(db: Db, actor: Actor, args: { noticeId: string; via: (typeof RECEIVED_VIA)[number]; sentAt: string; note?: string | null; expectedVersion: number; idempotencyKey: string; now?: Date }) {
   await authorizeOperation(db, actor, 'cancellation.record_buyer_cancel', OFFICE, args)
   if (actor.kind === 'agent') throw new DomainError(Codes.NOT_AUTHORIZED, 'A person records a buyer\'s cancellation.')
   if (!RECEIVED_VIA.includes(args.via)) throw new DomainError(Codes.INVALID_INPUT, `Received via one of ${RECEIVED_VIA.join(', ')}.`, { field: 'via' })
   const sentAt = new Date(args.sentAt)
   if (Number.isNaN(sentAt.getTime())) throw new DomainError(Codes.INVALID_INPUT, 'When did the buyer send it?', { field: 'sentAt' })
-  const typedPaid = args.amountPaidMinor ? (/^\d{1,13}$/.test(args.amountPaidMinor) ? BigInt(args.amountPaidMinor) : (() => { throw new DomainError(Codes.INVALID_INPUT, 'Amount paid is whole cents.', { field: 'amountPaidMinor' }) })()) : null
   const { idempotencyKey, now: _now, ...params } = args
   const result = await command(db, { name: 'cancellation.record_buyer_cancel', actor, idempotencyKey, params, now: args.now }, async uow => {
     const { tx } = uow
@@ -216,9 +226,8 @@ export async function recordBuyerCancellation(db: Db, actor: Actor, args: { noti
     if (sentAt.getTime() > uow.now.getTime()) throw new DomainError(Codes.INVALID_INPUT, 'The send time is in the future.', { field: 'sentAt' })
     if (sentAt.getTime() < row.transactionAt.getTime()) throw new DomainError(Codes.INVALID_INPUT, 'The send time is before the sale.', { field: 'sentAt' })
     if (sentAt.getTime() >= row.cancelBy.getTime()) throw new DomainError(Codes.GUARD_FAILED, 'This was sent after the cancellation deadline. Handle it as a customer-service cancellation, not a cooling-off cancellation.', { reason: 'after_deadline', cancelBy: row.cancelBy.toISOString() })
-    // When the office does not type an amount, the refund is what was recorded as paid at the sale (the authorization's deposit).
-    const recorded = await tx.cancellationNotice.findUnique({ where: { id: row.id }, select: { evaluation: { select: { authorization: { select: { depositMinor: true } } } } } })
-    const paid = typedPaid ?? recorded?.evaluation?.authorization?.depositMinor ?? 0n
+    // The refund is what the sale's recorded payments add up to, less refunds already made against them. It is not typed.
+    const paid = (await unrefundedPayments(tx, row.evaluation)).reduce((sum, p) => sum + p.remainingMinor, 0n)
     const covered = await tx.workLine.findMany({ where: { cancellationNotices: { some: { id: row.id } } }, select: { id: true, version: true, status: true, amountMinor: true } })
     const cancelled: string[] = []
     for (const w of covered) {
@@ -272,9 +281,22 @@ export async function markCancellationRefunded(db: Db, actor: Actor, args: { not
     const amount = BigInt(e.amountMinor)
     if (amount !== due.refundDueMinor) throw new DomainError(Codes.GUARD_FAILED, `The refund must be the full amount paid (${due.refundDueMinor.toString()}¢).`, { reason: 'refund_amount_mismatch' })
     if ((e.method === 'nothing_paid') !== (amount === 0n)) throw new DomainError(Codes.INVALID_INPUT, '"Nothing paid" means an amount of zero.', { field: 'evidence.method' })
+    // The refund is tracked against the payments it returns, oldest first, never as free text on the notice.
+    const refunded: { ref: string; paymentRef: string; amountMinor: string }[] = []
+    if (amount > 0n) {
+      const payments = await unrefundedPayments(uow.tx, row.evaluation)
+      const refundable = payments.reduce((sum, p) => sum + p.remainingMinor, 0n)
+      if (refundable !== amount) throw new DomainError(Codes.GUARD_FAILED, `The payments on this sale leave ${refundable.toString()}¢ to refund, not ${amount.toString()}¢.`, { reason: 'refund_payments_mismatch', refundableMinor: refundable.toString() })
+      for (const p of payments) {
+        const ref = await nextReference(uow.tx, 'RFD', uow.now)
+        await uow.tx.refund.create({ data: { ref, paymentId: p.id, noticeId: row.id, method: e.method as 'processor_refund' | 'check', amountMinor: p.remainingMinor, reference: e.reference!.trim(), refundedAt: uow.now, recordedById: actorUserId(actor) } })
+        auditCreate(uow, actor, 'Refund', ref, 'refund.recorded', { noticeId: row.id, paymentRef: p.ref, amountMinor: p.remainingMinor.toString(), method: e.method, reference: e.reference!.trim() })
+        refunded.push({ ref, paymentRef: p.ref, amountMinor: p.remainingMinor.toString() })
+      }
+    }
     const version = await casUpdate(uow, { model: 'CancellationNotice', id: row.id, version: row.version, from: ['cancelled_by_buyer'], to: 'refunded', actor, eventType: 'cancellation_notice.refunded', data: { refundEvidence: { ...e, recordedBy: actorUserId(actor), at: uow.now.toISOString() } as never }, audit: { method: e.method, amountMinor: e.amountMinor } })
     await uow.tx.task.updateMany({ where: { dedupeKey: `cancellation.refund:${row.id}`, status: 'open' }, data: { status: 'done', closedAt: uow.now, closedById: actorUserId(actor), resolution: 'Refund recorded', version: { increment: 1 } } })
-    return { noticeId: row.id, version, status: 'refunded' }
+    return { noticeId: row.id, version, status: 'refunded', refunds: refunded }
   })
   return { replay: result.replay, ...result.value }
 }
@@ -379,3 +401,29 @@ registerApplier('cancellation.start_override', async (uow, actor, request) => {
 })
 
 export type { RightResult }
+
+
+const PAYMENT_METHODS = ['card', 'ach', 'cash', 'check', 'other'] as const
+
+/**
+ * Money the customer handed over toward a sale, recorded against its authorization. The buyer-cancel refund
+ * and the refund record both read from these rows, so what is refunded is what was paid.
+ */
+export async function recordPayment(db: Db, actor: Actor, args: { authorizationId: string; amountMinor: string; method: (typeof PAYMENT_METHODS)[number]; reference?: string | null; receivedAt?: string | null; idempotencyKey: string; now?: Date }) {
+  await authorizeOperation(db, actor, 'payment.record', ['canManagePayments', ...OFFICE], args)
+  if (actor.kind === 'agent') throw new DomainError(Codes.NOT_AUTHORIZED, 'A person records payments.')
+  if (!/^[1-9]\d{0,12}$/.test(args.amountMinor ?? '')) throw new DomainError(Codes.INVALID_INPUT, 'Amount is whole cents, more than zero.', { field: 'amountMinor' })
+  if (!PAYMENT_METHODS.includes(args.method)) throw new DomainError(Codes.INVALID_INPUT, `Paid by one of ${PAYMENT_METHODS.join(', ')}.`, { field: 'method' })
+  const { idempotencyKey, now: _now, ...params } = args
+  const result = await command(db, { name: 'payment.record', actor, idempotencyKey, params, now: args.now }, async uow => {
+    const auth = await uow.tx.authorization.findUnique({ where: { id: args.authorizationId }, select: { id: true, jobId: true, job: { select: { customerId: true, status: true } } } })
+    if (!auth) throw new DomainError(Codes.NOT_FOUND, 'Sale not found.')
+    const receivedAt = args.receivedAt ? new Date(args.receivedAt) : uow.now
+    if (Number.isNaN(receivedAt.getTime()) || receivedAt.getTime() > uow.now.getTime()) throw new DomainError(Codes.INVALID_INPUT, 'When was it received? Not in the future.', { field: 'receivedAt' })
+    const ref = await nextReference(uow.tx, 'PMT', uow.now)
+    const payment = await uow.tx.payment.create({ data: { ref, jobId: auth.jobId, customerId: auth.job?.customerId ?? null, authorizationId: auth.id, kind: 'payment', method: args.method, amountMinor: BigInt(args.amountMinor), reference: args.reference?.trim() ?? '', receivedAt, recordedById: actorUserId(actor) }, select: { id: true } })
+    auditCreate(uow, actor, 'Payment', payment.id, 'payment.recorded', { ref, authorizationId: auth.id, amountMinor: args.amountMinor, method: args.method })
+    return { paymentId: payment.id, ref }
+  })
+  return { replay: result.replay, ...result.value }
+}

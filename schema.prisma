@@ -60,8 +60,10 @@ model User {
   from_ChangeOrder_createdBy              ChangeOrder[]            @relation("ChangeOrder_createdBy")
   from_Estimate_createdBy                 Estimate[]               @relation("Estimate_createdBy")
   from_EstimateVersion_presentedBy        EstimateVersion[]        @relation("EstimateVersion_presentedBy")
+  from_Payment_recordedBy                 Payment[]                @relation("Payment_recordedBy")
   from_PriceBookVersion_submittedBy       PriceBookVersion[]       @relation("PriceBookVersion_submittedBy")
   from_PriceBookVersion_publishedBy       PriceBookVersion[]       @relation("PriceBookVersion_publishedBy")
+  from_Refund_recordedBy                  Refund[]                 @relation("Refund_recordedBy")
 
   @@index([roleId])
 }
@@ -1209,6 +1211,7 @@ model Customer {
   from_JobPayer_payerCustomer      JobPayer[]           @relation("JobPayer_payerCustomer")
   from_CancellationNotice_customer CancellationNotice[] @relation("CancellationNotice_customer")
   from_Estimate_customer           Estimate[]           @relation("Estimate_customer")
+  from_Payment_customer            Payment[]            @relation("Payment_customer")
 
   @@index([primaryContactId])
   @@index([taxExemptCertificateId])
@@ -1784,6 +1787,7 @@ model Job {
   from_CancellationNotice_job     CancellationNotice[]     @relation("CancellationNotice_job")
   from_ChangeOrder_job            ChangeOrder[]            @relation("ChangeOrder_job")
   from_Estimate_job               Estimate[]               @relation("Estimate_job")
+  from_Payment_job                Payment[]                @relation("Payment_job")
 
   @@index([customerId])
   @@index([locationId])
@@ -1952,6 +1956,7 @@ model Authorization {
   initiatedBy                               String                   @default("customer_request")
   selectedLineIds                           Json?
   depositMinor                              BigInt                   @default(0)
+  payments                                  Payment[]                @relation("Payment_authorization")
   contentHash                               String                   @default("")
   authorizedAt                              DateTime
   recordedBy                                User?                    @relation("Authorization_recordedBy", fields: [recordedById], references: [id])
@@ -2032,6 +2037,7 @@ model CancellationNotice {
   refundDueBy             DateTime?
   refundDueMinor          BigInt                  @default(0)
   refundEvidence          Json?
+  refunds                 Refund[]                @relation("Refund_notice")
   startOverride           ApprovalRequest?        @relation("CancellationNotice_startOverride", fields: [startOverrideId], references: [id])
   startOverrideId         String?                 @map("startOverride")
   version                 Int                     @default(0)
@@ -2295,6 +2301,32 @@ model MemberPricingRule {
   @@index([priceBookVersionId])
 }
 
+model Payment {
+  id              String         @id @default(cuid())
+  ref             String         @unique @default("")
+  job             Job?           @relation("Payment_job", fields: [jobId], references: [id])
+  jobId           String?        @map("job")
+  customer        Customer?      @relation("Payment_customer", fields: [customerId], references: [id])
+  customerId      String?        @map("customer")
+  authorization   Authorization? @relation("Payment_authorization", fields: [authorizationId], references: [id])
+  authorizationId String?        @map("authorization")
+  kind            String         @default("deposit")
+  method          String         @default("card")
+  amountMinor     BigInt
+  reference       String         @default("")
+  receivedAt      DateTime
+  recordedBy      User?          @relation("Payment_recordedBy", fields: [recordedById], references: [id])
+  recordedById    String?        @map("recordedBy")
+  refunds         Refund[]       @relation("Refund_payment")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  @@index([jobId])
+  @@index([customerId])
+  @@index([authorizationId])
+  @@index([recordedById])
+}
+
 model PriceBook {
   id              String             @id @default(cuid())
   name            String             @default("")
@@ -2414,6 +2446,27 @@ model PriceBookVersion {
   @@index([approvalId])
   @@index([submittedById])
   @@index([publishedById])
+}
+
+model Refund {
+  id           String              @id @default(cuid())
+  ref          String              @unique @default("")
+  payment      Payment?            @relation("Refund_payment", fields: [paymentId], references: [id])
+  paymentId    String?             @map("payment")
+  notice       CancellationNotice? @relation("Refund_notice", fields: [noticeId], references: [id])
+  noticeId     String?             @map("notice")
+  method       String              @default("processor_refund")
+  amountMinor  BigInt
+  reference    String              @default("")
+  refundedAt   DateTime
+  recordedBy   User?               @relation("Refund_recordedBy", fields: [recordedById], references: [id])
+  recordedById String?             @map("recordedBy")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @default(now()) @updatedAt
+
+  @@index([paymentId])
+  @@index([noticeId])
+  @@index([recordedById])
 }
 
 model UnitOfMeasure {

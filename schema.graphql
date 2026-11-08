@@ -8381,6 +8381,8 @@ type Authorization {
   initiatedBy: String
   selectedLineIds: JSON
   depositMinor: BigInt
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentsCount(where: PaymentWhereInput! = {}): Int
   contentHash: String
   authorizedAt: DateTime
   recordedBy: User
@@ -8411,11 +8413,18 @@ input AuthorizationWhereInput {
   location: StringFilter
   initiatedBy: StringFilter
   depositMinor: BigIntFilter
+  payments: PaymentManyRelationFilter
   contentHash: StringFilter
   authorizedAt: DateTimeFilter
   recordedBy: UserWhereInput
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
+}
+
+input PaymentManyRelationFilter {
+  every: PaymentWhereInput
+  some: PaymentWhereInput
+  none: PaymentWhereInput
 }
 
 input AuthorizationOrderByInput {
@@ -8454,6 +8463,7 @@ input AuthorizationUpdateInput {
   initiatedBy: String
   selectedLineIds: JSON
   depositMinor: BigInt
+  payments: PaymentRelateToManyForUpdateInput
   contentHash: String
   authorizedAt: DateTime
   recordedBy: UserRelateToOneForUpdateInput
@@ -8465,6 +8475,13 @@ input CallRelateToOneForUpdateInput {
   create: CallCreateInput
   connect: CallWhereUniqueInput
   disconnect: Boolean
+}
+
+input PaymentRelateToManyForUpdateInput {
+  disconnect: [PaymentWhereUniqueInput!]
+  set: [PaymentWhereUniqueInput!]
+  create: [PaymentCreateInput!]
+  connect: [PaymentWhereUniqueInput!]
 }
 
 input AuthorizationUpdateArgs {
@@ -8489,6 +8506,7 @@ input AuthorizationCreateInput {
   initiatedBy: String
   selectedLineIds: JSON
   depositMinor: BigInt
+  payments: PaymentRelateToManyForCreateInput
   contentHash: String
   authorizedAt: DateTime
   recordedBy: UserRelateToOneForCreateInput
@@ -8499,6 +8517,11 @@ input AuthorizationCreateInput {
 input CallRelateToOneForCreateInput {
   create: CallCreateInput
   connect: CallWhereUniqueInput
+}
+
+input PaymentRelateToManyForCreateInput {
+  create: [PaymentCreateInput!]
+  connect: [PaymentWhereUniqueInput!]
 }
 
 type CancellationEvaluation {
@@ -8625,6 +8648,8 @@ type CancellationNotice {
   refundDueBy: DateTime
   refundDueMinor: BigInt
   refundEvidence: JSON
+  refunds(where: RefundWhereInput! = {}, orderBy: [RefundOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RefundWhereUniqueInput): [Refund!]
+  refundsCount(where: RefundWhereInput! = {}): Int
   startOverride: ApprovalRequest
   version: Int
   createdAt: DateTime
@@ -8664,10 +8689,17 @@ input CancellationNoticeWhereInput {
   cancellationReceivedVia: StringFilter
   refundDueBy: DateTimeNullableFilter
   refundDueMinor: BigIntFilter
+  refunds: RefundManyRelationFilter
   startOverride: ApprovalRequestWhereInput
   version: IntFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
+}
+
+input RefundManyRelationFilter {
+  every: RefundWhereInput
+  some: RefundWhereInput
+  none: RefundWhereInput
 }
 
 input CancellationNoticeOrderByInput {
@@ -8719,6 +8751,7 @@ input CancellationNoticeUpdateInput {
   refundDueBy: DateTime
   refundDueMinor: BigInt
   refundEvidence: JSON
+  refunds: RefundRelateToManyForUpdateInput
   startOverride: ApprovalRequestRelateToOneForUpdateInput
   version: Int
   createdAt: DateTime
@@ -8735,6 +8768,13 @@ input EstimateVersionRelateToOneForUpdateInput {
   create: EstimateVersionCreateInput
   connect: EstimateVersionWhereUniqueInput
   disconnect: Boolean
+}
+
+input RefundRelateToManyForUpdateInput {
+  disconnect: [RefundWhereUniqueInput!]
+  set: [RefundWhereUniqueInput!]
+  create: [RefundCreateInput!]
+  connect: [RefundWhereUniqueInput!]
 }
 
 input CancellationNoticeUpdateArgs {
@@ -8770,6 +8810,7 @@ input CancellationNoticeCreateInput {
   refundDueBy: DateTime
   refundDueMinor: BigInt
   refundEvidence: JSON
+  refunds: RefundRelateToManyForCreateInput
   startOverride: ApprovalRequestRelateToOneForCreateInput
   version: Int
   createdAt: DateTime
@@ -8784,6 +8825,11 @@ input CancellationEvaluationRelateToOneForCreateInput {
 input EstimateVersionRelateToOneForCreateInput {
   create: EstimateVersionCreateInput
   connect: EstimateVersionWhereUniqueInput
+}
+
+input RefundRelateToManyForCreateInput {
+  create: [RefundCreateInput!]
+  connect: [RefundWhereUniqueInput!]
 }
 
 type ChangeOrder {
@@ -9771,6 +9817,98 @@ input MemberPricingRuleCreateInput {
   updatedAt: DateTime
 }
 
+type Payment {
+  id: ID!
+  ref: String
+  job: Job
+  customer: Customer
+  authorization: Authorization
+  kind: String
+  method: String
+  amountMinor: BigInt
+  reference: String
+  receivedAt: DateTime
+  recordedBy: User
+  refunds(where: RefundWhereInput! = {}, orderBy: [RefundOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RefundWhereUniqueInput): [Refund!]
+  refundsCount(where: RefundWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input PaymentWhereInput {
+  AND: [PaymentWhereInput!]
+  OR: [PaymentWhereInput!]
+  NOT: [PaymentWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  job: JobWhereInput
+  customer: CustomerWhereInput
+  authorization: AuthorizationWhereInput
+  kind: StringFilter
+  method: StringFilter
+  amountMinor: BigIntFilter
+  reference: StringFilter
+  receivedAt: DateTimeFilter
+  recordedBy: UserWhereInput
+  refunds: RefundManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PaymentOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  kind: OrderDirection
+  method: OrderDirection
+  amountMinor: OrderDirection
+  reference: OrderDirection
+  receivedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentUpdateInput {
+  ref: String
+  job: JobRelateToOneForUpdateInput
+  customer: CustomerRelateToOneForUpdateInput
+  authorization: AuthorizationRelateToOneForUpdateInput
+  kind: String
+  method: String
+  amountMinor: BigInt
+  reference: String
+  receivedAt: DateTime
+  recordedBy: UserRelateToOneForUpdateInput
+  refunds: RefundRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentUpdateArgs {
+  where: PaymentWhereUniqueInput!
+  data: PaymentUpdateInput!
+}
+
+input PaymentCreateInput {
+  ref: String
+  job: JobRelateToOneForCreateInput
+  customer: CustomerRelateToOneForCreateInput
+  authorization: AuthorizationRelateToOneForCreateInput
+  kind: String
+  method: String
+  amountMinor: BigInt
+  reference: String
+  receivedAt: DateTime
+  recordedBy: UserRelateToOneForCreateInput
+  refunds: RefundRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
 type PriceBook {
   id: ID!
   name: String
@@ -10359,6 +10497,106 @@ input LaborRateRelateToManyForCreateInput {
 input MemberPricingRuleRelateToManyForCreateInput {
   create: [MemberPricingRuleCreateInput!]
   connect: [MemberPricingRuleWhereUniqueInput!]
+}
+
+type Refund {
+  id: ID!
+  ref: String
+  payment: Payment
+  notice: CancellationNotice
+  method: String
+  amountMinor: BigInt
+  reference: String
+  refundedAt: DateTime
+  recordedBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RefundWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input RefundWhereInput {
+  AND: [RefundWhereInput!]
+  OR: [RefundWhereInput!]
+  NOT: [RefundWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  payment: PaymentWhereInput
+  notice: CancellationNoticeWhereInput
+  method: StringFilter
+  amountMinor: BigIntFilter
+  reference: StringFilter
+  refundedAt: DateTimeFilter
+  recordedBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input RefundOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  method: OrderDirection
+  amountMinor: OrderDirection
+  reference: OrderDirection
+  refundedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input RefundUpdateInput {
+  ref: String
+  payment: PaymentRelateToOneForUpdateInput
+  notice: CancellationNoticeRelateToOneForUpdateInput
+  method: String
+  amountMinor: BigInt
+  reference: String
+  refundedAt: DateTime
+  recordedBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentRelateToOneForUpdateInput {
+  create: PaymentCreateInput
+  connect: PaymentWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CancellationNoticeRelateToOneForUpdateInput {
+  create: CancellationNoticeCreateInput
+  connect: CancellationNoticeWhereUniqueInput
+  disconnect: Boolean
+}
+
+input RefundUpdateArgs {
+  where: RefundWhereUniqueInput!
+  data: RefundUpdateInput!
+}
+
+input RefundCreateInput {
+  ref: String
+  payment: PaymentRelateToOneForCreateInput
+  notice: CancellationNoticeRelateToOneForCreateInput
+  method: String
+  amountMinor: BigInt
+  reference: String
+  refundedAt: DateTime
+  recordedBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentRelateToOneForCreateInput {
+  create: PaymentCreateInput
+  connect: PaymentWhereUniqueInput
+}
+
+input CancellationNoticeRelateToOneForCreateInput {
+  create: CancellationNoticeCreateInput
+  connect: CancellationNoticeWhereUniqueInput
 }
 
 type UnitOfMeasure {
@@ -10968,6 +11206,12 @@ type Mutation {
   updateMemberPricingRules(data: [MemberPricingRuleUpdateArgs!]!): [MemberPricingRule]
   deleteMemberPricingRule(where: MemberPricingRuleWhereUniqueInput!): MemberPricingRule
   deleteMemberPricingRules(where: [MemberPricingRuleWhereUniqueInput!]!): [MemberPricingRule]
+  createPayment(data: PaymentCreateInput!): Payment
+  createPayments(data: [PaymentCreateInput!]!): [Payment]
+  updatePayment(where: PaymentWhereUniqueInput!, data: PaymentUpdateInput!): Payment
+  updatePayments(data: [PaymentUpdateArgs!]!): [Payment]
+  deletePayment(where: PaymentWhereUniqueInput!): Payment
+  deletePayments(where: [PaymentWhereUniqueInput!]!): [Payment]
   createPriceBook(data: PriceBookCreateInput!): PriceBook
   createPriceBooks(data: [PriceBookCreateInput!]!): [PriceBook]
   updatePriceBook(where: PriceBookWhereUniqueInput!, data: PriceBookUpdateInput!): PriceBook
@@ -10992,6 +11236,12 @@ type Mutation {
   updatePriceBookVersions(data: [PriceBookVersionUpdateArgs!]!): [PriceBookVersion]
   deletePriceBookVersion(where: PriceBookVersionWhereUniqueInput!): PriceBookVersion
   deletePriceBookVersions(where: [PriceBookVersionWhereUniqueInput!]!): [PriceBookVersion]
+  createRefund(data: RefundCreateInput!): Refund
+  createRefunds(data: [RefundCreateInput!]!): [Refund]
+  updateRefund(where: RefundWhereUniqueInput!, data: RefundUpdateInput!): Refund
+  updateRefunds(data: [RefundUpdateArgs!]!): [Refund]
+  deleteRefund(where: RefundWhereUniqueInput!): Refund
+  deleteRefunds(where: [RefundWhereUniqueInput!]!): [Refund]
   createUnitOfMeasure(data: UnitOfMeasureCreateInput!): UnitOfMeasure
   createUnitOfMeasures(data: [UnitOfMeasureCreateInput!]!): [UnitOfMeasure]
   updateUnitOfMeasure(where: UnitOfMeasureWhereUniqueInput!, data: UnitOfMeasureUpdateInput!): UnitOfMeasure
@@ -11374,6 +11624,9 @@ type Query {
   memberPricingRule(where: MemberPricingRuleWhereUniqueInput!): MemberPricingRule
   memberPricingRules(where: MemberPricingRuleWhereInput! = {}, orderBy: [MemberPricingRuleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MemberPricingRuleWhereUniqueInput): [MemberPricingRule!]
   memberPricingRulesCount(where: MemberPricingRuleWhereInput! = {}): Int
+  payment(where: PaymentWhereUniqueInput!): Payment
+  payments(where: PaymentWhereInput! = {}, orderBy: [PaymentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWhereUniqueInput): [Payment!]
+  paymentsCount(where: PaymentWhereInput! = {}): Int
   priceBook(where: PriceBookWhereUniqueInput!): PriceBook
   priceBooks(where: PriceBookWhereInput! = {}, orderBy: [PriceBookOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookWhereUniqueInput): [PriceBook!]
   priceBooksCount(where: PriceBookWhereInput! = {}): Int
@@ -11386,6 +11639,9 @@ type Query {
   priceBookVersion(where: PriceBookVersionWhereUniqueInput!): PriceBookVersion
   priceBookVersions(where: PriceBookVersionWhereInput! = {}, orderBy: [PriceBookVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PriceBookVersionWhereUniqueInput): [PriceBookVersion!]
   priceBookVersionsCount(where: PriceBookVersionWhereInput! = {}): Int
+  refund(where: RefundWhereUniqueInput!): Refund
+  refunds(where: RefundWhereInput! = {}, orderBy: [RefundOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RefundWhereUniqueInput): [Refund!]
+  refundsCount(where: RefundWhereInput! = {}): Int
   unitOfMeasure(where: UnitOfMeasureWhereUniqueInput!): UnitOfMeasure
   unitOfMeasures(where: UnitOfMeasureWhereInput! = {}, orderBy: [UnitOfMeasureOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UnitOfMeasureWhereUniqueInput): [UnitOfMeasure!]
   unitOfMeasuresCount(where: UnitOfMeasureWhereInput! = {}): Int

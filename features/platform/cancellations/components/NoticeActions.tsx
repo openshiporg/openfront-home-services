@@ -26,9 +26,11 @@ export function DeliverForm({ noticeId, expectedVersion, buyer }: { noticeId: st
   );
 }
 
-/** The buyer cancelled inside the window. The send time is when they mailed, emailed or handed in the cancellation. */
-export function BuyerCancelForm({ noticeId, expectedVersion, paidMinor = '0' }: { noticeId: string; expectedVersion: number; paidMinor?: string }) {
-  const recorded = /^\d+$/.test(paidMinor) ? (Number(paidMinor) / 100).toFixed(2) : '0.00';
+/**
+ * The buyer cancelled inside the window. The send time is when they mailed, emailed or handed in the cancellation.
+ * The refund is what the sale's recorded payments add up to; it is not typed here.
+ */
+export function BuyerCancelForm({ noticeId, expectedVersion }: { noticeId: string; expectedVersion: number }) {
   return (
     <CommandForm
       op="recordBuyerCancellation"
@@ -39,10 +41,9 @@ export function BuyerCancelForm({ noticeId, expectedVersion, paidMinor = '0' }: 
           { value: 'signed_form', label: 'Signed cancellation form' }, { value: 'mail', label: 'Letter' }, { value: 'email', label: 'Email' }, { value: 'in_person', label: 'In person' },
         ] },
         { name: 'sentAt', label: 'Sent (postmark or send time, your clock)', kind: 'datetime-local', required: true, width: 'md' },
-        { name: 'paid', label: 'Amount the buyer paid ($, from the payments recorded at the sale)', placeholder: '0.00', defaultValue: recorded, width: 'sm' },
         { name: 'note', label: 'Note', width: 'lg' },
       ]}
-      shape={(v) => ({ noticeId, expectedVersion, via: v.via, sentAt: v.sentAt ? new Date(v.sentAt).toISOString() : '', amountPaidMinor: v.paid ? centsFromDollars(v.paid) : undefined, note: v.note || undefined })}
+      shape={(v) => ({ noticeId, expectedVersion, via: v.via, sentAt: v.sentAt ? new Date(v.sentAt).toISOString() : '', note: v.note || undefined })}
     />
   );
 }

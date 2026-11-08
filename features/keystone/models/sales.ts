@@ -360,8 +360,51 @@ export const Authorization = list({
     initiatedBy: fixedChoice(['customer_request', 'solicited'], 'customer_request'),
     selectedLineIds: json({ ...readOnly }),
     depositMinor: minor({ defaultValue: 0n }),
+    payments: relationship({ ref: 'Payment.authorization', many: true, ...readOnly }),
     contentHash: systemText({ required: true }),
     authorizedAt: timestamp({ validation: { isRequired: true }, ...readOnly }),
+    recordedBy: relationship({ ref: 'User', ...readOnly }),
+    ...trackingFields,
+  },
+})
+
+export const PAYMENT_METHODS = ['card', 'ach', 'cash', 'check', 'other'] as const
+
+/**
+ * Money the customer actually handed over, recorded against the sale it was paid toward. Rows are never
+ * edited or deleted (phase2_payments migration): giving money back is a Refund row against the payment.
+ */
+export const Payment = list({
+  access: jobRows,
+  ui: { labelField: 'ref', listView: { initialColumns: ['ref', 'job', 'kind', 'method', 'amountMinor', 'receivedAt'] } },
+  fields: {
+    ref: systemText({ indexed: 'unique', required: true }),
+    job: relationship({ ref: 'Job', ...readOnly }),
+    customer: relationship({ ref: 'Customer', ...readOnly }),
+    authorization: relationship({ ref: 'Authorization.payments', ...readOnly }),
+    kind: fixedChoice(['deposit', 'payment'], 'deposit'),
+    method: fixedChoice(PAYMENT_METHODS, 'card'),
+    amountMinor: minor({ required: true }),
+    reference: systemText(),
+    receivedAt: timestamp({ validation: { isRequired: true }, ...readOnly }),
+    recordedBy: relationship({ ref: 'User', ...readOnly }),
+    refunds: relationship({ ref: 'Refund.payment', many: true, ...readOnly }),
+    ...trackingFields,
+  },
+})
+
+/** Money returned against one Payment. The database refuses refunds that add up to more than was paid. */
+export const Refund = list({
+  access: jobRows,
+  ui: { labelField: 'ref', listView: { initialColumns: ['ref', 'payment', 'method', 'amountMinor', 'refundedAt'] } },
+  fields: {
+    ref: systemText({ indexed: 'unique', required: true }),
+    payment: relationship({ ref: 'Payment.refunds', ...readOnly }),
+    notice: relationship({ ref: 'CancellationNotice.refunds', ...readOnly }),
+    method: fixedChoice(['processor_refund', 'check'], 'processor_refund'),
+    amountMinor: minor({ required: true }),
+    reference: systemText({ required: true }),
+    refundedAt: timestamp({ validation: { isRequired: true }, ...readOnly }),
     recordedBy: relationship({ ref: 'User', ...readOnly }),
     ...trackingFields,
   },
@@ -417,6 +460,7 @@ export const CancellationNotice = list({
     refundDueBy: timestamp({ ...readOnly }),
     refundDueMinor: minor({ defaultValue: 0n }),
     refundEvidence: json({ ...readOnly }),
+    refunds: relationship({ ref: 'Refund.notice', many: true, ...readOnly }),
     startOverride: relationship({ ref: 'ApprovalRequest', ...readOnly }),
     version: versionField(),
     ...trackingFields,

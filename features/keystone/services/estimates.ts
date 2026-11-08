@@ -486,6 +486,8 @@ export type SellArgs = {
   saleLocation: (typeof SALE_LOCATIONS)[number]
   initiatedBy: 'customer_request' | 'solicited'
   depositMinor?: string | null
+  depositMethod?: 'card' | 'ach' | 'cash' | 'check' | 'other' | null
+  depositReference?: string | null
   emergencyWaiver?: EmergencyWaiverInput | null
   acrContext?: string[] | null
   exclusions?: string[] | null
@@ -533,6 +535,11 @@ export async function sellEstimate(db: Db, actor: Actor, args: SellArgs) {
       },
       select: { id: true },
     })
+    if (deposit > 0n) {
+      const ref = await nextReference(tx, 'PMT', uow.now)
+      const payment = await tx.payment.create({ data: { ref, jobId: est.jobId, customerId: est.customerId ?? null, authorizationId: authorization.id, kind: 'deposit', method: args.depositMethod ?? 'card', amountMinor: deposit, reference: args.depositReference?.trim() ?? '', receivedAt: uow.now, recordedById: actorUserId(actor) }, select: { id: true } })
+      auditCreate(uow, actor, 'Payment', payment.id, 'payment.recorded', { ref, authorizationId: authorization.id, amountMinor: deposit.toString(), method: args.depositMethod ?? 'card', kind: 'deposit' })
+    }
     auditCreate(uow, actor, 'Authorization', authorization.id, 'authorization.recorded', { subject: `EstimateVersion:${row.id}`, optionId: option.id, method: args.authorization.method, signerRole, location: args.saleLocation, initiatedBy: args.initiatedBy, contentHash: option.contentHash, ownerApproval: args.authorization.ownerApproval ?? null })
     // WorkLines from the sold option (net of the order discount).
     const workLines = []
