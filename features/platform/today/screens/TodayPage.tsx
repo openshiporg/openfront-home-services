@@ -25,7 +25,7 @@ export default async function TodayPage() {
   const since = new Date(`${today}T00:00:00Z`).getTime() - 12 * 3600_000;
   const d = await q<{
     arrivalWindows: Window[]; unassigned: number; visits: number; inField: { status: string; assignments: { employee: { displayName: string } | null }[]; job: { jobType: { name: string } | null; location: { city: string } | null } | null }[];
-    calls: number; aiCalls: number; aiBooked: number; handoffs: number; newLeads: number; lateLeads: number; approvals: number; tasks: number; blocked: number; review: number;
+    calls: number; aiCalls: number; aiBooked: number; handoffs: number; newLeads: number; lateLeads: number; approvals: number; tasks: number; review: number;
     onCall: { escalationOrder: number; employee: { displayName: string } | null; businessUnit: { name: string } | null }[];
   }>(`
     query Today($date: CalendarDay!, $since: DateTime!, $now: DateTime!) {
@@ -41,7 +41,6 @@ export default async function TodayPage() {
       lateLeads: leadsCount(where: { status: { equals: "new" }, respondDueAt: { lt: $now } })
       approvals: approvalRequestsCount(where: { status: { equals: "pending" } })
       tasks: tasksCount(where: { status: { in: ["open", "in_progress"] } })
-      blocked: messagesCount(where: { status: { equals: "blocked" } })
       review: visitsCount(where: { needsReview: { equals: true } })
       onCall: onCallRotations(where: { startsAt: { lte: $now }, endsAt: { gt: $now } }, orderBy: [{ escalationOrder: asc }]) { escalationOrder employee { displayName } businessUnit { name } }
     }`, { date: today, since: new Date(since).toISOString(), now: new Date(nowMs).toISOString() });
@@ -85,7 +84,6 @@ export default async function TodayPage() {
           <Row href="/dashboard/platform/approvals"><span>Approvals</span><span className="font-mono">{d.approvals}</span></Row>
           <Row href="/dashboard/platform/tasks"><span>Open tasks</span><span className="font-mono">{d.tasks}</span></Row>
           <Row href="/dashboard/platform/calls?view=handoff"><span>Calls the AI handed to a person</span><span className="font-mono">{d.handoffs}</span></Row>
-          <Row><span>Texts held by consent or quiet hours</span><span className="font-mono">{d.blocked}</span></Row>
           <Row href="/dashboard/platform/dispatch"><span>Visits needing review</span><span className="font-mono">{d.review}</span></Row>
           <Row><span>On call</span><Meta>{d.onCall.map(o => `${o.employee?.displayName} (${o.businessUnit?.name}${o.escalationOrder === 1 ? '' : ', backup'})`).join(', ') || 'nobody'}</Meta></Row>
         </Section>

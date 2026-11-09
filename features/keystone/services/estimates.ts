@@ -486,7 +486,6 @@ export async function presentEstimate(db: Db, actor: Actor, args: { versionId: s
     })
     await tx.estimate.update({ where: { id: est.id }, data: { currentVersionId: row.id, presentedById: employee?.id ?? undefined, version: { increment: 1 } } })
     if (est.opportunityId) await tx.opportunity.updateMany({ where: { id: est.opportunityId, stage: { in: ['open', 'appointment_set'] } }, data: { stage: 'estimate_presented', version: { increment: 1 } } })
-    if (via === 'email') uow.emit({ topic: 'notify.estimate', aggregateType: 'EstimateVersion', aggregateId: row.id, payload: { estimateId: est.id, ref: est.ref }, dedupeKey: `notify.estimate:${row.id}` })
     return { versionId: row.id, version, status: 'presented', contentHash: snapshot.contentHash, documentId: pdf.documentId, validUntil: lastValidDay }
   })
   return { replay: result.replay, ...result.value }

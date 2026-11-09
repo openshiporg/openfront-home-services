@@ -844,7 +844,6 @@ __export(platform_exports, {
   Media: () => Media,
   Note: () => Note,
   Notification: () => Notification,
-  OutboxMessage: () => OutboxMessage,
   ProviderObservation: () => ProviderObservation,
   ScheduledJob: () => ScheduledJob,
   SecretBox: () => SecretBox,
@@ -860,9 +859,11 @@ var import_core8 = require("@keystone-6/core");
 var import_fields8 = require("@keystone-6/core/fields");
 var COST_PERMISSIONS = ["canManagePriceBook", "canApprovePriceBook", "canApproveDiscounts"];
 var canReadCost = (session) => !!session && !session.agent && isSignedIn({ session }) && COST_PERMISSIONS.some((name) => session.data?.role?.[name] === true);
+var actorCanReadCost = (actor) => actor.kind === "user" && COST_PERMISSIONS.some((name) => actor.permissions?.has(name));
 var costRule = ({ session }) => canReadCost(session);
 var costOnly = { access: { read: costRule }, isFilterable: costRule, isOrderable: costRule };
 var costHash = (options = {}) => (0, import_fields8.text)({
+  ...options.indexed ? { isIndexed: options.indexed } : {},
   validation: { isRequired: options.required ?? false },
   access: { create: () => false, update: () => false, read: costRule },
   isFilterable: costRule,
@@ -908,8 +909,9 @@ var AuditEvent = (0, import_core9.list)({
     after: costGuardedJson({ ...readOnly }),
     metadata: costGuardedJson({ ...readOnly }),
     requestId: systemText(),
-    prevHash: systemText({ required: true }),
-    hash: systemText({ indexed: "unique", required: true }),
+    // Chain hashes are keyed, but still only for people who may read cost: no one else needs them, and no one else can filter or order by them.
+    prevHash: costHash({ required: true }),
+    hash: costHash({ required: true, indexed: "unique" }),
     at: (0, import_fields9.timestamp)({ validation: { isRequired: true }, defaultValue: { kind: "now" }, ...readOnly })
   }
 });
@@ -927,27 +929,6 @@ var CommandReceipt = (0, import_core9.list)({
     responseBody: (0, import_fields9.json)(),
     recoveryPoint: (0, import_fields9.text)({ defaultValue: "completed" }),
     completedAt: (0, import_fields9.timestamp)({ defaultValue: { kind: "now" } }),
-    ...trackingFields
-  }
-});
-var OutboxMessage = (0, import_core9.list)({
-  access: governed("canManageCompany"),
-  ui: { listView: { initialColumns: ["topic", "status", "attempts", "nextAttemptAt", "aggregateType", "aggregateId"] } },
-  fields: {
-    topic: systemText({ indexed: true, required: true }),
-    aggregateType: systemText({ required: true }),
-    aggregateId: systemText({ indexed: true, required: true }),
-    dedupeKey: systemText({ indexed: "unique", required: true }),
-    partitionKey: systemText({ indexed: true }),
-    payload: (0, import_fields9.json)({ ...readOnly }),
-    status: lifecycle(["pending", "leased", "delivered", "failed", "dead"]),
-    attempts: (0, import_fields9.integer)({ defaultValue: 0, ...readOnly }),
-    nextAttemptAt: (0, import_fields9.timestamp)({ defaultValue: { kind: "now" }, ...readOnly }),
-    leaseOwner: systemText(),
-    leaseExpiresAt: (0, import_fields9.timestamp)({ ...readOnly }),
-    fencingToken: (0, import_fields9.integer)({ defaultValue: 0, ...readOnly }),
-    lastError: systemText(),
-    deliveredAt: (0, import_fields9.timestamp)({ ...readOnly }),
     ...trackingFields
   }
 });
@@ -2940,7 +2921,7 @@ var sha256 = (text17) => (0, import_node_crypto2.createHash)("sha256").update(te
 var payloadHash = (value) => sha256(canonicalJson(value));
 var toJsonValue = (value) => canonicalize(value);
 var DEVELOPMENT_SECRET2 = "this secret should only be used in testing";
-function keyedPayloadHash2(value, purpose = "cost-bound-hash") {
+function keyedPayloadHash(value, purpose = "cost-bound-hash") {
   const secret2 = process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? "" : DEVELOPMENT_SECRET2);
   if (secret2.length < 16) throw new Error("SESSION_SECRET must be set to hash priced content");
   const key2 = (0, import_node_crypto2.createHmac)("sha256", secret2).update(`hs-keyed-hash\0${purpose}`, "utf8").digest();
@@ -3040,16 +3021,16 @@ async function actorFor(context) {
   const person = actorFromSession(context.session);
   const marker = mcpSessionMarker(context.session);
   if (!marker) return person;
-  if (marker.agentId) {
-    const agent = await context.prisma.agentIdentity.findFirst({
-      where: { id: marker.agentId, oauthApp: { clientId: { equals: marker.clientId } } },
-      select: { id: true, name: true, status: true, killSwitch: true, ownerId: true, grants: { where: { status: "active", autonomy: { not: "disabled" }, revokedAt: null }, select: { tool: true } } }
-    });
-    if (!agent) throw new DomainError(Codes.NOT_AUTHORIZED, "This connection is no longer linked to an agent. Reconnect the app.");
-    if (agent.status !== "active" || agent.killSwitch) throw new DomainError(Codes.AGENT_DISABLED, `The agent ${agent.name} is ${agent.killSwitch ? "stopped by its kill switch" : agent.status}.`);
-    return { kind: "agent", agentId: agent.id, ownerUserId: agent.ownerId, name: agent.name, scopes: new Set(agent.grants.map((g) => g.tool)) };
+  const agent = await context.prisma.agentIdentity.findFirst({
+    where: { ...marker.agentId ? { id: marker.agentId } : {}, oauthApp: { clientId: { equals: marker.clientId } } },
+    select: { id: true, name: true, status: true, killSwitch: true, ownerId: true, grants: { where: { status: "active", autonomy: { not: "disabled" }, revokedAt: null }, select: { tool: true } } }
+  });
+  if (!agent) {
+    if (marker.agentId) throw new DomainError(Codes.NOT_AUTHORIZED, "This connection is no longer linked to an agent. Reconnect the app.");
+    return person;
   }
-  return person;
+  if (agent.status !== "active" || agent.killSwitch) throw new DomainError(Codes.AGENT_DISABLED, `The agent ${agent.name} is ${agent.killSwitch ? "stopped by its kill switch" : agent.status}.`);
+  return { kind: "agent", agentId: agent.id, ownerUserId: agent.ownerId, name: agent.name, scopes: new Set(agent.grants.map((g) => g.tool)) };
 }
 
 // features/keystone/lib/db.ts
@@ -3128,8 +3109,18 @@ function auditHashBody(row) {
     at: row.at.toISOString()
   };
 }
-var auditHash = (prevHash, row) => sha256(`${prevHash}
-${canonicalJson(auditHashBody(row))}`);
+var AUDIT_HASH_VERSION = "v2";
+var auditHash = (prevHash, row) => `${AUDIT_HASH_VERSION}:${keyedPayloadHash({ prev: prevHash, body: auditHashBody(row) }, "audit-chain")}`;
+function storedAuditOf(row) {
+  return {
+    ...row,
+    reason: row.reason || null,
+    requestId: row.requestId || null,
+    actorUserId: row.actorUserId ?? null,
+    actorAgentId: row.actorAgentId ?? null,
+    approverId: row.approverId ?? null
+  };
+}
 async function appendAuditEvents(tx, events, now = /* @__PURE__ */ new Date()) {
   if (!events.length) return [];
   await advisoryLock(tx, "audit:chain");
@@ -3193,15 +3184,8 @@ async function verifyAuditChain(db, batchSize = 1e3) {
     for (const row of rows) {
       if (row.seq !== expectedSeq) return { ok: false, count, lastSeq: expectedSeq - 1, lastHash: prevHash, brokenAtSeq: expectedSeq, problem: "missing event" };
       if (row.prevHash !== prevHash) return { ok: false, count, lastSeq: row.seq - 1, lastHash: prevHash, brokenAtSeq: row.seq, problem: "previous hash does not match" };
-      const hash = auditHash(prevHash, {
-        ...row,
-        reason: row.reason || null,
-        requestId: row.requestId || null,
-        actorUserId: row.actorUserId ?? null,
-        actorAgentId: row.actorAgentId ?? null,
-        approverId: row.approverId ?? null
-      });
-      if (hash !== row.hash) return { ok: false, count, lastSeq: row.seq - 1, lastHash: prevHash, brokenAtSeq: row.seq, problem: "content does not match its hash" };
+      const hash = auditHash(prevHash, storedAuditOf(row));
+      if (hash !== row.hash) return { ok: false, count, lastSeq: row.seq - 1, lastHash: prevHash, brokenAtSeq: row.seq, problem: row.hash.startsWith(`${AUDIT_HASH_VERSION}:`) ? "content does not match its hash" : "hash is not a keyed chain hash (run npm run audit:rechain)" };
       prevHash = row.hash;
       expectedSeq += 1;
       count += 1;
@@ -3217,43 +3201,18 @@ var UnitOfWork = class {
     this.now = now;
     this.requestId = requestId;
     this.audits = [];
-    this.outbox = [];
   }
   audit(event) {
     this.audits.push({ requestId: this.requestId, ...event });
-  }
-  emit(message) {
-    this.outbox.push(message);
   }
   pendingAuditCount() {
     return this.audits.length;
   }
 };
-async function flushOutbox(tx, messages, now) {
-  for (const message of messages) {
-    const payload = toJsonValue(message.payload);
-    const dedupeKey = message.dedupeKey ?? `${message.topic}:${message.aggregateType}:${message.aggregateId}:${sha256(canonicalJson(payload))}`;
-    await tx.outboxMessage.upsert({
-      where: { dedupeKey },
-      create: {
-        topic: message.topic,
-        aggregateType: message.aggregateType,
-        aggregateId: message.aggregateId,
-        dedupeKey,
-        payload,
-        status: "pending",
-        nextAttemptAt: message.availableAt ?? now,
-        partitionKey: message.partitionKey ?? ""
-      },
-      update: {}
-    });
-  }
-}
 async function runInTransaction(db, work, options = {}) {
   return db.$transaction(async (tx) => {
     const uow = new UnitOfWork(tx, options.now ?? /* @__PURE__ */ new Date(), options.requestId ?? null);
     const result = await work(uow);
-    await flushOutbox(tx, uow.outbox, uow.now);
     await appendAuditEvents(tx, uow.audits, uow.now);
     return result;
   }, TRANSACTION_OPTIONS);
@@ -3758,6 +3717,7 @@ var TX_SOLICITATION_REFS = [
   { ref: "Tex. Occ. Code \xA71302.003 (ch. 601 does not apply to a consumer-initiated ACR transaction, except breach of express warranty or negligent installation)", url: TX_1302, verified: true, checkedOn: "2026-11-07" }
 ];
 var TX_SOLICITATION_REFS_V3 = TX_SOLICITATION_REFS.map((ref) => ref.ref.includes('"business day" definition') ? { ...ref, verified: false, note: "ASSUMPTION, counsel to confirm. Chapter 601 (\xA7601.001) defines no business day and no primary Texas text was found that does. The federal 16 CFR 429.0(f) calendar (Saturday counts; Sunday and federal holidays do not) is the default. Tex. Gov't Code \xA7311.014 rolls a last day that falls on a Saturday, Sunday or legal holiday forward, but does not define a business day either." } : ref);
+var TX_SOLICITATION_REFS_V4 = TX_SOLICITATION_REFS_V3.map((ref) => ref.ref.includes("(emergency waiver)") ? { ref: "Tex. Bus. & Com. Code \xA7601.151 (a consumer's ch. 601 rights cannot be waived in the contract or receipt; ch. 601 has no emergency exception)", url: TX_601, verified: true, checkedOn: "2026-11-09", note: "No Texas emergency waiver is honoured (fail closed). Under 16 CFR 429.2(b) the state law stands where it protects at least as much." } : ref);
 var POLICY_PACKS = [
   {
     id: "seed_pack_us_home_solicitation",
@@ -3869,6 +3829,14 @@ var POLICY_PACKS = [
         reason: 'Chapter 601 does not define "business day". The federal calendar (everything but Sunday and federal holidays) stays as the conservative default, now recorded as an explicit assumption for counsel to confirm.',
         rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: "personal_solicitation", refundBusinessDays: 10, assumptions: [TX_BUSINESS_DAY_ASSUMPTION] }] },
         sourceRefs: TX_SOLICITATION_REFS_V3
+      },
+      {
+        id: "seed_policy_tx_home_solicitation_v4",
+        versionNumber: 4,
+        effectiveFrom: "2026-11-10",
+        reason: "Corrects the source reference for the emergency waiver: Texas ch. 601 has no \xA7\xA7601.003-601.004 waiver; \xA7601.151 bars waiving ch. 601 rights. The rules are unchanged (no Texas emergency waiver).",
+        rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: "personal_solicitation", refundBusinessDays: 10, assumptions: [TX_BUSINESS_DAY_ASSUMPTION] }] },
+        sourceRefs: TX_SOLICITATION_REFS_V4
       }
     ]
   },
@@ -4890,8 +4858,7 @@ async function bookJob(db, actor, args) {
         await casUpdate(uow, { model: "Lead", id: lead.id, version: lead.version, from: [lead.status], to: "booked", actor, eventType: "lead.booked", data: { jobId: job.id, customerId: customer.id, locationId: location.id } });
       }
     }
-    const messageId = await queueTransactionalSms(uow, actor, { customerId: customer.id, jobId: job.id, visitId: visit.id, template: "booking_confirmation", body: `Summit Plumbing & Air: you're booked for ${jobType.name} on ${window2.date.toISOString().slice(0, 10)}, arrival ${window2.label}. Ref ${job.publicCode}. Reply STOP to opt out.` });
-    const value = { jobId: job.id, ref: job.ref, publicCode: job.publicCode, visitId: visit.id, windowId: window2.id, window: window2.label, date: window2.date.toISOString().slice(0, 10), startsAt: window2.startsAt.toISOString(), endsAt: window2.endsAt.toISOString(), customerId: customer.id, locationId: location.id, confirmationMessageId: messageId };
+    const value = { jobId: job.id, ref: job.ref, publicCode: job.publicCode, visitId: visit.id, windowId: window2.id, window: window2.label, date: window2.date.toISOString().slice(0, 10), startsAt: window2.startsAt.toISOString(), endsAt: window2.endsAt.toISOString(), customerId: customer.id, locationId: location.id };
     await recordAgentAction(uow, actor, { tool: "booking.confirm", idempotencyKey, inputs: params, output: value });
     return value;
   });
@@ -4946,17 +4913,6 @@ async function createLocationInTx(uow, actor, customerId, input, geo2) {
   auditCreate(uow, actor, "ServiceLocation", location.id, "location.created", { ref, customerId, postalCode: location.postalCode, serviceAreaId: area?.id ?? null, geocodeQuality: geo2.quality });
   return location;
 }
-async function queueTransactionalSms(uow, actor, spec) {
-  const point = await uow.tx.contactPoint.findFirst({ where: { kind: "mobile", contact: { customerId: spec.customerId } }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }], select: { id: true } });
-  if (!point) return null;
-  const message = await uow.tx.message.create({
-    data: { contactPointId: point.id, direction: "outbound", channel: "sms", purpose: "transactional", consentPurpose: "transactional_sms", template: spec.template, body: spec.body, status: "queued", jobId: spec.jobId ?? null, visitId: spec.visitId ?? null },
-    select: { id: true }
-  });
-  auditCreate(uow, actor, "Message", message.id, "message.queued", { template: spec.template, purpose: "transactional", jobId: spec.jobId ?? null });
-  uow.emit({ topic: "message.send", aggregateType: "Message", aggregateId: message.id, payload: { messageId: message.id }, dedupeKey: `message.send:${message.id}`, partitionKey: "messaging" });
-  return message.id;
-}
 
 // features/keystone/lib/separationOfDuties.ts
 var SELF_APPROVAL_MESSAGE = "You can't approve your own request.";
@@ -4988,7 +4944,6 @@ async function requestApproval(uow, actor, input) {
     }
   });
   uow.audit({ eventType: "approval.requested", entityType: "ApprovalRequest", entityId: created.id, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { action: input.action, targetList: input.targetList, targetId: input.targetId, payloadHash: created.payloadHash, requiredPermission } });
-  uow.emit({ topic: "notify.approval", aggregateType: "ApprovalRequest", aggregateId: created.id, payload: { action: input.action, requiredPermission }, dedupeKey: `notify.approval:${created.id}` });
   return created;
 }
 async function decideApproval(uow, actor, input) {
@@ -5363,8 +5318,8 @@ function optionTotals(lines, discountBps) {
   const marginBps = ratioBps(net - cost, net);
   return { subtotalMinor: subtotal, discountMinor: discount, lineDiscounts, totalBeforeTaxMinor: net, costMinor: cost, marginBps };
 }
-var quoteHash = (versionId, lines, discountBps = 0) => keyedPayloadHash2({ versionId, discountBps, lines });
-var optionHash = (option2) => keyedPayloadHash2({ tier: option2.tier, name: option2.name, subtotalMinor: option2.subtotalMinor, discountMinor: option2.discountMinor, totalMinor: option2.totalMinor, lines: option2.lines.map((l) => ({ ...l })) });
+var quoteHash = (versionId, lines, discountBps = 0) => keyedPayloadHash({ versionId, discountBps, lines });
+var optionHash = (option2) => keyedPayloadHash({ tier: option2.tier, name: option2.name, subtotalMinor: option2.subtotalMinor, discountMinor: option2.discountMinor, totalMinor: option2.totalMinor, lines: option2.lines.map((l) => ({ ...l })) });
 function depositCap(totalMinor, rules2) {
   const caps = [];
   if (rules2.depositCapPct !== null) caps.push(roundMinor(dec(totalMinor).times(dec(rules2.depositCapPct)).div(100), Decimal.ROUND_DOWN));
@@ -5718,6 +5673,9 @@ async function submitPriceBookVersion(db, actor, args) {
     const book = await tx.priceBook.findUniqueOrThrow({ where: { id: version.priceBook }, select: { activeVersionId: true, code: true } });
     const before = book.activeVersionId ? (await loadVersionContent(tx, book.activeVersionId)).items : [];
     const diff = diffItems(before, content.items);
+    if (before.length && !diff.added.length && !diff.removed.length && !diff.repriced.length && !diff.changed.length) {
+      throw new DomainError(Codes.GUARD_FAILED, "This version has no changes from the active price book. Change a price or an item first, or discard the draft.", { reason: "no_changes" });
+    }
     const contentHash = hashOf(content);
     const approval = await requestApproval(uow, actor, {
       action: "pricebook.publish",
@@ -7374,7 +7332,6 @@ async function presentEstimate(db, actor, args) {
     });
     await tx.estimate.update({ where: { id: est.id }, data: { currentVersionId: row.id, presentedById: employee?.id ?? void 0, version: { increment: 1 } } });
     if (est.opportunityId) await tx.opportunity.updateMany({ where: { id: est.opportunityId, stage: { in: ["open", "appointment_set"] } }, data: { stage: "estimate_presented", version: { increment: 1 } } });
-    if (via === "email") uow.emit({ topic: "notify.estimate", aggregateType: "EstimateVersion", aggregateId: row.id, payload: { estimateId: est.id, ref: est.ref }, dedupeKey: `notify.estimate:${row.id}` });
     return { versionId: row.id, version, status: "presented", contentHash: snapshot.contentHash, documentId: pdf.documentId, validUntil: lastValidDay };
   });
   return { replay: result.replay, ...result.value };
@@ -8369,7 +8326,8 @@ async function setCompanyOnboardingStatus(_root, args, context) {
 async function verifyAuditChain2(_root, _args, context) {
   const actor = await actorFor(context);
   await authorizeOperation(context.prisma, actor, "verifyAuditChain", ["canReadAudit"]);
-  return verifyAuditChain(context.prisma);
+  const result = await verifyAuditChain(context.prisma);
+  return actorCanReadCost(actor) ? result : { ...result, lastHash: "" };
 }
 
 // features/keystone/mutations/policy.ts
@@ -8654,7 +8612,6 @@ async function assignVisit(db, actor, args) {
     if (ctx.job && ctx.job.status === "booked") {
       await casUpdate(uow, { model: "Job", id: ctx.job.id, version: ctx.job.version, from: ["booked"], to: "scheduled", actor, eventType: "job.scheduled" });
     }
-    uow.emit({ topic: "notify.tech_assignment", aggregateType: "Visit", aggregateId: ctx.id, payload: { visitId: ctx.id, employeeIds: ids, reassign }, partitionKey: "messaging" });
     const value = { visitId: ctx.id, status: to, version: ctx.version + 1, employeeIds: ids, leadEmployeeId: leadId, reassigned: reassign };
     await recordAgentAction(uow, actor, { tool: "dispatch.apply", idempotencyKey, inputs: params, output: value });
     return value;
@@ -8725,11 +8682,6 @@ async function setVisitStatus(db, actor, args) {
     const version = await casUpdate(uow, { model: "Visit", id: ctx.id, version: ctx.version, from: [ctx.status], to: args.to, actor, eventType: `visit.${args.to}`, reason: args.reason ?? null, data });
     await tx.visitStatusEvent.create({ data: { visitId: ctx.id, actorUserId: userId, fromStatus: ctx.status, toStatus: args.to, kind: "transition", occurredAt: uow.now, clientRecordedAt: clientAt, idempotencyKey: deviceKey ?? `server:${idempotencyKey}`, lat: args.lat ?? null, lng: args.lng ?? null, note: args.reason ?? "" } });
     if (args.to === "cancelled") await freeVisitCapacity(uow, ctx);
-    if (args.to === "dispatched") uow.emit({ topic: "push.dispatch", aggregateType: "Visit", aggregateId: ctx.id, payload: { visitId: ctx.id }, partitionKey: "messaging" });
-    if (args.to === "en_route" && ctx.job?.customerId) {
-      const tech = await tx.visitAssignment.findFirst({ where: { visitId: ctx.id, active: true, role: "lead" }, select: { employee: { select: { firstName: true } } } });
-      await queueTransactionalSms(uow, actor, { customerId: ctx.job.customerId, jobId: ctx.job.id, visitId: ctx.id, template: "on_the_way", body: `Summit Plumbing & Air: ${tech?.employee?.firstName || "Your technician"} is on the way for your ${ctx.window?.label ?? ""} appointment. Reply STOP to opt out.` });
-    }
     if (ctx.job) await rollJob(uow, actor, ctx.job.id, args.to === "no_access" ? "access" : null);
     return { visitId: ctx.id, status: args.to, version };
   });
@@ -8930,25 +8882,6 @@ async function recordConsent(db, actor, args) {
   });
   return { replay: result.replay, ...result.value };
 }
-async function requeueMessage(db, actor, args) {
-  await authorizeOperation(db, actor, "message.requeue", ["canSendMessages", "canDispatch"], args);
-  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Only a person can re-send a blocked message.");
-  const result = await command(db, { name: "message.requeue", actor, idempotencyKey: args.idempotencyKey, params: { messageId: args.messageId, expectedVersion: args.expectedVersion }, now: args.now }, async (uow) => {
-    const version = await casUpdate(uow, { model: "Message", id: args.messageId, version: args.expectedVersion, from: ["blocked", "failed"], to: "queued", actor, eventType: "message.requeued", data: { blockedReason: "" } });
-    uow.emit({ topic: "message.send", aggregateType: "Message", aggregateId: args.messageId, payload: { messageId: args.messageId }, dedupeKey: `message.send:${args.messageId}:${version}`, partitionKey: "messaging" });
-    return { messageId: args.messageId, status: "queued", version };
-  });
-  return { replay: result.replay, ...result.value };
-}
-async function markMessageSent(db, actor, args) {
-  await authorizeOperation(db, actor, "message.mark_sent", ["canSendMessages", "canDispatch", "canBook"], args);
-  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Only a person can confirm a hand-sent text.");
-  const result = await command(db, { name: "message.mark_sent", actor, idempotencyKey: args.idempotencyKey, params: { messageId: args.messageId, expectedVersion: args.expectedVersion }, now: args.now }, async (uow) => {
-    const version = await casUpdate(uow, { model: "Message", id: args.messageId, version: args.expectedVersion, from: ["manual"], to: "sent", actor, eventType: "message.sent_by_hand", data: { sentAt: uow.now } });
-    return { messageId: args.messageId, status: "sent", version };
-  });
-  return { replay: result.replay, ...result.value };
-}
 
 // features/keystone/lib/secretBox.ts
 var import_node_crypto9 = require("node:crypto");
@@ -9143,7 +9076,6 @@ async function ingestLead(db, actor, args) {
       select: { id: true, ref: true }
     });
     auditCreate(uow, actor, "Lead", lead.id, "lead.created", { ref, source: args.source, matchedCustomer: !!match, campaignId: args.campaignId ?? null });
-    uow.emit({ topic: "lead.first_response_due", aggregateType: "Lead", aggregateId: lead.id, payload: { leadId: lead.id }, availableAt: new Date(now.getTime() + slaMinutes * 6e4), dedupeKey: `lead.sla:${lead.id}` });
     await recordAgentAction(uow, actor, { tool: "lead.ingest", idempotencyKey, inputs: params, output: { leadId: lead.id } });
     return { leadId: lead.id, ref: lead.ref, duplicate: false, customerId: match?.contact?.customerId ?? null };
   });
@@ -9185,7 +9117,6 @@ async function markLeadSpam(db, actor, args) {
   if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Only a person marks a lead as spam.");
   const result = await command(db, { name: "lead.spam", actor, idempotencyKey: args.idempotencyKey, params: { leadId: args.leadId, expectedVersion: args.expectedVersion }, now: args.now }, async (uow) => {
     const row = await transition(uow, { model: "Lead", id: args.leadId, from: ["new", "contacted", "qualified"], to: "spam", expectedVersion: args.expectedVersion, actor, eventType: "lead.spam" });
-    if (row.source === "lsa" && row.externalId) uow.emit({ topic: "lsa.dispute", aggregateType: "Lead", aggregateId: args.leadId, payload: { leadId: args.leadId, externalId: row.externalId }, dedupeKey: `lsa.dispute:${args.leadId}` });
     return { leadId: args.leadId, status: row.status, version: row.version };
   });
   return { replay: result.replay, ...result.value };
@@ -9244,7 +9175,8 @@ async function pageOnCall(db, actor, args) {
       const call = await uow.tx.call.findUnique({ where: { id: args.callId }, select: { id: true, version: true, status: true } });
       if (call) await uow.tx.call.update({ where: { id: call.id }, data: { emergency: { paged: true, summary: args.summary, at: uow.now.toISOString() }, disposition: "emergency_paged" } });
     }
-    uow.emit({ topic: "page.on_call", aggregateType: "Call", aggregateId: pageId, payload: { pageId, businessUnitId: args.businessUnitId ?? null, summary: args.summary.slice(0, 300) }, dedupeKey: `page.on_call:${pageId}`, partitionKey: "paging" });
+    const onCall = await uow.tx.onCallRotation.findFirst({ where: { startsAt: { lte: uow.now }, endsAt: { gt: uow.now }, ...args.businessUnitId ? { businessUnitId: args.businessUnitId } : {} }, orderBy: { escalationOrder: "asc" }, select: { phoneE164: true, employee: { select: { displayName: true } } } });
+    await uow.tx.task.upsert({ where: { dedupeKey: `page.on_call:${pageId}` }, create: { kind: "page.on_call", title: onCall ? `Emergency: ring ${onCall.employee?.displayName ?? "the on-call tech"} (${onCall.phoneE164})` : "Emergency call with nobody on call", detail: args.summary.slice(0, 300), subjectType: "Call", subjectId: pageId, status: "open", priority: "urgent", dedupeKey: `page.on_call:${pageId}` }, update: {} });
     uow.audit({ eventType: "call.on_call_paged", entityType: "Call", entityId: pageId, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { businessUnitId: args.businessUnitId ?? null } });
     const value = { paged: true, pageId };
     await recordAgentAction(uow, actor, { tool: "page.on_call", idempotencyKey, inputs: params, output: value });
@@ -9326,8 +9258,6 @@ var phase1TypeDefs = graphql2`
     releaseJobHold(jobId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
     cancelJob(jobId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
     recordConsent(contactPointId: ID, customerId: ID, phone: String, purpose: String!, action: String!, channel: String!, evidence: JSON, wordingVersion: String, idempotencyKey: String!): JSON
-    requeueMessage(messageId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
-    markMessageSent(messageId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
     handoffToHuman(callId: ID!, reason: String!, summary: String, idempotencyKey: String!): JSON
     pageOnCall(callId: ID, businessUnitId: ID, summary: String!, idempotencyKey: String!): JSON
     verifyCredential(credentialId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
@@ -9368,8 +9298,6 @@ var phase1Resolvers = {
     releaseJobHold: bind(releaseJobHold),
     cancelJob: bind(cancelJob),
     recordConsent: bind(recordConsent),
-    requeueMessage: bind(requeueMessage),
-    markMessageSent: bind(markMessageSent),
     handoffToHuman: bind(handoffToHuman),
     pageOnCall: bind(pageOnCall),
     verifyCredential: bind(verifyCredential),

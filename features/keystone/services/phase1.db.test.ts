@@ -9,10 +9,8 @@ import { addDays, localDate } from '../lib/calendar'
 import { loadCompanySetup, loadOperationsSetup } from '../mutations/setup'
 import { availableWindows, bookJob, expireHolds, holdWindow, materializeWindows, releaseHold } from './booking'
 import { assignVisit, cancelJob, checkEligibility, recommendDispatch, setVisitStatus, submitChecklist, unassignVisit } from './dispatch'
-import { deliverMessage, effectiveConsent, receiveInboundSms, recordConsent, requeueMessage } from './comms'
+import { effectiveConsent, receiveInboundSms, recordConsent } from './comms'
 import { handoffToHuman, ingestLead, loseLead, lookupCustomer, lookupLocations, markLeadContacted, matchJobType, pageOnCall, qualifyLead, revealAccessSecret, startInboundCall, storeAccessSecret, verifyCredential } from './crm'
-import { runWorkerPass } from './worker'
-import { recordingTelephony, setTelephony } from '../../integrations/telephony'
 import { HOUSEHOLDS, JOB_TYPES, TECHS } from '../seed/operationsData'
 
 /*
@@ -64,7 +62,6 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
   let accountant: Actor
   let agent: Actor & { kind: 'agent' }
   let agentNoGrants: Actor & { kind: 'agent' }
-  let recorder: ReturnType<typeof recordingTelephony>
 
   const windowFor = async (jobTypeCode: string, label: string, date = DAY) => {
     const jt = JOB_TYPES.find(j => j.code === jobTypeCode)!
@@ -83,16 +80,12 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
   beforeAll(async () => {
     prisma = testPrisma(12)
     await resetDatabase(prisma)
-    recorder = recordingTelephony()
-    setTelephony(recorder.adapter)
     const ownerUser = await prisma.user.create({ data: { name: 'owner', email: `${uniqueKey('owner')}@test.local`, password: 'x'.repeat(60) } })
     ownerId = ownerUser.id
     const ctx = { session: sessionFor(ownerId, ALL), prisma }
     await loadCompanySetup(null, { idempotencyKey: uniqueKey('company') }, ctx)
     await loadOperationsSetup(null, { idempotencyKey: uniqueKey('ops') }, ctx)
     owner = userActor(ownerId, ALL)
-    // Texting goes through a provider here, so business texting registration has to be approved.
-    await prisma.integrationConnection.create({ data: { area: 'messaging', providerKey: 'recording', mode: 'test', status: 'connected', config: { tenDlc: 'approved' } } })
 
     csr = userActor('seed_user_raman', ['canAccessDashboard', 'canBook', 'canManageLeads', 'canManageCustomers', 'canSendMessages'])
     dispatcher = userActor('seed_user_brooks', ['canAccessDashboard', 'canDispatch', 'canViewBoard', 'canBook', 'canReadCustomerPII', 'canSendMessages', 'canRevealAccessSecret'])
@@ -203,11 +196,6 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
       expect(usage.map(u => u.kind)).toEqual(['visit'])
       expect(hours(w.bookedHours)).toBe('2')
 
-      // The confirmation leaves through the worker and the fake telephony, once.
-      await runWorkerPass(prisma, { workerId: 'test-worker' })
-      await runWorkerPass(prisma, { workerId: 'test-worker' })
-      expect((await prisma.message.findUniqueOrThrow({ where: { id: booked.confirmationMessageId! } })).status).toBe('sent')
-      expect(recorder.sent.filter(s => s.kind === 'sms' && s.to === caller.phone && s.body.includes(job.publicCode))).toHaveLength(1)
       // Every agent call is on the record.
       const actions = await prisma.agentAction.findMany({ where: { agentId: agent.agentId, status: 'applied' }, select: { tool: true } })
       expect(actions.map(a => a.tool)).toEqual(expect.arrayContaining(['jobtype.match', 'capacity.windows', 'booking.hold', 'booking.confirm']))
@@ -252,7 +240,7 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
       expect(await prisma.customer.count({ where: { displayName: 'Far Away' } })).toBe(0)
     })
 
-    it('an emergency phrase gives the safety script and pages the on-call plumber through the outbox', { timeout: 60_000 }, async () => {
+    it('an emergency phrase gives the safety script and raises an urgent on-call task', { timeout: 60_000 }, async () => {
       const caller = HOUSEHOLDS[9]
       const call = await startInboundCall(prisma, { providerCallId: `CA${uniqueKey('em')}`, provider: 'recording', from: caller.phone, to: '+15125550100', answeredBy: 'ai_agent', recordingDisclosurePlayed: true, startedAt: NOW })
       const match = await matchJobType(prisma, agent, { description: 'There is a pipe burst in the laundry room and water everywhere' })
@@ -261,11 +249,8 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
       expect(match.matches[0].code).toBe('LEAK-REP')
       const paged = await pageOnCall(prisma, agent, { callId: call.callId, businessUnitId: 'seed_bu_plumbing_service', summary: 'Burst pipe, water everywhere', idempotencyKey: uniqueKey('page'), now: NOW })
       expect(paged.paged).toBe(true)
-      await runWorkerPass(prisma, { workerId: 'test-worker' })
-      const rings = recorder.sent.filter(s => s.kind === 'call' && s.body.includes('Burst pipe'))
-      expect(rings).toHaveLength(1)
-      const onCall = await prisma.onCallRotation.findFirstOrThrow({ where: { businessUnitId: 'seed_bu_plumbing_service', escalationOrder: 1, startsAt: { lte: new Date() }, endsAt: { gt: new Date() } } })
-      expect(rings[0].to).toBe(onCall.phoneE164)
+      const task = await prisma.task.findFirstOrThrow({ where: { kind: 'page.on_call', subjectId: call.callId } })
+      expect(task).toMatchObject({ priority: 'urgent', status: 'open' })
       expect((await prisma.call.findUniqueOrThrow({ where: { id: call.callId } })).disposition).toBe('emergency_paged')
     })
 
@@ -353,7 +338,7 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
   })
 
   describe('visit and job state machines', () => {
-    it('scheduled → dispatched → en route (texts the customer) → on site → working → done, and the job follows', { timeout: 120_000 }, async () => {
+    it('scheduled → dispatched → en route → on site → working → done, and the job follows', { timeout: 120_000 }, async () => {
       const booked = await book('DRAIN-CLR', '10 AM–12 PM', 18)
       const v = await visitOf(booked.visitId)
       await assignVisit(prisma, dispatcher, { visitId: v.id, expectedVersion: v.version, employeeIds: ['seed_emp_patel'], idempotencyKey: uniqueKey('a'), now: NOW })
@@ -369,7 +354,6 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
       expect((await prisma.job.findUniqueOrThrow({ where: { id: booked.jobId } })).status).toBe('in_progress')
       const events = await prisma.visitStatusEvent.findMany({ where: { visitId: v.id }, orderBy: { createdAt: 'asc' }, select: { toStatus: true } })
       expect(events.map(e => e.toStatus)).toEqual(['scheduled', 'dispatched', 'en_route', 'on_site', 'working', 'done'])
-      expect(await prisma.message.count({ where: { visitId: v.id, template: 'on_the_way' } })).toBe(1)
       // The history is append-only.
       await expect(prisma.visitStatusEvent.updateMany({ where: { visitId: v.id }, data: { note: 'edited' } })).rejects.toThrow()
       await expect(prisma.visitStatusEvent.deleteMany({ where: { visitId: v.id } })).rejects.toThrow()
@@ -462,65 +446,13 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
       expect(await code(loseLead(prisma, csr, { leadId: lead.id, expectedVersion: booked.version, reason: 'price', idempotencyKey: uniqueKey('x') }))).toBe(Codes.INVALID_TRANSITION)
     })
 
-    it('a lead nobody answered raises a speed-to-lead task when its clock runs out; an answered one does not', { timeout: 300_000 }, async () => {
-      const past = new Date(Date.now() - 10 * 60_000)
-      const slow = await ingestLead(prisma, csr, { source: 'web_form', contactName: 'Slow Response', phone: '512-555-0076', idempotencyKey: uniqueKey('l'), now: past })
-      const quick = await ingestLead(prisma, csr, { source: 'web_form', contactName: 'Quick Response', phone: '512-555-0075', idempotencyKey: uniqueKey('l'), now: past })
-      const q = await prisma.lead.findUniqueOrThrow({ where: { id: quick.leadId } })
-      await markLeadContacted(prisma, csr, { leadId: q.id, expectedVersion: q.version, idempotencyKey: uniqueKey('c'), now: new Date(past.getTime() + 60_000) })
-      await runWorkerPass(prisma, { workerId: 'test-worker' })
-      expect(await prisma.task.count({ where: { kind: 'lead.first_response', subjectId: slow.leadId } })).toBe(1)
-      expect(await prisma.task.count({ where: { kind: 'lead.first_response', subjectId: quick.leadId } })).toBe(0)
-    })
   })
 
-  describe('messaging: consent, STOP and the send-time guard', () => {
-    it('an on-the-way text at 9:05 p.m. is blocked when only marketing consent exists, and only a person re-queues it', { timeout: 60_000 }, async () => {
-      const h = HOUSEHOLDS[7] // never agreed to booking texts
-      const point = await prisma.contactPoint.findFirstOrThrow({ where: { contact: { customerId: h.id }, kind: 'mobile' } })
-      await recordConsent(prisma, owner, { contactPointId: point.id, purpose: 'marketing_sms', action: 'grant', channel: 'web_form', evidence: { form: 'newsletter' }, idempotencyKey: uniqueKey('c') })
-      const booked = await book('DRAIN-CLR', '12–2 PM', 7)
-      const v = await visitOf(booked.visitId)
-      await assignVisit(prisma, dispatcher, { visitId: v.id, expectedVersion: v.version, employeeIds: ['seed_emp_patel'], idempotencyKey: uniqueKey('a'), now: NOW })
-      await setVisitStatus(prisma, dispatcher, { visitId: v.id, to: 'en_route', idempotencyKey: uniqueKey('s'), now: NOW })
-      const onTheWay = await prisma.message.findFirstOrThrow({ where: { visitId: v.id, template: 'on_the_way' } })
-      const ninePm = new Date(`${DAY}T03:05:00Z`) // 9:05 p.m. CST the evening before
-      expect(await deliverMessage(prisma, onTheWay.id, ninePm)).toMatchObject({ status: 'blocked', reason: 'no_consent' })
-      const blocked = await prisma.message.findUniqueOrThrow({ where: { id: onTheWay.id } })
-      expect(blocked).toMatchObject({ status: 'blocked', blockedReason: 'no_consent' })
-      expect(await prisma.task.count({ where: { kind: 'message.blocked', subjectId: blocked.id } })).toBe(1)
-      // A redelivered outbox message doesn't send it.
-      expect((await deliverMessage(prisma, blocked.id, ninePm)).status).toBe('blocked')
-      expect(recorder.sent.some(s => s.to === h.phone)).toBe(false)
-      // The agent can't record a marketing grant; it can record the caller's yes to booking texts.
-      expect(await code(recordConsent(prisma, agent, { contactPointId: point.id, purpose: 'marketing_sms', action: 'grant', channel: 'phone', idempotencyKey: uniqueKey('c') }))).toBe(Codes.NOT_AUTHORIZED)
-      await recordConsent(prisma, agent, { contactPointId: point.id, purpose: 'transactional_sms', action: 'grant', channel: 'phone', evidence: { callId: 'recorded' }, wordingVersion: 'booking-texts-v1', idempotencyKey: uniqueKey('c') })
-      expect(await code(requeueMessage(prisma, agent, { messageId: blocked.id, expectedVersion: blocked.version, idempotencyKey: uniqueKey('rq') }))).toBe(Codes.SCOPE_DENIED)
-      await requeueMessage(prisma, csr, { messageId: blocked.id, expectedVersion: blocked.version, idempotencyKey: uniqueKey('rq') })
-      // Transactional texts are not held to quiet hours under the seeded federal and Texas packs.
-      expect((await deliverMessage(prisma, blocked.id, ninePm)).status).toBe('sent')
-      expect(recorder.sent.filter(s => s.to === h.phone)).toHaveLength(1)
-      // Consent history is append-only.
-      await expect(prisma.consentRecord.deleteMany({ where: { contactPointId: point.id } })).rejects.toThrow()
-      await expect(prisma.consentRecord.updateMany({ where: { contactPointId: point.id }, data: { action: 'revoke' } })).rejects.toThrow()
-    })
-
-    it('without approved texting registration, a provider send is held back', { timeout: 60_000 }, async () => {
-      await prisma.integrationConnection.updateMany({ where: { area: 'messaging' }, data: { config: { tenDlc: 'pending' } } })
-      try {
-        const booked = await book('ELEC-DIAG', '10 AM–12 PM', 24)
-        expect(await deliverMessage(prisma, booked.confirmationMessageId!, NOW)).toMatchObject({ status: 'blocked', reason: 'unregistered_10dlc' })
-      } finally {
-        await prisma.integrationConnection.updateMany({ where: { area: 'messaging' }, data: { config: { tenDlc: 'approved' } } })
-      }
-    })
-
-    it('STOP revokes booking and marketing texts and blocks anything queued; a repeat is harmless; START restores booking texts only', { timeout: 60_000 }, async () => {
+  describe('messaging: consent and STOP', () => {
+    it('STOP revokes booking and marketing texts; a repeat is harmless; START restores booking texts only', { timeout: 60_000 }, async () => {
       const h = HOUSEHOLDS[25]
-      const booked = await book('ELEC-DIAG', '8–10 AM', 25)
       const stop = await receiveInboundSms(prisma, { from: h.phone, to: '+15125550100', body: ' Stop ', providerMessageId: `SM${uniqueKey('in')}` })
       expect(stop.keyword).toBe('stop')
-      expect(await prisma.message.findUniqueOrThrow({ where: { id: booked.confirmationMessageId! } })).toMatchObject({ status: 'blocked', blockedReason: 'opted_out' })
       expect(await prisma.dncEntry.count({ where: { source: 'sms_stop' } })).toBe(2) // the seeded opt-out and this one
       // Carriers resend; a second STOP and a replayed webhook are both harmless.
       const again = { from: h.phone, to: '+15125550100', body: 'STOP', providerMessageId: `SM${uniqueKey('in')}` }

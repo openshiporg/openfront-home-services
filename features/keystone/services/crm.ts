@@ -199,7 +199,6 @@ export async function ingestLead(db: Db, actor: Actor, args: LeadIngest) {
       select: { id: true, ref: true },
     })
     auditCreate(uow, actor, 'Lead', lead.id, 'lead.created', { ref, source: args.source, matchedCustomer: !!match, campaignId: args.campaignId ?? null })
-    uow.emit({ topic: 'lead.first_response_due', aggregateType: 'Lead', aggregateId: lead.id, payload: { leadId: lead.id }, availableAt: new Date(now.getTime() + slaMinutes * 60_000), dedupeKey: `lead.sla:${lead.id}` })
     await recordAgentAction(uow, actor, { tool: 'lead.ingest', idempotencyKey, inputs: params, output: { leadId: lead.id } })
     return { leadId: lead.id, ref: lead.ref, duplicate: false, customerId: match?.contact?.customerId ?? null }
   })
@@ -245,7 +244,6 @@ export async function markLeadSpam(db: Db, actor: Actor, args: { leadId: string;
   if (actor.kind === 'agent') throw new DomainError(Codes.NOT_AUTHORIZED, 'Only a person marks a lead as spam.')
   const result = await command(db, { name: 'lead.spam', actor, idempotencyKey: args.idempotencyKey, params: { leadId: args.leadId, expectedVersion: args.expectedVersion }, now: args.now }, async uow => {
     const row = await transition<{ status: string; version: number; source: string; externalId: string }>(uow, { model: 'Lead', id: args.leadId, from: ['new', 'contacted', 'qualified'], to: 'spam', expectedVersion: args.expectedVersion, actor, eventType: 'lead.spam' })
-    if (row.source === 'lsa' && row.externalId) uow.emit({ topic: 'lsa.dispute', aggregateType: 'Lead', aggregateId: args.leadId, payload: { leadId: args.leadId, externalId: row.externalId }, dedupeKey: `lsa.dispute:${args.leadId}` })
     return { leadId: args.leadId, status: row.status, version: row.version }
   })
   return { replay: result.replay, ...result.value }
@@ -327,7 +325,7 @@ export async function handoffToHuman(db: Db, actor: Actor, args: { callId: strin
   return { replay: result.replay, ...result.value }
 }
 
-/** Emergency escalation (SM§17): page on-call through the outbox. */
+/** Emergency escalation (SM§17): an urgent task naming who is on call; the office rings them. */
 export async function pageOnCall(db: Db, actor: Actor, args: { callId?: string | null; businessUnitId?: string | null; summary: string; idempotencyKey: string; now?: Date }) {
   await authorizeOperation(db, actor, 'page.on_call', ['canBook', 'canDispatch'], args)
   const { idempotencyKey, now: _now, ...params } = args
@@ -337,7 +335,8 @@ export async function pageOnCall(db: Db, actor: Actor, args: { callId?: string |
       const call = await uow.tx.call.findUnique({ where: { id: args.callId }, select: { id: true, version: true, status: true } })
       if (call) await uow.tx.call.update({ where: { id: call.id }, data: { emergency: { paged: true, summary: args.summary, at: uow.now.toISOString() } as never, disposition: 'emergency_paged' } })
     }
-    uow.emit({ topic: 'page.on_call', aggregateType: 'Call', aggregateId: pageId, payload: { pageId, businessUnitId: args.businessUnitId ?? null, summary: args.summary.slice(0, 300) }, dedupeKey: `page.on_call:${pageId}`, partitionKey: 'paging' })
+    const onCall = await uow.tx.onCallRotation.findFirst({ where: { startsAt: { lte: uow.now }, endsAt: { gt: uow.now }, ...(args.businessUnitId ? { businessUnitId: args.businessUnitId } : {}) }, orderBy: { escalationOrder: 'asc' }, select: { phoneE164: true, employee: { select: { displayName: true } } } })
+    await uow.tx.task.upsert({ where: { dedupeKey: `page.on_call:${pageId}` }, create: { kind: 'page.on_call', title: onCall ? `Emergency: ring ${onCall.employee?.displayName ?? 'the on-call tech'} (${onCall.phoneE164})` : 'Emergency call with nobody on call', detail: args.summary.slice(0, 300), subjectType: 'Call', subjectId: pageId, status: 'open', priority: 'urgent', dedupeKey: `page.on_call:${pageId}` }, update: {} })
     uow.audit({ eventType: 'call.on_call_paged', entityType: 'Call', entityId: pageId, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { businessUnitId: args.businessUnitId ?? null } })
     const value = { paged: true, pageId }
     await recordAgentAction(uow, actor, { tool: 'page.on_call', idempotencyKey, inputs: params, output: value })

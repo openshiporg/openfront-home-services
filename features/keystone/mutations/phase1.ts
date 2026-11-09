@@ -50,8 +50,6 @@ export const phase1TypeDefs = graphql`
     releaseJobHold(jobId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
     cancelJob(jobId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
     recordConsent(contactPointId: ID, customerId: ID, phone: String, purpose: String!, action: String!, channel: String!, evidence: JSON, wordingVersion: String, idempotencyKey: String!): JSON
-    requeueMessage(messageId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
-    markMessageSent(messageId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
     handoffToHuman(callId: ID!, reason: String!, summary: String, idempotencyKey: String!): JSON
     pageOnCall(callId: ID, businessUnitId: ID, summary: String!, idempotencyKey: String!): JSON
     verifyCredential(credentialId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
@@ -93,11 +91,10 @@ export const phase1Resolvers = {
     releaseJobHold: bind(dispatch.releaseJobHold),
     cancelJob: bind(dispatch.cancelJob),
     recordConsent: bind(comms.recordConsent),
-    requeueMessage: bind(comms.requeueMessage),
-    markMessageSent: bind(comms.markMessageSent),
     handoffToHuman: bind(crm.handoffToHuman),
     pageOnCall: bind(crm.pageOnCall),
     verifyCredential: bind(crm.verifyCredential),
     revokeCredential: bind(crm.revokeCredential),
   },
 }
+ 

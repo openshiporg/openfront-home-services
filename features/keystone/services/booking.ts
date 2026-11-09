@@ -328,10 +328,7 @@ export async function bookJob(db: Db, actor: Actor, args: BookArgs) {
       }
     }
 
-    // 5. Booking confirmation: a transactional text, checked against consent when it is sent (I-K1).
-    const messageId = await queueTransactionalSms(uow, actor, { customerId: customer.id, jobId: job.id, visitId: visit.id, template: 'booking_confirmation', body: `Summit Plumbing & Air: you're booked for ${jobType.name} on ${window.date.toISOString().slice(0, 10)}, arrival ${window.label}. Ref ${job.publicCode}. Reply STOP to opt out.` })
-
-    const value = { jobId: job.id, ref: job.ref, publicCode: job.publicCode, visitId: visit.id, windowId: window.id, window: window.label, date: window.date.toISOString().slice(0, 10), startsAt: window.startsAt.toISOString(), endsAt: window.endsAt.toISOString(), customerId: customer.id, locationId: location.id, confirmationMessageId: messageId }
+    const value = { jobId: job.id, ref: job.ref, publicCode: job.publicCode, visitId: visit.id, windowId: window.id, window: window.label, date: window.date.toISOString().slice(0, 10), startsAt: window.startsAt.toISOString(), endsAt: window.endsAt.toISOString(), customerId: customer.id, locationId: location.id }
     await recordAgentAction(uow, actor, { tool: 'booking.confirm', idempotencyKey, inputs: params, output: value })
     return value
   })
@@ -380,15 +377,3 @@ export async function createLocationInTx(uow: UnitOfWork, actor: Actor, customer
   return location
 }
 
-/** Queue a transactional SMS to the customer's primary mobile. The send-time guard runs in the worker. */
-export async function queueTransactionalSms(uow: UnitOfWork, actor: Actor, spec: { customerId: string; jobId?: string | null; visitId?: string | null; template: string; body: string }) {
-  const point = await uow.tx.contactPoint.findFirst({ where: { kind: 'mobile', contact: { customerId: spec.customerId } }, orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }], select: { id: true } })
-  if (!point) return null
-  const message = await uow.tx.message.create({
-    data: { contactPointId: point.id, direction: 'outbound', channel: 'sms', purpose: 'transactional', consentPurpose: 'transactional_sms', template: spec.template, body: spec.body, status: 'queued', jobId: spec.jobId ?? null, visitId: spec.visitId ?? null },
-    select: { id: true },
-  })
-  auditCreate(uow, actor, 'Message', message.id, 'message.queued', { template: spec.template, purpose: 'transactional', jobId: spec.jobId ?? null })
-  uow.emit({ topic: 'message.send', aggregateType: 'Message', aggregateId: message.id, payload: { messageId: message.id }, dedupeKey: `message.send:${message.id}`, partitionKey: 'messaging' })
-  return message.id
-}

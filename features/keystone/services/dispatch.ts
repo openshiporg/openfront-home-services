@@ -13,7 +13,6 @@ import { evaluateEligibility, type CrewMember, type EligibilityResult, type Lice
 import { DISPATCH_FEATURES, DISPATCH_MODEL, driveMinutes, rankCandidates, type Candidate } from '../domain/dispatch'
 import { resolvePolicyFromDb } from '../domain/policy'
 import { assertCanStartWork } from './cancellation'
-import { queueTransactionalSms } from './booking'
 
 /*
  * Dispatch (SM§4, I-D1..I-D4). Assignment is a CAS on visit.version plus a tech-day advisory lock per
@@ -185,7 +184,6 @@ export async function assignVisit(db: Db, actor: Actor, args: AssignArgs) {
     if (ctx.job && ctx.job.status === 'booked') {
       await casUpdate(uow, { model: 'Job', id: ctx.job.id, version: ctx.job.version, from: ['booked'], to: 'scheduled', actor, eventType: 'job.scheduled' })
     }
-    uow.emit({ topic: 'notify.tech_assignment', aggregateType: 'Visit', aggregateId: ctx.id, payload: { visitId: ctx.id, employeeIds: ids, reassign }, partitionKey: 'messaging' })
     const value = { visitId: ctx.id, status: to, version: ctx.version + 1, employeeIds: ids, leadEmployeeId: leadId, reassigned: reassign }
     await recordAgentAction(uow, actor, { tool: 'dispatch.apply', idempotencyKey, inputs: params, output: value })
     return value
@@ -271,11 +269,6 @@ export async function setVisitStatus(db: Db, actor: Actor, args: VisitStatusArgs
     await tx.visitStatusEvent.create({ data: { visitId: ctx.id, actorUserId: userId, fromStatus: ctx.status, toStatus: args.to, kind: 'transition', occurredAt: uow.now, clientRecordedAt: clientAt, idempotencyKey: deviceKey ?? `server:${idempotencyKey}`, lat: args.lat ?? null, lng: args.lng ?? null, note: args.reason ?? '' } })
 
     if (args.to === 'cancelled') await freeVisitCapacity(uow, ctx)
-    if (args.to === 'dispatched') uow.emit({ topic: 'push.dispatch', aggregateType: 'Visit', aggregateId: ctx.id, payload: { visitId: ctx.id }, partitionKey: 'messaging' })
-    if (args.to === 'en_route' && ctx.job?.customerId) {
-      const tech = await tx.visitAssignment.findFirst({ where: { visitId: ctx.id, active: true, role: 'lead' }, select: { employee: { select: { firstName: true } } } })
-      await queueTransactionalSms(uow, actor, { customerId: ctx.job.customerId, jobId: ctx.job.id, visitId: ctx.id, template: 'on_the_way', body: `Summit Plumbing & Air: ${tech?.employee?.firstName || 'Your technician'} is on the way for your ${ctx.window?.label ?? ''} appointment. Reply STOP to opt out.` })
-    }
     // The job follows its visits.
     if (ctx.job) await rollJob(uow, actor, ctx.job.id, args.to === 'no_access' ? 'access' : null)
     return { visitId: ctx.id, status: args.to, version }

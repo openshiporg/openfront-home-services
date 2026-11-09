@@ -16,7 +16,7 @@ import '../services/salesAppliers'
 const graphql = String.raw
 
 // Every domain resolver checks permission itself and runs as one idempotent command: the state
-// change, audit events and outbox messages commit in one transaction (features/keystone/lib).
+// change and audit events commit in one transaction (features/keystone/lib).
 export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
   const core = mergeSchemas({
     schemas: [baseSchema],

@@ -123,7 +123,7 @@ export const Call = list({
 
 export const MESSAGE_BLOCK_REASONS = ['', 'no_consent', 'dnc', 'quiet_hours', 'unregistered_10dlc', 'opted_out', 'policy_unresolved'] as const
 
-/** An SMS or email (SM§17). Outbound ones pass the send-time guard in the outbox worker (I-K1). */
+/** An SMS or email (SM§17). Only consent and inbound texts are recorded; nothing is sent. */
 export const Message = list({
   access: governed(['canSendMessages', 'canBook', 'canDispatch', 'canManageLeads']),
   ui: { labelField: 'template', listView: { initialColumns: ['createdAt', 'direction', 'purpose', 'template', 'status', 'blockedReason'] } },

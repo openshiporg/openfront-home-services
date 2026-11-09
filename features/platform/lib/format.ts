@@ -82,8 +82,7 @@ const COMMON: Record<string, string> = {
   call_recording: 'Call recording', auto_renewal: 'Automatic renewal', transactional: 'Appointment', marketing: 'Marketing', internal: 'Internal',
   // Call dispositions and message holds
   not_booked: 'Not booked', existing_job: 'Existing job', emergency_paged: 'On-call tech paged', transferred: 'Transferred',
-  no_consent: 'No texting consent', dnc: 'On do-not-call list', quiet_hours: 'Quiet hours', unregistered_10dlc: 'Texting number not registered',
-  opted_out: 'Customer opted out', policy_unresolved: 'No rule for this area',
+  opted_out: 'Customer opted out',
   // Reasons
   parts: 'Waiting on parts', customer_decision: 'Customer deciding', financing: 'Financing', permit: 'Permit', authorization: 'Authorization',
   access: 'Access', customer_request: 'Customer asked', duplicate: 'Duplicate', no_access: 'No access', out_of_area: 'Outside our area',

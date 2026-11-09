@@ -93,10 +93,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         {d.messages.length ? d.messages.map(m => (
           <Row key={m.id}>
             <div className="min-w-0 flex-1"><span className="font-medium">{label(m.template)}</span> <Status value={m.status} /><Meta> · {when(m.sentAt ?? m.createdAt, tz)}{m.blockedReason ? ` · held: ${label(m.blockedReason).toLowerCase()}` : ''}</Meta></div>
-            <div className="flex flex-wrap items-center gap-2">
-              {m.status === 'blocked' ? <ActionButton op="requeueMessage" vars={{ messageId: m.id, expectedVersion: m.version }} confirm="Send again? It is checked against consent and quiet hours again." paths={[PATH(j.id)]}>Retry</ActionButton> : null}
-              {m.status === 'manual' ? <ActionButton op="markMessageSent" vars={{ messageId: m.id, expectedVersion: m.version }} paths={[PATH(j.id)]}>I sent it</ActionButton> : null}
-            </div>
           </Row>
         )) : <Empty>No texts for this job.</Empty>}
       </Section>

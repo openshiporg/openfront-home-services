@@ -37,8 +37,6 @@ const OPS: Record<string, Record<string, string>> = {
   releaseJobHold: { jobId: 'ID!', expectedVersion: 'Int!' },
   cancelJob: { jobId: 'ID!', expectedVersion: 'Int!', reason: 'String!' },
   recordConsent: { contactPointId: 'ID', customerId: 'ID', phone: 'String', purpose: 'String!', action: 'String!', channel: 'String!', evidence: 'JSON', wordingVersion: 'String' },
-  requeueMessage: { messageId: 'ID!', expectedVersion: 'Int!' },
-  markMessageSent: { messageId: 'ID!', expectedVersion: 'Int!' },
   handoffToHuman: { callId: 'ID!', reason: 'String!', summary: 'String' },
   pageOnCall: { callId: 'ID', businessUnitId: 'ID', summary: 'String!' },
   verifyCredential: { credentialId: 'ID!', expectedVersion: 'Int!' },

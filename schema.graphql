@@ -2831,115 +2831,6 @@ input NotificationCreateInput {
   updatedAt: DateTime
 }
 
-type OutboxMessage {
-  id: ID!
-  topic: String
-  aggregateType: String
-  aggregateId: String
-  dedupeKey: String
-  partitionKey: String
-  payload: JSON
-  status: String
-  attempts: Int
-  nextAttemptAt: DateTime
-  leaseOwner: String
-  leaseExpiresAt: DateTime
-  fencingToken: Int
-  lastError: String
-  deliveredAt: DateTime
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input OutboxMessageWhereUniqueInput {
-  id: ID
-  dedupeKey: String
-}
-
-input OutboxMessageWhereInput {
-  AND: [OutboxMessageWhereInput!]
-  OR: [OutboxMessageWhereInput!]
-  NOT: [OutboxMessageWhereInput!]
-  id: IDFilter
-  topic: StringFilter
-  aggregateType: StringFilter
-  aggregateId: StringFilter
-  dedupeKey: StringFilter
-  partitionKey: StringFilter
-  status: StringFilter
-  attempts: IntNullableFilter
-  nextAttemptAt: DateTimeNullableFilter
-  leaseOwner: StringFilter
-  leaseExpiresAt: DateTimeNullableFilter
-  fencingToken: IntNullableFilter
-  lastError: StringFilter
-  deliveredAt: DateTimeNullableFilter
-  createdAt: DateTimeFilter
-  updatedAt: DateTimeFilter
-}
-
-input OutboxMessageOrderByInput {
-  id: OrderDirection
-  topic: OrderDirection
-  aggregateType: OrderDirection
-  aggregateId: OrderDirection
-  dedupeKey: OrderDirection
-  partitionKey: OrderDirection
-  status: OrderDirection
-  attempts: OrderDirection
-  nextAttemptAt: OrderDirection
-  leaseOwner: OrderDirection
-  leaseExpiresAt: OrderDirection
-  fencingToken: OrderDirection
-  lastError: OrderDirection
-  deliveredAt: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
-input OutboxMessageUpdateInput {
-  topic: String
-  aggregateType: String
-  aggregateId: String
-  dedupeKey: String
-  partitionKey: String
-  payload: JSON
-  status: String
-  attempts: Int
-  nextAttemptAt: DateTime
-  leaseOwner: String
-  leaseExpiresAt: DateTime
-  fencingToken: Int
-  lastError: String
-  deliveredAt: DateTime
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
-input OutboxMessageUpdateArgs {
-  where: OutboxMessageWhereUniqueInput!
-  data: OutboxMessageUpdateInput!
-}
-
-input OutboxMessageCreateInput {
-  topic: String
-  aggregateType: String
-  aggregateId: String
-  dedupeKey: String
-  partitionKey: String
-  payload: JSON
-  status: String
-  attempts: Int
-  nextAttemptAt: DateTime
-  leaseOwner: String
-  leaseExpiresAt: DateTime
-  fencingToken: Int
-  lastError: String
-  deliveredAt: DateTime
-  createdAt: DateTime
-  updatedAt: DateTime
-}
-
 type ProviderObservation {
   id: ID!
   source: String
@@ -10815,12 +10706,6 @@ type Mutation {
   updateNotifications(data: [NotificationUpdateArgs!]!): [Notification]
   deleteNotification(where: NotificationWhereUniqueInput!): Notification
   deleteNotifications(where: [NotificationWhereUniqueInput!]!): [Notification]
-  createOutboxMessage(data: OutboxMessageCreateInput!): OutboxMessage
-  createOutboxMessages(data: [OutboxMessageCreateInput!]!): [OutboxMessage]
-  updateOutboxMessage(where: OutboxMessageWhereUniqueInput!, data: OutboxMessageUpdateInput!): OutboxMessage
-  updateOutboxMessages(data: [OutboxMessageUpdateArgs!]!): [OutboxMessage]
-  deleteOutboxMessage(where: OutboxMessageWhereUniqueInput!): OutboxMessage
-  deleteOutboxMessages(where: [OutboxMessageWhereUniqueInput!]!): [OutboxMessage]
   createProviderObservation(data: ProviderObservationCreateInput!): ProviderObservation
   createProviderObservations(data: [ProviderObservationCreateInput!]!): [ProviderObservation]
   updateProviderObservation(where: ProviderObservationWhereUniqueInput!, data: ProviderObservationUpdateInput!): ProviderObservation
@@ -11290,8 +11175,6 @@ type Mutation {
   releaseJobHold(jobId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   cancelJob(jobId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
   recordConsent(contactPointId: ID, customerId: ID, phone: String, purpose: String!, action: String!, channel: String!, evidence: JSON, wordingVersion: String, idempotencyKey: String!): JSON
-  requeueMessage(messageId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
-  markMessageSent(messageId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   handoffToHuman(callId: ID!, reason: String!, summary: String, idempotencyKey: String!): JSON
   pageOnCall(callId: ID, businessUnitId: ID, summary: String!, idempotencyKey: String!): JSON
   verifyCredential(credentialId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
@@ -11433,9 +11316,6 @@ type Query {
   notification(where: NotificationWhereUniqueInput!): Notification
   notifications(where: NotificationWhereInput! = {}, orderBy: [NotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: NotificationWhereUniqueInput): [Notification!]
   notificationsCount(where: NotificationWhereInput! = {}): Int
-  outboxMessage(where: OutboxMessageWhereUniqueInput!): OutboxMessage
-  outboxMessages(where: OutboxMessageWhereInput! = {}, orderBy: [OutboxMessageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OutboxMessageWhereUniqueInput): [OutboxMessage!]
-  outboxMessagesCount(where: OutboxMessageWhereInput! = {}): Int
   providerObservation(where: ProviderObservationWhereUniqueInput!): ProviderObservation
   providerObservations(where: ProviderObservationWhereInput! = {}, orderBy: [ProviderObservationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ProviderObservationWhereUniqueInput): [ProviderObservation!]
   providerObservationsCount(where: ProviderObservationWhereInput! = {}): Int

@@ -3,7 +3,7 @@ import { contactHash, maskAddress, maskEmail, maskName, maskPhone, normalizeEmai
 import { dateRange, fits, holdExpiry, remainingHours, windowsForDate, type WindowTemplate } from './capacity'
 import { credentialCodes, evaluateEligibility, type CrewMember, type LicensingRules, type Requirement } from './eligibility'
 import { driveMinutes, loadTenths, rankCandidates, type Candidate } from './dispatch'
-import { classifyKeyword, evaluateSend, inContactHours, type GuardInput } from './sendGuard'
+import { classifyKeyword } from './smsKeywords'
 import { stricterContactHours } from './policy'
 import { POLICY_PACKS } from '../seed/policyPacks'
 import { LICENSES } from '../seed/company'
@@ -164,37 +164,7 @@ describe('dispatch ranking (deterministic, explained)', () => {
   })
 })
 
-describe('send-time guard', () => {
-  const texas = stricterContactHours([contactHoursRules.parse(rulesOf('us-federal-contact-hours')), contactHoursRules.parse(rulesOf('us-tx-contact-hours'))])
-  const base = (over: Partial<GuardInput> = {}): GuardInput => ({ purpose: 'transactional', channel: 'sms', consent: { transactional_sms: 'grant' }, onInternalDnc: false, contactHours: texas, recipientTimeZone: 'America/Chicago', at: new Date('2026-11-10T03:05:00Z'), tenDlcApproved: true, ...over })
-  // 2026-11-10T03:05Z is 9:05 p.m. Monday in Austin (CST).
-
-  it('an on-the-way text at 9:05 p.m. goes when the customer agreed to booking texts', () => {
-    expect(evaluateSend(base())).toEqual({ allowed: true, consentPurpose: 'transactional_sms' })
-  })
-  it('the same text is blocked at 9:05 p.m. when only marketing consent exists (no transactional consent)', () => {
-    const r = evaluateSend(base({ consent: { marketing_sms: 'grant' } }))
-    expect(r).toMatchObject({ allowed: false, reason: 'no_consent' })
-  })
-  it('marketing is held in quiet hours (Texas 9–9, Sunday from noon) even with consent', () => {
-    const r = evaluateSend(base({ purpose: 'marketing', consent: { marketing_sms: 'grant' } }))
-    expect(r).toMatchObject({ allowed: false, reason: 'quiet_hours' })
-    const sundayMorning = evaluateSend(base({ purpose: 'marketing', consent: { marketing_sms: 'grant' }, at: new Date('2026-11-08T16:30:00Z') }))
-    expect(sundayMorning).toMatchObject({ allowed: false, reason: 'quiet_hours' })
-    const sundayAfternoon = evaluateSend(base({ purpose: 'marketing', consent: { marketing_sms: 'grant' }, at: new Date('2026-11-08T19:00:00Z') }))
-    expect(sundayAfternoon.allowed).toBe(true)
-  })
-  it('the stricter of federal and Texas hours applies', () => {
-    expect(texas.weekdays).toEqual({ start: '09:00', end: '21:00' })
-    expect(texas.sunday).toEqual({ start: '12:00', end: '21:00' })
-    expect(inContactHours(texas, 'America/Chicago', new Date('2026-11-09T14:30:00Z')).allowed).toBe(false) // 8:30 a.m.
-  })
-  it('a revoke wins; DNC blocks marketing; unresolved policy holds marketing; no 10DLC blocks SMS', () => {
-    expect(evaluateSend(base({ consent: { transactional_sms: 'revoke' } }))).toMatchObject({ allowed: false, reason: 'opted_out' })
-    expect(evaluateSend(base({ purpose: 'marketing', consent: { marketing_sms: 'grant' }, onInternalDnc: true }))).toMatchObject({ reason: 'dnc' })
-    expect(evaluateSend(base({ purpose: 'marketing', consent: { marketing_sms: 'grant' }, contactHours: null }))).toMatchObject({ reason: 'policy_unresolved' })
-    expect(evaluateSend(base({ tenDlcApproved: false }))).toMatchObject({ reason: 'unregistered_10dlc' })
-  })
+describe('inbound text keywords', () => {
   it('recognises carrier keywords however they are typed', () => {
     expect(classifyKeyword(' stop ')).toBe('stop')
     expect(classifyKeyword('Stop.')).toBe('stop')

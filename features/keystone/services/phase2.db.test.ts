@@ -355,7 +355,6 @@ describe.skipIf(!hasTestDatabase)('Phase 2: price book, estimates and cancellati
       const h = HOUSEHOLDS[32]
       const est = await createEstimate(prisma, advisor, { customerId: h.id, locationId: h.location.id, businessUnitId: 'seed_bu_electrical', title: 'Panel', options: [{ tier: 'good', name: 'Good', lines: [{ itemKey: 'PANEL-200A-GOOD', quantity: '1' }] }], idempotencyKey: uniqueKey('e') })
       const shown = await presentEstimate(prisma, advisor, { versionId: est.versionId, via: 'email', expectedVersion: await versionOf(est.versionId), idempotencyKey: uniqueKey('p') })
-      expect(await prisma.outboxMessage.count({ where: { topic: 'notify.estimate', aggregateId: est.versionId } })).toBe(1)
       expect(await code(declineEstimate(prisma, advisor, { versionId: est.versionId, reason: 'other', expectedVersion: shown.version, idempotencyKey: uniqueKey('x') }))).toBe(Codes.INVALID_INPUT)
       const declined = await declineEstimate(prisma, advisor, { versionId: est.versionId, reason: 'price', expectedVersion: shown.version, idempotencyKey: uniqueKey('x') })
       expect(declined.status).toBe('declined')
