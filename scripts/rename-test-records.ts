@@ -12,13 +12,13 @@ import { command } from '../features/keystone/lib/command'
 
 type Rename = { model: 'agentIdentity' | 'oAuthApp' | 'priceBookVersion' | 'approvalRequest' | 'visitAssignment'; id: string; field: string; from: string; to: string; extra?: Record<string, unknown> }
 
+// Price book version labels were renamed on the live database before labels of published versions were frozen
+// (migration r5b_db_invariants); they are no longer renamed here.
 const RENAMES: Rename[] = [
   { model: 'agentIdentity', id: 'cmw8fq4zt0001oa95jhk4eyto', field: 'name', from: 'Summit dispatch assistant (review r3)', to: 'Summit dispatch assistant' },
   { model: 'agentIdentity', id: 'cmw8fq4zt0001oa95jhk4eyto', field: 'provider', from: 'review', to: '' },
   { model: 'oAuthApp', id: 'cmw8fpn1h00fdoa01wghoy5x0', field: 'name', from: 'Summit dispatch assistant (review)', to: 'Summit dispatch assistant' },
   { model: 'oAuthApp', id: 'cmw8irqip0005nx6yg9884b8l', field: 'name', from: 'QA control client r3', to: 'Retired scheduling connector' },
-  { model: 'priceBookVersion', id: 'cmw8isyab0007nx6ydsqulwsh', field: 'label', from: 'Restore PLB-ANGLE-STOP to $195 (undo review test change)', to: 'Angle stop back to $195' },
-  { model: 'priceBookVersion', id: 'cmw8it93z009wnx6ymrzv14eb', field: 'label', from: 'Scheduled activation check (no price change)', to: 'Scheduled price book check (no price change)' },
 ]
 
 async function main() {
