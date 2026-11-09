@@ -20,6 +20,7 @@ const BASE: Permission[] = ['canAccessDashboard', 'canSeeOtherPeople']
 const all = (except: Permission[]) => permissionNames.filter(name => !except.includes(name))
 
 export const ROLES: RoleSeed[] = [
+  { id: 'seed_role_ai_agent', name: 'AI Agent', description: 'Least privilege for AI agents. Holds no permission: an agent acts only through its tool grants, and never sees cost or margin.', permissions: [] },
   { id: 'seed_role_owner', name: 'Owner', description: 'Everything except break-glass. Break-glass is never on a default role.', permissions: all(['canBreakGlass']) },
   { id: 'seed_role_gm', name: 'General Manager', description: 'Runs the shop day to day and approves money and policy changes.', permissions: all(['canBreakGlass', 'canManageRoles', 'canRunPayroll']) },
   { id: 'seed_role_csr', name: 'CSR', description: 'Answers calls, books jobs, takes payments and sells memberships.', permissions: [...BASE, 'canManageCustomers', 'canReadCustomerPII', 'canManageLeads', 'canBook', 'canViewBoard', 'canTakePayments', 'canSellMemberships', 'canOfferFinancing', 'canSendMessages'] },

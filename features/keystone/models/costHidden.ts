@@ -3,10 +3,27 @@ import { json } from '@keystone-6/core/fields'
 import { isSignedIn, type Permission, type Session } from '../access'
 
 /** Whoever sets prices may read internal cost and margin; nobody else, in any field that carries them. */
-const COST_PERMISSIONS: Permission[] = ['canManagePriceBook', 'canApprovePriceBook', 'canApproveDiscounts']
+export const COST_PERMISSIONS: Permission[] = ['canManagePriceBook', 'canApprovePriceBook', 'canApproveDiscounts']
 
-export const canReadCost = (session: Session | null | undefined) =>
-  !!session && isSignedIn({ session }) && COST_PERMISSIONS.some(name => session.data?.role?.[name] === true)
+/**
+ * An agent session (an MCP token whose OAuth app is bound to an AgentIdentity) is marked by
+ * `session.agent` and gets the least-privilege "AI Agent" role, so it never reads cost; the explicit
+ * check here keeps that true even if someone later widens that role.
+ */
+export const canReadCost = (session: (Session & { agent?: unknown }) | null | undefined) =>
+  !!session && !session.agent && isSignedIn({ session }) && COST_PERMISSIONS.some(name => session.data?.role?.[name] === true)
+
+/** The same rule for a domain actor (a person with a price-setting permission; never an agent). */
+export const actorCanReadCost = (actor: { kind: string; permissions?: ReadonlySet<string> }) =>
+  actor.kind === 'user' && COST_PERMISSIONS.some(name => actor.permissions?.has(name))
+
+/**
+ * Field options for any column that carries cost or margin. Hiding the value is not enough: a
+ * filter or sort on a hidden field still answers "is it below N?", so a binary search recovers it.
+ * Read, filter and order all follow the one rule.
+ */
+const costRule = ({ session }: { session?: Session | null }) => canReadCost(session)
+export const costOnly = { access: { read: costRule }, isFilterable: costRule, isOrderable: costRule }
 
 const COSTLY = /cost|margin/i
 
@@ -25,7 +42,7 @@ export function withoutCost(value: unknown): unknown {
  * This is the one read path for GraphQL, the dashboard and MCP queryData.
  */
 export const costGuardedJson = (config: Parameters<typeof json>[0] = {}) => (meta: any) => {
-  const base = (json(config as never) as any)(meta)
+  const base = (json({ ...config, isFilterable: false, isOrderable: false } as never) as any)(meta)
   return {
     ...base,
     output: graphql.field({

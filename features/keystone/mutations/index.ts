@@ -9,6 +9,7 @@ import * as approvals from './approvals'
 import * as policy from './policy'
 import { phase1Resolvers, phase1TypeDefs } from './phase1'
 import { phase2Resolvers, phase2TypeDefs } from './phase2'
+import { agentBindingResolvers, agentBindingTypeDefs } from './agentBinding'
 import '../lib/companyControls'
 import '../services/salesAppliers'
 
@@ -56,5 +57,5 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       },
     },
   })
-  return mergeSchemas({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs], resolvers: [phase1Resolvers, phase2Resolvers] })
+  return mergeSchemas({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, agentBindingResolvers] })
 }

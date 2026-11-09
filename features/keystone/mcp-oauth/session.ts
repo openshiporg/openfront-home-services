@@ -9,12 +9,15 @@
  *
  * Plain module: safe to import from keystone.ts (no @/ imports).
  */
+import { agentUserId } from './agentSession'
 import { bearerToken, digestToken, isMcpAccessToken, storedScopes, type McpScope } from './core'
 
 export type McpSessionMarker = {
   clientId: string
   scopes: McpScope[]
   tokenId: string
+  /** Set when the app is bound to an AI agent: the session is the agent's, not the approver's. */
+  agentId?: string
 }
 
 type Strategy = { get: (args: { context: any }) => Promise<any> }
@@ -41,6 +44,13 @@ export async function resolveMcpAccessToken(context: any, token: string, listKey
       clientId: record.clientId,
       scopes: storedScopes(record.scopes),
       tokenId: String(record.id),
+    }
+    // An app bound to an agent never acts as the person who approved it. A stopped or paused agent gets no session at all.
+    const agent = await sudo.db.AgentIdentity.findMany({ where: { oauthApp: { id: { equals: app.id } } }, take: 1 })
+    if (agent[0]) {
+      if (agent[0].status !== 'active' || agent[0].killSwitch) return undefined
+      mcp.agentId = String(agent[0].id)
+      return { itemId: agentUserId(String(agent[0].id)), listKey, mcp, agent: { id: String(agent[0].id) } }
     }
     return { itemId: String(record.userId), listKey, mcp }
   } catch {

@@ -5,7 +5,7 @@ import { choice, fixedChoice, lifecycle, minor, qty, rate, readOnly, systemText,
 import { governed, managed } from './listAccess'
 import { jobFilter, OFFICE_READ } from './scope'
 import { trackingFields } from './trackingFields'
-import { costGuardedJson } from './costHidden'
+import { canReadCost, costGuardedJson, costOnly } from './costHidden'
 
 /*
  * Price book, estimates and cancellation rights (SCHEMA §7, SM§5-6, I-E1..I-E6). Every write goes
@@ -29,7 +29,7 @@ const has = (session: Session | undefined, names: Permission[]) => names.some(na
 
 /** Price-book readers: office staff, sellers and the people who maintain or approve it. */
 /** Internal cost (and so margin) is for whoever sets prices; technicians, CSRs and agent sessions never read it. */
-const costRead = ({ session }: Args) => isSignedIn({ session }) && has(session, ['canManagePriceBook', 'canApprovePriceBook', 'canApproveDiscounts'])
+const costRead = ({ session }: Args) => canReadCost(session)
 const PRICEBOOK_READ: Permission[] = [...OFFICE_READ, 'canManagePriceBook', 'canApprovePriceBook', 'canPresentEstimates', 'canSellEstimates', 'canWorkVisits']
 
 /** Sales readers: office staff and price-book/discount approvers see every estimate. */
@@ -174,7 +174,7 @@ export const PriceBookItem = list({
     pricingMethod: fixedChoice(['fixed', 'formula'], 'fixed'),
     unitPriceMinor: minor({ defaultValue: 0n }),
     memberUnitPriceMinor: minor(),
-    costMinor: minor({ defaultValue: 0n, access: { read: costRead } }),
+    costMinor: minor({ defaultValue: 0n, ...costOnly }),
     laborHours: qty({ ...readOnly }),
     uom: systemText({ required: true }),
     taxCategory: fixedChoice(TAX_CATEGORIES, 'labor'),
@@ -329,7 +329,7 @@ export const EstimateLine = list({
     amountMinor: minor({ defaultValue: 0n }),
     discountMinor: minor({ defaultValue: 0n }),
     memberPriced: checkbox({ defaultValue: false, ...readOnly }),
-    costMinor: minor({ defaultValue: 0n, access: { read: costRead } }),
+    costMinor: minor({ defaultValue: 0n, ...costOnly }),
     taxCategory: fixedChoice(TAX_CATEGORIES, 'labor'),
     trade: fixedChoice(TRADE_OR_GENERAL, 'general'),
     cancellationClass: fixedChoice(CANCELLATION_CLASSES, 'requested_repair'),

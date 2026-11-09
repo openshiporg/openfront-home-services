@@ -324,6 +324,33 @@ describe.skipIf(!hasTestDatabase)('Phase 2: price book, estimates and cancellati
       expect(shown.status).toBe('presented')
     })
 
+    it('a changed price voids the discount approval: presenting is refused until it is approved again, and the database refuses a forced presentation', { timeout: 120_000 }, async () => {
+      const h = HOUSEHOLDS[33]
+      const est = await createEstimate(prisma, advisor, { customerId: h.id, locationId: h.location.id, businessUnitId: 'seed_bu_hvac_service', title: 'Blower 2', options: [{ tier: 'single', name: 'Fix', lines: [{ itemKey: 'HVAC-BLOWER-ECM', quantity: '1' }] }], idempotencyKey: uniqueKey('e') })
+      const big = await setEstimateDiscount(prisma, advisor, { versionId: est.versionId, discountBps: 1500, reason: 'Matching a competitor quote', expectedVersion: await versionOf(est.versionId), idempotencyKey: uniqueKey('d') })
+      const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: big.approvalRequestId! } })
+      expect(req.payload).toMatchObject({ discountBps: 1500, discountMinor: '20925' })
+      expect(String((req.payload as { bindingHash?: string }).bindingHash)).toMatch(/^[0-9a-f]{64}$/)
+      await decideApprovalAs(prisma, serviceManager, { requestId: req.id, decision: 'approve', expectedVersion: req.version, idempotencyKey: uniqueKey('a') })
+      const approved = await prisma.estimateVersion.findUniqueOrThrow({ where: { id: est.versionId } })
+      expect(approved.discountApprovalId).toBe(req.id)
+      // The advisor now adds a second unit: the approved amount no longer matches the price.
+      const option = await prisma.estimateOption.findFirstOrThrow({ where: { estimateVersionId: est.versionId } })
+      const changed = await saveEstimateOption(prisma, advisor, { versionId: est.versionId, optionId: option.id, tier: 'single', name: 'Fix', lines: [{ itemKey: 'HVAC-BLOWER-ECM', quantity: '2' }], expectedVersion: approved.version, idempotencyKey: uniqueKey('o') })
+      expect(JSON.stringify(changed)).not.toMatch(/margin|cost/i)
+      expect((await prisma.estimateVersion.findUniqueOrThrow({ where: { id: est.versionId } })).discountApprovalId).toBeNull()
+      expect(await reason(presentEstimate(prisma, advisor, { versionId: est.versionId, expectedVersion: changed.version, idempotencyKey: uniqueKey('p') }))).toBe('discount_over_limit')
+      // Forcing the status in SQL cannot get around it either: the trigger checks the approval and the amount.
+      await expect(prisma.$executeRawUnsafe(`UPDATE "EstimateVersion" SET status = 'presented', "contentHash" = repeat('a', 64), "presentedAt" = now(), snapshot = '{}'::jsonb WHERE id = '${est.versionId}'`)).rejects.toThrow(/needs an approved request/)
+      // A fresh request covers the new amount, and then it presents.
+      const again = await setEstimateDiscount(prisma, advisor, { versionId: est.versionId, discountBps: 1500, reason: 'Matching a competitor quote', expectedVersion: changed.version, idempotencyKey: uniqueKey('d') })
+      const req2 = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: again.approvalRequestId! } })
+      expect(req2.payload).toMatchObject({ discountMinor: '41850' })
+      await decideApprovalAs(prisma, serviceManager, { requestId: req2.id, decision: 'approve', expectedVersion: req2.version, idempotencyKey: uniqueKey('a') })
+      const back = await prisma.estimateVersion.findUniqueOrThrow({ where: { id: est.versionId } })
+      expect((await presentEstimate(prisma, advisor, { versionId: est.versionId, expectedVersion: back.version, idempotencyKey: uniqueKey('p') })).status).toBe('presented')
+    })
+
     it('decline, follow-up draft by an agent, discard, and expiry', { timeout: 120_000 }, async () => {
       const h = HOUSEHOLDS[32]
       const est = await createEstimate(prisma, advisor, { customerId: h.id, locationId: h.location.id, businessUnitId: 'seed_bu_electrical', title: 'Panel', options: [{ tier: 'good', name: 'Good', lines: [{ itemKey: 'PANEL-200A-GOOD', quantity: '1' }] }], idempotencyKey: uniqueKey('e') })

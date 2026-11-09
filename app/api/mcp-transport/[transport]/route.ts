@@ -17,6 +17,7 @@ import { keystoneContext } from '@/features/keystone/context';
 import { authorizeMcpRequest } from '@/features/keystone/mcp-oauth/http';
 import { internalGraphqlEndpoint } from '@/features/keystone/lib/internal-origin';
 import { DOMAIN_TOOLS, runDomainTool } from '@/features/keystone/mcp/registry';
+import { parseOperation, parseSelection, SelectionError } from '@/features/keystone/mcp/safeSelection';
 
 // Get simple type name for display
 function getSimpleTypeName(type: any): string {
@@ -295,16 +296,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ tra
         }
         
         if (name === 'queryData') {
-          const { operation, fields } = args;
-          
-          // Build a simple GraphQL query
-          const queryString = `
-            query ${operation.charAt(0).toUpperCase() + operation.slice(1)} {
-              ${operation} {
-                ${fields}
-              }
-            }
-          `.trim();
+          // Rebuilt from a parsed selection: nothing the caller types can alter the operation's shape.
+          let operation: string, fields: string;
+          try { operation = parseOperation(args.operation); fields = parseSelection(args.fields); } catch (error) {
+            return new Response(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { isError: true, content: [{ type: 'text', text: error instanceof SelectionError ? error.message : 'Invalid query' }] } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+          const rootField = schema.getQueryType()?.getFields()[operation];
+          if (!rootField) {
+            return new Response(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { isError: true, content: [{ type: 'text', text: `Unknown query "${operation}"` }] } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+          const queryString = `query ${operation.charAt(0).toUpperCase() + operation.slice(1)} { ${operation} { ${fields} } }`;
           
           // Execute the query
           const result = await executeGraphQL(queryString, graphqlEndpoint, auth);
@@ -546,7 +547,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ tra
         }
         
         if (name === 'modelSpecificSearch') {
-          const { modelName, searchQuery, fields, limit = 10 } = args;
+          const { modelName, searchQuery } = args;
+          const limit = Math.min(Math.max(Number.isInteger(args.limit) ? args.limit : 10, 1), 100);
+          let fields: string;
+          try { fields = parseSelection(args.fields); } catch (error) {
+            return new Response(JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { isError: true, content: [{ type: 'text', text: error instanceof SelectionError ? error.message : 'Invalid fields' }] } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
           
           // Get all types from schema to find the correct model
           const typeMap = schema.getTypeMap();
@@ -646,7 +652,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tra
           
           // Add ID search (exact match) - ID should always exist
           if (searchTerm && availableFields.includes('id')) {
-            searchConditions.push(`{ id: { equals: "${searchTerm}" } }`);
+            searchConditions.push(`{ id: { equals: ${JSON.stringify(searchTerm)} } }`);
           }
           
           // Add text field search (case-insensitive contains) for fields that exist
@@ -654,7 +660,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tra
           const validSearchFields = commonSearchFields.filter(field => availableFields.includes(field));
           
           for (const fieldName of validSearchFields) {
-            searchConditions.push(`{ ${fieldName}: { contains: "${searchTerm}", mode: insensitive } }`);
+            searchConditions.push(`{ ${fieldName}: { contains: ${JSON.stringify(searchTerm)}, mode: insensitive } }`);
           }
           
           // Build the GraphQL query manually to avoid JSON.stringify issues with enums

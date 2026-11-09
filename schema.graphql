@@ -11320,9 +11320,11 @@ type Mutation {
   declineChangeOrder(changeOrderId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
   deliverCancellationNotice(noticeId: ID!, method: String!, acknowledgedBy: String!, signature: JSON, messageId: ID, expectedVersion: Int!, idempotencyKey: String!): JSON
   waiveCancellationNotice(noticeId: ID!, waiver: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
-  recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, amountPaidMinor: String, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
   markCancellationRefunded(noticeId: ID!, evidence: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
   requestCancellationHoldOverride(noticeId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  bindAgentApp(agentId: ID!, oauthAppId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  unbindAgentApp(agentId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
 }
 
 union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
@@ -11661,6 +11663,7 @@ type Query {
   quotePriceBook(lines: JSON!, businessUnitId: ID, memberPricing: Boolean, discountBps: Int): JSON
   priceBookVersionReview(versionId: ID!): JSON
   estimateSummary(estimateId: ID!): JSON
+  agentBindings: JSON
 }
 
 union AuthenticatedItem = User

@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "migrate:gen": "keystone build --no-ui && tsx features/keystone/view-order/generate-view-order.ts && keystone prisma migrate dev",
     "migrate": "prisma migrate deploy",
+    "start:live": "npm run migrate && npm run policies:ensure && sh scripts/start-live.sh",
     "seed": "tsx scripts/seed.ts",
     "policies:ensure": "tsx scripts/ensure-policies.ts",
     "worker": "tsx scripts/worker.ts",

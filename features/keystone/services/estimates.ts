@@ -121,6 +121,28 @@ async function recomputeOption(uow: UnitOfWork, optionId: string, discountBps: n
   return { optionId, subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor, estimatedTaxMinor: taxed.taxMinor, totalMinor, marginBps: totals.marginBps, contentHash }
 }
 
+/**
+ * What a discount approval is bound to: the discount percentage, the discount in money, and the
+ * priced content it was computed on (every option's lines and totals). Tax is left out: it is
+ * re-estimated at presenting time under today's policy and is not part of what the approver weighed.
+ */
+export async function discountBinding(tx: Tx, versionId: string, discountBps: number) {
+  const options = await tx.estimateOption.findMany({ where: { estimateVersionId: versionId }, orderBy: { id: 'asc' }, include: { lines: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } } })
+  const discountMinor = options.reduce((m, o) => (o.discountMinor > m ? o.discountMinor : m), 0n)
+  const bindingHash = payloadHash({
+    discountBps,
+    options: options.map(o => ({ id: o.id, tier: o.tier, subtotal: o.subtotalMinor.toString(), discount: o.discountMinor.toString(), lines: o.lines.map(l => [l.itemKey, l.quantity.toString(), l.unitPriceMinor.toString(), l.amountMinor.toString(), l.discountMinor.toString()]) })),
+  })
+  return { discountMinor: discountMinor.toString(), bindingHash }
+}
+
+/** Any price or content change on a draft detaches its discount approval: presenting needs a fresh one. */
+async function voidDiscountApproval(uow: UnitOfWork, actor: Actor, row: { id: string; discountApproval: string | null; discountBps: number }, why: string) {
+  if (!row.discountApproval) return
+  await uow.tx.estimateVersion.update({ where: { id: row.id }, data: { discountApprovalId: null } })
+  uow.audit({ eventType: 'estimate_version.discount_approval_voided', entityType: 'EstimateVersion', entityId: row.id, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), reason: why, before: { approvalId: row.discountApproval, discountBps: row.discountBps }, after: { approvalId: null }, metadata: {} })
+}
+
 // ── Create and build ──────────────────────────────────────────────────────────
 
 export type OptionLineInput = QuoteRequestLine
@@ -253,8 +275,9 @@ export async function saveEstimateOption(db: Db, actor: Actor, args: OptionInput
     const count = await uow.tx.estimateOption.count({ where: { estimateVersionId: row.id } })
     if (!args.optionId && count >= 6) throw new DomainError(Codes.INVALID_INPUT, 'An estimate shows at most six options.', { field: 'optionId' })
     const option = await writeOption(uow, est, row, args, await taxContext(uow.tx, est, uow.now), count)
+    await voidDiscountApproval(uow, actor, row, 'Option changed after the discount was approved')
     const version = await casUpdate(uow, { model: 'EstimateVersion', id: row.id, version: row.version, from: ['draft'], to: 'draft', actor, eventType: 'estimate_version.option_saved', audit: { optionId: option.optionId, tier: args.tier, name: args.name, lines: args.lines.length, totalMinor: option.totalMinor.toString() } })
-    return { versionId: row.id, version, optionId: option.optionId, totalMinor: option.totalMinor.toString(), subtotalMinor: option.subtotalMinor.toString(), discountMinor: option.discountMinor.toString(), estimatedTaxMinor: option.estimatedTaxMinor.toString(), ...(actor.kind === 'user' ? { marginBps: option.marginBps } : {}) }
+    return { versionId: row.id, version, optionId: option.optionId, totalMinor: option.totalMinor.toString(), subtotalMinor: option.subtotalMinor.toString(), discountMinor: option.discountMinor.toString(), estimatedTaxMinor: option.estimatedTaxMinor.toString() }
   })
   return { replay: result.replay, ...result.value }
 }
@@ -270,6 +293,7 @@ export async function removeEstimateOption(db: Db, actor: Actor, args: { version
     if (!option) throw new DomainError(Codes.NOT_FOUND, 'That option is not on this estimate version.')
     await uow.tx.estimateLine.deleteMany({ where: { optionId: option.id } })
     await uow.tx.estimateOption.delete({ where: { id: option.id } })
+    await voidDiscountApproval(uow, actor, row, 'Option removed after the discount was approved')
     const version = await casUpdate(uow, { model: 'EstimateVersion', id: row.id, version: row.version, from: ['draft'], to: 'draft', actor, eventType: 'estimate_version.option_removed', audit: { optionId: option.id } })
     return { versionId: row.id, version }
   })
@@ -286,6 +310,7 @@ export async function repriceEstimateVersion(db: Db, actor: Actor, args: { versi
     const est = await loadEstimate(uow.tx, row.estimate)
     await assertEstimateAccess(uow.tx, actor, est)
     const repriced = await requoteOptionsInto(uow, est, row.id, { ...row, priceBookVersion: null })
+    await voidDiscountApproval(uow, actor, row, 'Re-priced after the discount was approved')
     const version = await casUpdate(uow, { model: 'EstimateVersion', id: row.id, version: row.version, from: ['draft'], to: 'draft', actor, eventType: 'estimate_version.repriced', audit: { from: row.priceBookVersion, options: repriced } })
     return { versionId: row.id, version, options: repriced }
   })
@@ -339,7 +364,7 @@ export async function setEstimateDiscount(db: Db, actor: Actor, args: { versionI
     }
     const approval = await requestApproval(uow, actor, {
       action: 'estimate.discount', targetList: 'EstimateVersion', targetId: row.id, requiredPermission: 'canApproveDiscounts',
-      payload: { versionId: row.id, discountBps: args.discountBps, options: totals.map(t => ({ optionId: t.optionId, contentHash: t.contentHash })) },
+      payload: { versionId: row.id, discountBps: args.discountBps, ...(await discountBinding(tx, row.id, args.discountBps)), options: totals.map(t => ({ optionId: t.optionId, contentHash: t.contentHash })) },
       summary: `${est.ref}: ${args.discountBps / 100}% discount (limit ${limit / 100}%) — ${args.reason?.trim()}`,
     })
     const version = await casUpdate(uow, { model: 'EstimateVersion', id: row.id, version: row.version, from: ['draft'], to: 'pending_approval', actor, eventType: 'estimate_version.discount_requested', reason: args.reason ?? null, data: { discountApprovalId: approval.id }, audit: { discountBps: args.discountBps, limitBps: limit, approvalId: approval.id } })
@@ -401,12 +426,21 @@ export async function presentEstimate(db: Db, actor: Actor, args: { versionId: s
     const limit = await discountLimitBps(tx, actor)
     if (row.discountBps > limit) {
       const approval = row.discountApproval ? await tx.approvalRequest.findUnique({ where: { id: row.discountApproval }, select: { status: true, payload: true } }) : null
-      const ok = approval && ['approved'].includes(approval.status) && (approval.payload as { discountBps?: number } | null)?.discountBps === row.discountBps
+      const ok = approval && approval.status === 'approved' && (approval.payload as { discountBps?: number } | null)?.discountBps === row.discountBps
       if (!ok) throw new DomainError(Codes.APPROVAL_REQUIRED, `A ${row.discountBps / 100}% discount is over your ${limit / 100}% limit and needs approval.`, { reason: 'discount_over_limit' })
     }
     // Totals are re-derived now so the frozen figures can't drift from the lines (and tax uses today's policy).
     const tax = await taxContext(tx, est, uow.now)
     for (const o of options) await recomputeOption(uow, o.id, row.discountBps, tax)
+    // The approval covers this discount amount on this priced content, not just the percentage.
+    if (row.discountBps > limit) {
+      const approval = await tx.approvalRequest.findUnique({ where: { id: row.discountApproval! }, select: { payload: true } })
+      const bound = approval?.payload as { discountMinor?: string; bindingHash?: string } | null
+      const now = await discountBinding(tx, row.id, row.discountBps)
+      if (!bound?.bindingHash || bound.bindingHash !== now.bindingHash || bound.discountMinor !== now.discountMinor) {
+        throw new DomainError(Codes.APPROVAL_REQUIRED, 'The price or discount changed after it was approved. Request approval again.', { reason: 'discount_approval_stale' })
+      }
+    }
     const fresh = await tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, orderBy: { sortOrder: 'asc' }, include: { lines: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } } })
     const trades = new Set(fresh.flatMap(o => o.lines.map(l => l.trade)))
     const { company, block } = await sellerBlock(tx, est.businessUnitId, placeOfLocation(est.location).state, trades)

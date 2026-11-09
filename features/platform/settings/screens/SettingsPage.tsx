@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { q } from '../../lib/server';
 import { money, bpsPercent, label, dateText, actionText, permissionText } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Stat, Status } from '../../components/ui';
+import { ActionButton } from '../../components/ActionButton';
+import { CommandForm } from '../../components/CommandForm';
+
+type Bindings = { agents: { id: string; name: string; kind: string; status: string; killSwitch: boolean; version: number; owner: string | null; app: { id: string; name: string; clientId: string; status: string } | null; grants: number }[]; apps: { id: string; name: string; clientId: string; status: string; boundTo: string | null }[] } | null;
 
 type Company = {
   legalName: string; displayName: string; homeTimeZone: string; currencyCode: string; estimateValidityDays: number; recallWindowDays: number;
@@ -28,6 +32,7 @@ export default async function SettingsPage() {
     businessCalendars { id code name kind timeZone coverageThrough exceptionsCount }
     approvalPolicies(orderBy: { action: asc }) { id action description requiredPermission thresholdMinor expiresAfterMinutes }
   }`);
+  const bindings = await q<{ agentBindings: Bindings }>(`{ agentBindings }`).then(r => r.agentBindings).catch(() => null);
   const c = d.companySettings;
   return (
     <Page title="Settings">
@@ -84,6 +89,25 @@ export default async function SettingsPage() {
           </Row>
         )) : <Empty>No calendars yet.</Empty>}
       </Section>
+
+      {bindings ? (
+        <Section title="AI agents and connected apps">
+          {bindings.agents.map(a => (
+            <Row key={a.id}>
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{a.name}</span><Status value={a.killSwitch ? 'halted' : a.status} /></div>
+                <Meta>{a.app ? `Connected through ${a.app.name}` : 'Not connected to an app'} · {a.grants} active tool grants · acts with its own AI Agent role, never its owner's{a.owner ? ` (owner ${a.owner})` : ''}</Meta>
+                {!a.app ? (
+                  <CommandForm op="bindAgentApp" submit="Connect" paths={['/dashboard/platform/settings']} fixed={{ agentId: a.id, expectedVersion: a.version }}
+                    fields={[{ name: 'oauthAppId', label: 'App', kind: 'select', required: true, width: 'lg', options: [{ value: '', label: 'Choose an app…' }, ...bindings.apps.filter(x => !x.boundTo).map(x => ({ value: x.id, label: `${x.name} (${x.status})` }))] }]} />
+                ) : null}
+              </div>
+              {a.app ? <ActionButton op="unbindAgentApp" vars={{ agentId: a.id, expectedVersion: a.version }} paths={['/dashboard/platform/settings']} confirm={`Disconnect ${a.name} from ${a.app.name}?`}>Disconnect</ActionButton> : null}
+            </Row>
+          ))}
+          {!bindings.agents.length ? <Empty>No AI agents yet.</Empty> : null}
+        </Section>
+      ) : null}
 
       <Section title="Approval policies" aside={<Link href="/dashboard/platform/approvals" className="text-xs underline">Approvals</Link>}>
         {d.approvalPolicies.length ? d.approvalPolicies.map(p => (

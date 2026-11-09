@@ -10,6 +10,8 @@ import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
 const OPS: Record<string, Record<string, string>> = {
   decideApprovalRequest: { requestId: 'ID!', decision: 'String!', reason: 'String', expectedVersion: 'Int!' },
   cancelApprovalRequest: { requestId: 'ID!', expectedVersion: 'Int!', reason: 'String' },
+  bindAgentApp: { agentId: 'ID!', oauthAppId: 'ID!', expectedVersion: 'Int!' },
+  unbindAgentApp: { agentId: 'ID!', expectedVersion: 'Int!' },
   requestCompanyControls: { changes: 'JSON!', reason: 'String!' },
   setCompanyOnboardingStatus: { status: 'String!', expectedVersion: 'Int!' },
   // Phase 1: booking, CRM, leads, dispatch, field
