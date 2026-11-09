@@ -4,9 +4,12 @@ import { label, money, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat, Tabs } from '../../components/ui';
 import { CommandForm } from '../../components/CommandForm';
 
-type Version = { id: string; versionNumber: number; label: string; status: string; source: string; effectiveAt: string | null; publishedAt: string | null; submittedAt: string | null; itemsCount: number; publishedBy: { name: string } | null; submittedBy: { name: string } | null };
+type Version = { id: string; versionNumber: number; label: string; status: string; source: string; effectiveAt: string | null; publishedAt: string | null; submittedAt: string | null; itemsCount: number; publishedBy: { name: string } | null; submittedBy: { name: string } | null; approval: { status: string } | null };
 type Book = { id: string; name: string; code: string; activeVersion: { id: string; versionNumber: number; label: string } | null; versions: Version[] };
 type Item = { id: string; itemKey: string; name: string; kind: string; trade: string; uom: string; tier: string; ladderKey: string; unitPriceMinor: string; memberUnitPriceMinor: string | null; pricingMethod: string; cancellationClassDefault: string; costMinor?: string };
+
+/** A version still waiting on its maker after a rejection shows as Rejected, not as waiting. */
+const stateOf = (v: { status: string; approval: { status: string } | null }) => (v.status === 'pending_approval' && v.approval?.status === 'rejected' ? 'rejected' : v.status);
 
 const KINDS = ['all', 'service_task', 'material', 'equipment', 'fee'];
 
@@ -28,7 +31,7 @@ export default async function PriceBookPage({ searchParams }: { searchParams?: P
     q<{ priceBooks: Book[] }>(`{
       priceBooks(take: 5) {
         id name code activeVersion { id versionNumber label }
-        versions(orderBy: [{ versionNumber: desc }]) { id versionNumber label status source effectiveAt publishedAt submittedAt itemsCount publishedBy { name } submittedBy { name } }
+        versions(orderBy: [{ versionNumber: desc }]) { id versionNumber label status source effectiveAt publishedAt submittedAt itemsCount publishedBy { name } submittedBy { name } approval { status } }
       }
     }`),
     companyTimeZone(),
@@ -54,7 +57,7 @@ export default async function PriceBookPage({ searchParams }: { searchParams?: P
             <Stat name="Book" value={book.name} />
             <Stat name="Active version" value={book.activeVersion ? `v${book.activeVersion.versionNumber}` : '—'} />
             <Stat name="Items" value={book.versions.find(v => v.id === activeId)?.itemsCount ?? 0} />
-            <Stat name="Open draft" value={open ? <Link className="underline" href={`/dashboard/platform/pricebook/versions/${open.id}`}>v{open.versionNumber} <Status value={open.status} /></Link> : 'None'} />
+            <Stat name="Open draft" value={open ? <Link className="underline" href={`/dashboard/platform/pricebook/versions/${open.id}`}>v{open.versionNumber} <Status value={stateOf(open)} /></Link> : 'None'} />
           </div>
           <Section title="Versions">
             {book.versions.map(v => (
@@ -63,7 +66,7 @@ export default async function PriceBookPage({ searchParams }: { searchParams?: P
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="shrink-0 font-mono text-xs text-muted-foreground">v{v.versionNumber}</span>
                     <span className="min-w-0 break-words font-medium">{v.label || 'Untitled version'}</span>
-                    <Status value={v.status} className="shrink-0" />
+                    <Status value={stateOf(v)} className="shrink-0" />
                   </div>
                   <Meta>
                     {v.itemsCount} items · {SOURCE[v.source] ?? label(v.source)}

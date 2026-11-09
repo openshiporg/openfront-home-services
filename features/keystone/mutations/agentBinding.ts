@@ -23,6 +23,14 @@ export const agentBindingTypeDefs = graphql`
   }
 `
 
+/** Revoke every live token (access, refresh, unused code) of an OAuth app. */
+async function revokeAppTokens(tx: any, appId: string): Promise<number> {
+  const app = await tx.oAuthApp.findUnique({ where: { id: appId }, select: { clientId: true } })
+  if (!app) return 0
+  const result = await tx.oAuthToken.updateMany({ where: { clientId: app.clientId, isRevoked: 'false' }, data: { isRevoked: 'true' } })
+  return result.count
+}
+
 type Ctx = { session: unknown; prisma: any }
 
 export const agentBindingResolvers = {
@@ -59,7 +67,10 @@ export const agentBindingResolvers = {
         else await tx.user.create({ data: { id: userId, name: `${agent.name} (agent)`, email: `agent-${agent.id}@agents.invalid`, password: UNUSABLE_PASSWORD_HASH, kind: 'staff', roleId: AGENT_ROLE_ID, title: 'AI agent', onboardingStatus: 'dismissed' } })
         const updated = await tx.agentIdentity.updateMany({ where: { id: agent.id, version: agent.version }, data: { oauthAppId: app.id, version: { increment: 1 } } })
         if (updated.count !== 1) throw new DomainError(Codes.STALE_STATE, 'The agent changed since you loaded it. Reload and try again.')
-        auditCreate(uow, actor, 'AgentIdentity', agent.id, 'agent.app_bound', { agentId: agent.id, oauthAppId: app.id, previousAppId: agent.oauthAppId, role: AGENT_ROLE_ID, boundBy: actorUserId(actor) })
+        // Whatever tokens the app had were issued to someone else (or to nobody): none may act as this agent.
+        let revoked = await revokeAppTokens(tx, app.id)
+        if (agent.oauthAppId && agent.oauthAppId !== app.id) revoked += await revokeAppTokens(tx, agent.oauthAppId)
+        auditCreate(uow, actor, 'AgentIdentity', agent.id, 'agent.app_bound', { revokedTokens: revoked, agentId: agent.id, oauthAppId: app.id, previousAppId: agent.oauthAppId, role: AGENT_ROLE_ID, boundBy: actorUserId(actor) })
         return { agentId: agent.id, oauthAppId: app.id, version: agent.version + 1 }
       })
       return { replay: result.replay, ...result.value }
@@ -74,7 +85,9 @@ export const agentBindingResolvers = {
         if (agent.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, 'The agent changed since you loaded it. Reload and try again.', { currentVersion: agent.version })
         const updated = await tx.agentIdentity.updateMany({ where: { id: agent.id, version: agent.version }, data: { oauthAppId: null, version: { increment: 1 } } })
         if (updated.count !== 1) throw new DomainError(Codes.STALE_STATE, 'The agent changed since you loaded it. Reload and try again.')
-        auditCreate(uow, actor, 'AgentIdentity', agent.id, 'agent.app_unbound', { agentId: agent.id, previousAppId: agent.oauthAppId })
+        // Disconnecting ends the app's access at once: every token it holds is revoked in this same transaction.
+        const revoked = agent.oauthAppId ? await revokeAppTokens(tx, agent.oauthAppId) : 0
+        auditCreate(uow, actor, 'AgentIdentity', agent.id, 'agent.app_unbound', { revokedTokens: revoked, agentId: agent.id, previousAppId: agent.oauthAppId })
         return { agentId: agent.id, version: agent.version + 1 }
       })
       return { replay: result.replay, ...result.value }

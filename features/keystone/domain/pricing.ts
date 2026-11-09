@@ -1,4 +1,4 @@
-import { payloadHash } from '../lib/canonical'
+import { keyedPayloadHash, payloadHash } from '../lib/canonical'
 import { dec, Decimal, plain, type DecimalInput } from '../lib/decimal'
 import { allocateMinor, bpsOf, extendLine, ratioBps, roundMinor } from '../lib/money'
 
@@ -247,11 +247,15 @@ export function optionTotals(lines: { amountMinor: bigint; costMinor: bigint }[]
 }
 
 /** The quote hash a voice or chat agent must match before it speaks a price (I§ runtime guardrails). */
-export const quoteHash = (versionId: string, lines: LineSnapshot[], discountBps = 0) => payloadHash({ versionId, discountBps, lines })
+/**
+ * The lines carry the internal unit cost, so the hash is keyed with a server secret: a reader who
+ * holds the hash and every other field still can't recover the cost by trying numbers.
+ */
+export const quoteHash = (versionId: string, lines: LineSnapshot[], discountBps = 0) => keyedPayloadHash({ versionId, discountBps, lines })
 
 /** Hash of an option as presented: what an Authorization binds to (I-E4). */
 export const optionHash = (option: { tier: string; name: string; subtotalMinor: bigint; discountMinor: bigint; totalMinor: bigint; lines: (LineSnapshot & { id: string; amountMinor: bigint; discountMinor: bigint })[] }) =>
-  payloadHash({ tier: option.tier, name: option.name, subtotalMinor: option.subtotalMinor, discountMinor: option.discountMinor, totalMinor: option.totalMinor, lines: option.lines.map(l => ({ ...l })) })
+  keyedPayloadHash({ tier: option.tier, name: option.name, subtotalMinor: option.subtotalMinor, discountMinor: option.discountMinor, totalMinor: option.totalMinor, lines: option.lines.map(l => ({ ...l })) })
 
 /** Deposit cap from the home-improvement contract pack: the lower of a percentage and an amount, when set. */
 export function depositCap(totalMinor: bigint, rules: { depositCapPct: string | null; depositCapMinor: string | null }): bigint | null {

@@ -27,7 +27,7 @@ type Notice = { id: string; ref: string; rule: string; status: string; cancelBy:
 const PATH = (id: string) => `/dashboard/platform/estimates/${id}`;
 const VERSION = `id versionNumber label status version discountBps discountReason notes presentedAt presentedVia validUntil contentHash soldAt declineReason declineNote depositRequiredMinor
   presentedBy { name } priceBookVersion { id versionNumber } discountApproval { status } soldOption { id name } pdf { id }
-  options(orderBy: [{ sortOrder: asc }]) { id tier name description subtotalMinor discountMinor estimatedTaxMinor totalMinor contentHash
+  options(orderBy: [{ sortOrder: asc }]) { id tier name description subtotalMinor discountMinor estimatedTaxMinor totalMinor
     lines(orderBy: [{ sortOrder: asc }]) { id itemKey description quantity uom unitPriceMinor amountMinor discountMinor cancellationClass isAddOn } }`;
 
 /**

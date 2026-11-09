@@ -45,12 +45,20 @@ export async function resolveMcpAccessToken(context: any, token: string, listKey
       scopes: storedScopes(record.scopes),
       tokenId: String(record.id),
     }
-    // An app bound to an agent never acts as the person who approved it. A stopped or paused agent gets no session at all.
-    const agent = await sudo.db.AgentIdentity.findMany({ where: { oauthApp: { id: { equals: app.id } } }, take: 1 })
-    if (agent[0]) {
-      if (agent[0].status !== 'active' || agent[0].killSwitch) return undefined
-      mcp.agentId = String(agent[0].id)
-      return { itemId: agentUserId(String(agent[0].id)), listKey, mcp, agent: { id: String(agent[0].id) } }
+    // Who may this token act as?
+    //  - issued to an agent (record.agentId): only as that agent, and only while that agent is still bound
+    //    to this app and active. Unbinding, rebinding to another agent, pausing or a kill switch end it.
+    //    It never falls back to the person who approved the connection.
+    //  - issued to a person's own connection: as that person, unless the app has since been bound to an
+    //    agent (then it is refused; binding also revokes the tokens that existed).
+    const bound = await sudo.db.AgentIdentity.findMany({ where: { oauthApp: { id: { equals: app.id } } }, take: 1 })
+    const agent = bound[0]
+    const issuedTo = String(record.agentId ?? '')
+    if (issuedTo || agent) {
+      if (!agent || !issuedTo || String(agent.id) !== issuedTo) return undefined
+      if (agent.status !== 'active' || agent.killSwitch) return undefined
+      mcp.agentId = String(agent.id)
+      return { itemId: agentUserId(String(agent.id)), listKey, mcp, agent: { id: String(agent.id) } }
     }
     return { itemId: String(record.userId), listKey, mcp }
   } catch {

@@ -4,6 +4,7 @@ import { permissions } from '../access'
 import { choice, lifecycle, minor, readOnly, systemText, versionField } from './domainFields'
 import { governed, immutable, managed, serverOnly } from './listAccess'
 import { trackingFields } from './trackingFields'
+import { costGuardedJson } from './costHidden'
 
 /*
  * Platform spine (SCHEMA §17, §16, §3.6, §6.8), shared with the other Openfront verticals. CalendarDay is
@@ -23,9 +24,9 @@ export const AuditEvent = list({
     actorAgent: relationship({ ref: 'AgentIdentity', ...readOnly }),
     approver: relationship({ ref: 'User', ...readOnly }),
     reason: systemText(),
-    before: json({ ...readOnly }),
-    after: json({ ...readOnly }),
-    metadata: json({ ...readOnly }),
+    before: costGuardedJson({ ...readOnly }),
+    after: costGuardedJson({ ...readOnly }),
+    metadata: costGuardedJson({ ...readOnly }),
     requestId: systemText(),
     prevHash: systemText({ required: true }),
     hash: systemText({ indexed: 'unique', required: true }),
@@ -209,7 +210,7 @@ export const ApprovalRequest = list({
     summary: systemText(),
     targetList: systemText({ required: true }),
     targetId: systemText({ indexed: true, required: true }),
-    payload: json({ ...readOnly }),
+    payload: costGuardedJson({ ...readOnly }),
     payloadHash: systemText({ required: true }),
     requiredPermission: systemText({ required: true }),
     requestedBy: relationship({ ref: 'User', ...readOnly }),

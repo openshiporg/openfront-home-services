@@ -365,6 +365,10 @@ export async function submitPriceBookVersion(db: Db, actor: Actor, args: { versi
     const book = await tx.priceBook.findUniqueOrThrow({ where: { id: version.priceBook! }, select: { activeVersionId: true, code: true } })
     const before = book.activeVersionId ? (await loadVersionContent(tx, book.activeVersionId)).items : []
     const diff = diffItems(before, content.items)
+    // A version that changes nothing has nothing to approve: it would only burn a version number.
+    if (before.length && !diff.added.length && !diff.removed.length && !diff.repriced.length && !diff.changed.length) {
+      throw new DomainError(Codes.GUARD_FAILED, 'This version has no changes from the active price book. Change a price or an item first, or discard the draft.', { reason: 'no_changes' })
+    }
     const contentHash = hashOf(content)
     const approval = await requestApproval(uow, actor, {
       action: 'pricebook.publish', targetList: 'PriceBookVersion', targetId: args.versionId,

@@ -4,7 +4,7 @@ import { requestApproval } from '../lib/approval'
 import { auditCreate, casUpdate } from '../lib/cas'
 import { command } from '../lib/command'
 import { addDays, localDate, zonedInstant } from '../lib/calendar'
-import { payloadHash } from '../lib/canonical'
+import { keyedPayloadHash, payloadHash } from '../lib/canonical'
 import type { Db, Tx } from '../lib/db'
 import { DomainError, Codes } from '../lib/errors'
 import { nextReference, publicCode } from '../lib/sequence'
@@ -749,7 +749,8 @@ export async function presentChangeOrder(db: Db, actor: Actor, args: { changeOrd
     const job = await uow.tx.job.findUniqueOrThrow({ where: { id: row.job }, select: { businessUnitId: true } })
     const active = await activeVersionFor(uow.tx, job.businessUnitId)
     if (row.lines.add.length && row.priceBookVersion !== active.versionId) throw new DomainError(Codes.GUARD_FAILED, 'A new price book is active since this change order was priced. Draft it again.', { reason: 'pricebook_changed' })
-    const contentHash = payloadHash({ changeOrderId: row.id, ref: row.ref, lines: row.lines, deltaMinor: row.deltaMinor.toString() })
+    // The lines hold internal unit costs, so this hash is keyed (see keyedPayloadHash).
+    const contentHash = keyedPayloadHash({ changeOrderId: row.id, ref: row.ref, lines: row.lines, deltaMinor: row.deltaMinor.toString() })
     const version = await casUpdate(uow, { model: 'ChangeOrder', id: row.id, version: row.version, from: ['draft'], to: 'presented', actor, eventType: 'change_order.presented', data: { contentHash, presentedAt: uow.now } })
     return { changeOrderId: row.id, version, status: 'presented', contentHash }
   })

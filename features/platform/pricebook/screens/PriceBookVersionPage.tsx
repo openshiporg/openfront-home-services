@@ -37,7 +37,7 @@ export default async function PriceBookVersionPage({ params }: { params: Promise
     q<{ priceBookVersion: Version | null; priceBookVersionReview: Review | null; auditEvents: { eventType: string; at: string; actorUser: { name: string } | null }[] }>(`
       query V($id: ID!, $entity: String!) {
         priceBookVersion(where: { id: $id }) {
-          id versionNumber label status source notes version contentHash effectiveAt submittedAt publishedAt activatedAt retiredAt itemsCount
+          id versionNumber label status source notes version${seesCost ? ' contentHash' : ''} effectiveAt submittedAt publishedAt activatedAt retiredAt itemsCount
           priceBook { id name } basedOn { id versionNumber } submittedBy { name } publishedBy { name } approval { id status version requestedBy { id } }${seesCost ? ' costChangeReport' : ''}
         }
         priceBookVersionReview(versionId: $id)
@@ -57,7 +57,7 @@ export default async function PriceBookVersionPage({ params }: { params: Promise
   return (
     <Page title={`v${v.versionNumber} · ${v.label || 'Price book version'}`} crumbs={[{ label: 'Price book', href: '/dashboard/platform/pricebook' }]}>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat name="Status" value={<Status value={v.status} />} />
+        <Stat name="Status" value={<Status value={v.status === 'pending_approval' && v.approval?.status === 'rejected' ? 'rejected' : v.status} />} />
         <Stat name="Items" value={v.itemsCount} />
         <Stat name="Based on" value={v.basedOn ? <Link className="underline" href={PATH(v.basedOn.id)}>v{v.basedOn.versionNumber}</Link> : '—'} />
         <Stat name="Effective" value={v.effectiveAt ? when(v.effectiveAt, tz) : '—'} />
@@ -85,7 +85,8 @@ export default async function PriceBookVersionPage({ params }: { params: Promise
               <ActionButton op="decideApprovalRequest" vars={{ requestId: v.approval.id, decision: 'reject', expectedVersion: v.approval.version }} ask="Why reject it?" paths={[path]}>Reject</ActionButton>
             </>
           ) : null}
-          {v.status === 'pending_approval' && ownRequest ? <Meta>You sent this for approval; someone else approves it.</Meta> : null}
+          {v.status === 'pending_approval' && v.approval?.status === 'rejected' ? <Meta>This was rejected. Withdraw it to edit and send it again, or discard it.</Meta> : null}
+          {v.status === 'pending_approval' && v.approval?.status === 'pending' && ownRequest ? <Meta>You sent this for approval; someone else approves it.</Meta> : null}
         </div>
       </Section>
       {findings.length ? (

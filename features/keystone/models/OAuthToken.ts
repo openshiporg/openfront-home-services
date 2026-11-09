@@ -62,6 +62,14 @@ export const OAuthToken = list({
         description: "The redirect URI used during authorization",
       },
     }),
+    agentId: text({
+      access: { create: () => false, update: () => false },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "The AI agent this token acts as (set when issued to an app bound to an agent; empty for a person's own connection). A token with an agent never acts as the person who approved it.",
+      },
+    }),
     resource: text({
       ui: {
         description: "The MCP endpoint (RFC 8707 resource) this grant is for",

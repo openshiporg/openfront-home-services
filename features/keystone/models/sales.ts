@@ -5,7 +5,7 @@ import { choice, fixedChoice, lifecycle, minor, qty, rate, readOnly, systemText,
 import { governed, managed } from './listAccess'
 import { jobFilter, OFFICE_READ } from './scope'
 import { trackingFields } from './trackingFields'
-import { canReadCost, costGuardedJson, costOnly } from './costHidden'
+import { canReadCost, costGuardedJson, costHash, costOnly } from './costHidden'
 
 /*
  * Price book, estimates and cancellation rights (SCHEMA §7, SM§5-6, I-E1..I-E6). Every write goes
@@ -123,7 +123,7 @@ export const PriceBookVersion = list({
     basedOn: relationship({ ref: 'PriceBookVersion', ...readOnly }),
     notes: systemText(),
     effectiveAt: timestamp({ ...readOnly }),
-    contentHash: systemText(),
+    contentHash: costHash(),
     diffReport: json({ ...readOnly }),
     costChangeReport: json({ ...readOnly, access: { ...readOnly.access, read: costRead } }),
     approval: relationship({ ref: 'ApprovalRequest', ...readOnly }),
@@ -277,7 +277,7 @@ export const EstimateVersion = list({
     presentedBy: relationship({ ref: 'User', ...readOnly }),
     presentedVia: fixedChoice(['', 'in_person', 'email', 'printed'], ''),
     validUntil: timestamp({ ...readOnly }),
-    snapshot: json({ ...readOnly }),
+    snapshot: costGuardedJson({ ...readOnly }),
     contentHash: systemText(),
     pdf: relationship({ ref: 'Document', ...readOnly }),
     options: relationship({ ref: 'EstimateOption.estimateVersion', many: true, ...readOnly }),
@@ -307,7 +307,7 @@ export const EstimateOption = list({
     estimatedTaxMinor: minor({ defaultValue: 0n }),
     totalMinor: minor({ defaultValue: 0n }),
     monthlyPaymentDisplay: json({ ...readOnly }),
-    contentHash: systemText(),
+    contentHash: costHash(),
     lines: relationship({ ref: 'EstimateLine.option', many: true, ...readOnly }),
     ...trackingFields,
   },
@@ -361,7 +361,7 @@ export const Authorization = list({
     selectedLineIds: json({ ...readOnly }),
     depositMinor: minor({ defaultValue: 0n }),
     payments: relationship({ ref: 'Payment.authorization', many: true, ...readOnly }),
-    contentHash: systemText({ required: true }),
+    contentHash: costHash({ required: true }),
     authorizedAt: timestamp({ validation: { isRequired: true }, ...readOnly }),
     recordedBy: relationship({ ref: 'User', ...readOnly }),
     ...trackingFields,
@@ -480,7 +480,7 @@ export const ChangeOrder = list({
     reason: systemText(),
     lines: costGuardedJson({ ...readOnly, ui: { ...readOnly.ui, description: '{ add: [frozen line snapshots], remove: [workLineId] }' } }),
     deltaMinor: minor({ defaultValue: 0n, description: 'Signed change to the sold price, in cents (removals are negative).' }),
-    contentHash: systemText(),
+    contentHash: costHash(),
     presentedAt: timestamp({ ...readOnly }),
     authorization: relationship({ ref: 'Authorization', ...readOnly }),
     cancellationEvaluation: relationship({ ref: 'CancellationEvaluation', ...readOnly }),

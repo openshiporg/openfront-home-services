@@ -1,5 +1,5 @@
 import { graphql } from '@keystone-6/core'
-import { json } from '@keystone-6/core/fields'
+import { json, text } from '@keystone-6/core/fields'
 import { isSignedIn, type Permission, type Session } from '../access'
 
 /** Whoever sets prices may read internal cost and margin; nobody else, in any field that carries them. */
@@ -25,9 +25,24 @@ export const actorCanReadCost = (actor: { kind: string; permissions?: ReadonlySe
 const costRule = ({ session }: { session?: Session | null }) => canReadCost(session)
 export const costOnly = { access: { read: costRule }, isFilterable: costRule, isOrderable: costRule }
 
-const COSTLY = /cost|margin/i
+/**
+ * A server-written hash that covers cost (older rows are plain SHA-256 over lines that include the unit
+ * cost, so anyone who could read one could try numbers until it matched). Readable, filterable and
+ * orderable only by the people who may read cost; filtering by it would be a guessing oracle.
+ */
+export const costHash = (options: { required?: boolean } = {}) =>
+  text({
+    validation: { isRequired: options.required ?? false },
+    access: { create: () => false, update: () => false, read: costRule },
+    isFilterable: costRule,
+    isOrderable: costRule,
+    ui: { createView: { fieldMode: 'hidden' }, itemView: { fieldMode: 'read' } },
+  })
 
-/** Remove every cost or margin key, at any depth. Pure; the stored value is never changed. */
+// Cost and margin keys, plus the hashes that were computed over cost (see costHash).
+const COSTLY = /cost|margin|^(contentHash|quoteHash)$/i
+
+/** Remove every cost, margin or cost-bound hash key, at any depth. Pure; the stored value is never changed. */
 export function withoutCost(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutCost)
   if (value && typeof value === 'object') {

@@ -776,6 +776,7 @@ type OAuthToken {
   user: User
   scopes: JSON
   redirectUri: String
+  agentId: String
   resource: String
   expiresAt: DateTime
   isRevoked: String
@@ -804,6 +805,7 @@ input OAuthTokenWhereInput {
   clientId: StringFilter
   user: UserWhereInput
   redirectUri: StringFilter
+  agentId: StringFilter
   resource: StringFilter
   expiresAt: DateTimeNullableFilter
   isRevoked: StringNullableFilter
@@ -823,6 +825,7 @@ input OAuthTokenOrderByInput {
   token: OrderDirection
   clientId: OrderDirection
   redirectUri: OrderDirection
+  agentId: OrderDirection
   resource: OrderDirection
   expiresAt: OrderDirection
   isRevoked: OrderDirection
@@ -843,6 +846,7 @@ input OAuthTokenUpdateInput {
   user: UserRelateToOneForUpdateInput
   scopes: JSON
   redirectUri: String
+  agentId: String
   resource: String
   expiresAt: DateTime
   isRevoked: String
@@ -874,6 +878,7 @@ input OAuthTokenCreateInput {
   user: UserRelateToOneForCreateInput
   scopes: JSON
   redirectUri: String
+  agentId: String
   resource: String
   expiresAt: DateTime
   isRevoked: String

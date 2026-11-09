@@ -507,6 +507,14 @@ var OAuthToken = (0, import_core5.list)({
         description: "The redirect URI used during authorization"
       }
     }),
+    agentId: (0, import_fields5.text)({
+      access: { create: () => false, update: () => false },
+      ui: {
+        createView: { fieldMode: "hidden" },
+        itemView: { fieldMode: "read" },
+        description: "The AI agent this token acts as (set when issued to an app bound to an agent; empty for a person's own connection). A token with an agent never acts as the person who approved it."
+      }
+    }),
     resource: (0, import_fields5.text)({
       ui: {
         description: "The MCP endpoint (RFC 8707 resource) this grant is for"
@@ -595,6 +603,8 @@ var import_fields7 = require("@keystone-6/core/fields");
 var import_fields6 = require("@keystone-6/core/fields");
 var minor = (options = {}) => (0, import_fields6.bigInt)({
   ...options.access ? { access: options.access } : {},
+  ...options.isFilterable ? { isFilterable: options.isFilterable } : {},
+  ...options.isOrderable ? { isOrderable: options.isOrderable } : {},
   ...options.defaultValue !== void 0 ? { defaultValue: options.defaultValue } : {},
   validation: { isRequired: options.required ?? options.defaultValue !== void 0 },
   ...options.description ? { ui: { description: options.description } } : {}
@@ -842,48 +852,85 @@ __export(platform_exports, {
   Tag: () => Tag,
   Task: () => Task
 });
+var import_core9 = require("@keystone-6/core");
+var import_fields9 = require("@keystone-6/core/fields");
+
+// features/keystone/models/costHidden.ts
 var import_core8 = require("@keystone-6/core");
 var import_fields8 = require("@keystone-6/core/fields");
-var AuditEvent = (0, import_core8.list)({
+var COST_PERMISSIONS = ["canManagePriceBook", "canApprovePriceBook", "canApproveDiscounts"];
+var canReadCost = (session) => !!session && !session.agent && isSignedIn({ session }) && COST_PERMISSIONS.some((name) => session.data?.role?.[name] === true);
+var costRule = ({ session }) => canReadCost(session);
+var costOnly = { access: { read: costRule }, isFilterable: costRule, isOrderable: costRule };
+var costHash = (options = {}) => (0, import_fields8.text)({
+  validation: { isRequired: options.required ?? false },
+  access: { create: () => false, update: () => false, read: costRule },
+  isFilterable: costRule,
+  isOrderable: costRule,
+  ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } }
+});
+var COSTLY = /cost|margin|^(contentHash|quoteHash)$/i;
+function withoutCost(value) {
+  if (Array.isArray(value)) return value.map(withoutCost);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).filter(([key2]) => !COSTLY.test(key2)).map(([key2, v]) => [key2, withoutCost(v)]));
+  }
+  return value;
+}
+var costGuardedJson = (config2 = {}) => (meta) => {
+  const base = (0, import_fields8.json)({ ...config2, isFilterable: false, isOrderable: false })(meta);
+  return {
+    ...base,
+    output: import_core8.graphql.field({
+      type: import_core8.graphql.JSON,
+      resolve({ value }, _args, context) {
+        return canReadCost(context.session) ? value : withoutCost(value);
+      }
+    })
+  };
+};
+
+// features/keystone/models/platform.ts
+var AuditEvent = (0, import_core9.list)({
   access: immutable("canReadAudit"),
   ui: { labelField: "eventType", listView: { initialColumns: ["seq", "at", "eventType", "entityType", "entityId", "actorUser"], initialSort: { field: "seq", direction: "DESC" } } },
   fields: {
-    seq: (0, import_fields8.integer)({ isIndexed: "unique", validation: { isRequired: true }, ...readOnly }),
+    seq: (0, import_fields9.integer)({ isIndexed: "unique", validation: { isRequired: true }, ...readOnly }),
     eventKey: systemText({ indexed: "unique", required: true }),
     eventType: systemText({ indexed: true, required: true }),
     entityType: systemText({ indexed: true, required: true }),
     entityId: systemText({ indexed: true, required: true }),
-    actorUser: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
-    actorAgent: (0, import_fields8.relationship)({ ref: "AgentIdentity", ...readOnly }),
-    approver: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
+    actorUser: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
+    actorAgent: (0, import_fields9.relationship)({ ref: "AgentIdentity", ...readOnly }),
+    approver: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
     reason: systemText(),
-    before: (0, import_fields8.json)({ ...readOnly }),
-    after: (0, import_fields8.json)({ ...readOnly }),
-    metadata: (0, import_fields8.json)({ ...readOnly }),
+    before: costGuardedJson({ ...readOnly }),
+    after: costGuardedJson({ ...readOnly }),
+    metadata: costGuardedJson({ ...readOnly }),
     requestId: systemText(),
     prevHash: systemText({ required: true }),
     hash: systemText({ indexed: "unique", required: true }),
-    at: (0, import_fields8.timestamp)({ validation: { isRequired: true }, defaultValue: { kind: "now" }, ...readOnly })
+    at: (0, import_fields9.timestamp)({ validation: { isRequired: true }, defaultValue: { kind: "now" }, ...readOnly })
   }
 });
-var CommandReceipt = (0, import_core8.list)({
+var CommandReceipt = (0, import_core9.list)({
   access: serverOnly,
   graphql: { omit: true },
   ui: { isHidden: true },
   fields: {
-    idempotencyKey: (0, import_fields8.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    command: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    principalKey: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    requestHash: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    requestParams: (0, import_fields8.json)(),
-    responseCode: (0, import_fields8.text)(),
-    responseBody: (0, import_fields8.json)(),
-    recoveryPoint: (0, import_fields8.text)({ defaultValue: "completed" }),
-    completedAt: (0, import_fields8.timestamp)({ defaultValue: { kind: "now" } }),
+    idempotencyKey: (0, import_fields9.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    command: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    principalKey: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    requestHash: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    requestParams: (0, import_fields9.json)(),
+    responseCode: (0, import_fields9.text)(),
+    responseBody: (0, import_fields9.json)(),
+    recoveryPoint: (0, import_fields9.text)({ defaultValue: "completed" }),
+    completedAt: (0, import_fields9.timestamp)({ defaultValue: { kind: "now" } }),
     ...trackingFields
   }
 });
-var OutboxMessage = (0, import_core8.list)({
+var OutboxMessage = (0, import_core9.list)({
   access: governed("canManageCompany"),
   ui: { listView: { initialColumns: ["topic", "status", "attempts", "nextAttemptAt", "aggregateType", "aggregateId"] } },
   fields: {
@@ -892,74 +939,74 @@ var OutboxMessage = (0, import_core8.list)({
     aggregateId: systemText({ indexed: true, required: true }),
     dedupeKey: systemText({ indexed: "unique", required: true }),
     partitionKey: systemText({ indexed: true }),
-    payload: (0, import_fields8.json)({ ...readOnly }),
+    payload: (0, import_fields9.json)({ ...readOnly }),
     status: lifecycle(["pending", "leased", "delivered", "failed", "dead"]),
-    attempts: (0, import_fields8.integer)({ defaultValue: 0, ...readOnly }),
-    nextAttemptAt: (0, import_fields8.timestamp)({ defaultValue: { kind: "now" }, ...readOnly }),
+    attempts: (0, import_fields9.integer)({ defaultValue: 0, ...readOnly }),
+    nextAttemptAt: (0, import_fields9.timestamp)({ defaultValue: { kind: "now" }, ...readOnly }),
     leaseOwner: systemText(),
-    leaseExpiresAt: (0, import_fields8.timestamp)({ ...readOnly }),
-    fencingToken: (0, import_fields8.integer)({ defaultValue: 0, ...readOnly }),
+    leaseExpiresAt: (0, import_fields9.timestamp)({ ...readOnly }),
+    fencingToken: (0, import_fields9.integer)({ defaultValue: 0, ...readOnly }),
     lastError: systemText(),
-    deliveredAt: (0, import_fields8.timestamp)({ ...readOnly }),
+    deliveredAt: (0, import_fields9.timestamp)({ ...readOnly }),
     ...trackingFields
   }
 });
-var ProviderObservation = (0, import_core8.list)({
+var ProviderObservation = (0, import_core9.list)({
   access: governed("canManageIntegrations"),
   ui: { labelField: "externalId", listView: { initialColumns: ["source", "kind", "externalId", "signatureVerified", "receivedAt", "appliedAt"] } },
   fields: {
     source: systemText({ indexed: true, required: true }),
     kind: systemText({ required: true }),
-    connection: (0, import_fields8.relationship)({ ref: "IntegrationConnection", ...readOnly }),
+    connection: (0, import_fields9.relationship)({ ref: "IntegrationConnection", ...readOnly }),
     externalId: systemText({ required: true }),
     contentHash: systemText({ required: true }),
-    signatureVerified: (0, import_fields8.checkbox)({ defaultValue: false, ...readOnly }),
-    payload: (0, import_fields8.json)({ ...readOnly }),
-    correlation: (0, import_fields8.json)({ ...readOnly }),
-    receivedAt: (0, import_fields8.timestamp)({ defaultValue: { kind: "now" }, ...readOnly }),
-    appliedAt: (0, import_fields8.timestamp)({ ...readOnly }),
+    signatureVerified: (0, import_fields9.checkbox)({ defaultValue: false, ...readOnly }),
+    payload: (0, import_fields9.json)({ ...readOnly }),
+    correlation: (0, import_fields9.json)({ ...readOnly }),
+    receivedAt: (0, import_fields9.timestamp)({ defaultValue: { kind: "now" }, ...readOnly }),
+    appliedAt: (0, import_fields9.timestamp)({ ...readOnly }),
     ...trackingFields
   }
 });
-var Lease = (0, import_core8.list)({
+var Lease = (0, import_core9.list)({
   access: serverOnly,
   graphql: { omit: true },
   ui: { isHidden: true },
   fields: {
-    key: (0, import_fields8.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    owner: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    fencingToken: (0, import_fields8.integer)({ defaultValue: 0, validation: { isRequired: true } }),
-    expiresAt: (0, import_fields8.timestamp)({ validation: { isRequired: true } }),
+    key: (0, import_fields9.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    owner: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    fencingToken: (0, import_fields9.integer)({ defaultValue: 0, validation: { isRequired: true } }),
+    expiresAt: (0, import_fields9.timestamp)({ validation: { isRequired: true } }),
     ...trackingFields
   }
 });
-var Sequence = (0, import_core8.list)({
+var Sequence = (0, import_core9.list)({
   access: serverOnly,
   graphql: { omit: true },
   ui: { isHidden: true },
   fields: {
-    key: (0, import_fields8.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    nextValue: (0, import_fields8.integer)({ defaultValue: 1, validation: { isRequired: true } })
+    key: (0, import_fields9.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    nextValue: (0, import_fields9.integer)({ defaultValue: 1, validation: { isRequired: true } })
   }
 });
-var ScheduledJob = (0, import_core8.list)({
+var ScheduledJob = (0, import_core9.list)({
   access: governed("canManageCompany"),
   ui: { labelField: "key", listView: { initialColumns: ["kind", "key", "dueAt", "status", "attempts"] } },
   fields: {
     kind: systemText({ indexed: true, required: true }),
     key: systemText({ indexed: "unique", required: true }),
-    dueAt: (0, import_fields8.timestamp)({ validation: { isRequired: true }, ...readOnly }),
-    intervalSeconds: (0, import_fields8.integer)({ ...readOnly, ui: { ...readOnly.ui, description: "Set for recurring jobs; empty for one-shot timers." } }),
-    payload: (0, import_fields8.json)({ ...readOnly }),
+    dueAt: (0, import_fields9.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    intervalSeconds: (0, import_fields9.integer)({ ...readOnly, ui: { ...readOnly.ui, description: "Set for recurring jobs; empty for one-shot timers." } }),
+    payload: (0, import_fields9.json)({ ...readOnly }),
     status: lifecycle(["pending", "running", "done", "failed", "cancelled"]),
-    attempts: (0, import_fields8.integer)({ defaultValue: 0, ...readOnly }),
-    lastRunAt: (0, import_fields8.timestamp)({ ...readOnly }),
+    attempts: (0, import_fields9.integer)({ defaultValue: 0, ...readOnly }),
+    lastRunAt: (0, import_fields9.timestamp)({ ...readOnly }),
     lastError: systemText(),
     version: versionField(),
     ...trackingFields
   }
 });
-var Notification = (0, import_core8.list)({
+var Notification = (0, import_core9.list)({
   access: {
     operation: { query: permissions.canAccessDashboard, create: () => false, update: permissions.canAccessDashboard, delete: () => false },
     filter: {
@@ -968,61 +1015,61 @@ var Notification = (0, import_core8.list)({
     }
   },
   fields: {
-    recipient: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
+    recipient: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
     channel: choice(["in_app", "email"], "in_app"),
     template: systemText({ required: true }),
-    payload: (0, import_fields8.json)({ ...readOnly }),
+    payload: (0, import_fields9.json)({ ...readOnly }),
     status: lifecycle(["pending", "sent", "failed"]),
-    sentAt: (0, import_fields8.timestamp)({ ...readOnly }),
-    readAt: (0, import_fields8.timestamp)(),
+    sentAt: (0, import_fields9.timestamp)({ ...readOnly }),
+    readAt: (0, import_fields9.timestamp)(),
     ...trackingFields
   }
 });
-var BusinessCalendar = (0, import_core8.list)({
+var BusinessCalendar = (0, import_core9.list)({
   access: managed("signedIn", "canManageCompany"),
   ui: { labelField: "code", listView: { initialColumns: ["code", "name", "kind", "timeZone", "coverageThrough"] } },
   fields: {
-    code: (0, import_fields8.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    name: (0, import_fields8.text)(),
+    code: (0, import_fields9.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    name: (0, import_fields9.text)(),
     kind: choice(["legal_business_days", "company_hours"], "company_hours"),
-    timeZone: (0, import_fields8.text)({ validation: { isRequired: true }, defaultValue: "America/Chicago" }),
-    weekendDays: (0, import_fields8.json)({ defaultValue: [0], ui: { description: "Non-business weekdays, 0 = Sunday. The federal business-day calendar excludes Sundays only (16 CFR 429.0(f))." } }),
-    regularOpen: (0, import_fields8.text)({ defaultValue: "08:00", ui: { description: "HH:mm local (company hours only)." } }),
-    regularClose: (0, import_fields8.text)({ defaultValue: "17:00", ui: { description: "HH:mm local (company hours only)." } }),
-    composedOf: (0, import_fields8.relationship)({ ref: "BusinessCalendar", many: true, ui: { description: "Closed whenever any of these is closed (a company calendar includes the federal holidays)." } }),
-    exceptions: (0, import_fields8.relationship)({ ref: "CalendarException.calendar", many: true }),
-    coverageThrough: (0, import_fields8.calendarDay)({ ui: { description: "Dates past this fail closed: no deadline is computed on a guess." } }),
-    source: (0, import_fields8.text)({ ui: { description: "Where the holiday table came from and when it was checked." } }),
+    timeZone: (0, import_fields9.text)({ validation: { isRequired: true }, defaultValue: "America/Chicago" }),
+    weekendDays: (0, import_fields9.json)({ defaultValue: [0], ui: { description: "Non-business weekdays, 0 = Sunday. The federal business-day calendar excludes Sundays only (16 CFR 429.0(f))." } }),
+    regularOpen: (0, import_fields9.text)({ defaultValue: "08:00", ui: { description: "HH:mm local (company hours only)." } }),
+    regularClose: (0, import_fields9.text)({ defaultValue: "17:00", ui: { description: "HH:mm local (company hours only)." } }),
+    composedOf: (0, import_fields9.relationship)({ ref: "BusinessCalendar", many: true, ui: { description: "Closed whenever any of these is closed (a company calendar includes the federal holidays)." } }),
+    exceptions: (0, import_fields9.relationship)({ ref: "CalendarException.calendar", many: true }),
+    coverageThrough: (0, import_fields9.calendarDay)({ ui: { description: "Dates past this fail closed: no deadline is computed on a guess." } }),
+    source: (0, import_fields9.text)({ ui: { description: "Where the holiday table came from and when it was checked." } }),
     ...trackingFields
   }
 });
-var CalendarException = (0, import_core8.list)({
+var CalendarException = (0, import_core9.list)({
   access: managed("signedIn", "canManageCompany"),
   ui: { labelField: "date", listView: { initialColumns: ["calendar", "date", "kind", "note"] } },
   fields: {
-    calendar: (0, import_fields8.relationship)({ ref: "BusinessCalendar.exceptions" }),
-    date: (0, import_fields8.calendarDay)({ validation: { isRequired: true } }),
+    calendar: (0, import_fields9.relationship)({ ref: "BusinessCalendar.exceptions" }),
+    date: (0, import_fields9.calendarDay)({ validation: { isRequired: true } }),
     kind: choice(["holiday", "closure", "special_open"], "holiday"),
-    openAt: (0, import_fields8.text)(),
-    closeAt: (0, import_fields8.text)(),
-    note: (0, import_fields8.text)(),
+    openAt: (0, import_fields9.text)(),
+    closeAt: (0, import_fields9.text)(),
+    note: (0, import_fields9.text)(),
     ...trackingFields
   }
 });
-var ApprovalPolicy = (0, import_core8.list)({
+var ApprovalPolicy = (0, import_core9.list)({
   access: { operation: { query: permissions.canAccessDashboard, create: () => false, update: () => false, delete: () => false } },
   ui: { labelField: "action" },
   fields: {
-    action: (0, import_fields8.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    description: (0, import_fields8.text)(),
-    requiredPermission: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    minApprovals: (0, import_fields8.integer)({ defaultValue: 1, validation: { min: 1 } }),
+    action: (0, import_fields9.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    description: (0, import_fields9.text)(),
+    requiredPermission: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    minApprovals: (0, import_fields9.integer)({ defaultValue: 1, validation: { min: 1 } }),
     thresholdMinor: minor(),
-    expiresAfterMinutes: (0, import_fields8.integer)({ defaultValue: 1440 }),
+    expiresAfterMinutes: (0, import_fields9.integer)({ defaultValue: 1440 }),
     ...trackingFields
   }
 });
-var ApprovalRequest = (0, import_core8.list)({
+var ApprovalRequest = (0, import_core9.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "action", listView: { initialColumns: ["action", "status", "targetList", "requestedBy", "createdAt", "expiresAt"] } },
   fields: {
@@ -1030,30 +1077,30 @@ var ApprovalRequest = (0, import_core8.list)({
     summary: systemText(),
     targetList: systemText({ required: true }),
     targetId: systemText({ indexed: true, required: true }),
-    payload: (0, import_fields8.json)({ ...readOnly }),
+    payload: costGuardedJson({ ...readOnly }),
     payloadHash: systemText({ required: true }),
     requiredPermission: systemText({ required: true }),
-    requestedBy: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
-    requestedByAgent: (0, import_fields8.relationship)({ ref: "AgentIdentity", ...readOnly }),
+    requestedBy: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
+    requestedByAgent: (0, import_fields9.relationship)({ ref: "AgentIdentity", ...readOnly }),
     status: lifecycle(["pending", "approved", "rejected", "expired", "cancelled"]),
-    expiresAt: (0, import_fields8.timestamp)({ ...readOnly }),
-    consumedAt: (0, import_fields8.timestamp)({ ...readOnly, ui: { ...readOnly.ui, description: "When the approved action was carried out. An approval is used once." } }),
-    decisions: (0, import_fields8.relationship)({ ref: "ApprovalDecision.request", many: true, ...readOnly }),
+    expiresAt: (0, import_fields9.timestamp)({ ...readOnly }),
+    consumedAt: (0, import_fields9.timestamp)({ ...readOnly, ui: { ...readOnly.ui, description: "When the approved action was carried out. An approval is used once." } }),
+    decisions: (0, import_fields9.relationship)({ ref: "ApprovalDecision.request", many: true, ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var ApprovalDecision = (0, import_core8.list)({
+var ApprovalDecision = (0, import_core9.list)({
   access: immutable("canAccessDashboard"),
   fields: {
-    request: (0, import_fields8.relationship)({ ref: "ApprovalRequest.decisions", ...readOnly }),
-    decidedBy: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
-    decision: (0, import_fields8.select)({ type: "string", options: ["approve", "reject"].map((value) => ({ label: value, value })), validation: { isRequired: true }, ...readOnly }),
+    request: (0, import_fields9.relationship)({ ref: "ApprovalRequest.decisions", ...readOnly }),
+    decidedBy: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
+    decision: (0, import_fields9.select)({ type: "string", options: ["approve", "reject"].map((value) => ({ label: value, value })), validation: { isRequired: true }, ...readOnly }),
     reason: systemText(),
-    at: (0, import_fields8.timestamp)({ defaultValue: { kind: "now" }, ...readOnly })
+    at: (0, import_fields9.timestamp)({ defaultValue: { kind: "now" }, ...readOnly })
   }
 });
-var Task = (0, import_core8.list)({
+var Task = (0, import_core9.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "title", listView: { initialColumns: ["title", "kind", "status", "priority", "dueAt", "assignee", "role"] } },
   fields: {
@@ -1062,15 +1109,15 @@ var Task = (0, import_core8.list)({
     detail: systemText(),
     subjectType: systemText(),
     subjectId: systemText({ indexed: true }),
-    dueAt: (0, import_fields8.timestamp)({ ...readOnly }),
-    assignee: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
-    role: (0, import_fields8.relationship)({ ref: "Role", ...readOnly }),
+    dueAt: (0, import_fields9.timestamp)({ ...readOnly }),
+    assignee: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
+    role: (0, import_fields9.relationship)({ ref: "Role", ...readOnly }),
     status: lifecycle(["open", "in_progress", "done", "cancelled"]),
-    priority: (0, import_fields8.select)({ type: "string", options: ["low", "normal", "high", "urgent"].map((value) => ({ label: value, value })), defaultValue: "normal", validation: { isRequired: true }, ...readOnly }),
+    priority: (0, import_fields9.select)({ type: "string", options: ["low", "normal", "high", "urgent"].map((value) => ({ label: value, value })), defaultValue: "normal", validation: { isRequired: true }, ...readOnly }),
     dedupeKey: systemText({ indexed: "unique" }),
     resolution: systemText(),
-    closedAt: (0, import_fields8.timestamp)({ ...readOnly }),
-    closedBy: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
+    closedAt: (0, import_fields9.timestamp)({ ...readOnly }),
+    closedBy: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
@@ -1093,74 +1140,74 @@ var DOCUMENT_KINDS = [
   "policy_source",
   "other"
 ];
-var Document = (0, import_core8.list)({
+var Document = (0, import_core9.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "title", listView: { initialColumns: ["title", "kind", "visibility", "subjectType", "subjectId", "createdAt"] } },
   fields: {
     title: systemText({ required: true }),
-    kind: (0, import_fields8.select)({ type: "string", options: DOCUMENT_KINDS.map((value) => ({ label: value.replaceAll("_", " "), value })), defaultValue: "other", validation: { isRequired: true }, ...readOnly }),
-    visibility: (0, import_fields8.select)({ type: "string", options: ["internal", "customer"].map((value) => ({ label: value, value })), defaultValue: "internal", validation: { isRequired: true }, ...readOnly }),
+    kind: (0, import_fields9.select)({ type: "string", options: DOCUMENT_KINDS.map((value) => ({ label: value.replaceAll("_", " "), value })), defaultValue: "other", validation: { isRequired: true }, ...readOnly }),
+    visibility: (0, import_fields9.select)({ type: "string", options: ["internal", "customer"].map((value) => ({ label: value, value })), defaultValue: "internal", validation: { isRequired: true }, ...readOnly }),
     subjectType: systemText(),
     subjectId: systemText({ indexed: true }),
-    versions: (0, import_fields8.relationship)({ ref: "DocumentVersion.document", many: true, ...readOnly }),
-    retentionUntil: (0, import_fields8.calendarDay)({ ...readOnly }),
+    versions: (0, import_fields9.relationship)({ ref: "DocumentVersion.document", many: true, ...readOnly }),
+    retentionUntil: (0, import_fields9.calendarDay)({ ...readOnly }),
     ...trackingFields
   }
 });
-var DocumentVersion = (0, import_core8.list)({
+var DocumentVersion = (0, import_core9.list)({
   access: immutable("canAccessDashboard"),
   ui: { labelField: "sha256" },
   fields: {
-    document: (0, import_fields8.relationship)({ ref: "Document.versions", ...readOnly }),
-    versionNumber: (0, import_fields8.integer)({ validation: { isRequired: true, min: 1 }, ...readOnly }),
+    document: (0, import_fields9.relationship)({ ref: "Document.versions", ...readOnly }),
+    versionNumber: (0, import_fields9.integer)({ validation: { isRequired: true, min: 1 }, ...readOnly }),
     storageKey: systemText({ required: true }),
     sha256: systemText({ required: true }),
     mimeType: systemText({ required: true }),
-    sizeBytes: (0, import_fields8.integer)({ ...readOnly }),
-    createdBy: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
+    sizeBytes: (0, import_fields9.integer)({ ...readOnly }),
+    createdBy: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
     ...trackingFields
   }
 });
-var Media = (0, import_core8.list)({
+var Media = (0, import_core9.list)({
   access: governed("canAccessDashboard"),
   graphql: { plural: "MediaItems" },
   ui: { labelField: "storageKey", listView: { initialColumns: ["kind", "subjectType", "subjectId", "capturedAt", "visibility"] } },
   fields: {
     subjectType: systemText({ required: true }),
     subjectId: systemText({ indexed: true, required: true }),
-    kind: (0, import_fields8.select)({ type: "string", options: ["photo", "video", "scan_3d", "audio", "recording"].map((value) => ({ label: value.replaceAll("_", " "), value })), defaultValue: "photo", validation: { isRequired: true }, ...readOnly }),
+    kind: (0, import_fields9.select)({ type: "string", options: ["photo", "video", "scan_3d", "audio", "recording"].map((value) => ({ label: value.replaceAll("_", " "), value })), defaultValue: "photo", validation: { isRequired: true }, ...readOnly }),
     storageKey: systemText({ required: true }),
     sha256: systemText({ required: true }),
     mimeType: systemText(),
-    capturedAt: (0, import_fields8.timestamp)({ ...readOnly }),
-    capturedBy: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
-    visibility: (0, import_fields8.select)({ type: "string", options: ["internal", "customer"].map((value) => ({ label: value, value })), defaultValue: "internal", validation: { isRequired: true }, ...readOnly }),
+    capturedAt: (0, import_fields9.timestamp)({ ...readOnly }),
+    capturedBy: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
+    visibility: (0, import_fields9.select)({ type: "string", options: ["internal", "customer"].map((value) => ({ label: value, value })), defaultValue: "internal", validation: { isRequired: true }, ...readOnly }),
     ...trackingFields
   }
 });
-var Note = (0, import_core8.list)({
+var Note = (0, import_core9.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "body", listView: { initialColumns: ["subjectType", "subjectId", "visibility", "author", "pinned", "createdAt"] } },
   fields: {
     subjectType: systemText({ required: true }),
     subjectId: systemText({ indexed: true, required: true }),
     body: systemText({ required: true }),
-    visibility: (0, import_fields8.select)({ type: "string", options: ["internal", "tech", "customer"].map((value) => ({ label: value, value })), defaultValue: "internal", validation: { isRequired: true }, ...readOnly }),
-    author: (0, import_fields8.relationship)({ ref: "User", ...readOnly }),
-    pinned: (0, import_fields8.checkbox)({ defaultValue: false, ...readOnly }),
+    visibility: (0, import_fields9.select)({ type: "string", options: ["internal", "tech", "customer"].map((value) => ({ label: value, value })), defaultValue: "internal", validation: { isRequired: true }, ...readOnly }),
+    author: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
+    pinned: (0, import_fields9.checkbox)({ defaultValue: false, ...readOnly }),
     ...trackingFields
   }
 });
-var Tag = (0, import_core8.list)({
+var Tag = (0, import_core9.list)({
   access: managed("canAccessDashboard", ["canManageCustomers", "canManageCompany"]),
   ui: { labelField: "name" },
   fields: {
-    name: (0, import_fields8.text)({ isIndexed: "unique", validation: { isRequired: true, length: { max: 60 } } }),
+    name: (0, import_fields9.text)({ isIndexed: "unique", validation: { isRequired: true, length: { max: 60 } } }),
     color: choice(["slate", "blue", "green", "amber", "red", "violet"], "slate"),
     ...trackingFields
   }
 });
-var ExternalId = (0, import_core8.list)({
+var ExternalId = (0, import_core9.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "externalId", listView: { initialColumns: ["system", "subjectType", "subjectId", "externalId"] } },
   fields: {
@@ -1171,18 +1218,18 @@ var ExternalId = (0, import_core8.list)({
     ...trackingFields
   }
 });
-var SecretBox = (0, import_core8.list)({
+var SecretBox = (0, import_core9.list)({
   access: serverOnly,
   graphql: { omit: true },
   ui: { isHidden: true },
   fields: {
-    purpose: (0, import_fields8.select)({ type: "string", options: ["integration_credential", "access_secret", "webhook_secret"].map((value) => ({ label: value, value })), validation: { isRequired: true } }),
-    ciphertext: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    iv: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    authTag: (0, import_fields8.text)({ validation: { isRequired: true } }),
-    keyVersion: (0, import_fields8.integer)({ defaultValue: 1 }),
-    createdBy: (0, import_fields8.relationship)({ ref: "User" }),
-    rotatedAt: (0, import_fields8.timestamp)(),
+    purpose: (0, import_fields9.select)({ type: "string", options: ["integration_credential", "access_secret", "webhook_secret"].map((value) => ({ label: value, value })), validation: { isRequired: true } }),
+    ciphertext: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    iv: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    authTag: (0, import_fields9.text)({ validation: { isRequired: true } }),
+    keyVersion: (0, import_fields9.integer)({ defaultValue: 1 }),
+    createdBy: (0, import_fields9.relationship)({ ref: "User" }),
+    rotatedAt: (0, import_fields9.timestamp)(),
     ...trackingFields
   }
 });
@@ -1195,8 +1242,8 @@ __export(policy_exports, {
   PolicyPack: () => PolicyPack,
   PolicyVersion: () => PolicyVersion
 });
-var import_core9 = require("@keystone-6/core");
-var import_fields9 = require("@keystone-6/core/fields");
+var import_core10 = require("@keystone-6/core");
+var import_fields10 = require("@keystone-6/core/fields");
 var POLICY_KINDS = [
   "home_solicitation",
   "home_improvement_contract",
@@ -1210,7 +1257,7 @@ var POLICY_KINDS = [
   "lien",
   "privacy"
 ];
-var PolicyPack = (0, import_core9.list)({
+var PolicyPack = (0, import_core10.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "code", listView: { initialColumns: ["code", "name", "kind", "jurisdictionCode"] } },
   fields: {
@@ -1219,39 +1266,39 @@ var PolicyPack = (0, import_core9.list)({
     kind: fixedChoice(POLICY_KINDS),
     jurisdictionCode: systemText({ required: true }),
     description: systemText(),
-    versions: (0, import_fields9.relationship)({ ref: "PolicyVersion.pack", many: true, ...readOnly }),
-    bindings: (0, import_fields9.relationship)({ ref: "PolicyBinding.pack", many: true, ...readOnly }),
+    versions: (0, import_fields10.relationship)({ ref: "PolicyVersion.pack", many: true, ...readOnly }),
+    bindings: (0, import_fields10.relationship)({ ref: "PolicyBinding.pack", many: true, ...readOnly }),
     ...trackingFields
   }
 });
-var PolicyVersion = (0, import_core9.list)({
+var PolicyVersion = (0, import_core10.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "contentHash", listView: { initialColumns: ["pack", "versionNumber", "status", "effectiveFrom", "effectiveTo", "verifiedAt"] } },
   fields: {
-    pack: (0, import_fields9.relationship)({ ref: "PolicyPack.versions", ...readOnly }),
-    versionNumber: (0, import_fields9.integer)({ validation: { isRequired: true, min: 1 }, ...readOnly }),
-    effectiveFrom: (0, import_fields9.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
-    effectiveTo: (0, import_fields9.calendarDay)({ ...readOnly, ui: { ...readOnly.ui, description: "Exclusive. Empty means open-ended." } }),
-    rules: (0, import_fields9.json)({ ...readOnly, ui: { ...readOnly.ui, description: "Validated against the Zod schema for the pack kind (domain/policySchemas.ts)." } }),
-    sourceRefs: (0, import_fields9.json)({ ...readOnly, ui: { ...readOnly.ui, description: 'Citations for every rule, e.g. "16 CFR 429.1(a)".' } }),
-    verifiedBy: (0, import_fields9.text)({ ...readOnly }),
-    verifiedAt: (0, import_fields9.timestamp)({ ...readOnly }),
+    pack: (0, import_fields10.relationship)({ ref: "PolicyPack.versions", ...readOnly }),
+    versionNumber: (0, import_fields10.integer)({ validation: { isRequired: true, min: 1 }, ...readOnly }),
+    effectiveFrom: (0, import_fields10.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    effectiveTo: (0, import_fields10.calendarDay)({ ...readOnly, ui: { ...readOnly.ui, description: "Exclusive. Empty means open-ended." } }),
+    rules: (0, import_fields10.json)({ ...readOnly, ui: { ...readOnly.ui, description: "Validated against the Zod schema for the pack kind (domain/policySchemas.ts)." } }),
+    sourceRefs: (0, import_fields10.json)({ ...readOnly, ui: { ...readOnly.ui, description: 'Citations for every rule, e.g. "16 CFR 429.1(a)".' } }),
+    verifiedBy: (0, import_fields10.text)({ ...readOnly }),
+    verifiedAt: (0, import_fields10.timestamp)({ ...readOnly }),
     status: lifecycle(["draft", "pending_approval", "active", "retired"]),
-    approval: (0, import_fields9.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    approval: (0, import_fields10.relationship)({ ref: "ApprovalRequest", ...readOnly }),
     contentHash: systemText({ required: true }),
     version: versionField(),
     ...trackingFields
   }
 });
-var PolicyBinding = (0, import_core9.list)({
+var PolicyBinding = (0, import_core10.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "scopeValue", listView: { initialColumns: ["pack", "scope", "scopeValue", "priority", "status"] } },
   fields: {
-    pack: (0, import_fields9.relationship)({ ref: "PolicyPack.bindings", ...readOnly }),
+    pack: (0, import_fields10.relationship)({ ref: "PolicyPack.bindings", ...readOnly }),
     scope: fixedChoice(["company", "branch", "state", "county", "city", "zip"]),
     scopeValue: systemText({ required: true }),
-    branch: (0, import_fields9.relationship)({ ref: "Branch.policyBindings", ...readOnly }),
-    priority: (0, import_fields9.integer)({ defaultValue: 0, ...readOnly }),
+    branch: (0, import_fields10.relationship)({ ref: "Branch.policyBindings", ...readOnly }),
+    priority: (0, import_fields10.integer)({ defaultValue: 0, ...readOnly }),
     status: lifecycle(["active", "retired"]),
     version: versionField(),
     ...trackingFields
@@ -1267,77 +1314,77 @@ __export(agents_exports, {
   AgentRun: () => AgentRun,
   AgentScopeGrant: () => AgentScopeGrant
 });
-var import_core10 = require("@keystone-6/core");
-var import_fields10 = require("@keystone-6/core/fields");
+var import_core11 = require("@keystone-6/core");
+var import_fields11 = require("@keystone-6/core/fields");
 var AGENT_AUTONOMY = ["disabled", "propose_only", "auto_within_policy"];
-var AgentIdentity = (0, import_core10.list)({
+var AgentIdentity = (0, import_core11.list)({
   access: { operation: { query: permissions.canAccessDashboard, create: () => false, update: () => false, delete: () => false } },
   ui: { labelField: "name", listView: { initialColumns: ["name", "kind", "status", "killSwitch", "owner"] } },
   fields: {
-    name: (0, import_fields10.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    name: (0, import_fields11.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
     kind: choice(["llm_agent", "rules_engine", "external_mcp_client"], "llm_agent"),
-    provider: (0, import_fields10.text)(),
-    modelRef: (0, import_fields10.text)(),
-    owner: (0, import_fields10.relationship)({ ref: "User" }),
-    oauthApp: (0, import_fields10.relationship)({ ref: "OAuthApp" }),
+    provider: (0, import_fields11.text)(),
+    modelRef: (0, import_fields11.text)(),
+    owner: (0, import_fields11.relationship)({ ref: "User" }),
+    oauthApp: (0, import_fields11.relationship)({ ref: "OAuthApp" }),
     status: lifecycle(["active", "paused", "revoked"]),
-    killSwitch: (0, import_fields10.checkbox)({ defaultValue: false, ...readOnly, ui: { ...readOnly.ui, description: "When on, every tool call is refused before it runs." } }),
-    limits: (0, import_fields10.json)({ ...readOnly, ui: { ...readOnly.ui, description: 'Rate and amount limits, e.g. {"actionsPerHour":120}.' } }),
-    grants: (0, import_fields10.relationship)({ ref: "AgentScopeGrant.agent", many: true, ...readOnly }),
-    runs: (0, import_fields10.relationship)({ ref: "AgentRun.agent", many: true, ...readOnly }),
+    killSwitch: (0, import_fields11.checkbox)({ defaultValue: false, ...readOnly, ui: { ...readOnly.ui, description: "When on, every tool call is refused before it runs." } }),
+    limits: (0, import_fields11.json)({ ...readOnly, ui: { ...readOnly.ui, description: 'Rate and amount limits, e.g. {"actionsPerHour":120}.' } }),
+    grants: (0, import_fields11.relationship)({ ref: "AgentScopeGrant.agent", many: true, ...readOnly }),
+    runs: (0, import_fields11.relationship)({ ref: "AgentRun.agent", many: true, ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var AgentScopeGrant = (0, import_core10.list)({
+var AgentScopeGrant = (0, import_core11.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "tool", listView: { initialColumns: ["agent", "tool", "autonomy", "status", "effectiveFrom", "revokedAt"] } },
   fields: {
-    agent: (0, import_fields10.relationship)({ ref: "AgentIdentity.grants", ...readOnly }),
+    agent: (0, import_fields11.relationship)({ ref: "AgentIdentity.grants", ...readOnly }),
     tool: systemText({ indexed: true, required: true }),
     autonomy: fixedChoice(AGENT_AUTONOMY),
-    constraints: (0, import_fields10.json)({ ...readOnly, ui: { ...readOnly.ui, description: 'Limits, e.g. {"businessUnits":["HVAC-SVC"],"maxQuoteMinor":"250000"}.' } }),
+    constraints: (0, import_fields11.json)({ ...readOnly, ui: { ...readOnly.ui, description: 'Limits, e.g. {"businessUnits":["HVAC-SVC"],"maxQuoteMinor":"250000"}.' } }),
     status: lifecycle(["requested", "active", "revoked"]),
-    grantedBy: (0, import_fields10.relationship)({ ref: "User", ...readOnly }),
-    approval: (0, import_fields10.relationship)({ ref: "ApprovalRequest", ...readOnly }),
-    effectiveFrom: (0, import_fields10.timestamp)({ ...readOnly }),
-    revokedAt: (0, import_fields10.timestamp)({ ...readOnly }),
+    grantedBy: (0, import_fields11.relationship)({ ref: "User", ...readOnly }),
+    approval: (0, import_fields11.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    effectiveFrom: (0, import_fields11.timestamp)({ ...readOnly }),
+    revokedAt: (0, import_fields11.timestamp)({ ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var AgentRun = (0, import_core10.list)({
+var AgentRun = (0, import_core11.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "trigger", listView: { initialColumns: ["agent", "trigger", "status", "startedAt", "endedAt"] } },
   fields: {
-    agent: (0, import_fields10.relationship)({ ref: "AgentIdentity.runs", ...readOnly }),
+    agent: (0, import_fields11.relationship)({ ref: "AgentIdentity.runs", ...readOnly }),
     trigger: fixedChoice(["inbound_call", "inbound_sms", "schedule", "user_request", "webhook"]),
     callRef: systemText({ indexed: true }),
-    startedAt: (0, import_fields10.timestamp)({ defaultValue: { kind: "now" }, ...readOnly }),
-    endedAt: (0, import_fields10.timestamp)({ ...readOnly }),
+    startedAt: (0, import_fields11.timestamp)({ defaultValue: { kind: "now" }, ...readOnly }),
+    endedAt: (0, import_fields11.timestamp)({ ...readOnly }),
     status: lifecycle(["started", "completed", "failed", "aborted"]),
-    tokenUsage: (0, import_fields10.json)({ ...readOnly }),
+    tokenUsage: (0, import_fields11.json)({ ...readOnly }),
     costMinor: minor(),
-    actions: (0, import_fields10.relationship)({ ref: "AgentAction.run", many: true, ...readOnly }),
+    actions: (0, import_fields11.relationship)({ ref: "AgentAction.run", many: true, ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var AgentAction = (0, import_core10.list)({
+var AgentAction = (0, import_core11.list)({
   access: governed("canAccessDashboard"),
   ui: { labelField: "tool", listView: { initialColumns: ["tool", "status", "run", "createdAt"] } },
   fields: {
-    run: (0, import_fields10.relationship)({ ref: "AgentRun.actions", ...readOnly }),
-    agent: (0, import_fields10.relationship)({ ref: "AgentIdentity", ...readOnly }),
+    run: (0, import_fields11.relationship)({ ref: "AgentRun.actions", ...readOnly }),
+    agent: (0, import_fields11.relationship)({ ref: "AgentIdentity", ...readOnly }),
     tool: systemText({ indexed: true, required: true }),
     idempotencyKey: systemText({ indexed: "unique", required: true }),
     inputsHash: systemText({ required: true }),
-    inputsProvenance: (0, import_fields10.json)({ ...readOnly }),
-    output: (0, import_fields10.json)({ ...readOnly }),
+    inputsProvenance: (0, import_fields11.json)({ ...readOnly }),
+    output: costGuardedJson({ ...readOnly }),
     reasoningSummary: systemText(),
     status: lifecycle(["proposed", "awaiting_approval", "approved", "rejected", "applied", "failed", "expired"]),
-    approval: (0, import_fields10.relationship)({ ref: "ApprovalRequest", ...readOnly }),
-    appliedEffects: (0, import_fields10.json)({ ...readOnly }),
+    approval: (0, import_fields11.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    appliedEffects: (0, import_fields11.json)({ ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
@@ -1359,38 +1406,38 @@ __export(people_exports, {
   ShiftTemplate: () => ShiftTemplate,
   Skill: () => Skill
 });
-var import_core11 = require("@keystone-6/core");
-var import_fields11 = require("@keystone-6/core/fields");
+var import_core12 = require("@keystone-6/core");
+var import_fields12 = require("@keystone-6/core/fields");
 var EMPLOYEE_KINDS = ["technician", "csr", "dispatcher", "sales", "manager", "warehouse", "office", "apprentice"];
-var Employee = (0, import_core11.list)({
+var Employee = (0, import_core12.list)({
   access: managed("signedIn", "canManagePeople"),
   ui: { labelField: "displayName", listView: { initialColumns: ["displayName", "kind", "homeBranch", "employmentType", "status"] } },
   fields: {
-    user: (0, import_fields11.relationship)({ ref: "User" }),
-    firstName: (0, import_fields11.text)({ validation: { isRequired: true } }),
-    lastName: (0, import_fields11.text)({ validation: { isRequired: true } }),
-    displayName: (0, import_fields11.text)({ validation: { isRequired: true } }),
-    employeeNumber: (0, import_fields11.text)({ isIndexed: "unique", validation: { isRequired: true } }),
-    homeBranch: (0, import_fields11.relationship)({ ref: "Branch" }),
-    businessUnits: (0, import_fields11.relationship)({ ref: "BusinessUnit", many: true }),
+    user: (0, import_fields12.relationship)({ ref: "User" }),
+    firstName: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    lastName: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    displayName: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    employeeNumber: (0, import_fields12.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    homeBranch: (0, import_fields12.relationship)({ ref: "Branch" }),
+    businessUnits: (0, import_fields12.relationship)({ ref: "BusinessUnit", many: true }),
     kind: choice(EMPLOYEE_KINDS, "technician"),
     employmentType: choice(["w2_hourly", "w2_salaried_exempt", "w2_salaried_nonexempt", "contractor_1099"], "w2_hourly"),
-    hireDate: (0, import_fields11.calendarDay)(),
-    terminationDate: (0, import_fields11.calendarDay)(),
-    skills: (0, import_fields11.relationship)({ ref: "Skill", many: true }),
-    credentials: (0, import_fields11.relationship)({ ref: "Credential.employee", many: true, ...readOnly }),
-    phoneE164: (0, import_fields11.text)({ validation: { match: { regex: /^(\+[1-9]\d{7,14})?$/, explanation: "E.164, like +15125550123" } } }),
-    email: (0, import_fields11.text)(),
+    hireDate: (0, import_fields12.calendarDay)(),
+    terminationDate: (0, import_fields12.calendarDay)(),
+    skills: (0, import_fields12.relationship)({ ref: "Skill", many: true }),
+    credentials: (0, import_fields12.relationship)({ ref: "Credential.employee", many: true, ...readOnly }),
+    phoneE164: (0, import_fields12.text)({ validation: { match: { regex: /^(\+[1-9]\d{7,14})?$/, explanation: "E.164, like +15125550123" } } }),
+    email: (0, import_fields12.text)(),
     lat: geo({ description: "Start-of-day latitude (home or shop), used for drive estimates." }),
     lng: geo({ description: "Start-of-day longitude." }),
-    dispatchable: (0, import_fields11.checkbox)({ defaultValue: true, ui: { description: "Shown on the dispatch board." } }),
+    dispatchable: (0, import_fields12.checkbox)({ defaultValue: true, ui: { description: "Shown on the dispatch board." } }),
     status: choice(["active", "on_leave", "terminated"], "active"),
     ...trackingFields
   }
 });
 var CREDENTIAL_KINDS = ["state_trade_license", "epa_608", "nate", "manufacturer", "backflow", "osha", "driver_license", "other"];
 var EPA_TYPES = ["none", "type_i", "type_ii", "type_iii", "universal"];
-var Credential = (0, import_core11.list)({
+var Credential = (0, import_core12.list)({
   access: {
     operation: { query: anyOf("canManagePeople", "canDispatch", "canViewBoard", "canWorkVisits"), create: anyOf("canManagePeople"), update: anyOf("canManagePeople"), delete: () => false },
     filter: {
@@ -1404,108 +1451,108 @@ var Credential = (0, import_core11.list)({
   },
   ui: { labelField: "number", listView: { initialColumns: ["employee", "kind", "trade", "licenseClass", "epaType", "expiresOn", "status"] } },
   fields: {
-    employee: (0, import_fields11.relationship)({ ref: "Employee.credentials" }),
+    employee: (0, import_fields12.relationship)({ ref: "Employee.credentials" }),
     kind: choice(CREDENTIAL_KINDS, "state_trade_license"),
     trade: choice(["hvac", "plumbing", "electrical", "general"], "general"),
-    jurisdictionCode: (0, import_fields11.text)({ defaultValue: "US-TX", validation: { match: { regex: /^([A-Z]{2}(-[A-Z0-9]{2,})*)?$/, explanation: "Like US-TX" } } }),
-    issuer: (0, import_fields11.text)({ ui: { description: "TDLR, TSBPE, EPA-approved certifying organisation, NATE\u2026" } }),
-    number: (0, import_fields11.text)(),
-    licenseClass: (0, import_fields11.text)({ ui: { description: "Texas class code: acr_certified_technician, acr_registered_technician, plumber_apprentice, tradesman_plumber, journeyman_plumber, master_plumber, electrical_apprentice, journeyman_electrician, master_electrician, residential_wireman." } }),
+    jurisdictionCode: (0, import_fields12.text)({ defaultValue: "US-TX", validation: { match: { regex: /^([A-Z]{2}(-[A-Z0-9]{2,})*)?$/, explanation: "Like US-TX" } } }),
+    issuer: (0, import_fields12.text)({ ui: { description: "TDLR, TSBPE, EPA-approved certifying organisation, NATE\u2026" } }),
+    number: (0, import_fields12.text)(),
+    licenseClass: (0, import_fields12.text)({ ui: { description: "Texas class code: acr_certified_technician, acr_registered_technician, plumber_apprentice, tradesman_plumber, journeyman_plumber, master_plumber, electrical_apprentice, journeyman_electrician, master_electrician, residential_wireman." } }),
     epaType: choice(EPA_TYPES, "none"),
-    endorsements: (0, import_fields11.json)({ defaultValue: [] }),
-    issuedOn: (0, import_fields11.calendarDay)(),
-    expiresOn: (0, import_fields11.calendarDay)({ ui: { description: "An expired credential stops new assignments only (I-P2)." } }),
-    evidence: (0, import_fields11.relationship)({ ref: "Document" }),
-    verifiedBy: (0, import_fields11.relationship)({ ref: "User", ...readOnly }),
-    verifiedAt: (0, import_fields11.timestamp)({ ...readOnly }),
+    endorsements: (0, import_fields12.json)({ defaultValue: [] }),
+    issuedOn: (0, import_fields12.calendarDay)(),
+    expiresOn: (0, import_fields12.calendarDay)({ ui: { description: "An expired credential stops new assignments only (I-P2)." } }),
+    evidence: (0, import_fields12.relationship)({ ref: "Document" }),
+    verifiedBy: (0, import_fields12.relationship)({ ref: "User", ...readOnly }),
+    verifiedAt: (0, import_fields12.timestamp)({ ...readOnly }),
     status: lifecycle(["pending_verification", "verified", "expired", "revoked"]),
     version: versionField(),
     ...trackingFields
   }
 });
-var Skill = (0, import_core11.list)({
+var Skill = (0, import_core12.list)({
   access: managed("signedIn", "canManagePeople"),
   ui: { labelField: "name" },
   fields: {
-    code: (0, import_fields11.text)({ isIndexed: "unique", validation: { isRequired: true, match: { regex: /^[a-z0-9_]{2,40}$/, explanation: "lower_snake_case" } } }),
-    name: (0, import_fields11.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields12.text)({ isIndexed: "unique", validation: { isRequired: true, match: { regex: /^[a-z0-9_]{2,40}$/, explanation: "lower_snake_case" } } }),
+    name: (0, import_fields12.text)({ validation: { isRequired: true } }),
     trade: choice(["hvac", "plumbing", "electrical", "general"], "general"),
     ...trackingFields
   }
 });
-var JobTypeRequirement = (0, import_core11.list)({
+var JobTypeRequirement = (0, import_core12.list)({
   access: managed("signedIn", "canManageCompany"),
   ui: { labelField: "name" },
   fields: {
-    name: (0, import_fields11.text)({ validation: { isRequired: true } }),
-    licensingTags: (0, import_fields11.json)({ defaultValue: [], ui: { description: 'Job tags in the licensing policy pack, e.g. ["acr_service","refrigerant_handling"].' } }),
-    requiredCredentialKinds: (0, import_fields11.json)({ defaultValue: [], ui: { description: 'Extra credential kinds every assigned tech must hold, e.g. ["backflow"].' } }),
-    requiresSupervisorOnJob: (0, import_fields11.checkbox)({ defaultValue: false }),
+    name: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    licensingTags: (0, import_fields12.json)({ defaultValue: [], ui: { description: 'Job tags in the licensing policy pack, e.g. ["acr_service","refrigerant_handling"].' } }),
+    requiredCredentialKinds: (0, import_fields12.json)({ defaultValue: [], ui: { description: 'Extra credential kinds every assigned tech must hold, e.g. ["backflow"].' } }),
+    requiresSupervisorOnJob: (0, import_fields12.checkbox)({ defaultValue: false }),
     maxCoolingTons: qty(),
-    maxHeatingBtuh: (0, import_fields11.integer)(),
-    skills: (0, import_fields11.relationship)({ ref: "Skill", many: true }),
+    maxHeatingBtuh: (0, import_fields12.integer)(),
+    skills: (0, import_fields12.relationship)({ ref: "Skill", many: true }),
     ...trackingFields
   }
 });
-var EligibilityEvaluation = (0, import_core11.list)({
+var EligibilityEvaluation = (0, import_core12.list)({
   access: immutable(["canDispatch", "canViewBoard", "canManagePeople"]),
   ui: { labelField: "result", listView: { initialColumns: ["visit", "employee", "result", "evaluatedAt"] } },
   fields: {
-    visit: (0, import_fields11.relationship)({ ref: "Visit", ...readOnly }),
-    employee: (0, import_fields11.relationship)({ ref: "Employee", ...readOnly }),
-    policyVersion: (0, import_fields11.relationship)({ ref: "PolicyVersion", ...readOnly }),
+    visit: (0, import_fields12.relationship)({ ref: "Visit", ...readOnly }),
+    employee: (0, import_fields12.relationship)({ ref: "Employee", ...readOnly }),
+    policyVersion: (0, import_fields12.relationship)({ ref: "PolicyVersion", ...readOnly }),
     result: fixedChoice(["eligible", "ineligible", "override"]),
-    findings: (0, import_fields11.json)({ ...readOnly }),
-    evaluatedAt: (0, import_fields11.timestamp)({ ...readOnly }),
-    overrideApproval: (0, import_fields11.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    findings: (0, import_fields12.json)({ ...readOnly }),
+    evaluatedAt: (0, import_fields12.timestamp)({ ...readOnly }),
+    overrideApproval: (0, import_fields12.relationship)({ ref: "ApprovalRequest", ...readOnly }),
     ...trackingFields
   }
 });
-var Crew = (0, import_core11.list)({
+var Crew = (0, import_core12.list)({
   access: managed("signedIn", ["canDispatch", "canManagePeople"]),
   ui: { labelField: "name" },
   fields: {
-    name: (0, import_fields11.text)({ validation: { isRequired: true } }),
-    lead: (0, import_fields11.relationship)({ ref: "Employee" }),
-    members: (0, import_fields11.relationship)({ ref: "Employee", many: true }),
-    businessUnit: (0, import_fields11.relationship)({ ref: "BusinessUnit" }),
+    name: (0, import_fields12.text)({ validation: { isRequired: true } }),
+    lead: (0, import_fields12.relationship)({ ref: "Employee" }),
+    members: (0, import_fields12.relationship)({ ref: "Employee", many: true }),
+    businessUnit: (0, import_fields12.relationship)({ ref: "BusinessUnit" }),
     ...trackingFields
   }
 });
 var LOCAL_TIME = { regex: /^([01]\d|2[0-3]):[0-5]\d$/, explanation: "HH:MM, 24-hour" };
-var ShiftTemplate = (0, import_core11.list)({
+var ShiftTemplate = (0, import_core12.list)({
   access: managed("signedIn", ["canDispatch", "canManagePeople"]),
   ui: { labelField: "startLocal", listView: { initialColumns: ["employee", "weekday", "startLocal", "endLocal"] } },
   fields: {
-    employee: (0, import_fields11.relationship)({ ref: "Employee" }),
-    weekday: (0, import_fields11.integer)({ validation: { isRequired: true, min: 0, max: 6 }, ui: { description: "0 = Sunday" } }),
-    startLocal: (0, import_fields11.text)({ validation: { isRequired: true, match: LOCAL_TIME } }),
-    endLocal: (0, import_fields11.text)({ validation: { isRequired: true, match: LOCAL_TIME } }),
+    employee: (0, import_fields12.relationship)({ ref: "Employee" }),
+    weekday: (0, import_fields12.integer)({ validation: { isRequired: true, min: 0, max: 6 }, ui: { description: "0 = Sunday" } }),
+    startLocal: (0, import_fields12.text)({ validation: { isRequired: true, match: LOCAL_TIME } }),
+    endLocal: (0, import_fields12.text)({ validation: { isRequired: true, match: LOCAL_TIME } }),
     ...trackingFields
   }
 });
-var Shift = (0, import_core11.list)({
+var Shift = (0, import_core12.list)({
   access: governed(["canDispatch", "canViewBoard", "canManagePeople", "canWorkVisits"]),
   ui: { labelField: "date", listView: { initialColumns: ["employee", "date", "startsAt", "endsAt", "kind"] } },
   fields: {
-    employee: (0, import_fields11.relationship)({ ref: "Employee", ...readOnly }),
-    date: (0, import_fields11.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
-    startsAt: (0, import_fields11.timestamp)({ validation: { isRequired: true }, ...readOnly }),
-    endsAt: (0, import_fields11.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    employee: (0, import_fields12.relationship)({ ref: "Employee", ...readOnly }),
+    date: (0, import_fields12.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    startsAt: (0, import_fields12.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    endsAt: (0, import_fields12.timestamp)({ validation: { isRequired: true }, ...readOnly }),
     kind: fixedChoice(["regular", "on_call", "overtime"]),
     ...trackingFields
   }
 });
-var OnCallRotation = (0, import_core11.list)({
+var OnCallRotation = (0, import_core12.list)({
   access: managed("signedIn", ["canDispatch", "canManagePeople"]),
   ui: { labelField: "phoneE164", listView: { initialColumns: ["businessUnit", "employee", "startsAt", "endsAt", "escalationOrder"] } },
   fields: {
-    businessUnit: (0, import_fields11.relationship)({ ref: "BusinessUnit" }),
-    employee: (0, import_fields11.relationship)({ ref: "Employee" }),
-    startsAt: (0, import_fields11.timestamp)({ validation: { isRequired: true } }),
-    endsAt: (0, import_fields11.timestamp)({ validation: { isRequired: true } }),
-    phoneE164: (0, import_fields11.text)({ validation: { isRequired: true, match: { regex: /^\+[1-9]\d{7,14}$/, explanation: "E.164" } } }),
-    escalationOrder: (0, import_fields11.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1, max: 9 } }),
+    businessUnit: (0, import_fields12.relationship)({ ref: "BusinessUnit" }),
+    employee: (0, import_fields12.relationship)({ ref: "Employee" }),
+    startsAt: (0, import_fields12.timestamp)({ validation: { isRequired: true } }),
+    endsAt: (0, import_fields12.timestamp)({ validation: { isRequired: true } }),
+    phoneE164: (0, import_fields12.text)({ validation: { isRequired: true, match: { regex: /^\+[1-9]\d{7,14}$/, explanation: "E.164" } } }),
+    escalationOrder: (0, import_fields12.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1, max: 9 } }),
     ...trackingFields
   }
 });
@@ -1525,8 +1572,8 @@ __export(crm_exports, {
   LocationOwnership: () => LocationOwnership,
   ServiceLocation: () => ServiceLocation
 });
-var import_core12 = require("@keystone-6/core");
-var import_fields12 = require("@keystone-6/core/fields");
+var import_core13 = require("@keystone-6/core");
+var import_fields13 = require("@keystone-6/core/fields");
 
 // features/keystone/models/scope.ts
 var has = (session, names) => names.some((name) => session?.data.role?.[name] === true);
@@ -1549,7 +1596,7 @@ var scoped = (own, extra = []) => ({ session }) => {
 var techCustomer = (userId) => ({ jobs: { some: jobFilter(userId, true) } });
 var techLocation = (userId) => ({ jobs: { some: jobFilter(userId, true) } });
 var piiRead = anyOf("canReadCustomerPII", "canBook", "canDispatch", "canWorkVisits");
-var Customer = (0, import_core12.list)({
+var Customer = (0, import_core13.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: permissions.canManageCustomers, delete: sys },
     filter: { query: scoped(techCustomer) }
@@ -1558,91 +1605,91 @@ var Customer = (0, import_core12.list)({
   fields: {
     ref: systemText({ indexed: "unique", required: true }),
     kind: choice(["residential", "commercial"], "residential"),
-    displayName: (0, import_fields12.text)({ validation: { isRequired: true } }),
-    organizationName: (0, import_fields12.text)(),
-    primaryContact: (0, import_fields12.relationship)({ ref: "Contact" }),
-    contacts: (0, import_fields12.relationship)({ ref: "Contact.customer", many: true, ...readOnly }),
-    locations: (0, import_fields12.relationship)({ ref: "ServiceLocation.customer", many: true, ...readOnly }),
-    jobs: (0, import_fields12.relationship)({ ref: "Job.customer", many: true, ...readOnly }),
-    billingLine1: (0, import_fields12.text)(),
-    billingLine2: (0, import_fields12.text)(),
-    billingCity: (0, import_fields12.text)(),
-    billingRegion: (0, import_fields12.text)(),
-    billingPostalCode: (0, import_fields12.text)(),
-    taxExemptCertificate: (0, import_fields12.relationship)({ ref: "Document" }),
-    tags: (0, import_fields12.relationship)({ ref: "Tag", many: true }),
-    doNotService: (0, import_fields12.checkbox)({ defaultValue: false }),
-    doNotServiceReason: (0, import_fields12.text)(),
-    mergedInto: (0, import_fields12.relationship)({ ref: "Customer", ...readOnly }),
-    source: (0, import_fields12.relationship)({ ref: "Campaign", ...readOnly }),
+    displayName: (0, import_fields13.text)({ validation: { isRequired: true } }),
+    organizationName: (0, import_fields13.text)(),
+    primaryContact: (0, import_fields13.relationship)({ ref: "Contact" }),
+    contacts: (0, import_fields13.relationship)({ ref: "Contact.customer", many: true, ...readOnly }),
+    locations: (0, import_fields13.relationship)({ ref: "ServiceLocation.customer", many: true, ...readOnly }),
+    jobs: (0, import_fields13.relationship)({ ref: "Job.customer", many: true, ...readOnly }),
+    billingLine1: (0, import_fields13.text)(),
+    billingLine2: (0, import_fields13.text)(),
+    billingCity: (0, import_fields13.text)(),
+    billingRegion: (0, import_fields13.text)(),
+    billingPostalCode: (0, import_fields13.text)(),
+    taxExemptCertificate: (0, import_fields13.relationship)({ ref: "Document" }),
+    tags: (0, import_fields13.relationship)({ ref: "Tag", many: true }),
+    doNotService: (0, import_fields13.checkbox)({ defaultValue: false }),
+    doNotServiceReason: (0, import_fields13.text)(),
+    mergedInto: (0, import_fields13.relationship)({ ref: "Customer", ...readOnly }),
+    source: (0, import_fields13.relationship)({ ref: "Campaign", ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var Contact = (0, import_core12.list)({
+var Contact = (0, import_core13.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: permissions.canManageCustomers, delete: sys },
     filter: { query: scoped((userId) => ({ customer: techCustomer(userId) })) }
   },
   ui: { labelField: "lastName", listView: { initialColumns: ["firstName", "lastName", "role", "customer"] } },
   fields: {
-    customer: (0, import_fields12.relationship)({ ref: "Customer.contacts", ...readOnly }),
-    firstName: (0, import_fields12.text)(),
-    lastName: (0, import_fields12.text)(),
+    customer: (0, import_fields13.relationship)({ ref: "Customer.contacts", ...readOnly }),
+    firstName: (0, import_fields13.text)(),
+    lastName: (0, import_fields13.text)(),
     role: choice(["owner", "spouse", "tenant", "property_manager", "billing", "site_contact", "other"], "owner"),
-    points: (0, import_fields12.relationship)({ ref: "ContactPoint.contact", many: true, ...readOnly }),
-    preferredLanguage: (0, import_fields12.text)({ defaultValue: "en" }),
+    points: (0, import_fields13.relationship)({ ref: "ContactPoint.contact", many: true, ...readOnly }),
+    preferredLanguage: (0, import_fields13.text)({ defaultValue: "en" }),
     ...trackingFields
   }
 });
-var ContactPoint = (0, import_core12.list)({
+var ContactPoint = (0, import_core13.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: sys, delete: sys },
     filter: { query: scoped((userId) => ({ contact: { customer: techCustomer(userId) } })) }
   },
   ui: { labelField: "kind", listView: { initialColumns: ["contact", "kind", "value", "isPrimary", "carrierLineType"] } },
   fields: {
-    contact: (0, import_fields12.relationship)({ ref: "Contact.points", ...readOnly }),
+    contact: (0, import_fields13.relationship)({ ref: "Contact.points", ...readOnly }),
     kind: fixedChoice(["mobile", "landline", "email"]),
-    value: (0, import_fields12.text)({ validation: { isRequired: true }, access: { read: piiRead, create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
+    value: (0, import_fields13.text)({ validation: { isRequired: true }, access: { read: piiRead, create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
     valueHash: systemText({ indexed: true, required: true }),
-    verifiedAt: (0, import_fields12.timestamp)({ ...readOnly }),
-    isPrimary: (0, import_fields12.checkbox)({ defaultValue: false, ...readOnly }),
+    verifiedAt: (0, import_fields13.timestamp)({ ...readOnly }),
+    isPrimary: (0, import_fields13.checkbox)({ defaultValue: false, ...readOnly }),
     carrierLineType: fixedChoice(["unknown", "mobile", "landline", "voip"]),
-    consents: (0, import_fields12.relationship)({ ref: "ConsentRecord.contactPoint", many: true, ...readOnly }),
+    consents: (0, import_fields13.relationship)({ ref: "ConsentRecord.contactPoint", many: true, ...readOnly }),
     ...trackingFields
   }
 });
 var CONSENT_PURPOSES = ["transactional_sms", "transactional_voice", "marketing_sms", "marketing_email", "marketing_voice", "ai_voice_outbound", "call_recording", "auto_renewal"];
-var ConsentRecord = (0, import_core12.list)({
+var ConsentRecord = (0, import_core13.list)({
   access: immutable(["canManageCustomers", "canBook", "canSendMessages", "canDispatch"]),
   ui: { labelField: "purpose", listView: { initialColumns: ["contactPoint", "purpose", "action", "channel", "recordedAt"] } },
   fields: {
-    contactPoint: (0, import_fields12.relationship)({ ref: "ContactPoint.consents", ...readOnly }),
+    contactPoint: (0, import_fields13.relationship)({ ref: "ContactPoint.consents", ...readOnly }),
     purpose: fixedChoice(CONSENT_PURPOSES),
     action: fixedChoice(["grant", "revoke"]),
     channel: fixedChoice(["web_form", "portal", "phone", "sms_keyword", "paper", "in_person", "import"]),
-    evidence: (0, import_fields12.json)({ ...readOnly }),
+    evidence: (0, import_fields13.json)({ ...readOnly }),
     wordingVersion: systemText(),
-    policyVersion: (0, import_fields12.relationship)({ ref: "PolicyVersion", ...readOnly }),
-    recordedAt: (0, import_fields12.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    policyVersion: (0, import_fields13.relationship)({ ref: "PolicyVersion", ...readOnly }),
+    recordedAt: (0, import_fields13.timestamp)({ validation: { isRequired: true }, ...readOnly }),
     actorKind: fixedChoice(["user", "agent", "system", "customer", "webhook"]),
     actorId: systemText(),
     ...trackingFields
   }
 });
-var DncEntry = (0, import_core12.list)({
+var DncEntry = (0, import_core13.list)({
   access: immutable(["canManageCustomers", "canSendMessages", "canManageCampaigns"]),
   ui: { labelField: "valueHash", listView: { initialColumns: ["kind", "source", "addedAt"] } },
   fields: {
     valueHash: systemText({ indexed: true, required: true }),
     kind: fixedChoice(["internal", "national_cache"]),
     source: systemText(),
-    addedAt: (0, import_fields12.timestamp)({ ...readOnly }),
+    addedAt: (0, import_fields13.timestamp)({ ...readOnly }),
     ...trackingFields
   }
 });
-var ServiceLocation = (0, import_core12.list)({
+var ServiceLocation = (0, import_core13.list)({
   access: {
     operation: { query: officeOrTech(), create: sys, update: permissions.canManageCustomers, delete: sys },
     filter: { query: scoped(techLocation) }
@@ -1650,81 +1697,81 @@ var ServiceLocation = (0, import_core12.list)({
   ui: { labelField: "address1", listView: { initialColumns: ["ref", "address1", "city", "postalCode", "customer", "serviceArea", "geocodeQuality"] } },
   fields: {
     ref: systemText({ indexed: "unique", required: true }),
-    customer: (0, import_fields12.relationship)({ ref: "Customer.locations", ...readOnly }),
-    address1: (0, import_fields12.text)({ validation: { isRequired: true } }),
-    address2: (0, import_fields12.text)(),
-    city: (0, import_fields12.text)({ validation: { isRequired: true } }),
-    state: (0, import_fields12.text)({ defaultValue: "TX", validation: { isRequired: true, match: { regex: /^[A-Z]{2}$/, explanation: "Two-letter state code" } } }),
-    county: (0, import_fields12.text)(),
-    postalCode: (0, import_fields12.text)({ validation: { isRequired: true, match: { regex: /^\d{5}(-\d{4})?$/, explanation: "ZIP or ZIP+4" } } }),
-    country: (0, import_fields12.text)({ defaultValue: "US" }),
+    customer: (0, import_fields13.relationship)({ ref: "Customer.locations", ...readOnly }),
+    address1: (0, import_fields13.text)({ validation: { isRequired: true } }),
+    address2: (0, import_fields13.text)(),
+    city: (0, import_fields13.text)({ validation: { isRequired: true } }),
+    state: (0, import_fields13.text)({ defaultValue: "TX", validation: { isRequired: true, match: { regex: /^[A-Z]{2}$/, explanation: "Two-letter state code" } } }),
+    county: (0, import_fields13.text)(),
+    postalCode: (0, import_fields13.text)({ validation: { isRequired: true, match: { regex: /^\d{5}(-\d{4})?$/, explanation: "ZIP or ZIP+4" } } }),
+    country: (0, import_fields13.text)({ defaultValue: "US" }),
     lat: geo({ ...readOnly }),
     lng: geo({ ...readOnly }),
     geocodeQuality: fixedChoice(["rooftop", "interpolated", "zip", "failed"]),
     timeZone: systemText({ required: true }),
-    serviceArea: (0, import_fields12.relationship)({ ref: "ServiceArea", ...readOnly }),
+    serviceArea: (0, import_fields13.relationship)({ ref: "ServiceArea", ...readOnly }),
     propertyClass: choice(["residential", "nonresidential", "multiple_use"], "residential"),
     propertyType: choice(["single_family", "townhome", "condo", "multifamily", "mobile_home", "commercial"], "single_family"),
-    yearBuilt: (0, import_fields12.integer)({ validation: { min: 1800, max: 2100 } }),
-    squareFeet: (0, import_fields12.integer)({ validation: { min: 0 } }),
-    contacts: (0, import_fields12.relationship)({ ref: "LocationContact.location", many: true, ...readOnly }),
-    accessSecrets: (0, import_fields12.relationship)({ ref: "AccessSecret.location", many: true, ...readOnly }),
-    jobs: (0, import_fields12.relationship)({ ref: "Job.location", many: true, ...readOnly }),
-    mergedInto: (0, import_fields12.relationship)({ ref: "ServiceLocation", ...readOnly }),
+    yearBuilt: (0, import_fields13.integer)({ validation: { min: 1800, max: 2100 } }),
+    squareFeet: (0, import_fields13.integer)({ validation: { min: 0 } }),
+    contacts: (0, import_fields13.relationship)({ ref: "LocationContact.location", many: true, ...readOnly }),
+    accessSecrets: (0, import_fields13.relationship)({ ref: "AccessSecret.location", many: true, ...readOnly }),
+    jobs: (0, import_fields13.relationship)({ ref: "Job.location", many: true, ...readOnly }),
+    mergedInto: (0, import_fields13.relationship)({ ref: "ServiceLocation", ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var LocationOwnership = (0, import_core12.list)({
+var LocationOwnership = (0, import_core13.list)({
   access: immutable(["canManageCustomers", "canBook"]),
   ui: { labelField: "reason" },
   fields: {
-    location: (0, import_fields12.relationship)({ ref: "ServiceLocation", ...readOnly }),
-    customer: (0, import_fields12.relationship)({ ref: "Customer", ...readOnly }),
-    from: (0, import_fields12.calendarDay)({ ...readOnly }),
-    to: (0, import_fields12.calendarDay)({ ...readOnly }),
+    location: (0, import_fields13.relationship)({ ref: "ServiceLocation", ...readOnly }),
+    customer: (0, import_fields13.relationship)({ ref: "Customer", ...readOnly }),
+    from: (0, import_fields13.calendarDay)({ ...readOnly }),
+    to: (0, import_fields13.calendarDay)({ ...readOnly }),
     reason: fixedChoice(["purchase", "sale", "tenant_change", "import", "created"]),
     ...trackingFields
   }
 });
-var LocationContact = (0, import_core12.list)({
+var LocationContact = (0, import_core13.list)({
   access: governed(["canManageCustomers", "canBook", "canDispatch"]),
   ui: { labelField: "role" },
   fields: {
-    location: (0, import_fields12.relationship)({ ref: "ServiceLocation.contacts", ...readOnly }),
-    contact: (0, import_fields12.relationship)({ ref: "Contact", ...readOnly }),
+    location: (0, import_fields13.relationship)({ ref: "ServiceLocation.contacts", ...readOnly }),
+    contact: (0, import_fields13.relationship)({ ref: "Contact", ...readOnly }),
     role: fixedChoice(["owner", "tenant", "property_manager", "site_contact"]),
-    canAuthorizeWork: (0, import_fields12.checkbox)({ defaultValue: true, ...readOnly }),
+    canAuthorizeWork: (0, import_fields13.checkbox)({ defaultValue: true, ...readOnly }),
     nteMinor: minor({ description: "Not-to-exceed this contact may authorise, in cents." }),
     ...trackingFields
   }
 });
-var AccessSecret = (0, import_core12.list)({
+var AccessSecret = (0, import_core13.list)({
   access: {
     operation: { query: anyOf("canManageCustomers", "canDispatch", "canRevealAccessSecret"), create: sys, update: sys, delete: sys },
     filter: { query: ({ session }) => isSignedIn({ session }) ? true : false }
   },
   ui: { labelField: "label", listView: { initialColumns: ["location", "kind", "label", "status"] } },
   fields: {
-    location: (0, import_fields12.relationship)({ ref: "ServiceLocation.accessSecrets", ...readOnly }),
+    location: (0, import_fields13.relationship)({ ref: "ServiceLocation.accessSecrets", ...readOnly }),
     kind: fixedChoice(["gate_code", "lockbox", "alarm", "garage", "pet", "other"]),
     label: systemText({ required: true }),
-    secretRef: (0, import_fields12.text)({ access: { read: () => false, create: () => false, update: () => false }, ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" }, createView: { fieldMode: "hidden" } } }),
+    secretRef: (0, import_fields13.text)({ access: { read: () => false, create: () => false, update: () => false }, ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" }, createView: { fieldMode: "hidden" } } }),
     status: lifecycle(["active", "retired"]),
-    reveals: (0, import_fields12.relationship)({ ref: "AccessSecretReveal.secret", many: true, ...readOnly }),
+    reveals: (0, import_fields13.relationship)({ ref: "AccessSecretReveal.secret", many: true, ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var AccessSecretReveal = (0, import_core12.list)({
+var AccessSecretReveal = (0, import_core13.list)({
   access: immutable(["canManageCustomers", "canReadAudit"]),
   ui: { labelField: "revealedAt", listView: { initialColumns: ["secret", "revealedTo", "visit", "revealedAt", "expiresAt"] } },
   fields: {
-    secret: (0, import_fields12.relationship)({ ref: "AccessSecret.reveals", ...readOnly }),
-    revealedTo: (0, import_fields12.relationship)({ ref: "User", ...readOnly }),
-    visit: (0, import_fields12.relationship)({ ref: "Visit", ...readOnly }),
-    revealedAt: (0, import_fields12.timestamp)({ ...readOnly }),
-    expiresAt: (0, import_fields12.timestamp)({ ...readOnly }),
+    secret: (0, import_fields13.relationship)({ ref: "AccessSecret.reveals", ...readOnly }),
+    revealedTo: (0, import_fields13.relationship)({ ref: "User", ...readOnly }),
+    visit: (0, import_fields13.relationship)({ ref: "Visit", ...readOnly }),
+    revealedAt: (0, import_fields13.timestamp)({ ...readOnly }),
+    expiresAt: (0, import_fields13.timestamp)({ ...readOnly }),
     reason: systemText(),
     ...trackingFields
   }
@@ -1747,152 +1794,152 @@ __export(demand_exports, {
   Opportunity: () => Opportunity,
   TrackingNumber: () => TrackingNumber
 });
-var import_core13 = require("@keystone-6/core");
-var import_fields13 = require("@keystone-6/core/fields");
+var import_core14 = require("@keystone-6/core");
+var import_fields14 = require("@keystone-6/core/fields");
 var CAMPAIGN_CHANNELS = ["google_lsa", "google_ads", "seo", "direct_mail", "referral", "yard_sign", "truck_wrap", "tv_radio", "marketplace", "repeat", "tech_generated", "other"];
-var Campaign = (0, import_core13.list)({
+var Campaign = (0, import_core14.list)({
   access: managed(["canManageCampaigns", "canManageLeads", "canBook"], "canManageCampaigns"),
   ui: { labelField: "name", listView: { initialColumns: ["name", "channel", "active"] } },
   fields: {
-    name: (0, import_fields13.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    name: (0, import_fields14.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
     channel: choice(CAMPAIGN_CHANNELS, "other"),
     monthlyCostMinor: minor({ defaultValue: 0n, description: "Planned monthly spend in cents (actuals arrive with the accounting export)." }),
-    active: (0, import_fields13.checkbox)({ defaultValue: true }),
-    trackingNumbers: (0, import_fields13.relationship)({ ref: "TrackingNumber.campaign", many: true }),
+    active: (0, import_fields14.checkbox)({ defaultValue: true }),
+    trackingNumbers: (0, import_fields14.relationship)({ ref: "TrackingNumber.campaign", many: true }),
     ...trackingFields
   }
 });
-var TrackingNumber = (0, import_core13.list)({
+var TrackingNumber = (0, import_core14.list)({
   access: managed(["canManageCampaigns", "canManageLeads", "canBook"], "canManageCampaigns"),
   ui: { labelField: "phoneE164", listView: { initialColumns: ["phoneE164", "campaign", "provider", "businessUnit"] } },
   fields: {
-    phoneE164: (0, import_fields13.text)({ isIndexed: "unique", validation: { isRequired: true, match: { regex: /^\+[1-9]\d{7,14}$/, explanation: "E.164" } } }),
-    campaign: (0, import_fields13.relationship)({ ref: "Campaign.trackingNumbers" }),
-    provider: (0, import_fields13.text)({ defaultValue: "manual" }),
-    forwardTo: (0, import_fields13.text)(),
-    businessUnit: (0, import_fields13.relationship)({ ref: "BusinessUnit" }),
+    phoneE164: (0, import_fields14.text)({ isIndexed: "unique", validation: { isRequired: true, match: { regex: /^\+[1-9]\d{7,14}$/, explanation: "E.164" } } }),
+    campaign: (0, import_fields14.relationship)({ ref: "Campaign.trackingNumbers" }),
+    provider: (0, import_fields14.text)({ defaultValue: "manual" }),
+    forwardTo: (0, import_fields14.text)(),
+    businessUnit: (0, import_fields14.relationship)({ ref: "BusinessUnit" }),
     ...trackingFields
   }
 });
 var LEAD_SOURCES = ["call", "sms", "web_form", "online_booking", "lsa", "marketplace", "tech_generated", "membership", "import", "ai_agent"];
 var LEAD_STATUSES = ["new", "contacted", "qualified", "booked", "converted", "lost", "spam", "merged"];
 var LOST_REASONS = ["price", "timing", "out_of_area", "no_answer", "competitor", "not_serviceable", "duplicate", "other"];
-var Lead = (0, import_core13.list)({
+var Lead = (0, import_core14.list)({
   access: governed(["canManageLeads", "canBook"]),
   ui: { labelField: "ref", listView: { initialColumns: ["ref", "contactName", "source", "status", "requestedJobType", "createdAt"] } },
   fields: {
     ref: systemText({ indexed: "unique", required: true }),
     source: fixedChoice(LEAD_SOURCES),
-    campaign: (0, import_fields13.relationship)({ ref: "Campaign", ...readOnly }),
-    trackingNumber: (0, import_fields13.relationship)({ ref: "TrackingNumber", ...readOnly }),
+    campaign: (0, import_fields14.relationship)({ ref: "Campaign", ...readOnly }),
+    trackingNumber: (0, import_fields14.relationship)({ ref: "TrackingNumber", ...readOnly }),
     externalId: systemText(),
-    customer: (0, import_fields13.relationship)({ ref: "Customer", ...readOnly }),
-    location: (0, import_fields13.relationship)({ ref: "ServiceLocation", ...readOnly }),
+    customer: (0, import_fields14.relationship)({ ref: "Customer", ...readOnly }),
+    location: (0, import_fields14.relationship)({ ref: "ServiceLocation", ...readOnly }),
     contactName: systemText(),
-    phoneE164: (0, import_fields13.text)({ access: { read: anyOf("canReadCustomerPII", "canBook", "canManageLeads"), create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
-    email: (0, import_fields13.text)({ access: { read: anyOf("canReadCustomerPII", "canBook", "canManageLeads"), create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
-    requestedJobType: (0, import_fields13.relationship)({ ref: "JobType", ...readOnly }),
+    phoneE164: (0, import_fields14.text)({ access: { read: anyOf("canReadCustomerPII", "canBook", "canManageLeads"), create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
+    email: (0, import_fields14.text)({ access: { read: anyOf("canReadCustomerPII", "canBook", "canManageLeads"), create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
+    requestedJobType: (0, import_fields14.relationship)({ ref: "JobType", ...readOnly }),
     summary: systemText(),
     status: lifecycle(LEAD_STATUSES),
     lostReason: fixedChoice(["", ...LOST_REASONS]),
-    firstResponseSeconds: (0, import_fields13.integer)({ ...readOnly }),
-    respondDueAt: (0, import_fields13.timestamp)({ ...readOnly }),
-    job: (0, import_fields13.relationship)({ ref: "Job", ...readOnly }),
-    mergedInto: (0, import_fields13.relationship)({ ref: "Lead", ...readOnly }),
-    assignedTo: (0, import_fields13.relationship)({ ref: "User", ...readOnly }),
+    firstResponseSeconds: (0, import_fields14.integer)({ ...readOnly }),
+    respondDueAt: (0, import_fields14.timestamp)({ ...readOnly }),
+    job: (0, import_fields14.relationship)({ ref: "Job", ...readOnly }),
+    mergedInto: (0, import_fields14.relationship)({ ref: "Lead", ...readOnly }),
+    assignedTo: (0, import_fields14.relationship)({ ref: "User", ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var Conversation = (0, import_core13.list)({
+var Conversation = (0, import_core14.list)({
   access: governed(["canManageLeads", "canBook", "canSendMessages", "canDispatch"]),
   ui: { labelField: "channel", listView: { initialColumns: ["customer", "channel", "status", "updatedAt"] } },
   fields: {
-    customer: (0, import_fields13.relationship)({ ref: "Customer", ...readOnly }),
-    contactPoint: (0, import_fields13.relationship)({ ref: "ContactPoint", ...readOnly }),
+    customer: (0, import_fields14.relationship)({ ref: "Customer", ...readOnly }),
+    contactPoint: (0, import_fields14.relationship)({ ref: "ContactPoint", ...readOnly }),
     channel: fixedChoice(["voice", "sms", "email", "chat"]),
     status: lifecycle(["open", "waiting_customer", "waiting_staff", "closed"]),
-    assignedTo: (0, import_fields13.relationship)({ ref: "User", ...readOnly }),
-    lead: (0, import_fields13.relationship)({ ref: "Lead", ...readOnly }),
-    job: (0, import_fields13.relationship)({ ref: "Job", ...readOnly }),
-    calls: (0, import_fields13.relationship)({ ref: "Call.conversation", many: true, ...readOnly }),
-    messages: (0, import_fields13.relationship)({ ref: "Message.conversation", many: true, ...readOnly }),
+    assignedTo: (0, import_fields14.relationship)({ ref: "User", ...readOnly }),
+    lead: (0, import_fields14.relationship)({ ref: "Lead", ...readOnly }),
+    job: (0, import_fields14.relationship)({ ref: "Job", ...readOnly }),
+    calls: (0, import_fields14.relationship)({ ref: "Call.conversation", many: true, ...readOnly }),
+    messages: (0, import_fields14.relationship)({ ref: "Message.conversation", many: true, ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
 var CALL_DISPOSITIONS = ["", "booked", "not_booked", "existing_job", "spam", "emergency_paged", "transferred"];
-var Call = (0, import_core13.list)({
+var Call = (0, import_core14.list)({
   access: governed(["canManageLeads", "canBook", "canDispatch"]),
   ui: { labelField: "providerCallId", listView: { initialColumns: ["startedAt", "direction", "fromMasked", "answeredBy", "disposition", "status"] } },
   fields: {
-    conversation: (0, import_fields13.relationship)({ ref: "Conversation.calls", ...readOnly }),
+    conversation: (0, import_fields14.relationship)({ ref: "Conversation.calls", ...readOnly }),
     direction: fixedChoice(["inbound", "outbound"]),
     providerCallId: systemText({ indexed: "unique", required: true }),
     provider: systemText(),
-    from: (0, import_fields13.text)({ access: { read: anyOf("canReadCustomerPII", "canBook"), create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
+    from: (0, import_fields14.text)({ access: { read: anyOf("canReadCustomerPII", "canBook"), create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
     fromMasked: systemText(),
     to: systemText(),
-    trackingNumber: (0, import_fields13.relationship)({ ref: "TrackingNumber", ...readOnly }),
-    startedAt: (0, import_fields13.timestamp)({ ...readOnly }),
-    endedAt: (0, import_fields13.timestamp)({ ...readOnly }),
-    durationSeconds: (0, import_fields13.integer)({ ...readOnly }),
+    trackingNumber: (0, import_fields14.relationship)({ ref: "TrackingNumber", ...readOnly }),
+    startedAt: (0, import_fields14.timestamp)({ ...readOnly }),
+    endedAt: (0, import_fields14.timestamp)({ ...readOnly }),
+    durationSeconds: (0, import_fields14.integer)({ ...readOnly }),
     answeredBy: fixedChoice(["human", "ai_agent", "voicemail", "ivr"]),
-    agentRun: (0, import_fields13.relationship)({ ref: "AgentRun", ...readOnly }),
-    recording: (0, import_fields13.relationship)({ ref: "Media", ...readOnly }),
-    transcript: (0, import_fields13.json)({ ...readOnly, ui: { ...readOnly.ui, description: "Turns as [{speaker, text, at}]. Card numbers are never spoken on our calls (payment links only)." } }),
-    recordingDisclosurePlayed: (0, import_fields13.checkbox)({ defaultValue: false, ...readOnly }),
-    emergency: (0, import_fields13.json)({ ...readOnly }),
+    agentRun: (0, import_fields14.relationship)({ ref: "AgentRun", ...readOnly }),
+    recording: (0, import_fields14.relationship)({ ref: "Media", ...readOnly }),
+    transcript: (0, import_fields14.json)({ ...readOnly, ui: { ...readOnly.ui, description: "Turns as [{speaker, text, at}]. Card numbers are never spoken on our calls (payment links only)." } }),
+    recordingDisclosurePlayed: (0, import_fields14.checkbox)({ defaultValue: false, ...readOnly }),
+    emergency: (0, import_fields14.json)({ ...readOnly }),
     summary: systemText(),
     disposition: fixedChoice(CALL_DISPOSITIONS),
-    bookable: (0, import_fields13.checkbox)({ defaultValue: false, ...readOnly }),
-    lead: (0, import_fields13.relationship)({ ref: "Lead", ...readOnly }),
-    job: (0, import_fields13.relationship)({ ref: "Job", ...readOnly }),
+    bookable: (0, import_fields14.checkbox)({ defaultValue: false, ...readOnly }),
+    lead: (0, import_fields14.relationship)({ ref: "Lead", ...readOnly }),
+    job: (0, import_fields14.relationship)({ ref: "Job", ...readOnly }),
     status: lifecycle(["ringing", "ai_answering", "human_answering", "handoff_requested", "completed"]),
     version: versionField(),
     ...trackingFields
   }
 });
 var MESSAGE_BLOCK_REASONS = ["", "no_consent", "dnc", "quiet_hours", "unregistered_10dlc", "opted_out", "policy_unresolved"];
-var Message = (0, import_core13.list)({
+var Message = (0, import_core14.list)({
   access: governed(["canSendMessages", "canBook", "canDispatch", "canManageLeads"]),
   ui: { labelField: "template", listView: { initialColumns: ["createdAt", "direction", "purpose", "template", "status", "blockedReason"] } },
   fields: {
-    conversation: (0, import_fields13.relationship)({ ref: "Conversation.messages", ...readOnly }),
-    contactPoint: (0, import_fields13.relationship)({ ref: "ContactPoint", ...readOnly }),
+    conversation: (0, import_fields14.relationship)({ ref: "Conversation.messages", ...readOnly }),
+    contactPoint: (0, import_fields14.relationship)({ ref: "ContactPoint", ...readOnly }),
     direction: fixedChoice(["inbound", "outbound"]),
     channel: fixedChoice(["sms", "email"]),
     purpose: fixedChoice(["transactional", "marketing", "internal"]),
     consentPurpose: systemText(),
     template: systemText(),
-    body: (0, import_fields13.text)({ access: { read: anyOf("canSendMessages", "canBook", "canDispatch", "canManageLeads"), create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
+    body: (0, import_fields14.text)({ access: { read: anyOf("canSendMessages", "canBook", "canDispatch", "canManageLeads"), create: () => false, update: () => false }, ui: { itemView: { fieldMode: "read" } } }),
     status: lifecycle(["queued", "sending", "blocked", "sent", "manual", "delivered", "failed", "undeliverable", "received"]),
     blockedReason: fixedChoice(MESSAGE_BLOCK_REASONS),
-    guardFindings: (0, import_fields13.json)({ ...readOnly }),
+    guardFindings: (0, import_fields14.json)({ ...readOnly }),
     providerMessageId: systemText({ indexed: true }),
-    job: (0, import_fields13.relationship)({ ref: "Job", ...readOnly }),
-    visit: (0, import_fields13.relationship)({ ref: "Visit", ...readOnly }),
-    sentAt: (0, import_fields13.timestamp)({ ...readOnly }),
-    deliveredAt: (0, import_fields13.timestamp)({ ...readOnly }),
+    job: (0, import_fields14.relationship)({ ref: "Job", ...readOnly }),
+    visit: (0, import_fields14.relationship)({ ref: "Visit", ...readOnly }),
+    sentAt: (0, import_fields14.timestamp)({ ...readOnly }),
+    deliveredAt: (0, import_fields14.timestamp)({ ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var Opportunity = (0, import_core13.list)({
+var Opportunity = (0, import_core14.list)({
   access: governed(["canManageLeads", "canBook", "canPresentEstimates"]),
   ui: { labelField: "ref", listView: { initialColumns: ["ref", "customer", "kind", "stage", "estimatedValueMinor"] } },
   fields: {
     ref: systemText({ indexed: "unique", required: true }),
-    customer: (0, import_fields13.relationship)({ ref: "Customer", ...readOnly }),
-    location: (0, import_fields13.relationship)({ ref: "ServiceLocation", ...readOnly }),
+    customer: (0, import_fields14.relationship)({ ref: "Customer", ...readOnly }),
+    location: (0, import_fields14.relationship)({ ref: "ServiceLocation", ...readOnly }),
     kind: fixedChoice(["replacement", "repair_followup", "membership", "commercial_bid", "upgrade"]),
     source: fixedChoice(["tech_generated", "estimate_followup", "agent_scan", "membership_visit", "inbound"]),
-    generatedBy: (0, import_fields13.relationship)({ ref: "Employee", ...readOnly }),
+    generatedBy: (0, import_fields14.relationship)({ ref: "Employee", ...readOnly }),
     estimatedValueMinor: minor(),
-    reasons: (0, import_fields13.json)({ ...readOnly }),
+    reasons: (0, import_fields14.json)({ ...readOnly }),
     stage: lifecycle(["open", "appointment_set", "estimate_presented", "won", "lost"]),
-    assignedTo: (0, import_fields13.relationship)({ ref: "Employee", ...readOnly }),
-    lead: (0, import_fields13.relationship)({ ref: "Lead", ...readOnly }),
+    assignedTo: (0, import_fields14.relationship)({ ref: "Employee", ...readOnly }),
+    lead: (0, import_fields14.relationship)({ ref: "Lead", ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
@@ -1910,118 +1957,118 @@ __export(booking_exports, {
   JOB_PRIORITIES: () => JOB_PRIORITIES,
   JobType: () => JobType
 });
-var import_core14 = require("@keystone-6/core");
-var import_fields14 = require("@keystone-6/core/fields");
+var import_core15 = require("@keystone-6/core");
+var import_fields15 = require("@keystone-6/core/fields");
 var JOB_PRIORITIES = ["emergency", "urgent", "standard", "maintenance"];
-var JobType = (0, import_core14.list)({
+var JobType = (0, import_core15.list)({
   access: managed("signedIn", "canManageCompany"),
   ui: { labelField: "name", listView: { initialColumns: ["code", "name", "businessUnit", "priority", "capacityHours", "bookableByAi"] } },
   fields: {
-    code: (0, import_fields14.text)({ isIndexed: "unique", validation: { isRequired: true, match: { regex: /^[A-Z0-9-]{3,24}$/, explanation: "Like HVAC-NOCOOL" } } }),
-    name: (0, import_fields14.text)({ validation: { isRequired: true } }),
-    businessUnit: (0, import_fields14.relationship)({ ref: "BusinessUnit" }),
+    code: (0, import_fields15.text)({ isIndexed: "unique", validation: { isRequired: true, match: { regex: /^[A-Z0-9-]{3,24}$/, explanation: "Like HVAC-NOCOOL" } } }),
+    name: (0, import_fields15.text)({ validation: { isRequired: true } }),
+    businessUnit: (0, import_fields15.relationship)({ ref: "BusinessUnit" }),
     trade: choice(["hvac", "plumbing", "electrical"], "hvac"),
     priority: choice(JOB_PRIORITIES, "standard"),
-    defaultDurationMinutes: (0, import_fields14.integer)({ defaultValue: 90, validation: { isRequired: true, min: 15, max: 1440 } }),
+    defaultDurationMinutes: (0, import_fields15.integer)({ defaultValue: 90, validation: { isRequired: true, min: 15, max: 1440 } }),
     capacityHours: qty({ required: true, description: "Tech-hours one booking uses from a window (I-B1)." }),
-    crewSize: (0, import_fields14.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1, max: 12 } }),
-    requirements: (0, import_fields14.relationship)({ ref: "JobTypeRequirement" }),
-    keywords: (0, import_fields14.json)({ defaultValue: [], ui: { description: "Words a caller uses for this problem; jobtype.match ranks by them." } }),
-    bookableOnline: (0, import_fields14.checkbox)({ defaultValue: false }),
-    bookableByAi: (0, import_fields14.checkbox)({ defaultValue: false }),
-    emergencyPolicy: (0, import_fields14.json)({ ui: { description: '{"keywords":[...],"script":"\u2026","page":true}. A match makes the AI CSR give the script and page on-call (SM\xA717).' } }),
-    checklistTemplate: (0, import_fields14.relationship)({ ref: "ChecklistTemplate" }),
-    refrigerantWork: (0, import_fields14.checkbox)({ defaultValue: false }),
-    permitLikely: (0, import_fields14.checkbox)({ defaultValue: false }),
-    bookingQuestions: (0, import_fields14.json)({ defaultValue: [] }),
-    active: (0, import_fields14.checkbox)({ defaultValue: true }),
+    crewSize: (0, import_fields15.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1, max: 12 } }),
+    requirements: (0, import_fields15.relationship)({ ref: "JobTypeRequirement" }),
+    keywords: (0, import_fields15.json)({ defaultValue: [], ui: { description: "Words a caller uses for this problem; jobtype.match ranks by them." } }),
+    bookableOnline: (0, import_fields15.checkbox)({ defaultValue: false }),
+    bookableByAi: (0, import_fields15.checkbox)({ defaultValue: false }),
+    emergencyPolicy: (0, import_fields15.json)({ ui: { description: '{"keywords":[...],"script":"\u2026","page":true}. A match makes the AI CSR give the script and page on-call (SM\xA717).' } }),
+    checklistTemplate: (0, import_fields15.relationship)({ ref: "ChecklistTemplate" }),
+    refrigerantWork: (0, import_fields15.checkbox)({ defaultValue: false }),
+    permitLikely: (0, import_fields15.checkbox)({ defaultValue: false }),
+    bookingQuestions: (0, import_fields15.json)({ defaultValue: [] }),
+    active: (0, import_fields15.checkbox)({ defaultValue: true }),
     ...trackingFields
   }
 });
 var LOCAL_TIME2 = { regex: /^([01]\d|2[0-3]):[0-5]\d$/, explanation: "HH:MM, 24-hour" };
-var ArrivalWindowTemplate = (0, import_core14.list)({
+var ArrivalWindowTemplate = (0, import_core15.list)({
   access: managed("signedIn", ["canManageCompany", "canDispatch"]),
   ui: { labelField: "label", listView: { initialColumns: ["businessUnit", "weekday", "label", "startLocal", "endLocal", "capacityHours", "active"] } },
   fields: {
-    businessUnit: (0, import_fields14.relationship)({ ref: "BusinessUnit" }),
-    weekday: (0, import_fields14.integer)({ validation: { isRequired: true, min: 0, max: 6 }, ui: { description: "0 = Sunday" } }),
-    startLocal: (0, import_fields14.text)({ validation: { isRequired: true, match: LOCAL_TIME2 } }),
-    endLocal: (0, import_fields14.text)({ validation: { isRequired: true, match: LOCAL_TIME2 } }),
-    label: (0, import_fields14.text)({ validation: { isRequired: true } }),
+    businessUnit: (0, import_fields15.relationship)({ ref: "BusinessUnit" }),
+    weekday: (0, import_fields15.integer)({ validation: { isRequired: true, min: 0, max: 6 }, ui: { description: "0 = Sunday" } }),
+    startLocal: (0, import_fields15.text)({ validation: { isRequired: true, match: LOCAL_TIME2 } }),
+    endLocal: (0, import_fields15.text)({ validation: { isRequired: true, match: LOCAL_TIME2 } }),
+    label: (0, import_fields15.text)({ validation: { isRequired: true } }),
     capacityHours: qty({ required: true, description: "Tech-hours sold into this window before the plan factor." }),
     capacityFactor: rate({ description: "Multiplier for the window (1.000000 = as planned)." }),
-    active: (0, import_fields14.checkbox)({ defaultValue: true }),
+    active: (0, import_fields15.checkbox)({ defaultValue: true }),
     ...trackingFields
   }
 });
-var ArrivalWindow = (0, import_core14.list)({
+var ArrivalWindow = (0, import_core15.list)({
   access: governed(["canBook", "canDispatch", "canViewBoard", "canWorkVisits"]),
   ui: { labelField: "label", listView: { initialColumns: ["businessUnit", "date", "label", "capacityHours", "bookedHours", "closed"] } },
   fields: {
-    businessUnit: (0, import_fields14.relationship)({ ref: "BusinessUnit", ...readOnly }),
-    template: (0, import_fields14.relationship)({ ref: "ArrivalWindowTemplate", ...readOnly }),
-    date: (0, import_fields14.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
-    startsAt: (0, import_fields14.timestamp)({ validation: { isRequired: true }, ...readOnly }),
-    endsAt: (0, import_fields14.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    businessUnit: (0, import_fields15.relationship)({ ref: "BusinessUnit", ...readOnly }),
+    template: (0, import_fields15.relationship)({ ref: "ArrivalWindowTemplate", ...readOnly }),
+    date: (0, import_fields15.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    startsAt: (0, import_fields15.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    endsAt: (0, import_fields15.timestamp)({ validation: { isRequired: true }, ...readOnly }),
     label: systemText({ required: true }),
     capacityHours: qty({ required: true }),
     bookedHours: qty({ required: true }),
-    closed: (0, import_fields14.checkbox)({ defaultValue: false, ...readOnly }),
+    closed: (0, import_fields15.checkbox)({ defaultValue: false, ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
 });
-var CapacityPlan = (0, import_core14.list)({
+var CapacityPlan = (0, import_core15.list)({
   access: governed(["canBook", "canDispatch", "canViewBoard"]),
   ui: { labelField: "date" },
   fields: {
-    businessUnit: (0, import_fields14.relationship)({ ref: "BusinessUnit", ...readOnly }),
-    date: (0, import_fields14.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    businessUnit: (0, import_fields15.relationship)({ ref: "BusinessUnit", ...readOnly }),
+    date: (0, import_fields15.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
     techHoursAvailable: qty({ required: true }),
     reservedEmergencyHours: qty({ required: true }),
     ...trackingFields
   }
 });
-var CapacityUsage = (0, import_core14.list)({
+var CapacityUsage = (0, import_core15.list)({
   access: governed(["canBook", "canDispatch", "canViewBoard"]),
   ui: { labelField: "kind", listView: { initialColumns: ["window", "kind", "hours", "createdAt"] } },
   fields: {
-    window: (0, import_fields14.relationship)({ ref: "ArrivalWindow", ...readOnly }),
+    window: (0, import_fields15.relationship)({ ref: "ArrivalWindow", ...readOnly }),
     kind: fixedChoice(["hold", "visit"]),
-    hold: (0, import_fields14.relationship)({ ref: "BookingHold", ...readOnly }),
-    visit: (0, import_fields14.relationship)({ ref: "Visit", ...readOnly }),
+    hold: (0, import_fields15.relationship)({ ref: "BookingHold", ...readOnly }),
+    visit: (0, import_fields15.relationship)({ ref: "Visit", ...readOnly }),
     hours: qty({ required: true }),
     ...trackingFields
   }
 });
-var CapacityOverride = (0, import_core14.list)({
+var CapacityOverride = (0, import_core15.list)({
   access: governed(["canBook", "canDispatch", "canViewBoard"]),
   ui: { labelField: "reason" },
   fields: {
-    window: (0, import_fields14.relationship)({ ref: "ArrivalWindow", ...readOnly }),
+    window: (0, import_fields15.relationship)({ ref: "ArrivalWindow", ...readOnly }),
     addHours: qty({ required: true }),
     reason: systemText({ required: true }),
-    requestedBy: (0, import_fields14.relationship)({ ref: "User", ...readOnly }),
-    approval: (0, import_fields14.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    requestedBy: (0, import_fields15.relationship)({ ref: "User", ...readOnly }),
+    approval: (0, import_fields15.relationship)({ ref: "ApprovalRequest", ...readOnly }),
     ...trackingFields
   }
 });
-var BookingHold = (0, import_core14.list)({
+var BookingHold = (0, import_core15.list)({
   access: governed(["canBook", "canDispatch", "canViewBoard"]),
   ui: { labelField: "publicCode", listView: { initialColumns: ["publicCode", "window", "jobType", "source", "status", "expiresAt"] } },
   fields: {
     publicCode: systemText({ indexed: "unique", required: true }),
-    window: (0, import_fields14.relationship)({ ref: "ArrivalWindow", ...readOnly }),
-    jobType: (0, import_fields14.relationship)({ ref: "JobType", ...readOnly }),
+    window: (0, import_fields15.relationship)({ ref: "ArrivalWindow", ...readOnly }),
+    jobType: (0, import_fields15.relationship)({ ref: "JobType", ...readOnly }),
     hours: qty({ required: true }),
     source: fixedChoice(["csr", "online", "ai_agent"]),
-    heldByUser: (0, import_fields14.relationship)({ ref: "User", ...readOnly }),
-    heldByAgent: (0, import_fields14.relationship)({ ref: "AgentIdentity", ...readOnly }),
-    customerDraft: (0, import_fields14.json)({ ...readOnly }),
-    expiresAt: (0, import_fields14.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    heldByUser: (0, import_fields15.relationship)({ ref: "User", ...readOnly }),
+    heldByAgent: (0, import_fields15.relationship)({ ref: "AgentIdentity", ...readOnly }),
+    customerDraft: (0, import_fields15.json)({ ...readOnly }),
+    expiresAt: (0, import_fields15.timestamp)({ validation: { isRequired: true }, ...readOnly }),
     status: lifecycle(["held", "converted", "released", "expired"]),
-    job: (0, import_fields14.relationship)({ ref: "Job", ...readOnly }),
-    visit: (0, import_fields14.relationship)({ ref: "Visit", ...readOnly }),
+    job: (0, import_fields15.relationship)({ ref: "Job", ...readOnly }),
+    visit: (0, import_fields15.relationship)({ ref: "Visit", ...readOnly }),
     version: versionField(),
     ...trackingFields
   }
@@ -2044,34 +2091,6 @@ __export(jobs_exports, {
   VisitStatusEvent: () => VisitStatusEvent,
   WorkLine: () => WorkLine
 });
-
-// features/keystone/models/costHidden.ts
-var import_core15 = require("@keystone-6/core");
-var import_fields15 = require("@keystone-6/core/fields");
-var COST_PERMISSIONS = ["canManagePriceBook", "canApprovePriceBook", "canApproveDiscounts"];
-var canReadCost = (session) => !!session && isSignedIn({ session }) && COST_PERMISSIONS.some((name) => session.data?.role?.[name] === true);
-var COSTLY = /cost|margin/i;
-function withoutCost(value) {
-  if (Array.isArray(value)) return value.map(withoutCost);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).filter(([key2]) => !COSTLY.test(key2)).map(([key2, v]) => [key2, withoutCost(v)]));
-  }
-  return value;
-}
-var costGuardedJson = (config2 = {}) => (meta) => {
-  const base = (0, import_fields15.json)(config2)(meta);
-  return {
-    ...base,
-    output: import_core15.graphql.field({
-      type: import_core15.graphql.JSON,
-      resolve({ value }, _args, context) {
-        return canReadCost(context.session) ? value : withoutCost(value);
-      }
-    })
-  };
-};
-
-// features/keystone/models/jobs.ts
 var import_core16 = require("@keystone-6/core");
 var import_fields16 = require("@keystone-6/core/fields");
 var JOB_STATUSES = ["draft", "booked", "scheduled", "in_progress", "on_hold", "work_complete", "awaiting_inspection", "completed", "closed", "cancelled"];
@@ -2314,7 +2333,7 @@ var NOTICE_STATUSES = ["issued", "delivered", "waived", "cancelled_by_buyer", "e
 var DECLINE_REASONS = ["price", "timing", "chose_competitor", "will_call_back", "financing_declined", "no_longer_needed", "other"];
 var SALE_LOCATIONS = ["buyer_residence", "other_non_merchant", "merchant_place", "remote"];
 var has2 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
-var costRead = ({ session }) => isSignedIn({ session }) && has2(session, ["canManagePriceBook", "canApprovePriceBook", "canApproveDiscounts"]);
+var costRead = ({ session }) => canReadCost(session);
 var PRICEBOOK_READ = [...OFFICE_READ, "canManagePriceBook", "canApprovePriceBook", "canPresentEstimates", "canSellEstimates", "canWorkVisits"];
 var SALES_OFFICE = [...OFFICE_READ, "canManagePriceBook", "canApproveDiscounts", "canApprovePolicies"];
 var salesQuery = ({ session }) => isSignedIn({ session }) && (has2(session, SALES_OFFICE) || has2(session, ["canWorkVisits", "canPresentEstimates"]));
@@ -2394,7 +2413,7 @@ var PriceBookVersion = (0, import_core17.list)({
     basedOn: (0, import_fields17.relationship)({ ref: "PriceBookVersion", ...readOnly }),
     notes: systemText(),
     effectiveAt: (0, import_fields17.timestamp)({ ...readOnly }),
-    contentHash: systemText(),
+    contentHash: costHash(),
     diffReport: (0, import_fields17.json)({ ...readOnly }),
     costChangeReport: (0, import_fields17.json)({ ...readOnly, access: { ...readOnly.access, read: costRead } }),
     approval: (0, import_fields17.relationship)({ ref: "ApprovalRequest", ...readOnly }),
@@ -2442,7 +2461,7 @@ var PriceBookItem = (0, import_core17.list)({
     pricingMethod: fixedChoice(["fixed", "formula"], "fixed"),
     unitPriceMinor: minor({ defaultValue: 0n }),
     memberUnitPriceMinor: minor(),
-    costMinor: minor({ defaultValue: 0n, access: { read: costRead } }),
+    costMinor: minor({ defaultValue: 0n, ...costOnly }),
     laborHours: qty({ ...readOnly }),
     uom: systemText({ required: true }),
     taxCategory: fixedChoice(TAX_CATEGORIES, "labor"),
@@ -2536,7 +2555,7 @@ var EstimateVersion = (0, import_core17.list)({
     presentedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
     presentedVia: fixedChoice(["", "in_person", "email", "printed"], ""),
     validUntil: (0, import_fields17.timestamp)({ ...readOnly }),
-    snapshot: (0, import_fields17.json)({ ...readOnly }),
+    snapshot: costGuardedJson({ ...readOnly }),
     contentHash: systemText(),
     pdf: (0, import_fields17.relationship)({ ref: "Document", ...readOnly }),
     options: (0, import_fields17.relationship)({ ref: "EstimateOption.estimateVersion", many: true, ...readOnly }),
@@ -2565,7 +2584,7 @@ var EstimateOption = (0, import_core17.list)({
     estimatedTaxMinor: minor({ defaultValue: 0n }),
     totalMinor: minor({ defaultValue: 0n }),
     monthlyPaymentDisplay: (0, import_fields17.json)({ ...readOnly }),
-    contentHash: systemText(),
+    contentHash: costHash(),
     lines: (0, import_fields17.relationship)({ ref: "EstimateLine.option", many: true, ...readOnly }),
     ...trackingFields
   }
@@ -2585,7 +2604,7 @@ var EstimateLine = (0, import_core17.list)({
     amountMinor: minor({ defaultValue: 0n }),
     discountMinor: minor({ defaultValue: 0n }),
     memberPriced: (0, import_fields17.checkbox)({ defaultValue: false, ...readOnly }),
-    costMinor: minor({ defaultValue: 0n, access: { read: costRead } }),
+    costMinor: minor({ defaultValue: 0n, ...costOnly }),
     taxCategory: fixedChoice(TAX_CATEGORIES, "labor"),
     trade: fixedChoice(TRADE_OR_GENERAL, "general"),
     cancellationClass: fixedChoice(CANCELLATION_CLASSES, "requested_repair"),
@@ -2615,7 +2634,7 @@ var Authorization = (0, import_core17.list)({
     selectedLineIds: (0, import_fields17.json)({ ...readOnly }),
     depositMinor: minor({ defaultValue: 0n }),
     payments: (0, import_fields17.relationship)({ ref: "Payment.authorization", many: true, ...readOnly }),
-    contentHash: systemText({ required: true }),
+    contentHash: costHash({ required: true }),
     authorizedAt: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
     recordedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
     ...trackingFields
@@ -2721,7 +2740,7 @@ var ChangeOrder = (0, import_core17.list)({
     reason: systemText(),
     lines: costGuardedJson({ ...readOnly, ui: { ...readOnly.ui, description: "{ add: [frozen line snapshots], remove: [workLineId] }" } }),
     deltaMinor: minor({ defaultValue: 0n, description: "Signed change to the sold price, in cents (removals are negative)." }),
-    contentHash: systemText(),
+    contentHash: costHash(),
     presentedAt: (0, import_fields17.timestamp)({ ...readOnly }),
     authorization: (0, import_fields17.relationship)({ ref: "Authorization", ...readOnly }),
     cancellationEvaluation: (0, import_fields17.relationship)({ ref: "CancellationEvaluation", ...readOnly }),
@@ -2882,9 +2901,9 @@ function dec(value) {
     if (!Number.isSafeInteger(value)) throw new Error(`Refusing float ${value}: pass the exact decimal as a string`);
     return new Decimal(value);
   }
-  const text16 = String(value).trim();
-  if (!DECIMAL_TEXT.test(text16)) throw new Error(`Not a decimal number: ${JSON.stringify(text16).slice(0, 40)}`);
-  return new Decimal(text16);
+  const text17 = String(value).trim();
+  if (!DECIMAL_TEXT.test(text17)) throw new Error(`Not a decimal number: ${JSON.stringify(text17).slice(0, 40)}`);
+  return new Decimal(text17);
 }
 function toScale(value, scale, rounding = Decimal.ROUND_HALF_UP) {
   const places = typeof scale === "number" ? scale : Scale[scale];
@@ -2917,9 +2936,16 @@ function canonicalize(value) {
   throw new Error(`Canonical JSON cannot hold a ${typeof value}`);
 }
 var canonicalJson = (value) => JSON.stringify(canonicalize(value));
-var sha256 = (text16) => (0, import_node_crypto2.createHash)("sha256").update(text16).digest("hex");
+var sha256 = (text17) => (0, import_node_crypto2.createHash)("sha256").update(text17).digest("hex");
 var payloadHash = (value) => sha256(canonicalJson(value));
 var toJsonValue = (value) => canonicalize(value);
+var DEVELOPMENT_SECRET2 = "this secret should only be used in testing";
+function keyedPayloadHash2(value, purpose = "cost-bound-hash") {
+  const secret2 = process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? "" : DEVELOPMENT_SECRET2);
+  if (secret2.length < 16) throw new Error("SESSION_SECRET must be set to hash priced content");
+  const key2 = (0, import_node_crypto2.createHmac)("sha256", secret2).update(`hs-keyed-hash\0${purpose}`, "utf8").digest();
+  return (0, import_node_crypto2.createHmac)("sha256", key2).update(canonicalJson(value), "utf8").digest("hex");
+}
 
 // features/keystone/lib/agentGate.ts
 async function authorizeOperation(db, actor, tool, permissions2, inputs = {}) {
@@ -2961,6 +2987,10 @@ async function recordAgentRead(db, actor, spec) {
   return row.id;
 }
 
+// features/keystone/mcp-oauth/agentSession.ts
+var AGENT_ROLE_ID = "seed_role_ai_agent";
+var agentUserId = (agentId) => `agent_user_${agentId}`;
+
 // features/keystone/mcp-oauth/session.ts
 async function resolveMcpAccessToken(context, token, listKey = "User") {
   try {
@@ -2976,6 +3006,15 @@ async function resolveMcpAccessToken(context, token, listKey = "User") {
       scopes: storedScopes(record.scopes),
       tokenId: String(record.id)
     };
+    const bound = await sudo.db.AgentIdentity.findMany({ where: { oauthApp: { id: { equals: app.id } } }, take: 1 });
+    const agent = bound[0];
+    const issuedTo = String(record.agentId ?? "");
+    if (issuedTo || agent) {
+      if (!agent || !issuedTo || String(agent.id) !== issuedTo) return void 0;
+      if (agent.status !== "active" || agent.killSwitch) return void 0;
+      mcp.agentId = String(agent.id);
+      return { itemId: agentUserId(String(agent.id)), listKey, mcp, agent: { id: String(agent.id) } };
+    }
     return { itemId: String(record.userId), listKey, mcp };
   } catch {
     return void 0;
@@ -3001,13 +3040,16 @@ async function actorFor(context) {
   const person = actorFromSession(context.session);
   const marker = mcpSessionMarker(context.session);
   if (!marker) return person;
-  const agent = await context.prisma.agentIdentity.findFirst({
-    where: { oauthApp: { clientId: { equals: marker.clientId } } },
-    select: { id: true, name: true, status: true, killSwitch: true, ownerId: true, grants: { where: { status: "active", autonomy: { not: "disabled" }, revokedAt: null }, select: { tool: true } } }
-  });
-  if (!agent) return person;
-  if (agent.status !== "active" || agent.killSwitch) throw new DomainError(Codes.AGENT_DISABLED, `The agent ${agent.name} is ${agent.killSwitch ? "stopped by its kill switch" : agent.status}.`);
-  return { kind: "agent", agentId: agent.id, ownerUserId: agent.ownerId, name: agent.name, scopes: new Set(agent.grants.map((g) => g.tool)) };
+  if (marker.agentId) {
+    const agent = await context.prisma.agentIdentity.findFirst({
+      where: { id: marker.agentId, oauthApp: { clientId: { equals: marker.clientId } } },
+      select: { id: true, name: true, status: true, killSwitch: true, ownerId: true, grants: { where: { status: "active", autonomy: { not: "disabled" }, revokedAt: null }, select: { tool: true } } }
+    });
+    if (!agent) throw new DomainError(Codes.NOT_AUTHORIZED, "This connection is no longer linked to an agent. Reconnect the app.");
+    if (agent.status !== "active" || agent.killSwitch) throw new DomainError(Codes.AGENT_DISABLED, `The agent ${agent.name} is ${agent.killSwitch ? "stopped by its kill switch" : agent.status}.`);
+    return { kind: "agent", agentId: agent.id, ownerUserId: agent.ownerId, name: agent.name, scopes: new Set(agent.grants.map((g) => g.tool)) };
+  }
+  return person;
 }
 
 // features/keystone/lib/db.ts
@@ -3580,6 +3622,7 @@ var COMPANY = {
 var BASE = ["canAccessDashboard", "canSeeOtherPeople"];
 var all = (except) => permissionNames.filter((name) => !except.includes(name));
 var ROLES = [
+  { id: "seed_role_ai_agent", name: "AI Agent", description: "Least privilege for AI agents. Holds no permission: an agent acts only through its tool grants, and never sees cost or margin.", permissions: [] },
   { id: "seed_role_owner", name: "Owner", description: "Everything except break-glass. Break-glass is never on a default role.", permissions: all(["canBreakGlass"]) },
   { id: "seed_role_gm", name: "General Manager", description: "Runs the shop day to day and approves money and policy changes.", permissions: all(["canBreakGlass", "canManageRoles", "canRunPayroll"]) },
   { id: "seed_role_csr", name: "CSR", description: "Answers calls, books jobs, takes payments and sells memberships.", permissions: [...BASE, "canManageCustomers", "canReadCustomerPII", "canManageLeads", "canBook", "canViewBoard", "canTakePayments", "canSellMemberships", "canOfferFinancing", "canSendMessages"] },
@@ -5320,8 +5363,8 @@ function optionTotals(lines, discountBps) {
   const marginBps = ratioBps(net - cost, net);
   return { subtotalMinor: subtotal, discountMinor: discount, lineDiscounts, totalBeforeTaxMinor: net, costMinor: cost, marginBps };
 }
-var quoteHash = (versionId, lines, discountBps = 0) => payloadHash({ versionId, discountBps, lines });
-var optionHash = (option2) => payloadHash({ tier: option2.tier, name: option2.name, subtotalMinor: option2.subtotalMinor, discountMinor: option2.discountMinor, totalMinor: option2.totalMinor, lines: option2.lines.map((l) => ({ ...l })) });
+var quoteHash = (versionId, lines, discountBps = 0) => keyedPayloadHash2({ versionId, discountBps, lines });
+var optionHash = (option2) => keyedPayloadHash2({ tier: option2.tier, name: option2.name, subtotalMinor: option2.subtotalMinor, discountMinor: option2.discountMinor, totalMinor: option2.totalMinor, lines: option2.lines.map((l) => ({ ...l })) });
 function depositCap(totalMinor, rules2) {
   const caps = [];
   if (rules2.depositCapPct !== null) caps.push(roundMinor(dec(totalMinor).times(dec(rules2.depositCapPct)).div(100), Decimal.ROUND_DOWN));
@@ -6084,10 +6127,10 @@ var PAGE_H = 792;
 var MARGIN = 54;
 var W = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
 var WB = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
-function ansi(text16) {
+function ansi(text17) {
   const map = { "\u20AC": 128, "\u201A": 130, "\u201E": 132, "\u2026": 133, "\u2018": 145, "\u2019": 146, "\u201C": 147, "\u201D": 148, "\u2022": 149, "\u2013": 150, "\u2014": 151, "\u2122": 153, "\u2212": 45, "\xB7": 183, "\xA7": 167 };
   let out = "";
-  for (const ch of text16) {
+  for (const ch of text17) {
     const c = ch.codePointAt(0);
     const b = map[ch] ?? (c >= 32 && c <= 255 && !(c >= 127 && c < 160) ? c : 63);
     out += String.fromCharCode(b);
@@ -6095,19 +6138,19 @@ function ansi(text16) {
   return out;
 }
 var esc = (s) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-function textWidth(text16, size, font = "regular") {
-  if (font === "mono") return ansi(text16).length * 600 * size / 1e3;
+function textWidth(text17, size, font = "regular") {
+  if (font === "mono") return ansi(text17).length * 600 * size / 1e3;
   const table = font === "bold" ? WB : W;
   let w = 0;
-  for (const ch of ansi(text16)) {
+  for (const ch of ansi(text17)) {
     const c = ch.charCodeAt(0);
     w += c >= 32 && c <= 126 ? table[c - 32] : 556;
   }
   return w * size / 1e3;
 }
-function wrap(text16, width, size, font = "regular") {
+function wrap(text17, width, size, font = "regular") {
   const lines = [];
-  for (const para of text16.split("\n")) {
+  for (const para of text17.split("\n")) {
     let line = "";
     for (const word of para.split(/\s+/).filter(Boolean)) {
       const next = line ? `${line} ${word}` : word;
@@ -6649,6 +6692,15 @@ async function recordWaiver(uow, actor, noticeId, ref, waiver) {
   if (!waiver.mediaRef?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Attach the photo or scan of the buyer's handwritten statement.", { field: "emergencyWaiver.mediaRef" });
   return storeRecordedDocument(uow, actor, { title: `${ref} emergency waiver`, kind: "emergency_waiver", subjectType: "CancellationNotice", subjectId: noticeId, storageKey: `media:${waiver.mediaRef.trim()}`, content: statement, mimeType: "text/plain" });
 }
+async function unrefundedPayments(tx, evaluationId) {
+  if (!evaluationId) return [];
+  const rows = await tx.payment.findMany({
+    where: { authorization: { from_CancellationEvaluation_authorization: { some: { id: evaluationId } } } },
+    orderBy: [{ receivedAt: "asc" }, { id: "asc" }],
+    select: { id: true, ref: true, amountMinor: true, refunds: { select: { amountMinor: true } } }
+  });
+  return rows.map((p) => ({ id: p.id, ref: p.ref, remainingMinor: p.amountMinor - p.refunds.reduce((sum, r) => sum + r.amountMinor, 0n) })).filter((p) => p.remainingMinor > 0n);
+}
 async function lockNotice(tx, id, expectedVersion) {
   const [row] = await tx.$queryRaw`SELECT id, ref, status, version, job, "cancelBy", "transactionAt", "timeZone", rules, evaluation, "startOverride", "estimateVersion" FROM "CancellationNotice" WHERE id = ${id} FOR UPDATE`;
   if (!row) throw new DomainError(Codes.NOT_FOUND, "Cancellation notice not found.");
@@ -6716,9 +6768,6 @@ async function recordBuyerCancellation(db, actor, args) {
   if (!RECEIVED_VIA.includes(args.via)) throw new DomainError(Codes.INVALID_INPUT, `Received via one of ${RECEIVED_VIA.join(", ")}.`, { field: "via" });
   const sentAt = new Date(args.sentAt);
   if (Number.isNaN(sentAt.getTime())) throw new DomainError(Codes.INVALID_INPUT, "When did the buyer send it?", { field: "sentAt" });
-  const typedPaid = args.amountPaidMinor ? /^\d{1,13}$/.test(args.amountPaidMinor) ? BigInt(args.amountPaidMinor) : (() => {
-    throw new DomainError(Codes.INVALID_INPUT, "Amount paid is whole cents.", { field: "amountPaidMinor" });
-  })() : null;
   const { idempotencyKey, now: _now, ...params } = args;
   const result = await command(db, { name: "cancellation.record_buyer_cancel", actor, idempotencyKey, params, now: args.now }, async (uow) => {
     const { tx } = uow;
@@ -6727,8 +6776,7 @@ async function recordBuyerCancellation(db, actor, args) {
     if (sentAt.getTime() > uow.now.getTime()) throw new DomainError(Codes.INVALID_INPUT, "The send time is in the future.", { field: "sentAt" });
     if (sentAt.getTime() < row.transactionAt.getTime()) throw new DomainError(Codes.INVALID_INPUT, "The send time is before the sale.", { field: "sentAt" });
     if (sentAt.getTime() >= row.cancelBy.getTime()) throw new DomainError(Codes.GUARD_FAILED, "This was sent after the cancellation deadline. Handle it as a customer-service cancellation, not a cooling-off cancellation.", { reason: "after_deadline", cancelBy: row.cancelBy.toISOString() });
-    const recorded = await tx.cancellationNotice.findUnique({ where: { id: row.id }, select: { evaluation: { select: { authorization: { select: { depositMinor: true } } } } } });
-    const paid = typedPaid ?? recorded?.evaluation?.authorization?.depositMinor ?? 0n;
+    const paid = (await unrefundedPayments(tx, row.evaluation)).reduce((sum, p) => sum + p.remainingMinor, 0n);
     const covered2 = await tx.workLine.findMany({ where: { cancellationNotices: { some: { id: row.id } } }, select: { id: true, version: true, status: true, amountMinor: true } });
     const cancelled = [];
     for (const w of covered2) {
@@ -6786,9 +6834,21 @@ async function markCancellationRefunded(db, actor, args) {
     const amount = BigInt(e.amountMinor);
     if (amount !== due.refundDueMinor) throw new DomainError(Codes.GUARD_FAILED, `The refund must be the full amount paid (${due.refundDueMinor.toString()}\xA2).`, { reason: "refund_amount_mismatch" });
     if (e.method === "nothing_paid" !== (amount === 0n)) throw new DomainError(Codes.INVALID_INPUT, '"Nothing paid" means an amount of zero.', { field: "evidence.method" });
+    const refunded = [];
+    if (amount > 0n) {
+      const payments = await unrefundedPayments(uow.tx, row.evaluation);
+      const refundable = payments.reduce((sum, p) => sum + p.remainingMinor, 0n);
+      if (refundable !== amount) throw new DomainError(Codes.GUARD_FAILED, `The payments on this sale leave ${refundable.toString()}\xA2 to refund, not ${amount.toString()}\xA2.`, { reason: "refund_payments_mismatch", refundableMinor: refundable.toString() });
+      for (const p of payments) {
+        const ref = await nextReference(uow.tx, "RFD", uow.now);
+        await uow.tx.refund.create({ data: { ref, paymentId: p.id, noticeId: row.id, method: e.method, amountMinor: p.remainingMinor, reference: e.reference.trim(), refundedAt: uow.now, recordedById: actorUserId(actor) } });
+        auditCreate(uow, actor, "Refund", ref, "refund.recorded", { noticeId: row.id, paymentRef: p.ref, amountMinor: p.remainingMinor.toString(), method: e.method, reference: e.reference.trim() });
+        refunded.push({ ref, paymentRef: p.ref, amountMinor: p.remainingMinor.toString() });
+      }
+    }
     const version = await casUpdate(uow, { model: "CancellationNotice", id: row.id, version: row.version, from: ["cancelled_by_buyer"], to: "refunded", actor, eventType: "cancellation_notice.refunded", data: { refundEvidence: { ...e, recordedBy: actorUserId(actor), at: uow.now.toISOString() } }, audit: { method: e.method, amountMinor: e.amountMinor } });
     await uow.tx.task.updateMany({ where: { dedupeKey: `cancellation.refund:${row.id}`, status: "open" }, data: { status: "done", closedAt: uow.now, closedById: actorUserId(actor), resolution: "Refund recorded", version: { increment: 1 } } });
-    return { noticeId: row.id, version, status: "refunded" };
+    return { noticeId: row.id, version, status: "refunded", refunds: refunded };
   });
   return { replay: result.replay, ...result.value };
 }
@@ -6935,6 +6995,20 @@ async function recomputeOption(uow, optionId, discountBps, tax) {
   await tx.estimateOption.update({ where: { id: optionId }, data: { subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor, estimatedTaxMinor: taxed.taxMinor, totalMinor, contentHash } });
   return { optionId, subtotalMinor: totals.subtotalMinor, discountMinor: totals.discountMinor, estimatedTaxMinor: taxed.taxMinor, totalMinor, marginBps: totals.marginBps, contentHash };
 }
+async function discountBinding(tx, versionId, discountBps) {
+  const options = await tx.estimateOption.findMany({ where: { estimateVersionId: versionId }, orderBy: { id: "asc" }, include: { lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } } });
+  const discountMinor = options.reduce((m, o) => o.discountMinor > m ? o.discountMinor : m, 0n);
+  const bindingHash = payloadHash({
+    discountBps,
+    options: options.map((o) => ({ id: o.id, tier: o.tier, subtotal: o.subtotalMinor.toString(), discount: o.discountMinor.toString(), lines: o.lines.map((l) => [l.itemKey, l.quantity.toString(), l.unitPriceMinor.toString(), l.amountMinor.toString(), l.discountMinor.toString()]) }))
+  });
+  return { discountMinor: discountMinor.toString(), bindingHash };
+}
+async function voidDiscountApproval(uow, actor, row, why) {
+  if (!row.discountApproval) return;
+  await uow.tx.estimateVersion.update({ where: { id: row.id }, data: { discountApprovalId: null } });
+  uow.audit({ eventType: "estimate_version.discount_approval_voided", entityType: "EstimateVersion", entityId: row.id, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), reason: why, before: { approvalId: row.discountApproval, discountBps: row.discountBps }, after: { approvalId: null }, metadata: {} });
+}
 var TIERS = ["good", "better", "best", "single", "custom"];
 async function writeOption(uow, est, version, input, tax, sortOrder) {
   const { tx } = uow;
@@ -7076,8 +7150,9 @@ async function saveEstimateOption(db, actor, args) {
     const count = await uow.tx.estimateOption.count({ where: { estimateVersionId: row.id } });
     if (!args.optionId && count >= 6) throw new DomainError(Codes.INVALID_INPUT, "An estimate shows at most six options.", { field: "optionId" });
     const option2 = await writeOption(uow, est, row, args, await taxContext(uow.tx, est, uow.now), count);
+    await voidDiscountApproval(uow, actor, row, "Option changed after the discount was approved");
     const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "draft", actor, eventType: "estimate_version.option_saved", audit: { optionId: option2.optionId, tier: args.tier, name: args.name, lines: args.lines.length, totalMinor: option2.totalMinor.toString() } });
-    return { versionId: row.id, version, optionId: option2.optionId, totalMinor: option2.totalMinor.toString(), subtotalMinor: option2.subtotalMinor.toString(), discountMinor: option2.discountMinor.toString(), estimatedTaxMinor: option2.estimatedTaxMinor.toString(), ...actor.kind === "user" ? { marginBps: option2.marginBps } : {} };
+    return { versionId: row.id, version, optionId: option2.optionId, totalMinor: option2.totalMinor.toString(), subtotalMinor: option2.subtotalMinor.toString(), discountMinor: option2.discountMinor.toString(), estimatedTaxMinor: option2.estimatedTaxMinor.toString() };
   });
   return { replay: result.replay, ...result.value };
 }
@@ -7092,6 +7167,7 @@ async function removeEstimateOption(db, actor, args) {
     if (!option2) throw new DomainError(Codes.NOT_FOUND, "That option is not on this estimate version.");
     await uow.tx.estimateLine.deleteMany({ where: { optionId: option2.id } });
     await uow.tx.estimateOption.delete({ where: { id: option2.id } });
+    await voidDiscountApproval(uow, actor, row, "Option removed after the discount was approved");
     const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "draft", actor, eventType: "estimate_version.option_removed", audit: { optionId: option2.id } });
     return { versionId: row.id, version };
   });
@@ -7106,6 +7182,7 @@ async function repriceEstimateVersion(db, actor, args) {
     const est = await loadEstimate(uow.tx, row.estimate);
     await assertEstimateAccess(uow.tx, actor, est);
     const repriced = await requoteOptionsInto(uow, est, row.id, { ...row, priceBookVersion: null });
+    await voidDiscountApproval(uow, actor, row, "Re-priced after the discount was approved");
     const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "draft", actor, eventType: "estimate_version.repriced", audit: { from: row.priceBookVersion, options: repriced } });
     return { versionId: row.id, version, options: repriced };
   });
@@ -7159,7 +7236,7 @@ async function setEstimateDiscount(db, actor, args) {
       targetList: "EstimateVersion",
       targetId: row.id,
       requiredPermission: "canApproveDiscounts",
-      payload: { versionId: row.id, discountBps: args.discountBps, options: totals.map((t) => ({ optionId: t.optionId, contentHash: t.contentHash })) },
+      payload: { versionId: row.id, discountBps: args.discountBps, ...await discountBinding(tx, row.id, args.discountBps), options: totals.map((t) => ({ optionId: t.optionId, contentHash: t.contentHash })) },
       summary: `${est.ref}: ${args.discountBps / 100}% discount (limit ${limit / 100}%) \u2014 ${args.reason?.trim()}`
     });
     const version = await casUpdate(uow, { model: "EstimateVersion", id: row.id, version: row.version, from: ["draft"], to: "pending_approval", actor, eventType: "estimate_version.discount_requested", reason: args.reason ?? null, data: { discountApprovalId: approval.id }, audit: { discountBps: args.discountBps, limitBps: limit, approvalId: approval.id } });
@@ -7212,11 +7289,19 @@ async function presentEstimate(db, actor, args) {
     const limit = await discountLimitBps(tx, actor);
     if (row.discountBps > limit) {
       const approval = row.discountApproval ? await tx.approvalRequest.findUnique({ where: { id: row.discountApproval }, select: { status: true, payload: true } }) : null;
-      const ok = approval && ["approved"].includes(approval.status) && approval.payload?.discountBps === row.discountBps;
+      const ok = approval && approval.status === "approved" && approval.payload?.discountBps === row.discountBps;
       if (!ok) throw new DomainError(Codes.APPROVAL_REQUIRED, `A ${row.discountBps / 100}% discount is over your ${limit / 100}% limit and needs approval.`, { reason: "discount_over_limit" });
     }
     const tax = await taxContext(tx, est, uow.now);
     for (const o of options) await recomputeOption(uow, o.id, row.discountBps, tax);
+    if (row.discountBps > limit) {
+      const approval = await tx.approvalRequest.findUnique({ where: { id: row.discountApproval }, select: { payload: true } });
+      const bound = approval?.payload;
+      const now = await discountBinding(tx, row.id, row.discountBps);
+      if (!bound?.bindingHash || bound.bindingHash !== now.bindingHash || bound.discountMinor !== now.discountMinor) {
+        throw new DomainError(Codes.APPROVAL_REQUIRED, "The price or discount changed after it was approved. Request approval again.", { reason: "discount_approval_stale" });
+      }
+    }
     const fresh = await tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, orderBy: { sortOrder: "asc" }, include: { lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } } });
     const trades = new Set(fresh.flatMap((o) => o.lines.map((l) => l.trade)));
     const { company, block } = await sellerBlock(tx, est.businessUnitId, placeOfLocation(est.location).state, trades);
@@ -7362,6 +7447,11 @@ async function sellEstimate(db, actor, args) {
       },
       select: { id: true }
     });
+    if (deposit > 0n) {
+      const ref = await nextReference(tx, "PMT", uow.now);
+      const payment = await tx.payment.create({ data: { ref, jobId: est.jobId, customerId: est.customerId ?? null, authorizationId: authorization.id, kind: "deposit", method: args.depositMethod ?? "card", amountMinor: deposit, reference: args.depositReference?.trim() ?? "", receivedAt: uow.now, recordedById: actorUserId(actor) }, select: { id: true } });
+      auditCreate(uow, actor, "Payment", payment.id, "payment.recorded", { ref, authorizationId: authorization.id, amountMinor: deposit.toString(), method: args.depositMethod ?? "card", kind: "deposit" });
+    }
     auditCreate(uow, actor, "Authorization", authorization.id, "authorization.recorded", { subject: `EstimateVersion:${row.id}`, optionId: option2.id, method: args.authorization.method, signerRole, location: args.saleLocation, initiatedBy: args.initiatedBy, contentHash: option2.contentHash, ownerApproval: args.authorization.ownerApproval ?? null });
     const workLines = [];
     for (const l of option2.lines) {
@@ -7534,7 +7624,7 @@ async function presentChangeOrder(db, actor, args) {
     const job = await uow.tx.job.findUniqueOrThrow({ where: { id: row.job }, select: { businessUnitId: true } });
     const active = await activeVersionFor(uow.tx, job.businessUnitId);
     if (row.lines.add.length && row.priceBookVersion !== active.versionId) throw new DomainError(Codes.GUARD_FAILED, "A new price book is active since this change order was priced. Draft it again.", { reason: "pricebook_changed" });
-    const contentHash = payloadHash({ changeOrderId: row.id, ref: row.ref, lines: row.lines, deltaMinor: row.deltaMinor.toString() });
+    const contentHash = keyedPayloadHash({ changeOrderId: row.id, ref: row.ref, lines: row.lines, deltaMinor: row.deltaMinor.toString() });
     const version = await casUpdate(uow, { model: "ChangeOrder", id: row.id, version: row.version, from: ["draft"], to: "presented", actor, eventType: "change_order.presented", data: { contentHash, presentedAt: uow.now } });
     return { changeOrderId: row.id, version, status: "presented", contentHash };
   });
@@ -9114,14 +9204,14 @@ async function mergeLead(db, actor, args) {
 }
 async function matchJobType(db, actor, args) {
   await authorizeOperation(db, actor, "jobtype.match", ["canBook"], args);
-  const text16 = args.description.toLowerCase();
+  const text17 = args.description.toLowerCase();
   const types = await db.jobType.findMany({ where: { active: true }, select: { id: true, code: true, name: true, trade: true, priority: true, keywords: true, emergencyPolicy: true, bookableByAi: true, bookingQuestions: true, businessUnitId: true } });
-  const words = new Set(text16.split(/[^a-z0-9]+/).filter(Boolean));
+  const words = new Set(text17.split(/[^a-z0-9]+/).filter(Boolean));
   const scored = types.map((t) => {
     const keys = (t.keywords ?? []).map((k) => k.toLowerCase());
-    const hits = keys.filter((k) => k.includes(" ") ? text16.includes(k) : words.has(k));
+    const hits = keys.filter((k) => k.includes(" ") ? text17.includes(k) : words.has(k));
     const emergency = t.emergencyPolicy;
-    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text16.includes(k.toLowerCase()));
+    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text17.includes(k.toLowerCase()));
     return { jobTypeId: t.id, code: t.code, name: t.name, trade: t.trade, priority: t.priority, bookableByAi: t.bookableByAi, score: hits.length * 10 + emergencyHits.length * 25, matched: hits, emergency: emergencyHits.length ? { matched: emergencyHits, script: emergency?.script ?? "", page: !!emergency?.page } : null, questions: t.bookingQuestions ?? [], businessUnitId: t.businessUnitId };
   }).filter((t) => t.score > 0).sort((a, b) => b.score - a.score || a.code.localeCompare(b.code)).slice(0, 3);
   let inArea = null;
@@ -9332,7 +9422,7 @@ var phase2TypeDefs = graphql3`
 
     deliverCancellationNotice(noticeId: ID!, method: String!, acknowledgedBy: String!, signature: JSON, messageId: ID, expectedVersion: Int!, idempotencyKey: String!): JSON
     waiveCancellationNotice(noticeId: ID!, waiver: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
-    recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, amountPaidMinor: String, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+    recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
     markCancellationRefunded(noticeId: ID!, evidence: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
     requestCancellationHoldOverride(noticeId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
   }
@@ -9380,12 +9470,88 @@ var phase2Resolvers = {
   }
 };
 
-// features/keystone/mutations/index.ts
+// features/keystone/mutations/agentBinding.ts
 var graphql4 = String.raw;
+var UNUSABLE_PASSWORD_HASH3 = "$2a$10$3dITCbIvf5zFA.1U8KZDhOHC3EEexi3KYy5ysZK1cRF6LHMm0H.ya";
+var agentBindingTypeDefs = graphql4`
+  type Query { agentBindings: JSON }
+  type Mutation {
+    bindAgentApp(agentId: ID!, oauthAppId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    unbindAgentApp(agentId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  }
+`;
+async function revokeAppTokens(tx, appId) {
+  const app = await tx.oAuthApp.findUnique({ where: { id: appId }, select: { clientId: true } });
+  if (!app) return 0;
+  const result = await tx.oAuthToken.updateMany({ where: { clientId: app.clientId, isRevoked: "false" }, data: { isRevoked: "true" } });
+  return result.count;
+}
+var agentBindingResolvers = {
+  Query: {
+    agentBindings: op(async (_root, _args, context) => {
+      const actor = await actorFor(context);
+      requirePermission(actor, "canManageAgents");
+      const [agents, apps] = await Promise.all([
+        context.prisma.agentIdentity.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, kind: true, status: true, killSwitch: true, version: true, owner: { select: { name: true } }, oauthApp: { select: { id: true, name: true, clientId: true, status: true } }, grants: { where: { status: "active", revokedAt: null }, select: { tool: true } } } }),
+        context.prisma.oAuthApp.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, clientId: true, status: true, from_AgentIdentity_oauthApp: { select: { id: true } } } })
+      ]);
+      return {
+        agents: agents.map((a) => ({ id: a.id, name: a.name, kind: a.kind, status: a.status, killSwitch: a.killSwitch, version: a.version, owner: a.owner?.name ?? null, app: a.oauthApp, grants: a.grants.length })),
+        apps: apps.map((a) => ({ id: a.id, name: a.name, clientId: a.clientId, status: a.status, boundTo: a.from_AgentIdentity_oauthApp?.[0]?.id ?? null }))
+      };
+    })
+  },
+  Mutation: {
+    bindAgentApp: op(async (_root, args, context) => {
+      const actor = await actorFor(context);
+      requirePermission(actor, "canManageAgents");
+      const result = await command(context.prisma, { name: "agent.bind_app", actor, idempotencyKey: args.idempotencyKey, params: { agentId: args.agentId, oauthAppId: args.oauthAppId, expectedVersion: args.expectedVersion } }, async (uow) => {
+        const { tx } = uow;
+        const agent = await tx.agentIdentity.findUnique({ where: { id: args.agentId }, select: { id: true, name: true, version: true, oauthAppId: true } });
+        if (!agent) throw new DomainError(Codes.NOT_FOUND, "Agent not found.");
+        if (agent.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "The agent changed since you loaded it. Reload and try again.", { currentVersion: agent.version });
+        const app = await tx.oAuthApp.findUnique({ where: { id: args.oauthAppId }, select: { id: true, name: true } });
+        if (!app) throw new DomainError(Codes.NOT_FOUND, "App not found.");
+        const taken = await tx.agentIdentity.findFirst({ where: { oauthAppId: app.id, id: { not: agent.id } }, select: { name: true } });
+        if (taken) throw new DomainError(Codes.GUARD_FAILED, `${app.name} is already connected to ${taken.name}.`, { reason: "app_already_bound" });
+        const userId = agentUserId(agent.id);
+        const existing = await tx.user.findUnique({ where: { id: userId }, select: { id: true } });
+        if (existing) await tx.user.update({ where: { id: userId }, data: { roleId: AGENT_ROLE_ID } });
+        else await tx.user.create({ data: { id: userId, name: `${agent.name} (agent)`, email: `agent-${agent.id}@agents.invalid`, password: UNUSABLE_PASSWORD_HASH3, kind: "staff", roleId: AGENT_ROLE_ID, title: "AI agent", onboardingStatus: "dismissed" } });
+        const updated = await tx.agentIdentity.updateMany({ where: { id: agent.id, version: agent.version }, data: { oauthAppId: app.id, version: { increment: 1 } } });
+        if (updated.count !== 1) throw new DomainError(Codes.STALE_STATE, "The agent changed since you loaded it. Reload and try again.");
+        let revoked = await revokeAppTokens(tx, app.id);
+        if (agent.oauthAppId && agent.oauthAppId !== app.id) revoked += await revokeAppTokens(tx, agent.oauthAppId);
+        auditCreate(uow, actor, "AgentIdentity", agent.id, "agent.app_bound", { revokedTokens: revoked, agentId: agent.id, oauthAppId: app.id, previousAppId: agent.oauthAppId, role: AGENT_ROLE_ID, boundBy: actorUserId(actor) });
+        return { agentId: agent.id, oauthAppId: app.id, version: agent.version + 1 };
+      });
+      return { replay: result.replay, ...result.value };
+    }),
+    unbindAgentApp: op(async (_root, args, context) => {
+      const actor = await actorFor(context);
+      requirePermission(actor, "canManageAgents");
+      const result = await command(context.prisma, { name: "agent.unbind_app", actor, idempotencyKey: args.idempotencyKey, params: { agentId: args.agentId, expectedVersion: args.expectedVersion } }, async (uow) => {
+        const { tx } = uow;
+        const agent = await tx.agentIdentity.findUnique({ where: { id: args.agentId }, select: { id: true, version: true, oauthAppId: true } });
+        if (!agent) throw new DomainError(Codes.NOT_FOUND, "Agent not found.");
+        if (agent.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "The agent changed since you loaded it. Reload and try again.", { currentVersion: agent.version });
+        const updated = await tx.agentIdentity.updateMany({ where: { id: agent.id, version: agent.version }, data: { oauthAppId: null, version: { increment: 1 } } });
+        if (updated.count !== 1) throw new DomainError(Codes.STALE_STATE, "The agent changed since you loaded it. Reload and try again.");
+        const revoked = agent.oauthAppId ? await revokeAppTokens(tx, agent.oauthAppId) : 0;
+        auditCreate(uow, actor, "AgentIdentity", agent.id, "agent.app_unbound", { revokedTokens: revoked, agentId: agent.id, previousAppId: agent.oauthAppId });
+        return { agentId: agent.id, version: agent.version + 1 };
+      });
+      return { replay: result.replay, ...result.value };
+    })
+  }
+};
+
+// features/keystone/mutations/index.ts
+var graphql5 = String.raw;
 function extendGraphqlSchema(baseSchema) {
   const core = (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
-    typeDefs: graphql4`
+    typeDefs: graphql5`
       scalar JSON
       type Query {
         redirectToInit: Boolean
@@ -9422,7 +9588,7 @@ function extendGraphqlSchema(baseSchema) {
       }
     }
   });
-  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs], resolvers: [phase1Resolvers, phase2Resolvers] });
+  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, agentBindingResolvers] });
 }
 
 // features/keystone/lib/mail.ts

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 import { plain } from './decimal'
 
 /**
@@ -38,3 +38,18 @@ export const payloadHash = (value: unknown) => sha256(canonicalJson(value))
 
 /** JSON-safe copy for json() fields (bigint and Decimal become strings). */
 export const toJsonValue = <T = unknown>(value: unknown) => canonicalize(value) as T
+
+const DEVELOPMENT_SECRET = 'this secret should only be used in testing'
+
+/**
+ * Keyed hash (HMAC-SHA256) of the canonical form, for any hash that covers a secret field such as
+ * internal cost. A plain SHA-256 over a small secret integer can be brute-forced by anyone who can
+ * read the hash and knows the other fields; without the server key, it cannot. The key is derived
+ * from SESSION_SECRET for one purpose only, so it never doubles as a session or token key.
+ */
+export function keyedPayloadHash(value: unknown, purpose = 'cost-bound-hash'): string {
+  const secret = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? '' : DEVELOPMENT_SECRET)
+  if (secret.length < 16) throw new Error('SESSION_SECRET must be set to hash priced content')
+  const key = createHmac('sha256', secret).update(`hs-keyed-hash\0${purpose}`, 'utf8').digest()
+  return createHmac('sha256', key).update(canonicalJson(value), 'utf8').digest('hex')
+}

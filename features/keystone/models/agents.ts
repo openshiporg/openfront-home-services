@@ -4,6 +4,7 @@ import { permissions } from '../access'
 import { choice, fixedChoice, lifecycle, minor, readOnly, systemText, versionField } from './domainFields'
 import { governed } from './listAccess'
 import { trackingFields } from './trackingFields'
+import { costGuardedJson } from './costHidden'
 
 /*
  * Agents (SCHEMA §16; STATE-MACHINES §18). An agent is an MCP client with scope grants per tool.
@@ -79,7 +80,7 @@ export const AgentAction = list({
     idempotencyKey: systemText({ indexed: 'unique', required: true }),
     inputsHash: systemText({ required: true }),
     inputsProvenance: json({ ...readOnly }),
-    output: json({ ...readOnly }),
+    output: costGuardedJson({ ...readOnly }),
     reasoningSummary: systemText(),
     status: lifecycle(['proposed', 'awaiting_approval', 'approved', 'rejected', 'applied', 'failed', 'expired']),
     approval: relationship({ ref: 'ApprovalRequest', ...readOnly }),
