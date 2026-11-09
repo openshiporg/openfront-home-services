@@ -45,3 +45,26 @@ describe('canonical hashing', () => {
     expect(auditHash(GENESIS_HASH, { ...row })).toBe(base)
   })
 })
+
+describe('audit chain hash is keyed (review r5b m-new-1)', () => {
+  const row = { seq: 1, eventKey: 'k', eventType: 'pricebook_version.settings_saved', entityType: 'PriceBookVersion', entityId: 'v1', actorUserId: 'u1', actorAgentId: null, approverId: null, reason: null, before: null, after: { tiers: [{ fromCostMinor: '0', toCostMinor: '2500' }] }, metadata: null, requestId: null, prevHash: GENESIS_HASH, at: new Date('2026-11-06T15:00:00Z') }
+  it('is versioned, and no longer equals a plain SHA-256 over the row', async () => {
+    const { sha256, canonicalJson } = await import('./canonical')
+    const { auditHashBody } = await import('./audit')
+    const hash = auditHash(GENESIS_HASH, row)
+    expect(hash).toMatch(/^v2:[0-9a-f]{64}$/)
+    expect(hash.slice(3)).not.toBe(sha256(`${GENESIS_HASH}\n${canonicalJson(auditHashBody(row))}`))
+  })
+  it('changes with the server secret, so it cannot be tested offline', () => {
+    const before = process.env.SESSION_SECRET
+    try {
+      process.env.SESSION_SECRET = 'a'.repeat(32)
+      const a = auditHash(GENESIS_HASH, row)
+      process.env.SESSION_SECRET = 'b'.repeat(32)
+      expect(auditHash(GENESIS_HASH, row)).not.toBe(a)
+    } finally {
+      if (before === undefined) delete process.env.SESSION_SECRET
+      else process.env.SESSION_SECRET = before
+    }
+  })
+})

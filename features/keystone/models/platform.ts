@@ -4,7 +4,7 @@ import { permissions } from '../access'
 import { choice, lifecycle, minor, readOnly, systemText, versionField } from './domainFields'
 import { governed, immutable, managed, serverOnly } from './listAccess'
 import { trackingFields } from './trackingFields'
-import { costGuardedJson } from './costHidden'
+import { costGuardedJson, costHash } from './costHidden'
 
 /*
  * Platform spine (SCHEMA §17, §16, §3.6, §6.8), shared with the other Openfront verticals. CalendarDay is
@@ -28,8 +28,9 @@ export const AuditEvent = list({
     after: costGuardedJson({ ...readOnly }),
     metadata: costGuardedJson({ ...readOnly }),
     requestId: systemText(),
-    prevHash: systemText({ required: true }),
-    hash: systemText({ indexed: 'unique', required: true }),
+    // Chain hashes are keyed, but still only for people who may read cost: no one else needs them, and no one else can filter or order by them.
+    prevHash: costHash({ required: true }),
+    hash: costHash({ required: true, indexed: 'unique' }),
     at: timestamp({ validation: { isRequired: true }, defaultValue: { kind: 'now' }, ...readOnly }),
   },
 })

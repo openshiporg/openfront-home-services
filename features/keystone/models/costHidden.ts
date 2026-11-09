@@ -30,8 +30,9 @@ export const costOnly = { access: { read: costRule }, isFilterable: costRule, is
  * cost, so anyone who could read one could try numbers until it matched). Readable, filterable and
  * orderable only by the people who may read cost; filtering by it would be a guessing oracle.
  */
-export const costHash = (options: { required?: boolean } = {}) =>
+export const costHash = (options: { required?: boolean; indexed?: boolean | 'unique' } = {}) =>
   text({
+    ...(options.indexed ? { isIndexed: options.indexed } : {}),
     validation: { isRequired: options.required ?? false },
     access: { create: () => false, update: () => false, read: costRule },
     isFilterable: costRule,

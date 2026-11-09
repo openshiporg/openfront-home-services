@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Prisma } from '@prisma/client'
-import { canonicalJson, sha256, toJsonValue } from './canonical'
+import { keyedPayloadHash, toJsonValue } from './canonical'
 import { advisoryLock, type Db, type Tx } from './db'
 
 /**
@@ -65,7 +65,26 @@ export function auditHashBody(row: StoredAudit) {
   }
 }
 
-export const auditHash = (prevHash: string, row: StoredAudit) => sha256(`${prevHash}\n${canonicalJson(auditHashBody(row))}`)
+/**
+ * Chain hashes are keyed (HMAC-SHA256 under a key derived from the server secret) and carry a version
+ * prefix. A plain hash over a row that includes cost-bearing JSON would let anyone who can read the
+ * hash and the stripped row test guesses for the hidden numbers. Without the key, that is impossible.
+ */
+export const AUDIT_HASH_VERSION = 'v2'
+export const auditHash = (prevHash: string, row: StoredAudit) =>
+  `${AUDIT_HASH_VERSION}:${keyedPayloadHash({ prev: prevHash, body: auditHashBody(row) }, 'audit-chain')}`
+
+/** A database row in the shape the hash covers. */
+export function storedAuditOf(row: Record<string, any>): StoredAudit {
+  return {
+    ...row,
+    reason: row.reason || null,
+    requestId: row.requestId || null,
+    actorUserId: row.actorUserId ?? null,
+    actorAgentId: row.actorAgentId ?? null,
+    approverId: row.approverId ?? null,
+  } as StoredAudit
+}
 
 /** Appends events in order. Call once per transaction, after every other write. */
 export async function appendAuditEvents(tx: Tx, events: AuditInput[], now = new Date()) {
@@ -136,15 +155,8 @@ export async function verifyAuditChain(db: Db | Tx, batchSize = 1000): Promise<C
     for (const row of rows) {
       if (row.seq !== expectedSeq) return { ok: false, count, lastSeq: expectedSeq - 1, lastHash: prevHash, brokenAtSeq: expectedSeq, problem: 'missing event' }
       if (row.prevHash !== prevHash) return { ok: false, count, lastSeq: row.seq - 1, lastHash: prevHash, brokenAtSeq: row.seq, problem: 'previous hash does not match' }
-      const hash = auditHash(prevHash, {
-        ...row,
-        reason: row.reason || null,
-        requestId: row.requestId || null,
-        actorUserId: row.actorUserId ?? null,
-        actorAgentId: row.actorAgentId ?? null,
-        approverId: row.approverId ?? null,
-      } as StoredAudit)
-      if (hash !== row.hash) return { ok: false, count, lastSeq: row.seq - 1, lastHash: prevHash, brokenAtSeq: row.seq, problem: 'content does not match its hash' }
+      const hash = auditHash(prevHash, storedAuditOf(row))
+      if (hash !== row.hash) return { ok: false, count, lastSeq: row.seq - 1, lastHash: prevHash, brokenAtSeq: row.seq, problem: row.hash.startsWith(`${AUDIT_HASH_VERSION}:`) ? 'content does not match its hash' : 'hash is not a keyed chain hash (run npm run audit:rechain)' }
       prevHash = row.hash
       expectedSeq += 1
       count += 1

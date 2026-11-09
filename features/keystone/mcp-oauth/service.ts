@@ -416,6 +416,11 @@ export async function revokeToken(context: any, token: unknown): Promise<void> {
     return
   }
   await prisma.oAuthToken.updateMany({ where: { id: record.id }, data: { isRevoked: 'true' } })
+  // An access token and its refresh token are one credential: revoking one ends the other, so the
+  // refresh token cannot mint a new access token (the pair is linked both ways at issue time).
+  if (record.tokenType === 'access_token' && record.refreshToken) {
+    await prisma.oAuthToken.updateMany({ where: { token: record.refreshToken, tokenType: 'refresh_token', clientId: record.clientId }, data: { isRevoked: 'true' } })
+  }
 }
 
 export type Connection = {

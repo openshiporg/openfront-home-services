@@ -85,6 +85,11 @@ const TX_SOLICITATION_REFS_V3 = TX_SOLICITATION_REFS.map(ref => ref.ref.includes
   ? { ...ref, verified: false, note: 'ASSUMPTION, counsel to confirm. Chapter 601 (§601.001) defines no business day and no primary Texas text was found that does. The federal 16 CFR 429.0(f) calendar (Saturday counts; Sunday and federal holidays do not) is the default. Tex. Gov\'t Code §311.014 rolls a last day that falls on a Saturday, Sunday or legal holiday forward, but does not define a business day either.' }
   : ref)
 
+// Version 4 corrects the emergency-waiver citation (review r5b). Earlier versions are frozen history and keep their text.
+const TX_SOLICITATION_REFS_V4 = TX_SOLICITATION_REFS_V3.map(ref => ref.ref.includes('(emergency waiver)')
+  ? { ref: 'Tex. Bus. & Com. Code §601.151 (a consumer\'s ch. 601 rights cannot be waived in the contract or receipt; ch. 601 has no emergency exception)', url: TX_601, verified: true, checkedOn: '2026-11-09', note: 'No Texas emergency waiver is honoured (fail closed). Under 16 CFR 429.2(b) the state law stands where it protects at least as much.' }
+  : ref)
+
 export const POLICY_PACKS: PackSeed[] = [
   {
     id: 'seed_pack_us_home_solicitation',
@@ -188,6 +193,14 @@ export const POLICY_PACKS: PackSeed[] = [
         reason: 'Chapter 601 does not define "business day". The federal calendar (everything but Sunday and federal holidays) stays as the conservative default, now recorded as an explicit assumption for counsel to confirm.',
         rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: 'personal_solicitation', refundBusinessDays: 10, assumptions: [TX_BUSINESS_DAY_ASSUMPTION] }] },
         sourceRefs: TX_SOLICITATION_REFS_V3,
+      },
+      {
+        id: 'seed_policy_tx_home_solicitation_v4',
+        versionNumber: 4,
+        effectiveFrom: '2026-11-10',
+        reason: 'Corrects the source reference for the emergency waiver: Texas ch. 601 has no §§601.003-601.004 waiver; §601.151 bars waiving ch. 601 rights. The rules are unchanged (no Texas emergency waiver).',
+        rules: { rules: [FTC_RULE_TX, { ...TX_601_RULE, scope: 'personal_solicitation', refundBusinessDays: 10, assumptions: [TX_BUSINESS_DAY_ASSUMPTION] }] },
+        sourceRefs: TX_SOLICITATION_REFS_V4,
       },
     ],
   },

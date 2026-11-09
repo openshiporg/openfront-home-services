@@ -47,3 +47,12 @@ describe('canReadCost', () => {
     expect(canReadCost(undefined)).toBe(false)
   })
 })
+
+describe('AuditEvent hash fields', () => {
+  it('use costHash, so they follow the cost read, filter and order rule', async () => {
+    const { readFileSync } = await import('node:fs')
+    const source = readFileSync(new URL('./platform.ts', import.meta.url), 'utf8')
+    expect(source).toMatch(/prevHash: costHash\(/)
+    expect(source).toMatch(/\bhash: costHash\(/)
+  })
+})
