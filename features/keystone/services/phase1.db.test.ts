@@ -7,6 +7,7 @@ import { Codes, DomainError } from '../lib/errors'
 import { verifyAuditChain } from '../lib/audit'
 import { addDays, localDate } from '../lib/calendar'
 import { loadCompanySetup, loadOperationsSetup } from '../mutations/setup'
+import { advanceTimedStates } from './maintenance'
 import { availableWindows, bookJob, expireHolds, holdWindow, materializeWindows, releaseHold } from './booking'
 import { assignVisit, cancelJob, checkEligibility, recommendDispatch, setVisitStatus, submitChecklist, unassignVisit } from './dispatch'
 import { effectiveConsent, receiveInboundSms, recordConsent } from './comms'
@@ -211,6 +212,20 @@ describe.skipIf(!hasTestDatabase)('Phase 1: CRM, booking, dispatch and the AI re
       expect(hours(after.bookedHours)).toBe(hours(window.capacityHours))
       expect(await prisma.bookingHold.count({ where: { windowId, status: 'held' } })).toBe(4)
       expect(await prisma.capacityUsage.count({ where: { windowId } })).toBe(4)
+    })
+
+    it('with no timer running, a request-driven pass (the Refresh button) expires a lapsed hold and gives its hours back', { timeout: 60_000 }, async () => {
+      const { jobTypeId, windowId } = await windowFor('DRAIN-CLR', '12–2 PM')
+      const hold = await holdWindow(prisma, csr, { windowId, jobTypeId, source: 'csr', idempotencyKey: uniqueKey('h'), now: NOW })
+      expect((await prisma.bookingHold.findUniqueOrThrow({ where: { id: hold.holdId } })).status).toBe('held')
+      await prisma.bookingHold.update({ where: { id: hold.holdId }, data: { expiresAt: new Date(Date.now() - 60_000) } })
+      const first = await advanceTimedStates(prisma, { force: true })
+      expect(first?.holds.expired).toBeGreaterThanOrEqual(1)
+      expect((await prisma.bookingHold.findUniqueOrThrow({ where: { id: hold.holdId } })).status).toBe('expired')
+      expect(hours((await prisma.arrivalWindow.findUniqueOrThrow({ where: { id: windowId } })).bookedHours)).toBe('0')
+      // Running it again changes nothing; an unforced call right after shares the last pass.
+      expect((await advanceTimedStates(prisma, { force: true }))?.holds.expired).toBe(0)
+      expect(await advanceTimedStates(prisma)).toBeNull()
     })
 
     it('an expired hold gives its hours back and cannot be confirmed; a release frees them at once', { timeout: 60_000 }, async () => {

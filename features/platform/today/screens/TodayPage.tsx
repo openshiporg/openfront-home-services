@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { q, companyTimeZone, localToday, requestTime } from '../../lib/server';
 import { quantity, when } from '../../lib/format';
+import { ActionButton } from '../../components/ActionButton';
 import { Page, Row, Empty, Meta, Section, Stat, Status } from '../../components/ui';
 
 type Window = { label: string; capacityHours: string; bookedHours: string; businessUnit: { id: string; name: string } | null };
@@ -88,7 +89,10 @@ export default async function TodayPage() {
           <Row><span>On call</span><Meta>{d.onCall.map(o => `${o.employee?.displayName} (${o.businessUnit?.name}${o.escalationOrder === 1 ? '' : ', backup'})`).join(', ') || 'nobody'}</Meta></Row>
         </Section>
       </div>
-      <Meta>Updated {when(new Date(nowMs).toISOString(), tz, 'time')}</Meta>
+      <div className="flex flex-wrap items-center gap-3">
+        <Meta>Updated {when(new Date(nowMs).toISOString(), tz, 'time')}</Meta>
+        <ActionButton op="refreshTimedStates" vars={{}} paths={['/dashboard/platform/today']}>Refresh holds, estimates and price books</ActionButton>
+      </div>
     </Page>
   );
 }

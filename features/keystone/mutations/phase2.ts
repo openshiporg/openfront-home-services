@@ -2,6 +2,7 @@ import type { Actor } from '../lib/actor'
 import type { Db } from '../lib/db'
 import { actorFor } from './actorFor'
 import { op } from './op'
+import { advanceTimedStates } from '../services/maintenance'
 import * as pricebook from '../services/pricebook'
 import * as estimates from '../services/estimates'
 import * as cancellation from '../services/cancellation'
@@ -12,7 +13,9 @@ const graphql = String.raw
 const bind = <A extends object, R>(fn: (db: Db, actor: Actor, args: A) => Promise<R>) =>
   op(async (_root: unknown, args: A, context: { session: unknown; prisma: Db }) => {
     const { now: _ignored, ...clean } = args as A & { now?: unknown }
-    return fn(context.prisma, await actorFor(context), clean as A)
+    const actor = await actorFor(context)
+    await advanceTimedStates(context.prisma)
+    return fn(context.prisma, actor, clean as A)
   })
 
 /*
@@ -27,6 +30,7 @@ export const phase2TypeDefs = graphql`
     estimateSummary(estimateId: ID!): JSON
   }
   type Mutation {
+    refreshTimedStates(idempotencyKey: String!): JSON
     openPriceBook(name: String!, code: String!, businessUnitIds: [ID!], idempotencyKey: String!): JSON
     startPriceBookDraft(priceBookId: ID!, label: String, idempotencyKey: String!): JSON
     saveDraftItems(versionId: ID!, items: JSON!, expectedVersion: Int, idempotencyKey: String!): JSON
@@ -72,6 +76,10 @@ export const phase2Resolvers = {
     estimateSummary: bind(estimates.estimateSummary),
   },
   Mutation: {
+    refreshTimedStates: op(async (_root: unknown, _args: unknown, context: { session: unknown; prisma: Db }) => {
+      await actorFor(context)
+      return advanceTimedStates(context.prisma, { force: true })
+    }),
     openPriceBook: bind(pricebook.createPriceBook),
     startPriceBookDraft: bind(pricebook.startPriceBookDraft),
     saveDraftItems: bind(pricebook.saveDraftItems),

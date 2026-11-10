@@ -42,6 +42,7 @@ const OPS: Record<string, Record<string, string>> = {
   verifyCredential: { credentialId: 'ID!', expectedVersion: 'Int!' },
   revokeCredential: { credentialId: 'ID!', expectedVersion: 'Int!', reason: 'String!' },
   materializeWindows: { from: 'String!', days: 'Int!', businessUnitIds: '[ID!]' },
+  refreshTimedStates: {},
   // Phase 2: price book, estimates, cancellation rights
   openPriceBook: { name: 'String!', code: 'String!', businessUnitIds: '[ID!]' },
   startPriceBookDraft: { priceBookId: 'ID!', label: 'String' },

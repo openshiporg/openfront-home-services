@@ -2,6 +2,7 @@ import type { Actor } from '../lib/actor'
 import type { Db } from '../lib/db'
 import { actorFor } from './actorFor'
 import { op } from './op'
+import { advanceTimedStates } from '../services/maintenance'
 import * as booking from '../services/booking'
 import * as dispatch from '../services/dispatch'
 import * as comms from '../services/comms'
@@ -13,7 +14,9 @@ const graphql = String.raw
 const bind = <A extends object, R>(fn: (db: Db, actor: Actor, args: A) => Promise<R>) =>
   op(async (_root: unknown, args: A, context: { session: unknown; prisma: Db }) => {
     const { now: _ignored, ...clean } = args as A & { now?: unknown }
-    return fn(context.prisma, await actorFor(context), clean as A)
+    const actor = await actorFor(context)
+    await advanceTimedStates(context.prisma)
+    return fn(context.prisma, actor, clean as A)
   })
 
 export const phase1TypeDefs = graphql`

@@ -4780,6 +4780,17 @@ async function releaseHold(db, actor, args) {
   });
   return { replay: result.replay, ...result.value };
 }
+async function expireHolds(db, now = /* @__PURE__ */ new Date()) {
+  const lapsed = await db.bookingHold.findMany({ where: { status: "held", expiresAt: { lte: now } }, select: { windowId: true }, distinct: ["windowId"], take: 500 });
+  let expired = 0;
+  for (const { windowId } of lapsed) {
+    if (!windowId) continue;
+    const actor = { kind: "system", name: "hold-expiry" };
+    const r = await command(db, { name: "booking.expire", actor, idempotencyKey: `hold-expiry:${windowId}:${now.toISOString()}`, params: { windowId }, now }, (uow) => sweepExpiredHolds(uow, actor, windowId));
+    expired += Number(r.value);
+  }
+  return { expired };
+}
 async function bookJob(db, actor, args) {
   await authorizeOperation(db, actor, "booking.confirm", ["canBook"], args);
   const jobType = await loadJobType(db, args.jobTypeId);
@@ -5734,6 +5745,25 @@ async function activateInTx(uow, actor, versionId, priceBookId, versionRow) {
   await tx.priceBook.update({ where: { id: priceBookId }, data: { activeVersionId: versionId, version: { increment: 1 } } });
   return true;
 }
+async function activateDuePriceBookVersions(db, now = /* @__PURE__ */ new Date()) {
+  const due = await db.priceBookVersion.findMany({ where: { status: "published", effectiveAt: { lte: now } }, select: { id: true }, orderBy: { effectiveAt: "asc" }, take: 50 });
+  let activated = 0;
+  for (const { id } of due) {
+    const actor = { kind: "system", name: "pricebook-activation" };
+    const r = await command(db, { name: "pricebook.activate", actor, idempotencyKey: `pricebook-activate:${id}`, params: { versionId: id }, now }, async (uow) => {
+      const row = await lockVersion(uow.tx, id);
+      if (row.status !== "published") return false;
+      const newer = await uow.tx.priceBookVersion.findFirst({ where: { priceBookId: row.priceBook, status: "published", effectiveAt: { lte: now }, versionNumber: { gt: row.versionNumber } }, select: { id: true } });
+      if (newer) {
+        await casUpdate(uow, { model: "PriceBookVersion", id, version: row.version, from: ["published"], to: "retired", actor, eventType: "pricebook_version.retired", data: { retiredAt: uow.now }, metadata: { supersededBy: newer.id, neverActive: true } });
+        return false;
+      }
+      return activateInTx(uow, actor, id, row.priceBook, row.version);
+    });
+    if (r.value) activated += 1;
+  }
+  return { activated };
+}
 async function reopenPriceBookDraft(db, actor, args) {
   await authorizeOperation(db, actor, "pricebook.reopen", EDIT, args);
   const { idempotencyKey, now: _now, ...params } = args;
@@ -6491,8 +6521,8 @@ var noticeRuleOf = (code) => code === "ftc_cooling_off" ? "ftc_16cfr429" : code 
 // features/keystone/services/salesShared.ts
 var import_node_crypto7 = require("node:crypto");
 var placeOfLocation = (loc) => {
-  const state = loc?.state ? `US-${loc.state}` : "US-TX";
-  return { state, zip: loc?.postalCode || null, city: loc?.city ? `${state}-${loc.city.toUpperCase().replace(/\s+/g, "-")}` : null };
+  const state2 = loc?.state ? `US-${loc.state}` : "US-TX";
+  return { state: state2, zip: loc?.postalCode || null, city: loc?.city ? `${state2}-${loc.city.toUpperCase().replace(/\s+/g, "-")}` : null };
 };
 var addressLine = (loc) => loc ? [loc.address1, loc.address2, `${loc.city}, ${loc.state} ${loc.postalCode}`].filter(Boolean).join(", ") : "";
 async function sellerBlock(tx, businessUnitId, jurisdiction, trades) {
@@ -6809,6 +6839,27 @@ async function markCancellationRefunded(db, actor, args) {
     return { noticeId: row.id, version, status: "refunded", refunds: refunded };
   });
   return { replay: result.replay, ...result.value };
+}
+async function expireCancellationNotices(db, now = /* @__PURE__ */ new Date()) {
+  const due = await db.cancellationNotice.findMany({ where: { status: { in: OPEN }, cancelBy: { lte: now } }, select: { id: true, ref: true, status: true }, take: 200 });
+  let expired = 0;
+  let undelivered = 0;
+  for (const n of due) {
+    if (n.status === "issued") {
+      await db.task.upsert({ where: { dedupeKey: `cancellation.undelivered:${n.id}` }, create: { kind: "cancellation.undelivered", title: `${n.ref}: the notice of cancellation was never recorded as delivered. Deliver it; the buyer's right continues until then.`.slice(0, 200), subjectType: "CancellationNotice", subjectId: n.id, status: "open", priority: "high", dedupeKey: `cancellation.undelivered:${n.id}` }, update: {} });
+      undelivered += 1;
+      continue;
+    }
+    const actor = { kind: "system", name: "cancellation-expiry" };
+    const r = await command(db, { name: "cancellation.expire", actor, idempotencyKey: `cancellation-expire:${n.id}`, params: { noticeId: n.id }, now }, async (uow) => {
+      const row = await lockNotice(uow.tx, n.id);
+      if (row.status !== "delivered" || row.cancelBy.getTime() > now.getTime()) return false;
+      await casUpdate(uow, { model: "CancellationNotice", id: row.id, version: row.version, from: ["delivered"], to: "expired_uncancelled", actor, eventType: "cancellation_notice.expired" });
+      return true;
+    });
+    if (r.value) expired += 1;
+  }
+  return { expired, undelivered };
 }
 async function cancellationHoldsFor(db, jobId, now) {
   const notices = await db.cancellationNotice.findMany({
@@ -7484,6 +7535,22 @@ async function declineEstimate(db, actor, args) {
     return { versionId: row.id, version, status: "declined" };
   });
   return { replay: result.replay, ...result.value };
+}
+async function expireDueEstimates(db, now = /* @__PURE__ */ new Date()) {
+  const due = await db.estimateVersion.findMany({ where: { status: "presented", validUntil: { lte: now } }, select: { id: true }, take: 200 });
+  let expired = 0;
+  for (const { id } of due) {
+    const actor = { kind: "system", name: "estimate-expiry" };
+    const r = await command(db, { name: "estimate.expire", actor, idempotencyKey: `estimate-expire:${id}`, params: { versionId: id }, now }, async (uow) => {
+      const row = await lockEstimateVersion(uow.tx, id);
+      if (row.status !== "presented" || !row.validUntil || row.validUntil.getTime() > now.getTime()) return false;
+      await casUpdate(uow, { model: "EstimateVersion", id, version: row.version, from: ["presented"], to: "expired", actor, eventType: "estimate_version.expired", data: { closedAt: uow.now } });
+      await uow.tx.estimate.updateMany({ where: { id: row.estimate, status: "open", currentVersionId: id }, data: { status: "expired", version: { increment: 1 } } });
+      return true;
+    });
+    if (r.value) expired += 1;
+  }
+  return { expired };
 }
 async function requoteInTx(uow, actor, versionId, expectedVersion, followup) {
   const { tx } = uow;
@@ -8338,6 +8405,38 @@ async function resolvePolicyQuery(_root, args, context) {
   return resolvePolicyFromDb(context.prisma, args.kind, { state: args.state, county: args.county, city: args.city, zip: args.zip, branchId: args.branchId }, args.on);
 }
 
+// features/keystone/services/maintenance.ts
+async function runMaintenancePass(db, options = {}) {
+  const clock = options.now ?? (() => /* @__PURE__ */ new Date());
+  const holds = await expireHolds(db, clock());
+  const priceBooks = await activateDuePriceBookVersions(db, clock());
+  const estimates = await expireDueEstimates(db, clock());
+  const notices = await expireCancellationNotices(db, clock());
+  return { holds, priceBooks, estimates, notices };
+}
+var MIN_GAP_MS = 5e3;
+var state = globalThis;
+async function advanceTimedStates(db, options = {}) {
+  const s = state.homeServicesAdvance ??= { at: 0, running: null };
+  if (s.running) {
+    await s.running.catch(() => void 0);
+    if (!options.force) return null;
+  }
+  if (!options.force && Date.now() - s.at < MIN_GAP_MS) return null;
+  const run = runMaintenancePass(db);
+  s.running = run;
+  try {
+    const result = await run;
+    s.at = Date.now();
+    return result;
+  } catch (error) {
+    console.error(JSON.stringify({ component: "timed-states", status: "failed", error: error instanceof Error ? error.message.slice(0, 300) : "unknown error" }));
+    return null;
+  } finally {
+    s.running = null;
+  }
+}
+
 // features/keystone/services/dispatch.ts
 var import_node_crypto8 = require("node:crypto");
 
@@ -8509,8 +8608,8 @@ var requirementOf = (ctx) => {
 };
 var placeOf = (ctx) => {
   const loc = ctx.job?.location;
-  const state = loc?.state ? `US-${loc.state}` : "US-TX";
-  return { state, zip: loc?.postalCode ?? null, city: loc?.city ? `${state}-${loc.city.toUpperCase().replace(/\s+/g, "-")}` : null };
+  const state2 = loc?.state ? `US-${loc.state}` : "US-TX";
+  return { state: state2, zip: loc?.postalCode ?? null, city: loc?.city ? `${state2}-${loc.city.toUpperCase().replace(/\s+/g, "-")}` : null };
 };
 async function loadCrew(db, employeeIds) {
   const rows = await db.employee.findMany({
@@ -9222,7 +9321,9 @@ async function revokeCredential(db, actor, args) {
 var graphql2 = String.raw;
 var bind = (fn) => op(async (_root, args, context) => {
   const { now: _ignored, ...clean } = args;
-  return fn(context.prisma, await actorFor(context), clean);
+  const actor = await actorFor(context);
+  await advanceTimedStates(context.prisma);
+  return fn(context.prisma, actor, clean);
 });
 var phase1TypeDefs = graphql2`
   type Query {
@@ -9309,7 +9410,9 @@ var phase1Resolvers = {
 var graphql3 = String.raw;
 var bind2 = (fn) => op(async (_root, args, context) => {
   const { now: _ignored, ...clean } = args;
-  return fn(context.prisma, await actorFor(context), clean);
+  const actor = await actorFor(context);
+  await advanceTimedStates(context.prisma);
+  return fn(context.prisma, actor, clean);
 });
 var phase2TypeDefs = graphql3`
   type Query {
@@ -9319,6 +9422,7 @@ var phase2TypeDefs = graphql3`
     estimateSummary(estimateId: ID!): JSON
   }
   type Mutation {
+    refreshTimedStates(idempotencyKey: String!): JSON
     openPriceBook(name: String!, code: String!, businessUnitIds: [ID!], idempotencyKey: String!): JSON
     startPriceBookDraft(priceBookId: ID!, label: String, idempotencyKey: String!): JSON
     saveDraftItems(versionId: ID!, items: JSON!, expectedVersion: Int, idempotencyKey: String!): JSON
@@ -9363,6 +9467,10 @@ var phase2Resolvers = {
     estimateSummary: bind2(estimateSummary)
   },
   Mutation: {
+    refreshTimedStates: op(async (_root, _args, context) => {
+      await actorFor(context);
+      return advanceTimedStates(context.prisma, { force: true });
+    }),
     openPriceBook: bind2(createPriceBook),
     startPriceBookDraft: bind2(startPriceBookDraft),
     saveDraftItems: bind2(saveDraftItems),

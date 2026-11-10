@@ -11179,6 +11179,7 @@ type Mutation {
   pageOnCall(callId: ID, businessUnitId: ID, summary: String!, idempotencyKey: String!): JSON
   verifyCredential(credentialId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   revokeCredential(credentialId: ID!, expectedVersion: Int!, reason: String!, idempotencyKey: String!): JSON
+  refreshTimedStates(idempotencyKey: String!): JSON
   openPriceBook(name: String!, code: String!, businessUnitIds: [ID!], idempotencyKey: String!): JSON
   startPriceBookDraft(priceBookId: ID!, label: String, idempotencyKey: String!): JSON
   saveDraftItems(versionId: ID!, items: JSON!, expectedVersion: Int, idempotencyKey: String!): JSON
