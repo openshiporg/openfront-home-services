@@ -20,7 +20,7 @@ export async function JobBilling({ jobId, path }: { jobId: string; path: string 
       )) : <Empty>Not invoiced yet.</Empty>}
       <CommandForm op="createInvoiceDraft" submit="Draft an invoice from the work lines" fixed={{ jobId }} paths={[path, '/dashboard/platform/invoices']} fields={[
         { name: 'progressReason', label: 'Progress billing reason (only if the work is not finished)', width: 'lg' },
-      ]} shape={(v) => ({ jobId, progressReason: v.progressReason || undefined })} />
+      ]} />
       <p className="text-xs text-muted-foreground">Drafts come from work lines at their frozen estimate prices. <Link className="underline" href="/dashboard/platform/invoices?view=draft">Open drafts</Link></p>
     </Section>
   );
