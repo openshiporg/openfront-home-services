@@ -24,6 +24,7 @@ import { seedCompanyPlatform } from '../features/keystone/seed/platform'
 import { seedOperations } from '../features/keystone/seed/operations'
 import { seedPriceBook } from '../features/keystone/seed/pricebook'
 import { seedSales } from '../features/keystone/seed/sales'
+import { seedBilling } from '../features/keystone/seed/billing'
 import { ROLES } from '../features/keystone/seed/company'
 import { HOUSEHOLDS } from '../features/keystone/seed/operationsData'
 import { availableWindows, bookJob, holdWindow, materializeWindows } from '../features/keystone/services/booking'
@@ -76,6 +77,7 @@ async function main() {
     if (await prisma.job.count()) {
       console.log('activity               skipped: the company already has jobs')
       await step('sales', () => seedSales(prisma, { owner }))
+      await step('billing', () => seedBilling(prisma, { biller: owner }))
       return
     }
 
@@ -153,6 +155,7 @@ async function main() {
 
     // Estimates on the booked work: presented, sold with a cancellation notice, declined, and an agent's draft.
     await step('sales', () => seedSales(prisma, { owner }))
+    await step('billing', () => seedBilling(prisma, { biller: owner }))
   } finally {
     await prisma.$disconnect()
   }

@@ -1,6 +1,6 @@
 import {
   Bot, BookOpenCheck, Boxes, CalendarClock, ClipboardCheck, ClipboardList, Contact, CreditCard, FileText, Gauge, HardHat, LucideIcon,
-  Megaphone, PhoneCall, Repeat, Scale, Settings, Smartphone, Tags, Truck, Users, Wrench,
+  Megaphone, PhoneCall, Wallet, Landmark, Calculator, Repeat, Scale, Settings, Smartphone, Tags, Truck, Users, Wrench,
 } from 'lucide-react'
 
 export interface PlatformNavItem {
@@ -41,6 +41,9 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: 'Price book', href: '/platform/pricebook', color: 'violet', description: 'Categories, items, markup tables and publishing.', icon: Tags, group: 'sales' },
 
   { title: 'Invoices', href: '/platform/invoices', color: 'emerald', description: 'Invoices, payments, batches and AR.', icon: CreditCard, group: 'billing' },
+  { title: 'Payments', href: '/platform/payments', color: 'emerald', description: 'Daily batches by tender, deposits and unknown results.', icon: Wallet, group: 'billing' },
+  { title: 'Financing', href: '/platform/financing', color: 'emerald', description: 'Records of lender offers, status and payouts.', icon: Landmark, group: 'billing' },
+  { title: 'Accounting', href: '/platform/accounting', color: 'emerald', description: 'AR periods and the accounting export.', icon: Calculator, group: 'billing' },
   { title: 'Memberships', href: '/platform/memberships', color: 'emerald', description: 'Plans, memberships and visits due.', icon: Repeat, group: 'billing' },
 
   { title: 'Equipment', href: '/platform/equipment', color: 'orange', description: 'Installed equipment, warranty registrations and claims.', icon: HardHat, group: 'operations' },
@@ -66,6 +69,8 @@ export const SHIPPED_ROUTES = new Set<string>([
   '/platform/customers', '/platform/team', '/field/today',
   // Phase 2: price book, estimates, cancellation rights
   '/platform/estimates', '/platform/cancellations', '/platform/pricebook',
+  // Phase 3: invoices, payments, financing, accounting
+  '/platform/invoices', '/platform/payments', '/platform/financing', '/platform/accounting',
 ])
 
 const shipped = platformNavItems.filter(item => SHIPPED_ROUTES.has(item.href))

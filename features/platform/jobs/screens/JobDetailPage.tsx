@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { JobBilling } from '../../billing/components/JobBilling';
 import { JobSales } from '../../estimates/components/JobSales';
 import { q, companyTimeZone } from '../../lib/server';
 import { eventText, label, quantity, when, windowText, dateText } from '../../lib/format';
@@ -89,6 +90,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         ))}
       </Section>
       <JobSales jobId={j.id} jobTitle={`${j.jobType?.name ?? 'Estimate'}${j.customer ? ` · ${j.customer.displayName}` : ''}`} path={`/dashboard/platform/jobs/${j.id}`} tz={tz} />
+      <JobBilling jobId={j.id} path={PATH(j.id)} />
       <Section title="Texts">
         {d.messages.length ? d.messages.map(m => (
           <Row key={m.id}>

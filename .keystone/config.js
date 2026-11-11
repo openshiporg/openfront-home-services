@@ -10676,7 +10676,7 @@ async function reconcilePaymentBatch(db, actor, args) {
     const b = await lockRow(uow.tx, "PaymentBatch", args.batchId);
     if (b.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This batch changed since you loaded it. Reload and try again.");
     const deposited = BigInt(args.depositedMinor);
-    const variance = deposited - b.expectedMinor + b.feesMinor;
+    const variance = deposited - b.expectedMinor;
     const version = await casUpdate(uow, { model: "PaymentBatch", id: b.id, version: b.version, from: ["closed"], to: "reconciled", actor, eventType: "payment_batch.reconciled", data: { depositedMinor: deposited, varianceMinor: variance, depositReference: args.depositReference.trim() }, audit: { varianceMinor: variance.toString() } });
     return { batchId: b.id, status: "reconciled", varianceMinor: variance.toString(), version };
   });
