@@ -5,6 +5,7 @@ import { choice, fixedChoice, lifecycle, minor, qty, rate, readOnly, systemText,
 import { governed, managed } from './listAccess'
 import { jobFilter, OFFICE_READ } from './scope'
 import { trackingFields } from './trackingFields'
+import { jobScoped } from './billingAccess'
 import { canReadCost, costGuardedJson, costHash, costOnly } from './costHidden'
 
 /*
@@ -375,7 +376,8 @@ export const PAYMENT_METHODS = ['card', 'ach', 'cash', 'check', 'other', 'financ
  * edited or deleted (phase2_payments migration): giving money back is a Refund row against the payment.
  */
 export const Payment = list({
-  access: jobRows,
+  // Money: billing permissions read it (a technician only on assigned jobs), not everyone who can see sales rows.
+  access: jobScoped(own => ({ job: own })),
   ui: { labelField: 'ref', listView: { initialColumns: ['ref', 'job', 'kind', 'method', 'amountMinor', 'receivedAt'] } },
   fields: {
     ref: systemText({ indexed: 'unique', required: true }),
@@ -398,7 +400,7 @@ export const Payment = list({
 
 /** Money returned against one Payment. The database refuses refunds that add up to more than was paid. */
 export const Refund = list({
-  access: jobRows,
+  access: jobScoped(own => ({ payment: { job: own } })),
   ui: { labelField: 'ref', listView: { initialColumns: ['ref', 'payment', 'method', 'amountMinor', 'refundedAt'] } },
   fields: {
     ref: systemText({ indexed: 'unique', required: true }),

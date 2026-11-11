@@ -164,6 +164,11 @@ export async function postInvoice(db: Db, actor: Actor, args: { invoiceId: strin
       if (error instanceof PricingError) throw new DomainError(Codes.GUARD_FAILED, error.message, { reason: 'tax_unresolved' })
       throw error
     }
+    // A nonresidential customer with an exemption certificate on file (SCHEMA Customer.taxExemptCertificate) pays no sales tax.
+    const exemptCertificateId = ctx.propertyClass !== 'residential' && invoice.customerId
+      ? (await tx.customer.findUnique({ where: { id: invoice.customerId }, select: { taxExemptCertificateId: true } }))?.taxExemptCertificateId ?? null
+      : null
+    if (exemptCertificateId) taxed = { ...taxed, taxMinor: 0n, rows: taxed.rows.map(() => ({ taxable: false, baseMinor: 0n })) }
     // Tax per line: the total is rounded once; lines take pro-rata shares of it so they add up exactly.
     const baseWeights = taxed.rows.map(r => r.baseMinor.toString())
     const shares = taxed.taxMinor > 0n && taxed.rows.some(r => r.baseMinor > 0n) ? allocateMinor(taxed.taxMinor, baseWeights) : taxed.rows.map(() => 0n)
@@ -181,7 +186,7 @@ export async function postInvoice(db: Db, actor: Actor, args: { invoiceId: strin
 
     const terms = TERMS_DAYS[invoice.payer?.terms ?? 'due_on_receipt'] ?? 0
     const dueDate = addDays(invoiceDate, terms)
-    const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString() }
+    const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString(), exemptCertificateId }
     const snapshot = { ref: invoice.ref, lines: invoice.lines.map((l, i) => ({ id: l.id, description: l.description, quantity: l.quantity.toFixed(), uom: l.uom, unitPriceMinor: l.unitPriceMinor.toString(), amountMinor: l.amountMinor.toString(), discountMinor: l.discountMinor.toString(), taxMinor: shares[i].toString() })) }
     const posted = await tx.invoice.updateMany({
       where: { id: row.id, version: row.version, status: 'draft' },
@@ -256,9 +261,11 @@ async function createMemo(uow: UnitOfWork, actor: Actor, a: { invoiceId: string;
   const invoice = await lockInvoice(tx, a.invoiceId)
   if (!['posted', 'partially_paid', 'paid'].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no credit memo.`)
   if (a.amountMinor <= 0n) throw new DomainError(Codes.INVALID_INPUT, 'The memo is for more than zero.', { field: 'amountMinor' })
-  if ((await postedMemoTotal(tx, invoice.id)) + a.amountMinor > invoice.totalMinor) throw new DomainError(Codes.GUARD_FAILED, 'Credit memos cannot add up to more than the invoice.', { reason: 'memo_exceeds_invoice' })
+  const credited = await postedMemoTotal(tx, invoice.id)
+  if (credited + a.amountMinor > invoice.totalMinor) throw new DomainError(Codes.GUARD_FAILED, 'Credit memos cannot add up to more than the invoice.', { reason: 'memo_exceeds_invoice' })
   const ref = await nextReference(tx, 'CRM', uow.now)
-  const needsApproval = a.amountMinor > (await memoThreshold(tx)) || a.voidInvoice === true && invoice.status !== 'posted'
+  // The threshold is on everything credited on this invoice, so several small memos cannot add up past it unapproved.
+  const needsApproval = credited + a.amountMinor > (await memoThreshold(tx)) || a.voidInvoice === true && invoice.status !== 'posted'
   const memo = await tx.creditMemo.create({ data: { ref, invoiceId: invoice.id, reason: a.reason, note: a.note, status: needsApproval ? 'pending_approval' : 'draft', totalMinor: a.amountMinor, appliesTo: a.appliesTo, createdById: actorUserId(actor) }, select: { id: true } })
   auditCreate(uow, actor, 'CreditMemo', memo.id, 'credit_memo.created', { ref, invoiceId: invoice.id, amountMinor: a.amountMinor.toString(), void: a.voidInvoice })
   if (!needsApproval) return { ...(await postMemo(uow, actor, memo.id, a.voidInvoice)), ref, status: 'applied', approvalRequestId: null }

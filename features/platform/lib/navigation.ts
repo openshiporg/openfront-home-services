@@ -10,6 +10,8 @@ export interface PlatformNavItem {
   description: string
   icon: LucideIcon
   group?: string
+  /** Role permission needed to open the screen; without it the link is hidden and the route is a 404. */
+  requires?: string
 }
 
 export interface PlatformNavGroup {
@@ -56,7 +58,7 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: 'Agents', href: '/platform/agents', color: 'slate', description: 'Agent grants, autonomy, kill switch and action review.', icon: Bot, group: 'admin' },
   { title: 'Approvals', href: '/platform/approvals', color: 'slate', description: 'Maker-checker requests waiting for a second person.', icon: ClipboardCheck, group: 'admin' },
   { title: 'Tasks', href: '/platform/tasks', color: 'slate', description: 'Work queues: follow-ups, overdue registrations, exceptions.', icon: ClipboardList, group: 'admin' },
-  { title: 'Audit log', href: '/platform/audit', color: 'slate', description: 'Hash-chained audit events and chain verification.', icon: BookOpenCheck, group: 'admin' },
+  { title: 'Audit log', href: '/platform/audit', color: 'slate', description: 'Hash-chained audit events and chain verification.', icon: BookOpenCheck, group: 'admin', requires: 'canReadAudit' },
   { title: 'Settings', href: '/platform/settings', color: 'slate', description: 'Company, licences, branches, business units, calendars and approval policies.', icon: Settings, group: 'admin' },
 ]
 

@@ -39,9 +39,9 @@ describe.skipIf(!hasTestDatabase)('Phase 3: invoices, payments, financing, AR an
   let seq = 0
 
   /** A finished job with work lines totalling `labor` + `material` cents. */
-  const job = async (labor: number, material: number, status = 'work_complete') => {
+  const job = async (labor: number, material: number, status = 'work_complete', at: { customerId?: string; locationId?: string } = {}) => {
     seq += 1
-    const j = await prisma.job.create({ data: { ref: `JOB-T-${seq}-${Date.now()}`, publicCode: `J-T${seq}${Date.now()}`, customerId, locationId, status, priority: 'standard', source: 'phone' } })
+    const j = await prisma.job.create({ data: { ref: `JOB-T-${seq}-${Date.now()}`, publicCode: `J-T${seq}${Date.now()}`, customerId: at.customerId ?? customerId, locationId: at.locationId ?? locationId, status, priority: 'standard', source: 'phone' } })
     const mk = (description: string, taxCategory: string, amount: number, cost: number) => prisma.workLine.create({ data: { jobId: j.id, source: 'manual', description, quantity: '1', uom: 'job', unitPriceMinor: BigInt(amount), amountMinor: BigInt(amount), taxCategory, trade: 'general', cancellationClass: 'requested_repair', status: 'completed', snapshot: { costMinor: String(cost) } } })
     if (labor) await mk('Labor', 'labor', labor, 0)
     if (material) await mk('Parts', 'material', material, Math.round(material * 0.6))
@@ -240,6 +240,62 @@ describe.skipIf(!hasTestDatabase)('Phase 3: invoices, payments, financing, AR an
     const csv = await exportBatchCsv(prisma, a.batchId)
     expect(csv!.csv.split('\r\n')[0]).toBe('Date,Account,Debit,Credit,Memo,Document,Customer')
     await expect(prisma.accountingExportLine.deleteMany({})).rejects.toThrow()
+  })
+
+  it('r1 fixes: split refunds and memos count toward the threshold; exempt certificate zeroes tax; status follows balance; closed months take no money', { timeout: 180_000 }, async () => {
+    // Finding 2: three $500 refunds of a $1,500 payment: the second already crosses the $500 threshold.
+    const big = await posted(150000, 0)
+    const total = (await inv(big.invoiceId)).totalMinor
+    const pay = await recordInvoicePayment(prisma, biller, { invoiceId: big.invoiceId, amountMinor: String(total), method: 'cash', idempotencyKey: k() })
+    const r1 = await requestRefund(prisma, biller, { paymentId: pay.paymentId, amountMinor: '50000', method: 'check', reason: 'Split one', reference: 'CHK-S1', idempotencyKey: k() })
+    const r2 = await requestRefund(prisma, biller, { paymentId: pay.paymentId, amountMinor: '50000', method: 'check', reason: 'Split two', reference: 'CHK-S2', idempotencyKey: k() })
+    expect(r1.status).toBe('recorded')
+    expect(r2.status).toBe('pending_approval')
+    // Same for credit memos on one invoice.
+    const memoInv = await posted(120000, 0)
+    const m1 = await issueCreditMemo(prisma, biller, { invoiceId: memoInv.invoiceId, amountMinor: '50000', reason: 'goodwill', note: 'Split one', idempotencyKey: k() })
+    const m2 = await issueCreditMemo(prisma, biller, { invoiceId: memoInv.invoiceId, amountMinor: '50000', reason: 'goodwill', note: 'Split two', idempotencyKey: k() })
+    expect(m1.status).toBe('applied')
+    expect(m2.status).toBe('pending_approval')
+
+    // Finding 3: a nonresidential customer with a certificate on file pays no tax; without it, tax is charged.
+    const h = HOUSEHOLDS[1]
+    await prisma.serviceLocation.update({ where: { id: h.location.id }, data: { propertyClass: 'nonresidential' } })
+    const taxedJob = await job(10000, 10000, 'work_complete', { customerId: h.id, locationId: h.location.id })
+    const td = await createInvoiceDraft(prisma, biller, { jobId: taxedJob, idempotencyKey: k() })
+    const tp = await postInvoice(prisma, biller, { invoiceId: td.invoiceId, expectedVersion: (await inv(td.invoiceId)).version, idempotencyKey: k() })
+    expect(BigInt(tp.taxMinor)).toBeGreaterThan(0n)
+    const cert = await prisma.document.create({ data: { title: 'Texas exemption certificate 01-339', kind: 'other' } })
+    await prisma.customer.update({ where: { id: h.id }, data: { taxExemptCertificateId: cert.id } })
+    const exJob = await job(10000, 10000, 'work_complete', { customerId: h.id, locationId: h.location.id })
+    const ed = await createInvoiceDraft(prisma, biller, { jobId: exJob, idempotencyKey: k() })
+    const ep = await postInvoice(prisma, biller, { invoiceId: ed.invoiceId, expectedVersion: (await inv(ed.invoiceId)).version, idempotencyKey: k() })
+    const exRow = await inv(ed.invoiceId)
+    expect(ep.taxMinor).toBe('0')
+    expect(exRow.totalMinor).toBe(exRow.subtotalMinor - exRow.discountMinor)
+    expect((exRow.taxResult as { exemptCertificateId?: string }).exemptCertificateId).toBe(cert.id)
+    expect((await prisma.invoiceLine.findMany({ where: { invoiceId: ed.invoiceId } })).every(l => l.taxMinor === 0n && !l.taxable)).toBe(true)
+
+    // Finding 6: raw SQL cannot mark an unpaid invoice paid (or part paid) while its balance says otherwise.
+    const unpaid = await posted(30000, 0)
+    await expect(prisma.$executeRawUnsafe(`UPDATE "Invoice" SET status = 'paid' WHERE id = '${unpaid.invoiceId}'`)).rejects.toThrow(/does not match its balance/)
+    await expect(prisma.$executeRawUnsafe(`UPDATE "Invoice" SET status = 'partially_paid' WHERE id = '${unpaid.invoiceId}'`)).rejects.toThrow(/does not match its balance/)
+    expect((await inv(unpaid.invoiceId)).status).toBe('posted')
+
+    // Finding 5: once last month is closed, a payment dated in it is refused and no batch opens there.
+    const now = new Date()
+    const lastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
+    const period = await prisma.arPeriod.upsert({ where: { month: lastMonth }, create: { month: lastMonth, status: 'open' }, update: {} })
+    for (const b of await prisma.paymentBatch.findMany({ where: { status: 'open', businessDate: { gte: lastMonth, lt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)) } } })) await closePaymentBatch(prisma, biller, { batchId: b.id, expectedVersion: b.version, idempotencyKey: k() })
+    const close = await requestArPeriodClose(prisma, biller, { periodId: period.id, expectedVersion: period.version, idempotencyKey: k() })
+    const creq = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: close.approvalRequestId } })
+    await decideApprovalAs(prisma, approver, { requestId: creq.id, decision: 'approve', expectedVersion: creq.version, idempotencyKey: k() })
+    const back = await posted(5000, 0)
+    const backDay = new Date(lastMonth.getTime() + 14 * 86_400_000 + 18 * 3_600_000).toISOString()
+    const batchesBefore = await prisma.paymentBatch.count()
+    expect(await reason(recordInvoicePayment(prisma, biller, { invoiceId: back.invoiceId, amountMinor: '1000', method: 'check', checkNumber: '2001', receivedAt: backDay, idempotencyKey: k() }))).toBe('ar_period_closed')
+    expect(await prisma.paymentBatch.count()).toBe(batchesBefore)
+    await expect(prisma.paymentBatch.create({ data: { ref: `PBT-T-${Date.now()}`, businessDate: new Date(lastMonth.getTime() + 14 * 86_400_000), tenderGroup: 'check_cash', status: 'open' } })).rejects.toThrow(/takes no new payment batch/)
   })
 
   it('an AR period closes only with a second person, and takes no entries after', { timeout: 90_000 }, async () => {

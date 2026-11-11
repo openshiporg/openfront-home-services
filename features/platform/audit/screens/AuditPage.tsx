@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { q, companyTimeZone } from '../../lib/server';
+import { notFound } from 'next/navigation';
+import { q, companyTimeZone, viewer } from '../../lib/server';
 import { eventText, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Stat } from '../../components/ui';
 
@@ -10,6 +11,8 @@ const PAGE = 50;
 
 /** Hash-chained audit log. Each event's hash covers the previous hash, so editing or removing one breaks every later link. */
 export default async function AuditPage({ searchParams }: { searchParams?: Promise<{ before?: string; entity?: string }> }) {
+  // Same permission the AuditEvent list and verifyAuditChain need; without it the screen does not exist for this role.
+  if (!(await viewer()).can('canReadAudit')) notFound();
   const params = (await searchParams) ?? {};
   const before = /^\d+$/.test(params.before ?? '') ? Number.parseInt(params.before!, 10) : null;
   const entity = (params.entity ?? '').replace(/[^A-Za-z0-9_:-]/g, '').slice(0, 120);

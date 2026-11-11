@@ -1,9 +1,8 @@
 import { list } from '@keystone-6/core'
 import { calendarDay, checkbox, integer, json, relationship, text, timestamp } from '@keystone-6/core/fields'
-import { isSignedIn, sys, type Permission, type Session } from '../access'
+import { sys } from '../access'
 import { fixedChoice, lifecycle, minor, qty, readOnly, systemText, versionField } from './domainFields'
 import { governed, managed } from './listAccess'
-import { jobFilter } from './scope'
 import { trackingFields } from './trackingFields'
 import { costOnly } from './costHidden'
 import { TAX_CATEGORIES } from './sales'
@@ -22,31 +21,9 @@ export const TERMS = ['due_on_receipt', 'net_15', 'net_30', 'net_45', 'net_60'] 
 export const AR_KINDS = ['invoice_posted', 'payment_applied', 'payment_reversed', 'credit_memo', 'write_off', 'write_off_reversal', 'refund_reopen', 'dispute_withdrawal', 'dispute_reinstatement'] as const
 export const FINANCING_STATUSES = ['started', 'submitted', 'approved', 'declined', 'needs_info', 'docs_signed', 'awaiting_funding', 'funded', 'cancelled', 'expired'] as const
 
-type Args = { session?: Session | null }
-const has = (session: Session | null | undefined, names: Permission[]) => names.some(name => session?.data?.role?.[name] === true)
+import { BILLING_OFFICE, jobScoped, officeOnlyQuery } from './billingAccess'
+export { BILLING_OFFICE }
 
-/** People who run billing see every row. */
-export const BILLING_OFFICE: Permission[] = [
-  'canManageInvoices', 'canPostInvoices', 'canManagePayments', 'canIssueRefunds', 'canApproveWriteOff', 'canApproveCredits', 'canApproveRefunds', 'canManageAccounting', 'canCloseAr', 'canApproveArClose',
-]
-/** Counter staff who take payments and offer financing see billing rows too; a technician sees only their own jobs'. */
-const COUNTER: Permission[] = ['canTakePayments', 'canOfferFinancing']
-
-const billingQuery = ({ session }: Args) => isSignedIn({ session }) && (has(session, BILLING_OFFICE) || has(session, COUNTER))
-const officeOnlyQuery = ({ session }: Args) => isSignedIn({ session }) && has(session, BILLING_OFFICE)
-
-/** Rows that hang off a job: office sees all, counter staff all except a technician, who sees assigned jobs. */
-const jobScoped = (path: (own: Record<string, unknown>) => Record<string, unknown>) => ({
-  operation: { query: billingQuery, create: sys, update: sys, delete: sys },
-  filter: {
-    query: ({ session }: Args) => {
-      if (!isSignedIn({ session })) return false
-      if (has(session, BILLING_OFFICE)) return true
-      if (has(session, ['canWorkVisits'])) return path(jobFilter(session!.itemId))
-      return has(session, COUNTER) ? true : false
-    },
-  },
-})
 const invoiceRows = jobScoped(own => ({ job: own }))
 const officeRows = { operation: { query: officeOnlyQuery, create: sys, update: sys, delete: sys } }
 

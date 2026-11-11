@@ -8,7 +8,7 @@ import type { Db } from '../lib/db'
 import { Codes, DomainError } from '../lib/errors'
 import { nextReference } from '../lib/sequence'
 import type { UnitOfWork } from '../lib/unitOfWork'
-import { allocatePayment, asDate, companyToday, lockInvoice, money, reverseAllocations, unappliedOf } from './billingShared'
+import { allocatePayment, arPeriodFor, asDate, companyToday, lockInvoice, money, reverseAllocations, unappliedOf } from './billingShared'
 
 /*
  * Payments (I-M3..I-M6, I-M9). Money is recorded as it is received: cash, check, card and ACH taken on a terminal or
@@ -47,6 +47,7 @@ async function createPayment(uow: UnitOfWork, actor: Actor, a: { customerId: str
     select: { id: true, ref: true },
   })
   const day = await companyToday(uow.tx, a.receivedAt)
+  await arPeriodFor(uow.tx, day) // money dated in a closed (or closing) AR month is refused (I-M9)
   const batch = await batchFor(uow, a.method, day)
   if (batch.status !== 'open') throw new DomainError(Codes.GUARD_FAILED, `The ${tenderGroup(a.method).replace('_', '/')} batch for ${day} is ${batch.status}. Record it on today's date, or reopen nothing: closed batches are final.`, { reason: 'batch_closed' })
   await uow.tx.paymentBatch.update({ where: { id: batch.id }, data: { expectedMinor: { increment: a.amountMinor - (a.feeMinor ?? 0n) }, feesMinor: { increment: a.feeMinor ?? 0n } } })
@@ -212,7 +213,8 @@ export async function requestRefund(db: Db, actor: Actor, args: { paymentId: str
     const u = await unappliedOf(tx, args.paymentId)
     if (amount > u.amountMinor - u.refunded) throw new DomainError(Codes.GUARD_FAILED, `At most ${money(u.amountMinor - u.refunded)} is left to refund on this payment.`, { reason: 'refund_exceeds_payment' })
     const settings = await tx.companySettings.findFirst({ select: { refundApprovalThresholdMinor: true } })
-    if (amount <= (settings?.refundApprovalThresholdMinor ?? 50000n)) {
+    // The threshold is on everything refunded from this payment, so splitting one large refund into small ones still needs approval.
+    if (u.refunded + amount <= (settings?.refundApprovalThresholdMinor ?? 50000n)) {
       return { status: 'recorded', approvalRequestId: null, ...(await writeRefund(uow, actor, { paymentId: args.paymentId, amountMinor: amount, method: args.method, reason, reference, approvalId: null })) }
     }
     const approval = await requestApproval(uow, actor, {
