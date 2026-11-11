@@ -689,7 +689,7 @@ ALTER TABLE "ArEntry" ADD CONSTRAINT "ArEntry_valid" CHECK ("amountMinor" <> 0 A
   AND kind IN ('invoice_posted', 'payment_applied', 'payment_reversed', 'credit_memo', 'write_off', 'write_off_reversal', 'refund_reopen', 'dispute_withdrawal', 'dispute_reinstatement'));
 ALTER TABLE "CustomerCreditEntry" ADD CONSTRAINT "CustomerCreditEntry_valid" CHECK ("amountMinor" <> 0 AND customer IS NOT NULL
   AND kind IN ('issued', 'applied', 'refunded', 'expired') AND (("amountMinor" > 0) = (kind = 'issued')));
-ALTER TABLE "PaymentBatch" ADD CONSTRAINT "PaymentBatch_valid" CHECK (status IN ('open', 'closed', 'reconciled', 'exported') AND (status IN ('open', 'closed') OR "varianceMinor" = "depositedMinor" - "expectedMinor" + "feesMinor"));
+ALTER TABLE "PaymentBatch" ADD CONSTRAINT "PaymentBatch_valid" CHECK (status IN ('open', 'closed', 'reconciled', 'exported') AND (status IN ('open', 'closed') OR "varianceMinor" = "depositedMinor" - "expectedMinor"));
 ALTER TABLE "PaymentAttempt" ADD CONSTRAINT "PaymentAttempt_valid" CHECK ("amountMinor" > 0 AND status IN ('pending', 'succeeded', 'failed', 'unknown') AND (status <> 'succeeded' OR payment IS NOT NULL));
 ALTER TABLE "FinancingApplication" ADD CONSTRAINT "FinancingApplication_valid" CHECK ("amountMinor" > 0
   AND status IN ('started', 'submitted', 'approved', 'declined', 'needs_info', 'docs_signed', 'awaiting_funding', 'funded', 'cancelled', 'expired'));
@@ -767,20 +767,28 @@ CREATE TRIGGER "InvoiceLine_guard" BEFORE INSERT OR UPDATE OR DELETE ON "Invoice
 
 -- balance = sum of AR entries, never negative; checked when the transaction commits so the ledger row and the
 -- invoice update may be written in either order.
-CREATE OR REPLACE FUNCTION hs_invoice_balance_check() RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE v_id text; v_balance bigint; v_sum bigint;
+CREATE OR REPLACE FUNCTION hs_invoice_balance_verify(v_id text) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE v_balance bigint; v_sum bigint;
 BEGIN
-  v_id := CASE WHEN TG_TABLE_NAME = 'ArEntry' THEN NEW.invoice ELSE NEW.id END;
   SELECT "balanceMinor" INTO v_balance FROM "Invoice" WHERE id = v_id;
-  IF v_balance IS NULL THEN RETURN NULL; END IF;
+  IF v_balance IS NULL THEN RETURN; END IF;
   SELECT coalesce(sum("amountMinor"), 0) INTO v_sum FROM "ArEntry" WHERE invoice = v_id;
   IF v_sum <> v_balance OR v_balance < 0 THEN
     RAISE EXCEPTION 'Invoice balance % does not match its receivable entries (%) or is negative', v_balance, v_sum USING ERRCODE = 'check_violation';
   END IF;
+END $$;
+CREATE OR REPLACE FUNCTION hs_invoice_balance_check() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM hs_invoice_balance_verify(NEW.id);
+  RETURN NULL;
+END $$;
+CREATE OR REPLACE FUNCTION hs_ar_entry_balance_check() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM hs_invoice_balance_verify(NEW.invoice);
   RETURN NULL;
 END $$;
 CREATE CONSTRAINT TRIGGER "Invoice_balance_check" AFTER INSERT OR UPDATE OF "balanceMinor" ON "Invoice" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION hs_invoice_balance_check();
-CREATE CONSTRAINT TRIGGER "ArEntry_balance_check" AFTER INSERT ON "ArEntry" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION hs_invoice_balance_check();
+CREATE CONSTRAINT TRIGGER "ArEntry_balance_check" AFTER INSERT ON "ArEntry" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION hs_ar_entry_balance_check();
 
 -- Nothing posts into a closed AR period.
 CREATE OR REPLACE FUNCTION hs_ar_entry_period() RETURNS trigger LANGUAGE plpgsql AS $$
