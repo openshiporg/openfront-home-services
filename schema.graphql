@@ -9722,6 +9722,9 @@ type Payment {
   kind: String
   method: String
   amountMinor: BigInt
+  feeMinor: BigInt
+  payer: PayerProfile
+  checkNumber: String
   reference: String
   receivedAt: DateTime
   recordedBy: User
@@ -9748,6 +9751,9 @@ input PaymentWhereInput {
   kind: StringFilter
   method: StringFilter
   amountMinor: BigIntFilter
+  feeMinor: BigIntFilter
+  payer: PayerProfileWhereInput
+  checkNumber: StringFilter
   reference: StringFilter
   receivedAt: DateTimeFilter
   recordedBy: UserWhereInput
@@ -9762,6 +9768,8 @@ input PaymentOrderByInput {
   kind: OrderDirection
   method: OrderDirection
   amountMinor: OrderDirection
+  feeMinor: OrderDirection
+  checkNumber: OrderDirection
   reference: OrderDirection
   receivedAt: OrderDirection
   createdAt: OrderDirection
@@ -9776,12 +9784,21 @@ input PaymentUpdateInput {
   kind: String
   method: String
   amountMinor: BigInt
+  feeMinor: BigInt
+  payer: PayerProfileRelateToOneForUpdateInput
+  checkNumber: String
   reference: String
   receivedAt: DateTime
   recordedBy: UserRelateToOneForUpdateInput
   refunds: RefundRelateToManyForUpdateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input PayerProfileRelateToOneForUpdateInput {
+  create: PayerProfileCreateInput
+  connect: PayerProfileWhereUniqueInput
+  disconnect: Boolean
 }
 
 input PaymentUpdateArgs {
@@ -9797,12 +9814,20 @@ input PaymentCreateInput {
   kind: String
   method: String
   amountMinor: BigInt
+  feeMinor: BigInt
+  payer: PayerProfileRelateToOneForCreateInput
+  checkNumber: String
   reference: String
   receivedAt: DateTime
   recordedBy: UserRelateToOneForCreateInput
   refunds: RefundRelateToManyForCreateInput
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+input PayerProfileRelateToOneForCreateInput {
+  create: PayerProfileCreateInput
+  connect: PayerProfileWhereUniqueInput
 }
 
 type PriceBook {
@@ -10402,6 +10427,8 @@ type Refund {
   notice: CancellationNotice
   method: String
   amountMinor: BigInt
+  reason: String
+  approval: ApprovalRequest
   reference: String
   refundedAt: DateTime
   recordedBy: User
@@ -10424,6 +10451,8 @@ input RefundWhereInput {
   notice: CancellationNoticeWhereInput
   method: StringFilter
   amountMinor: BigIntFilter
+  reason: StringFilter
+  approval: ApprovalRequestWhereInput
   reference: StringFilter
   refundedAt: DateTimeFilter
   recordedBy: UserWhereInput
@@ -10436,6 +10465,7 @@ input RefundOrderByInput {
   ref: OrderDirection
   method: OrderDirection
   amountMinor: OrderDirection
+  reason: OrderDirection
   reference: OrderDirection
   refundedAt: OrderDirection
   createdAt: OrderDirection
@@ -10448,6 +10478,8 @@ input RefundUpdateInput {
   notice: CancellationNoticeRelateToOneForUpdateInput
   method: String
   amountMinor: BigInt
+  reason: String
+  approval: ApprovalRequestRelateToOneForUpdateInput
   reference: String
   refundedAt: DateTime
   recordedBy: UserRelateToOneForUpdateInput
@@ -10478,6 +10510,8 @@ input RefundCreateInput {
   notice: CancellationNoticeRelateToOneForCreateInput
   method: String
   amountMinor: BigInt
+  reason: String
+  approval: ApprovalRequestRelateToOneForCreateInput
   reference: String
   refundedAt: DateTime
   recordedBy: UserRelateToOneForCreateInput
@@ -10552,6 +10586,1798 @@ input UnitOfMeasureCreateInput {
   name: String
   kind: String
   maxDecimals: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type AccountingExportBatch {
+  id: ID!
+  ref: String
+  format: String
+  periodFrom: CalendarDay
+  periodTo: CalendarDay
+  status: String
+  lineCount: Int
+  debitMinor: BigInt
+  creditMinor: BigInt
+  sha256: String
+  lines(where: AccountingExportLineWhereInput! = {}, orderBy: [AccountingExportLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AccountingExportLineWhereUniqueInput): [AccountingExportLine!]
+  linesCount(where: AccountingExportLineWhereInput! = {}): Int
+  createdBy: User
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccountingExportBatchWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input AccountingExportBatchWhereInput {
+  AND: [AccountingExportBatchWhereInput!]
+  OR: [AccountingExportBatchWhereInput!]
+  NOT: [AccountingExportBatchWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  format: StringFilter
+  periodFrom: CalendarDayNullableFilter
+  periodTo: CalendarDayNullableFilter
+  status: StringFilter
+  lineCount: IntFilter
+  debitMinor: BigIntFilter
+  creditMinor: BigIntFilter
+  sha256: StringFilter
+  lines: AccountingExportLineManyRelationFilter
+  createdBy: UserWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input AccountingExportLineManyRelationFilter {
+  every: AccountingExportLineWhereInput
+  some: AccountingExportLineWhereInput
+  none: AccountingExportLineWhereInput
+}
+
+input AccountingExportBatchOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  format: OrderDirection
+  periodFrom: OrderDirection
+  periodTo: OrderDirection
+  status: OrderDirection
+  lineCount: OrderDirection
+  debitMinor: OrderDirection
+  creditMinor: OrderDirection
+  sha256: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input AccountingExportBatchUpdateInput {
+  ref: String
+  format: String
+  periodFrom: CalendarDay
+  periodTo: CalendarDay
+  status: String
+  lineCount: Int
+  debitMinor: BigInt
+  creditMinor: BigInt
+  sha256: String
+  lines: AccountingExportLineRelateToManyForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccountingExportLineRelateToManyForUpdateInput {
+  disconnect: [AccountingExportLineWhereUniqueInput!]
+  set: [AccountingExportLineWhereUniqueInput!]
+  create: [AccountingExportLineCreateInput!]
+  connect: [AccountingExportLineWhereUniqueInput!]
+}
+
+input AccountingExportBatchUpdateArgs {
+  where: AccountingExportBatchWhereUniqueInput!
+  data: AccountingExportBatchUpdateInput!
+}
+
+input AccountingExportBatchCreateInput {
+  ref: String
+  format: String
+  periodFrom: CalendarDay
+  periodTo: CalendarDay
+  status: String
+  lineCount: Int
+  debitMinor: BigInt
+  creditMinor: BigInt
+  sha256: String
+  lines: AccountingExportLineRelateToManyForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccountingExportLineRelateToManyForCreateInput {
+  create: [AccountingExportLineCreateInput!]
+  connect: [AccountingExportLineWhereUniqueInput!]
+}
+
+type AccountingExportLine {
+  id: ID!
+  batch: AccountingExportBatch
+  sourceKey: String
+  entryDate: CalendarDay
+  account: String
+  debitMinor: BigInt
+  creditMinor: BigInt
+  memo: String
+  docRef: String
+  customerRef: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccountingExportLineWhereUniqueInput {
+  id: ID
+  sourceKey: String
+}
+
+input AccountingExportLineWhereInput {
+  AND: [AccountingExportLineWhereInput!]
+  OR: [AccountingExportLineWhereInput!]
+  NOT: [AccountingExportLineWhereInput!]
+  id: IDFilter
+  batch: AccountingExportBatchWhereInput
+  sourceKey: StringFilter
+  entryDate: CalendarDayNullableFilter
+  account: StringFilter
+  debitMinor: BigIntFilter
+  creditMinor: BigIntFilter
+  memo: StringFilter
+  docRef: StringFilter
+  customerRef: StringFilter
+  sortOrder: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input AccountingExportLineOrderByInput {
+  id: OrderDirection
+  sourceKey: OrderDirection
+  entryDate: OrderDirection
+  account: OrderDirection
+  debitMinor: OrderDirection
+  creditMinor: OrderDirection
+  memo: OrderDirection
+  docRef: OrderDirection
+  customerRef: OrderDirection
+  sortOrder: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input AccountingExportLineUpdateInput {
+  batch: AccountingExportBatchRelateToOneForUpdateInput
+  sourceKey: String
+  entryDate: CalendarDay
+  account: String
+  debitMinor: BigInt
+  creditMinor: BigInt
+  memo: String
+  docRef: String
+  customerRef: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccountingExportBatchRelateToOneForUpdateInput {
+  create: AccountingExportBatchCreateInput
+  connect: AccountingExportBatchWhereUniqueInput
+  disconnect: Boolean
+}
+
+input AccountingExportLineUpdateArgs {
+  where: AccountingExportLineWhereUniqueInput!
+  data: AccountingExportLineUpdateInput!
+}
+
+input AccountingExportLineCreateInput {
+  batch: AccountingExportBatchRelateToOneForCreateInput
+  sourceKey: String
+  entryDate: CalendarDay
+  account: String
+  debitMinor: BigInt
+  creditMinor: BigInt
+  memo: String
+  docRef: String
+  customerRef: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input AccountingExportBatchRelateToOneForCreateInput {
+  create: AccountingExportBatchCreateInput
+  connect: AccountingExportBatchWhereUniqueInput
+}
+
+type ArEntry {
+  id: ID!
+  invoice: Invoice
+  customer: Customer
+  payer: PayerProfile
+  kind: String
+  amountMinor: BigInt
+  sourceType: String
+  sourceId: String
+  arPeriod: ArPeriod
+  postedAt: DateTime
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArEntryWhereUniqueInput {
+  id: ID
+}
+
+input ArEntryWhereInput {
+  AND: [ArEntryWhereInput!]
+  OR: [ArEntryWhereInput!]
+  NOT: [ArEntryWhereInput!]
+  id: IDFilter
+  invoice: InvoiceWhereInput
+  customer: CustomerWhereInput
+  payer: PayerProfileWhereInput
+  kind: StringFilter
+  amountMinor: BigIntFilter
+  sourceType: StringFilter
+  sourceId: StringFilter
+  arPeriod: ArPeriodWhereInput
+  postedAt: DateTimeFilter
+  note: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ArEntryOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  amountMinor: OrderDirection
+  sourceType: OrderDirection
+  sourceId: OrderDirection
+  postedAt: OrderDirection
+  note: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ArEntryUpdateInput {
+  invoice: InvoiceRelateToOneForUpdateInput
+  customer: CustomerRelateToOneForUpdateInput
+  payer: PayerProfileRelateToOneForUpdateInput
+  kind: String
+  amountMinor: BigInt
+  sourceType: String
+  sourceId: String
+  arPeriod: ArPeriodRelateToOneForUpdateInput
+  postedAt: DateTime
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InvoiceRelateToOneForUpdateInput {
+  create: InvoiceCreateInput
+  connect: InvoiceWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ArPeriodRelateToOneForUpdateInput {
+  create: ArPeriodCreateInput
+  connect: ArPeriodWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ArEntryUpdateArgs {
+  where: ArEntryWhereUniqueInput!
+  data: ArEntryUpdateInput!
+}
+
+input ArEntryCreateInput {
+  invoice: InvoiceRelateToOneForCreateInput
+  customer: CustomerRelateToOneForCreateInput
+  payer: PayerProfileRelateToOneForCreateInput
+  kind: String
+  amountMinor: BigInt
+  sourceType: String
+  sourceId: String
+  arPeriod: ArPeriodRelateToOneForCreateInput
+  postedAt: DateTime
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InvoiceRelateToOneForCreateInput {
+  create: InvoiceCreateInput
+  connect: InvoiceWhereUniqueInput
+}
+
+input ArPeriodRelateToOneForCreateInput {
+  create: ArPeriodCreateInput
+  connect: ArPeriodWhereUniqueInput
+}
+
+type ArPeriod {
+  id: ID!
+  month: CalendarDay
+  status: String
+  closedBy: User
+  closedAt: DateTime
+  approval: ApprovalRequest
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArPeriodWhereUniqueInput {
+  id: ID
+  month: CalendarDay
+}
+
+input ArPeriodWhereInput {
+  AND: [ArPeriodWhereInput!]
+  OR: [ArPeriodWhereInput!]
+  NOT: [ArPeriodWhereInput!]
+  id: IDFilter
+  month: CalendarDayFilter
+  status: StringFilter
+  closedBy: UserWhereInput
+  closedAt: DateTimeNullableFilter
+  approval: ApprovalRequestWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ArPeriodOrderByInput {
+  id: OrderDirection
+  month: OrderDirection
+  status: OrderDirection
+  closedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ArPeriodUpdateInput {
+  month: CalendarDay
+  status: String
+  closedBy: UserRelateToOneForUpdateInput
+  closedAt: DateTime
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ArPeriodUpdateArgs {
+  where: ArPeriodWhereUniqueInput!
+  data: ArPeriodUpdateInput!
+}
+
+input ArPeriodCreateInput {
+  month: CalendarDay
+  status: String
+  closedBy: UserRelateToOneForCreateInput
+  closedAt: DateTime
+  approval: ApprovalRequestRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type CreditMemo {
+  id: ID!
+  ref: String
+  invoice: Invoice
+  reason: String
+  note: String
+  status: String
+  totalMinor: BigInt
+  appliedToInvoiceMinor: BigInt
+  appliedToCreditMinor: BigInt
+  appliesTo: String
+  approval: ApprovalRequest
+  createdBy: User
+  postedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CreditMemoWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input CreditMemoWhereInput {
+  AND: [CreditMemoWhereInput!]
+  OR: [CreditMemoWhereInput!]
+  NOT: [CreditMemoWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  invoice: InvoiceWhereInput
+  reason: StringFilter
+  note: StringFilter
+  status: StringFilter
+  totalMinor: BigIntFilter
+  appliedToInvoiceMinor: BigIntFilter
+  appliedToCreditMinor: BigIntFilter
+  appliesTo: StringFilter
+  approval: ApprovalRequestWhereInput
+  createdBy: UserWhereInput
+  postedAt: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CreditMemoOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  reason: OrderDirection
+  note: OrderDirection
+  status: OrderDirection
+  totalMinor: OrderDirection
+  appliedToInvoiceMinor: OrderDirection
+  appliedToCreditMinor: OrderDirection
+  appliesTo: OrderDirection
+  postedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CreditMemoUpdateInput {
+  ref: String
+  invoice: InvoiceRelateToOneForUpdateInput
+  reason: String
+  note: String
+  status: String
+  totalMinor: BigInt
+  appliedToInvoiceMinor: BigInt
+  appliedToCreditMinor: BigInt
+  appliesTo: String
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  postedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CreditMemoUpdateArgs {
+  where: CreditMemoWhereUniqueInput!
+  data: CreditMemoUpdateInput!
+}
+
+input CreditMemoCreateInput {
+  ref: String
+  invoice: InvoiceRelateToOneForCreateInput
+  reason: String
+  note: String
+  status: String
+  totalMinor: BigInt
+  appliedToInvoiceMinor: BigInt
+  appliedToCreditMinor: BigInt
+  appliesTo: String
+  approval: ApprovalRequestRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  postedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type CustomerCreditEntry {
+  id: ID!
+  customer: Customer
+  kind: String
+  amountMinor: BigInt
+  sourceType: String
+  sourceId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CustomerCreditEntryWhereUniqueInput {
+  id: ID
+}
+
+input CustomerCreditEntryWhereInput {
+  AND: [CustomerCreditEntryWhereInput!]
+  OR: [CustomerCreditEntryWhereInput!]
+  NOT: [CustomerCreditEntryWhereInput!]
+  id: IDFilter
+  customer: CustomerWhereInput
+  kind: StringFilter
+  amountMinor: BigIntFilter
+  sourceType: StringFilter
+  sourceId: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CustomerCreditEntryOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  amountMinor: OrderDirection
+  sourceType: OrderDirection
+  sourceId: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CustomerCreditEntryUpdateInput {
+  customer: CustomerRelateToOneForUpdateInput
+  kind: String
+  amountMinor: BigInt
+  sourceType: String
+  sourceId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CustomerCreditEntryUpdateArgs {
+  where: CustomerCreditEntryWhereUniqueInput!
+  data: CustomerCreditEntryUpdateInput!
+}
+
+input CustomerCreditEntryCreateInput {
+  customer: CustomerRelateToOneForCreateInput
+  kind: String
+  amountMinor: BigInt
+  sourceType: String
+  sourceId: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Dispute {
+  id: ID!
+  payment: Payment
+  providerDisputeId: String
+  amountMinor: BigInt
+  reasonCode: String
+  status: String
+  evidenceDueBy: DateTime
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DisputeWhereUniqueInput {
+  id: ID
+  providerDisputeId: String
+}
+
+input DisputeWhereInput {
+  AND: [DisputeWhereInput!]
+  OR: [DisputeWhereInput!]
+  NOT: [DisputeWhereInput!]
+  id: IDFilter
+  payment: PaymentWhereInput
+  providerDisputeId: StringFilter
+  amountMinor: BigIntFilter
+  reasonCode: StringFilter
+  status: StringFilter
+  evidenceDueBy: DateTimeNullableFilter
+  note: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input DisputeOrderByInput {
+  id: OrderDirection
+  providerDisputeId: OrderDirection
+  amountMinor: OrderDirection
+  reasonCode: OrderDirection
+  status: OrderDirection
+  evidenceDueBy: OrderDirection
+  note: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input DisputeUpdateInput {
+  payment: PaymentRelateToOneForUpdateInput
+  providerDisputeId: String
+  amountMinor: BigInt
+  reasonCode: String
+  status: String
+  evidenceDueBy: DateTime
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DisputeUpdateArgs {
+  where: DisputeWhereUniqueInput!
+  data: DisputeUpdateInput!
+}
+
+input DisputeCreateInput {
+  payment: PaymentRelateToOneForCreateInput
+  providerDisputeId: String
+  amountMinor: BigInt
+  reasonCode: String
+  status: String
+  evidenceDueBy: DateTime
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type FinancingApplication {
+  id: ID!
+  ref: String
+  customer: Customer
+  job: Job
+  estimateVersion: EstimateVersion
+  invoice: Invoice
+  program: FinancingProgram
+  amountMinor: BigInt
+  status: String
+  consentRecordedAt: DateTime
+  partnerReference: String
+  offers: JSON
+  selectedOffer: JSON
+  offerExpiresAt: DateTime
+  declineNote: String
+  fundings(where: FinancingFundingWhereInput! = {}, orderBy: [FinancingFundingOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: FinancingFundingWhereUniqueInput): [FinancingFunding!]
+  fundingsCount(where: FinancingFundingWhereInput! = {}): Int
+  createdBy: User
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FinancingApplicationWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input FinancingApplicationWhereInput {
+  AND: [FinancingApplicationWhereInput!]
+  OR: [FinancingApplicationWhereInput!]
+  NOT: [FinancingApplicationWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  customer: CustomerWhereInput
+  job: JobWhereInput
+  estimateVersion: EstimateVersionWhereInput
+  invoice: InvoiceWhereInput
+  program: FinancingProgramWhereInput
+  amountMinor: BigIntFilter
+  status: StringFilter
+  consentRecordedAt: DateTimeNullableFilter
+  partnerReference: StringFilter
+  offerExpiresAt: DateTimeNullableFilter
+  declineNote: StringFilter
+  fundings: FinancingFundingManyRelationFilter
+  createdBy: UserWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input FinancingFundingManyRelationFilter {
+  every: FinancingFundingWhereInput
+  some: FinancingFundingWhereInput
+  none: FinancingFundingWhereInput
+}
+
+input FinancingApplicationOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  amountMinor: OrderDirection
+  status: OrderDirection
+  consentRecordedAt: OrderDirection
+  partnerReference: OrderDirection
+  offerExpiresAt: OrderDirection
+  declineNote: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input FinancingApplicationUpdateInput {
+  ref: String
+  customer: CustomerRelateToOneForUpdateInput
+  job: JobRelateToOneForUpdateInput
+  estimateVersion: EstimateVersionRelateToOneForUpdateInput
+  invoice: InvoiceRelateToOneForUpdateInput
+  program: FinancingProgramRelateToOneForUpdateInput
+  amountMinor: BigInt
+  status: String
+  consentRecordedAt: DateTime
+  partnerReference: String
+  offers: JSON
+  selectedOffer: JSON
+  offerExpiresAt: DateTime
+  declineNote: String
+  fundings: FinancingFundingRelateToManyForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FinancingProgramRelateToOneForUpdateInput {
+  create: FinancingProgramCreateInput
+  connect: FinancingProgramWhereUniqueInput
+  disconnect: Boolean
+}
+
+input FinancingFundingRelateToManyForUpdateInput {
+  disconnect: [FinancingFundingWhereUniqueInput!]
+  set: [FinancingFundingWhereUniqueInput!]
+  create: [FinancingFundingCreateInput!]
+  connect: [FinancingFundingWhereUniqueInput!]
+}
+
+input FinancingApplicationUpdateArgs {
+  where: FinancingApplicationWhereUniqueInput!
+  data: FinancingApplicationUpdateInput!
+}
+
+input FinancingApplicationCreateInput {
+  ref: String
+  customer: CustomerRelateToOneForCreateInput
+  job: JobRelateToOneForCreateInput
+  estimateVersion: EstimateVersionRelateToOneForCreateInput
+  invoice: InvoiceRelateToOneForCreateInput
+  program: FinancingProgramRelateToOneForCreateInput
+  amountMinor: BigInt
+  status: String
+  consentRecordedAt: DateTime
+  partnerReference: String
+  offers: JSON
+  selectedOffer: JSON
+  offerExpiresAt: DateTime
+  declineNote: String
+  fundings: FinancingFundingRelateToManyForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FinancingProgramRelateToOneForCreateInput {
+  create: FinancingProgramCreateInput
+  connect: FinancingProgramWhereUniqueInput
+}
+
+input FinancingFundingRelateToManyForCreateInput {
+  create: [FinancingFundingCreateInput!]
+  connect: [FinancingFundingWhereUniqueInput!]
+}
+
+type FinancingFunding {
+  id: ID!
+  application: FinancingApplication
+  grossMinor: BigInt
+  feeMinor: BigInt
+  reference: String
+  fundedAt: DateTime
+  payment: Payment
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FinancingFundingWhereUniqueInput {
+  id: ID
+}
+
+input FinancingFundingWhereInput {
+  AND: [FinancingFundingWhereInput!]
+  OR: [FinancingFundingWhereInput!]
+  NOT: [FinancingFundingWhereInput!]
+  id: IDFilter
+  application: FinancingApplicationWhereInput
+  grossMinor: BigIntFilter
+  feeMinor: BigIntFilter
+  reference: StringFilter
+  fundedAt: DateTimeFilter
+  payment: PaymentWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input FinancingFundingOrderByInput {
+  id: OrderDirection
+  grossMinor: OrderDirection
+  feeMinor: OrderDirection
+  reference: OrderDirection
+  fundedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input FinancingFundingUpdateInput {
+  application: FinancingApplicationRelateToOneForUpdateInput
+  grossMinor: BigInt
+  feeMinor: BigInt
+  reference: String
+  fundedAt: DateTime
+  payment: PaymentRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FinancingApplicationRelateToOneForUpdateInput {
+  create: FinancingApplicationCreateInput
+  connect: FinancingApplicationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input FinancingFundingUpdateArgs {
+  where: FinancingFundingWhereUniqueInput!
+  data: FinancingFundingUpdateInput!
+}
+
+input FinancingFundingCreateInput {
+  application: FinancingApplicationRelateToOneForCreateInput
+  grossMinor: BigInt
+  feeMinor: BigInt
+  reference: String
+  fundedAt: DateTime
+  payment: PaymentRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FinancingApplicationRelateToOneForCreateInput {
+  create: FinancingApplicationCreateInput
+  connect: FinancingApplicationWhereUniqueInput
+}
+
+type FinancingProgram {
+  id: ID!
+  name: String
+  partner: String
+  minMinor: BigInt
+  maxMinor: BigInt
+  termsNote: String
+  applyUrl: String
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FinancingProgramWhereUniqueInput {
+  id: ID
+}
+
+input FinancingProgramWhereInput {
+  AND: [FinancingProgramWhereInput!]
+  OR: [FinancingProgramWhereInput!]
+  NOT: [FinancingProgramWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  partner: StringFilter
+  minMinor: BigIntFilter
+  maxMinor: BigIntFilter
+  termsNote: StringFilter
+  applyUrl: StringFilter
+  active: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input FinancingProgramOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  partner: OrderDirection
+  minMinor: OrderDirection
+  maxMinor: OrderDirection
+  termsNote: OrderDirection
+  applyUrl: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input FinancingProgramUpdateInput {
+  name: String
+  partner: String
+  minMinor: BigInt
+  maxMinor: BigInt
+  termsNote: String
+  applyUrl: String
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input FinancingProgramUpdateArgs {
+  where: FinancingProgramWhereUniqueInput!
+  data: FinancingProgramUpdateInput!
+}
+
+input FinancingProgramCreateInput {
+  name: String
+  partner: String
+  minMinor: BigInt
+  maxMinor: BigInt
+  termsNote: String
+  applyUrl: String
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Invoice {
+  id: ID!
+  ref: String
+  publicCode: String
+  job: Job
+  customer: Customer
+  payer: PayerProfile
+  payerKind: String
+  location: ServiceLocation
+  propertyClass: String
+  contractTaxMode: String
+  taxResult: JSON
+  status: String
+  invoiceDate: CalendarDay
+  dueDate: CalendarDay
+  arPeriod: ArPeriod
+  subtotalMinor: BigInt
+  discountMinor: BigInt
+  taxMinor: BigInt
+  totalMinor: BigInt
+  balanceMinor: BigInt
+  poNumber: String
+  authorization: ThirdPartyAuthorization
+  progressReason: String
+  collectionsStatus: String
+  snapshot: JSON
+  pdf: Document
+  lines(where: InvoiceLineWhereInput! = {}, orderBy: [InvoiceLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: InvoiceLineWhereUniqueInput): [InvoiceLine!]
+  linesCount(where: InvoiceLineWhereInput! = {}): Int
+  allocations(where: PaymentAllocationWhereInput! = {}, orderBy: [PaymentAllocationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentAllocationWhereUniqueInput): [PaymentAllocation!]
+  allocationsCount(where: PaymentAllocationWhereInput! = {}): Int
+  arEntries(where: ArEntryWhereInput! = {}, orderBy: [ArEntryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ArEntryWhereUniqueInput): [ArEntry!]
+  arEntriesCount(where: ArEntryWhereInput! = {}): Int
+  creditMemos(where: CreditMemoWhereInput! = {}, orderBy: [CreditMemoOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CreditMemoWhereUniqueInput): [CreditMemo!]
+  creditMemosCount(where: CreditMemoWhereInput! = {}): Int
+  postedAt: DateTime
+  postedBy: User
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InvoiceWhereUniqueInput {
+  id: ID
+  ref: String
+  publicCode: String
+}
+
+input InvoiceWhereInput {
+  AND: [InvoiceWhereInput!]
+  OR: [InvoiceWhereInput!]
+  NOT: [InvoiceWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  publicCode: StringFilter
+  job: JobWhereInput
+  customer: CustomerWhereInput
+  payer: PayerProfileWhereInput
+  payerKind: StringFilter
+  location: ServiceLocationWhereInput
+  propertyClass: StringFilter
+  contractTaxMode: StringFilter
+  status: StringFilter
+  invoiceDate: CalendarDayNullableFilter
+  dueDate: CalendarDayNullableFilter
+  arPeriod: ArPeriodWhereInput
+  subtotalMinor: BigIntFilter
+  discountMinor: BigIntFilter
+  taxMinor: BigIntFilter
+  totalMinor: BigIntFilter
+  balanceMinor: BigIntFilter
+  poNumber: StringFilter
+  authorization: ThirdPartyAuthorizationWhereInput
+  progressReason: StringFilter
+  collectionsStatus: StringFilter
+  pdf: DocumentWhereInput
+  lines: InvoiceLineManyRelationFilter
+  allocations: PaymentAllocationManyRelationFilter
+  arEntries: ArEntryManyRelationFilter
+  creditMemos: CreditMemoManyRelationFilter
+  postedAt: DateTimeNullableFilter
+  postedBy: UserWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input InvoiceLineManyRelationFilter {
+  every: InvoiceLineWhereInput
+  some: InvoiceLineWhereInput
+  none: InvoiceLineWhereInput
+}
+
+input PaymentAllocationManyRelationFilter {
+  every: PaymentAllocationWhereInput
+  some: PaymentAllocationWhereInput
+  none: PaymentAllocationWhereInput
+}
+
+input ArEntryManyRelationFilter {
+  every: ArEntryWhereInput
+  some: ArEntryWhereInput
+  none: ArEntryWhereInput
+}
+
+input CreditMemoManyRelationFilter {
+  every: CreditMemoWhereInput
+  some: CreditMemoWhereInput
+  none: CreditMemoWhereInput
+}
+
+input InvoiceOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  publicCode: OrderDirection
+  payerKind: OrderDirection
+  propertyClass: OrderDirection
+  contractTaxMode: OrderDirection
+  status: OrderDirection
+  invoiceDate: OrderDirection
+  dueDate: OrderDirection
+  subtotalMinor: OrderDirection
+  discountMinor: OrderDirection
+  taxMinor: OrderDirection
+  totalMinor: OrderDirection
+  balanceMinor: OrderDirection
+  poNumber: OrderDirection
+  progressReason: OrderDirection
+  collectionsStatus: OrderDirection
+  postedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input InvoiceUpdateInput {
+  ref: String
+  publicCode: String
+  job: JobRelateToOneForUpdateInput
+  customer: CustomerRelateToOneForUpdateInput
+  payer: PayerProfileRelateToOneForUpdateInput
+  payerKind: String
+  location: ServiceLocationRelateToOneForUpdateInput
+  propertyClass: String
+  contractTaxMode: String
+  taxResult: JSON
+  status: String
+  invoiceDate: CalendarDay
+  dueDate: CalendarDay
+  arPeriod: ArPeriodRelateToOneForUpdateInput
+  subtotalMinor: BigInt
+  discountMinor: BigInt
+  taxMinor: BigInt
+  totalMinor: BigInt
+  balanceMinor: BigInt
+  poNumber: String
+  authorization: ThirdPartyAuthorizationRelateToOneForUpdateInput
+  progressReason: String
+  collectionsStatus: String
+  snapshot: JSON
+  pdf: DocumentRelateToOneForUpdateInput
+  lines: InvoiceLineRelateToManyForUpdateInput
+  allocations: PaymentAllocationRelateToManyForUpdateInput
+  arEntries: ArEntryRelateToManyForUpdateInput
+  creditMemos: CreditMemoRelateToManyForUpdateInput
+  postedAt: DateTime
+  postedBy: UserRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ThirdPartyAuthorizationRelateToOneForUpdateInput {
+  create: ThirdPartyAuthorizationCreateInput
+  connect: ThirdPartyAuthorizationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input InvoiceLineRelateToManyForUpdateInput {
+  disconnect: [InvoiceLineWhereUniqueInput!]
+  set: [InvoiceLineWhereUniqueInput!]
+  create: [InvoiceLineCreateInput!]
+  connect: [InvoiceLineWhereUniqueInput!]
+}
+
+input PaymentAllocationRelateToManyForUpdateInput {
+  disconnect: [PaymentAllocationWhereUniqueInput!]
+  set: [PaymentAllocationWhereUniqueInput!]
+  create: [PaymentAllocationCreateInput!]
+  connect: [PaymentAllocationWhereUniqueInput!]
+}
+
+input ArEntryRelateToManyForUpdateInput {
+  disconnect: [ArEntryWhereUniqueInput!]
+  set: [ArEntryWhereUniqueInput!]
+  create: [ArEntryCreateInput!]
+  connect: [ArEntryWhereUniqueInput!]
+}
+
+input CreditMemoRelateToManyForUpdateInput {
+  disconnect: [CreditMemoWhereUniqueInput!]
+  set: [CreditMemoWhereUniqueInput!]
+  create: [CreditMemoCreateInput!]
+  connect: [CreditMemoWhereUniqueInput!]
+}
+
+input InvoiceUpdateArgs {
+  where: InvoiceWhereUniqueInput!
+  data: InvoiceUpdateInput!
+}
+
+input InvoiceCreateInput {
+  ref: String
+  publicCode: String
+  job: JobRelateToOneForCreateInput
+  customer: CustomerRelateToOneForCreateInput
+  payer: PayerProfileRelateToOneForCreateInput
+  payerKind: String
+  location: ServiceLocationRelateToOneForCreateInput
+  propertyClass: String
+  contractTaxMode: String
+  taxResult: JSON
+  status: String
+  invoiceDate: CalendarDay
+  dueDate: CalendarDay
+  arPeriod: ArPeriodRelateToOneForCreateInput
+  subtotalMinor: BigInt
+  discountMinor: BigInt
+  taxMinor: BigInt
+  totalMinor: BigInt
+  balanceMinor: BigInt
+  poNumber: String
+  authorization: ThirdPartyAuthorizationRelateToOneForCreateInput
+  progressReason: String
+  collectionsStatus: String
+  snapshot: JSON
+  pdf: DocumentRelateToOneForCreateInput
+  lines: InvoiceLineRelateToManyForCreateInput
+  allocations: PaymentAllocationRelateToManyForCreateInput
+  arEntries: ArEntryRelateToManyForCreateInput
+  creditMemos: CreditMemoRelateToManyForCreateInput
+  postedAt: DateTime
+  postedBy: UserRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ThirdPartyAuthorizationRelateToOneForCreateInput {
+  create: ThirdPartyAuthorizationCreateInput
+  connect: ThirdPartyAuthorizationWhereUniqueInput
+}
+
+input InvoiceLineRelateToManyForCreateInput {
+  create: [InvoiceLineCreateInput!]
+  connect: [InvoiceLineWhereUniqueInput!]
+}
+
+input PaymentAllocationRelateToManyForCreateInput {
+  create: [PaymentAllocationCreateInput!]
+  connect: [PaymentAllocationWhereUniqueInput!]
+}
+
+input ArEntryRelateToManyForCreateInput {
+  create: [ArEntryCreateInput!]
+  connect: [ArEntryWhereUniqueInput!]
+}
+
+input CreditMemoRelateToManyForCreateInput {
+  create: [CreditMemoCreateInput!]
+  connect: [CreditMemoWhereUniqueInput!]
+}
+
+type InvoiceLine {
+  id: ID!
+  invoice: Invoice
+  workLine: WorkLine
+  description: String
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  discountMinor: BigInt
+  taxCategory: String
+  taxable: Boolean
+  taxBaseMinor: BigInt
+  taxRate: String
+  taxMinor: BigInt
+  taxJurisdictions: JSON
+  costMinor: BigInt
+  revenueAccountCode: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InvoiceLineWhereUniqueInput {
+  id: ID
+}
+
+input InvoiceLineWhereInput {
+  AND: [InvoiceLineWhereInput!]
+  OR: [InvoiceLineWhereInput!]
+  NOT: [InvoiceLineWhereInput!]
+  id: IDFilter
+  invoice: InvoiceWhereInput
+  workLine: WorkLineWhereInput
+  description: StringFilter
+  quantity: DecimalFilter
+  uom: StringFilter
+  unitPriceMinor: BigIntFilter
+  amountMinor: BigIntFilter
+  discountMinor: BigIntFilter
+  taxCategory: StringFilter
+  taxable: BooleanFilter
+  taxBaseMinor: BigIntFilter
+  taxRate: StringFilter
+  taxMinor: BigIntFilter
+  costMinor: BigIntFilter
+  revenueAccountCode: StringFilter
+  sortOrder: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input InvoiceLineOrderByInput {
+  id: OrderDirection
+  description: OrderDirection
+  quantity: OrderDirection
+  uom: OrderDirection
+  unitPriceMinor: OrderDirection
+  amountMinor: OrderDirection
+  discountMinor: OrderDirection
+  taxCategory: OrderDirection
+  taxable: OrderDirection
+  taxBaseMinor: OrderDirection
+  taxRate: OrderDirection
+  taxMinor: OrderDirection
+  costMinor: OrderDirection
+  revenueAccountCode: OrderDirection
+  sortOrder: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input InvoiceLineUpdateInput {
+  invoice: InvoiceRelateToOneForUpdateInput
+  workLine: WorkLineRelateToOneForUpdateInput
+  description: String
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  discountMinor: BigInt
+  taxCategory: String
+  taxable: Boolean
+  taxBaseMinor: BigInt
+  taxRate: String
+  taxMinor: BigInt
+  taxJurisdictions: JSON
+  costMinor: BigInt
+  revenueAccountCode: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WorkLineRelateToOneForUpdateInput {
+  create: WorkLineCreateInput
+  connect: WorkLineWhereUniqueInput
+  disconnect: Boolean
+}
+
+input InvoiceLineUpdateArgs {
+  where: InvoiceLineWhereUniqueInput!
+  data: InvoiceLineUpdateInput!
+}
+
+input InvoiceLineCreateInput {
+  invoice: InvoiceRelateToOneForCreateInput
+  workLine: WorkLineRelateToOneForCreateInput
+  description: String
+  quantity: Decimal
+  uom: String
+  unitPriceMinor: BigInt
+  amountMinor: BigInt
+  discountMinor: BigInt
+  taxCategory: String
+  taxable: Boolean
+  taxBaseMinor: BigInt
+  taxRate: String
+  taxMinor: BigInt
+  taxJurisdictions: JSON
+  costMinor: BigInt
+  revenueAccountCode: String
+  sortOrder: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WorkLineRelateToOneForCreateInput {
+  create: WorkLineCreateInput
+  connect: WorkLineWhereUniqueInput
+}
+
+type PayerProfile {
+  id: ID!
+  name: String
+  kind: String
+  terms: String
+  poRequired: Boolean
+  defaultNteMinor: BigInt
+  portalUrl: String
+  billingContact: String
+  accountingCustomerRef: String
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayerProfileWhereUniqueInput {
+  id: ID
+}
+
+input PayerProfileWhereInput {
+  AND: [PayerProfileWhereInput!]
+  OR: [PayerProfileWhereInput!]
+  NOT: [PayerProfileWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  kind: StringFilter
+  terms: StringFilter
+  poRequired: BooleanFilter
+  defaultNteMinor: BigIntNullableFilter
+  portalUrl: StringFilter
+  billingContact: StringFilter
+  accountingCustomerRef: StringFilter
+  active: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PayerProfileOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  kind: OrderDirection
+  terms: OrderDirection
+  poRequired: OrderDirection
+  defaultNteMinor: OrderDirection
+  portalUrl: OrderDirection
+  billingContact: OrderDirection
+  accountingCustomerRef: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PayerProfileUpdateInput {
+  name: String
+  kind: String
+  terms: String
+  poRequired: Boolean
+  defaultNteMinor: BigInt
+  portalUrl: String
+  billingContact: String
+  accountingCustomerRef: String
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayerProfileUpdateArgs {
+  where: PayerProfileWhereUniqueInput!
+  data: PayerProfileUpdateInput!
+}
+
+input PayerProfileCreateInput {
+  name: String
+  kind: String
+  terms: String
+  poRequired: Boolean
+  defaultNteMinor: BigInt
+  portalUrl: String
+  billingContact: String
+  accountingCustomerRef: String
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type PaymentAllocation {
+  id: ID!
+  payment: Payment
+  invoice: Invoice
+  kind: String
+  reverses: PaymentAllocation
+  amountMinor: BigInt
+  reason: String
+  createdBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentAllocationWhereUniqueInput {
+  id: ID
+}
+
+input PaymentAllocationWhereInput {
+  AND: [PaymentAllocationWhereInput!]
+  OR: [PaymentAllocationWhereInput!]
+  NOT: [PaymentAllocationWhereInput!]
+  id: IDFilter
+  payment: PaymentWhereInput
+  invoice: InvoiceWhereInput
+  kind: StringFilter
+  reverses: PaymentAllocationWhereInput
+  amountMinor: BigIntFilter
+  reason: StringFilter
+  createdBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PaymentAllocationOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  amountMinor: OrderDirection
+  reason: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentAllocationUpdateInput {
+  payment: PaymentRelateToOneForUpdateInput
+  invoice: InvoiceRelateToOneForUpdateInput
+  kind: String
+  reverses: PaymentAllocationRelateToOneForUpdateInput
+  amountMinor: BigInt
+  reason: String
+  createdBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentAllocationRelateToOneForUpdateInput {
+  create: PaymentAllocationCreateInput
+  connect: PaymentAllocationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PaymentAllocationUpdateArgs {
+  where: PaymentAllocationWhereUniqueInput!
+  data: PaymentAllocationUpdateInput!
+}
+
+input PaymentAllocationCreateInput {
+  payment: PaymentRelateToOneForCreateInput
+  invoice: InvoiceRelateToOneForCreateInput
+  kind: String
+  reverses: PaymentAllocationRelateToOneForCreateInput
+  amountMinor: BigInt
+  reason: String
+  createdBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentAllocationRelateToOneForCreateInput {
+  create: PaymentAllocationCreateInput
+  connect: PaymentAllocationWhereUniqueInput
+}
+
+type PaymentAttempt {
+  id: ID!
+  intentKey: String
+  invoice: Invoice
+  customer: Customer
+  amountMinor: BigInt
+  method: String
+  status: String
+  failureNote: String
+  resolutionNote: String
+  payment: Payment
+  createdBy: User
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentAttemptWhereUniqueInput {
+  id: ID
+  intentKey: String
+}
+
+input PaymentAttemptWhereInput {
+  AND: [PaymentAttemptWhereInput!]
+  OR: [PaymentAttemptWhereInput!]
+  NOT: [PaymentAttemptWhereInput!]
+  id: IDFilter
+  intentKey: StringFilter
+  invoice: InvoiceWhereInput
+  customer: CustomerWhereInput
+  amountMinor: BigIntFilter
+  method: StringFilter
+  status: StringFilter
+  failureNote: StringFilter
+  resolutionNote: StringFilter
+  payment: PaymentWhereInput
+  createdBy: UserWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PaymentAttemptOrderByInput {
+  id: OrderDirection
+  intentKey: OrderDirection
+  amountMinor: OrderDirection
+  method: OrderDirection
+  status: OrderDirection
+  failureNote: OrderDirection
+  resolutionNote: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentAttemptUpdateInput {
+  intentKey: String
+  invoice: InvoiceRelateToOneForUpdateInput
+  customer: CustomerRelateToOneForUpdateInput
+  amountMinor: BigInt
+  method: String
+  status: String
+  failureNote: String
+  resolutionNote: String
+  payment: PaymentRelateToOneForUpdateInput
+  createdBy: UserRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentAttemptUpdateArgs {
+  where: PaymentAttemptWhereUniqueInput!
+  data: PaymentAttemptUpdateInput!
+}
+
+input PaymentAttemptCreateInput {
+  intentKey: String
+  invoice: InvoiceRelateToOneForCreateInput
+  customer: CustomerRelateToOneForCreateInput
+  amountMinor: BigInt
+  method: String
+  status: String
+  failureNote: String
+  resolutionNote: String
+  payment: PaymentRelateToOneForCreateInput
+  createdBy: UserRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type PaymentBatch {
+  id: ID!
+  ref: String
+  businessDate: CalendarDay
+  tenderGroup: String
+  status: String
+  expectedMinor: BigInt
+  depositedMinor: BigInt
+  feesMinor: BigInt
+  varianceMinor: BigInt
+  depositReference: String
+  closedBy: User
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentBatchWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input PaymentBatchWhereInput {
+  AND: [PaymentBatchWhereInput!]
+  OR: [PaymentBatchWhereInput!]
+  NOT: [PaymentBatchWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  businessDate: CalendarDayNullableFilter
+  tenderGroup: StringFilter
+  status: StringFilter
+  expectedMinor: BigIntFilter
+  depositedMinor: BigIntFilter
+  feesMinor: BigIntFilter
+  varianceMinor: BigIntFilter
+  depositReference: StringFilter
+  closedBy: UserWhereInput
+  closedAt: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PaymentBatchOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  businessDate: OrderDirection
+  tenderGroup: OrderDirection
+  status: OrderDirection
+  expectedMinor: OrderDirection
+  depositedMinor: OrderDirection
+  feesMinor: OrderDirection
+  varianceMinor: OrderDirection
+  depositReference: OrderDirection
+  closedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PaymentBatchUpdateInput {
+  ref: String
+  businessDate: CalendarDay
+  tenderGroup: String
+  status: String
+  expectedMinor: BigInt
+  depositedMinor: BigInt
+  feesMinor: BigInt
+  varianceMinor: BigInt
+  depositReference: String
+  closedBy: UserRelateToOneForUpdateInput
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PaymentBatchUpdateArgs {
+  where: PaymentBatchWhereUniqueInput!
+  data: PaymentBatchUpdateInput!
+}
+
+input PaymentBatchCreateInput {
+  ref: String
+  businessDate: CalendarDay
+  tenderGroup: String
+  status: String
+  expectedMinor: BigInt
+  depositedMinor: BigInt
+  feesMinor: BigInt
+  varianceMinor: BigInt
+  depositReference: String
+  closedBy: UserRelateToOneForCreateInput
+  closedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type ThirdPartyAuthorization {
+  id: ID!
+  job: Job
+  payer: PayerProfile
+  kind: String
+  externalRef: String
+  authorizedAmountMinor: BigInt
+  serviceFeeMinor: BigInt
+  status: String
+  revisionOf: ThirdPartyAuthorization
+  evidence: Document
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ThirdPartyAuthorizationWhereUniqueInput {
+  id: ID
+}
+
+input ThirdPartyAuthorizationWhereInput {
+  AND: [ThirdPartyAuthorizationWhereInput!]
+  OR: [ThirdPartyAuthorizationWhereInput!]
+  NOT: [ThirdPartyAuthorizationWhereInput!]
+  id: IDFilter
+  job: JobWhereInput
+  payer: PayerProfileWhereInput
+  kind: StringFilter
+  externalRef: StringFilter
+  authorizedAmountMinor: BigIntFilter
+  serviceFeeMinor: BigIntFilter
+  status: StringFilter
+  revisionOf: ThirdPartyAuthorizationWhereInput
+  evidence: DocumentWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ThirdPartyAuthorizationOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  externalRef: OrderDirection
+  authorizedAmountMinor: OrderDirection
+  serviceFeeMinor: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ThirdPartyAuthorizationUpdateInput {
+  job: JobRelateToOneForUpdateInput
+  payer: PayerProfileRelateToOneForUpdateInput
+  kind: String
+  externalRef: String
+  authorizedAmountMinor: BigInt
+  serviceFeeMinor: BigInt
+  status: String
+  revisionOf: ThirdPartyAuthorizationRelateToOneForUpdateInput
+  evidence: DocumentRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ThirdPartyAuthorizationUpdateArgs {
+  where: ThirdPartyAuthorizationWhereUniqueInput!
+  data: ThirdPartyAuthorizationUpdateInput!
+}
+
+input ThirdPartyAuthorizationCreateInput {
+  job: JobRelateToOneForCreateInput
+  payer: PayerProfileRelateToOneForCreateInput
+  kind: String
+  externalRef: String
+  authorizedAmountMinor: BigInt
+  serviceFeeMinor: BigInt
+  status: String
+  revisionOf: ThirdPartyAuthorizationRelateToOneForCreateInput
+  evidence: DocumentRelateToOneForCreateInput
+  version: Int
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -11138,6 +12964,108 @@ type Mutation {
   updateUnitOfMeasures(data: [UnitOfMeasureUpdateArgs!]!): [UnitOfMeasure]
   deleteUnitOfMeasure(where: UnitOfMeasureWhereUniqueInput!): UnitOfMeasure
   deleteUnitOfMeasures(where: [UnitOfMeasureWhereUniqueInput!]!): [UnitOfMeasure]
+  createAccountingExportBatch(data: AccountingExportBatchCreateInput!): AccountingExportBatch
+  createAccountingExportBatches(data: [AccountingExportBatchCreateInput!]!): [AccountingExportBatch]
+  updateAccountingExportBatch(where: AccountingExportBatchWhereUniqueInput!, data: AccountingExportBatchUpdateInput!): AccountingExportBatch
+  updateAccountingExportBatches(data: [AccountingExportBatchUpdateArgs!]!): [AccountingExportBatch]
+  deleteAccountingExportBatch(where: AccountingExportBatchWhereUniqueInput!): AccountingExportBatch
+  deleteAccountingExportBatches(where: [AccountingExportBatchWhereUniqueInput!]!): [AccountingExportBatch]
+  createAccountingExportLine(data: AccountingExportLineCreateInput!): AccountingExportLine
+  createAccountingExportLines(data: [AccountingExportLineCreateInput!]!): [AccountingExportLine]
+  updateAccountingExportLine(where: AccountingExportLineWhereUniqueInput!, data: AccountingExportLineUpdateInput!): AccountingExportLine
+  updateAccountingExportLines(data: [AccountingExportLineUpdateArgs!]!): [AccountingExportLine]
+  deleteAccountingExportLine(where: AccountingExportLineWhereUniqueInput!): AccountingExportLine
+  deleteAccountingExportLines(where: [AccountingExportLineWhereUniqueInput!]!): [AccountingExportLine]
+  createArEntry(data: ArEntryCreateInput!): ArEntry
+  createArEntries(data: [ArEntryCreateInput!]!): [ArEntry]
+  updateArEntry(where: ArEntryWhereUniqueInput!, data: ArEntryUpdateInput!): ArEntry
+  updateArEntries(data: [ArEntryUpdateArgs!]!): [ArEntry]
+  deleteArEntry(where: ArEntryWhereUniqueInput!): ArEntry
+  deleteArEntries(where: [ArEntryWhereUniqueInput!]!): [ArEntry]
+  createArPeriod(data: ArPeriodCreateInput!): ArPeriod
+  createArPeriods(data: [ArPeriodCreateInput!]!): [ArPeriod]
+  updateArPeriod(where: ArPeriodWhereUniqueInput!, data: ArPeriodUpdateInput!): ArPeriod
+  updateArPeriods(data: [ArPeriodUpdateArgs!]!): [ArPeriod]
+  deleteArPeriod(where: ArPeriodWhereUniqueInput!): ArPeriod
+  deleteArPeriods(where: [ArPeriodWhereUniqueInput!]!): [ArPeriod]
+  createCreditMemo(data: CreditMemoCreateInput!): CreditMemo
+  createCreditMemos(data: [CreditMemoCreateInput!]!): [CreditMemo]
+  updateCreditMemo(where: CreditMemoWhereUniqueInput!, data: CreditMemoUpdateInput!): CreditMemo
+  updateCreditMemos(data: [CreditMemoUpdateArgs!]!): [CreditMemo]
+  deleteCreditMemo(where: CreditMemoWhereUniqueInput!): CreditMemo
+  deleteCreditMemos(where: [CreditMemoWhereUniqueInput!]!): [CreditMemo]
+  createCustomerCreditEntry(data: CustomerCreditEntryCreateInput!): CustomerCreditEntry
+  createCustomerCreditEntries(data: [CustomerCreditEntryCreateInput!]!): [CustomerCreditEntry]
+  updateCustomerCreditEntry(where: CustomerCreditEntryWhereUniqueInput!, data: CustomerCreditEntryUpdateInput!): CustomerCreditEntry
+  updateCustomerCreditEntries(data: [CustomerCreditEntryUpdateArgs!]!): [CustomerCreditEntry]
+  deleteCustomerCreditEntry(where: CustomerCreditEntryWhereUniqueInput!): CustomerCreditEntry
+  deleteCustomerCreditEntries(where: [CustomerCreditEntryWhereUniqueInput!]!): [CustomerCreditEntry]
+  createDispute(data: DisputeCreateInput!): Dispute
+  createDisputes(data: [DisputeCreateInput!]!): [Dispute]
+  updateDispute(where: DisputeWhereUniqueInput!, data: DisputeUpdateInput!): Dispute
+  updateDisputes(data: [DisputeUpdateArgs!]!): [Dispute]
+  deleteDispute(where: DisputeWhereUniqueInput!): Dispute
+  deleteDisputes(where: [DisputeWhereUniqueInput!]!): [Dispute]
+  createFinancingApplication(data: FinancingApplicationCreateInput!): FinancingApplication
+  createFinancingApplications(data: [FinancingApplicationCreateInput!]!): [FinancingApplication]
+  updateFinancingApplication(where: FinancingApplicationWhereUniqueInput!, data: FinancingApplicationUpdateInput!): FinancingApplication
+  updateFinancingApplications(data: [FinancingApplicationUpdateArgs!]!): [FinancingApplication]
+  deleteFinancingApplication(where: FinancingApplicationWhereUniqueInput!): FinancingApplication
+  deleteFinancingApplications(where: [FinancingApplicationWhereUniqueInput!]!): [FinancingApplication]
+  createFinancingFunding(data: FinancingFundingCreateInput!): FinancingFunding
+  createFinancingFundings(data: [FinancingFundingCreateInput!]!): [FinancingFunding]
+  updateFinancingFunding(where: FinancingFundingWhereUniqueInput!, data: FinancingFundingUpdateInput!): FinancingFunding
+  updateFinancingFundings(data: [FinancingFundingUpdateArgs!]!): [FinancingFunding]
+  deleteFinancingFunding(where: FinancingFundingWhereUniqueInput!): FinancingFunding
+  deleteFinancingFundings(where: [FinancingFundingWhereUniqueInput!]!): [FinancingFunding]
+  createFinancingProgram(data: FinancingProgramCreateInput!): FinancingProgram
+  createFinancingPrograms(data: [FinancingProgramCreateInput!]!): [FinancingProgram]
+  updateFinancingProgram(where: FinancingProgramWhereUniqueInput!, data: FinancingProgramUpdateInput!): FinancingProgram
+  updateFinancingPrograms(data: [FinancingProgramUpdateArgs!]!): [FinancingProgram]
+  deleteFinancingProgram(where: FinancingProgramWhereUniqueInput!): FinancingProgram
+  deleteFinancingPrograms(where: [FinancingProgramWhereUniqueInput!]!): [FinancingProgram]
+  createInvoice(data: InvoiceCreateInput!): Invoice
+  createInvoices(data: [InvoiceCreateInput!]!): [Invoice]
+  updateInvoice(where: InvoiceWhereUniqueInput!, data: InvoiceUpdateInput!): Invoice
+  updateInvoices(data: [InvoiceUpdateArgs!]!): [Invoice]
+  deleteInvoice(where: InvoiceWhereUniqueInput!): Invoice
+  deleteInvoices(where: [InvoiceWhereUniqueInput!]!): [Invoice]
+  createInvoiceLine(data: InvoiceLineCreateInput!): InvoiceLine
+  createInvoiceLines(data: [InvoiceLineCreateInput!]!): [InvoiceLine]
+  updateInvoiceLine(where: InvoiceLineWhereUniqueInput!, data: InvoiceLineUpdateInput!): InvoiceLine
+  updateInvoiceLines(data: [InvoiceLineUpdateArgs!]!): [InvoiceLine]
+  deleteInvoiceLine(where: InvoiceLineWhereUniqueInput!): InvoiceLine
+  deleteInvoiceLines(where: [InvoiceLineWhereUniqueInput!]!): [InvoiceLine]
+  createPayerProfile(data: PayerProfileCreateInput!): PayerProfile
+  createPayerProfiles(data: [PayerProfileCreateInput!]!): [PayerProfile]
+  updatePayerProfile(where: PayerProfileWhereUniqueInput!, data: PayerProfileUpdateInput!): PayerProfile
+  updatePayerProfiles(data: [PayerProfileUpdateArgs!]!): [PayerProfile]
+  deletePayerProfile(where: PayerProfileWhereUniqueInput!): PayerProfile
+  deletePayerProfiles(where: [PayerProfileWhereUniqueInput!]!): [PayerProfile]
+  createPaymentAllocation(data: PaymentAllocationCreateInput!): PaymentAllocation
+  createPaymentAllocations(data: [PaymentAllocationCreateInput!]!): [PaymentAllocation]
+  updatePaymentAllocation(where: PaymentAllocationWhereUniqueInput!, data: PaymentAllocationUpdateInput!): PaymentAllocation
+  updatePaymentAllocations(data: [PaymentAllocationUpdateArgs!]!): [PaymentAllocation]
+  deletePaymentAllocation(where: PaymentAllocationWhereUniqueInput!): PaymentAllocation
+  deletePaymentAllocations(where: [PaymentAllocationWhereUniqueInput!]!): [PaymentAllocation]
+  createPaymentAttempt(data: PaymentAttemptCreateInput!): PaymentAttempt
+  createPaymentAttempts(data: [PaymentAttemptCreateInput!]!): [PaymentAttempt]
+  updatePaymentAttempt(where: PaymentAttemptWhereUniqueInput!, data: PaymentAttemptUpdateInput!): PaymentAttempt
+  updatePaymentAttempts(data: [PaymentAttemptUpdateArgs!]!): [PaymentAttempt]
+  deletePaymentAttempt(where: PaymentAttemptWhereUniqueInput!): PaymentAttempt
+  deletePaymentAttempts(where: [PaymentAttemptWhereUniqueInput!]!): [PaymentAttempt]
+  createPaymentBatch(data: PaymentBatchCreateInput!): PaymentBatch
+  createPaymentBatches(data: [PaymentBatchCreateInput!]!): [PaymentBatch]
+  updatePaymentBatch(where: PaymentBatchWhereUniqueInput!, data: PaymentBatchUpdateInput!): PaymentBatch
+  updatePaymentBatches(data: [PaymentBatchUpdateArgs!]!): [PaymentBatch]
+  deletePaymentBatch(where: PaymentBatchWhereUniqueInput!): PaymentBatch
+  deletePaymentBatches(where: [PaymentBatchWhereUniqueInput!]!): [PaymentBatch]
+  createThirdPartyAuthorization(data: ThirdPartyAuthorizationCreateInput!): ThirdPartyAuthorization
+  createThirdPartyAuthorizations(data: [ThirdPartyAuthorizationCreateInput!]!): [ThirdPartyAuthorization]
+  updateThirdPartyAuthorization(where: ThirdPartyAuthorizationWhereUniqueInput!, data: ThirdPartyAuthorizationUpdateInput!): ThirdPartyAuthorization
+  updateThirdPartyAuthorizations(data: [ThirdPartyAuthorizationUpdateArgs!]!): [ThirdPartyAuthorization]
+  deleteThirdPartyAuthorization(where: ThirdPartyAuthorizationWhereUniqueInput!): ThirdPartyAuthorization
+  deleteThirdPartyAuthorizations(where: [ThirdPartyAuthorizationWhereUniqueInput!]!): [ThirdPartyAuthorization]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -11212,6 +13140,31 @@ type Mutation {
   recordBuyerCancellation(noticeId: ID!, via: String!, sentAt: String!, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
   markCancellationRefunded(noticeId: ID!, evidence: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
   requestCancellationHoldOverride(noticeId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  createInvoiceDraft(jobId: ID!, workLineIds: [ID!], items: JSON, payerId: ID, authorizationId: ID, poNumber: String, progressReason: String, discountMinor: String, idempotencyKey: String!): JSON
+  discardInvoiceDraft(invoiceId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+  postInvoice(invoiceId: ID!, expectedVersion: Int!, invoiceDate: String, idempotencyKey: String!): JSON
+  voidInvoice(invoiceId: ID!, reason: String!, idempotencyKey: String!): JSON
+  issueCreditMemo(invoiceId: ID!, amountMinor: String!, reason: String!, note: String!, appliesTo: String, idempotencyKey: String!): JSON
+  requestWriteOff(invoiceId: ID!, reason: String!, idempotencyKey: String!): JSON
+  setCollectionsStatus(invoiceId: ID!, status: String!, idempotencyKey: String!): JSON
+  recordInvoicePayment(invoiceId: ID!, amountMinor: String!, method: String!, reference: String, checkNumber: String, feeMinor: String, receivedAt: String, attemptId: ID, idempotencyKey: String!): JSON
+  applyCustomerCredit(invoiceId: ID!, amountMinor: String!, idempotencyKey: String!): JSON
+  startPaymentAttempt(invoiceId: ID!, amountMinor: String!, method: String!, idempotencyKey: String!): JSON
+  markAttemptUnknown(attemptId: ID!, expectedVersion: Int!, note: String, idempotencyKey: String!): JSON
+  resolveAttemptFailed(attemptId: ID!, expectedVersion: Int!, evidence: String!, idempotencyKey: String!): JSON
+  requestRefund(paymentId: ID!, amountMinor: String!, method: String!, reason: String!, reference: String!, idempotencyKey: String!): JSON
+  recordApprovedRefund(approvalRequestId: ID!, idempotencyKey: String!): JSON
+  closePaymentBatch(batchId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  reconcilePaymentBatch(batchId: ID!, expectedVersion: Int!, depositedMinor: String!, depositReference: String!, idempotencyKey: String!): JSON
+  saveFinancingProgram(programId: ID, name: String!, partner: String, minMinor: String!, maxMinor: String!, termsNote: String, applyUrl: String, active: Boolean, idempotencyKey: String!): JSON
+  startFinancing(customerId: ID!, programId: ID!, amountMinor: String!, jobId: ID, invoiceId: ID, estimateVersionId: ID, consent: Boolean!, idempotencyKey: String!): JSON
+  recordFinancingStatus(applicationId: ID!, to: String!, expectedVersion: Int!, partnerReference: String, offers: JSON, selectedOffer: JSON, offerExpiresAt: String, note: String, idempotencyKey: String!): JSON
+  recordFinancingFunding(applicationId: ID!, expectedVersion: Int!, grossMinor: String!, feeMinor: String, reference: String!, fundedAt: String, idempotencyKey: String!): JSON
+  savePayerProfile(payerId: ID, name: String!, kind: String!, terms: String!, poRequired: Boolean, billingContact: String, accountingCustomerRef: String, idempotencyKey: String!): JSON
+  recordThirdPartyAuthorization(jobId: ID!, payerId: ID!, kind: String!, externalRef: String!, authorizedAmountMinor: String!, serviceFeeMinor: String, idempotencyKey: String!): JSON
+  requestArPeriodClose(periodId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  reopenArPeriod(periodId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  createExportBatch(from: String!, to: String!, idempotencyKey: String!): JSON
   bindAgentApp(agentId: ID!, oauthAppId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   unbindAgentApp(agentId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
 }
@@ -11533,6 +13486,57 @@ type Query {
   unitOfMeasure(where: UnitOfMeasureWhereUniqueInput!): UnitOfMeasure
   unitOfMeasures(where: UnitOfMeasureWhereInput! = {}, orderBy: [UnitOfMeasureOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: UnitOfMeasureWhereUniqueInput): [UnitOfMeasure!]
   unitOfMeasuresCount(where: UnitOfMeasureWhereInput! = {}): Int
+  accountingExportBatch(where: AccountingExportBatchWhereUniqueInput!): AccountingExportBatch
+  accountingExportBatches(where: AccountingExportBatchWhereInput! = {}, orderBy: [AccountingExportBatchOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AccountingExportBatchWhereUniqueInput): [AccountingExportBatch!]
+  accountingExportBatchesCount(where: AccountingExportBatchWhereInput! = {}): Int
+  accountingExportLine(where: AccountingExportLineWhereUniqueInput!): AccountingExportLine
+  accountingExportLines(where: AccountingExportLineWhereInput! = {}, orderBy: [AccountingExportLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: AccountingExportLineWhereUniqueInput): [AccountingExportLine!]
+  accountingExportLinesCount(where: AccountingExportLineWhereInput! = {}): Int
+  arEntry(where: ArEntryWhereUniqueInput!): ArEntry
+  arEntries(where: ArEntryWhereInput! = {}, orderBy: [ArEntryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ArEntryWhereUniqueInput): [ArEntry!]
+  arEntriesCount(where: ArEntryWhereInput! = {}): Int
+  arPeriod(where: ArPeriodWhereUniqueInput!): ArPeriod
+  arPeriods(where: ArPeriodWhereInput! = {}, orderBy: [ArPeriodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ArPeriodWhereUniqueInput): [ArPeriod!]
+  arPeriodsCount(where: ArPeriodWhereInput! = {}): Int
+  creditMemo(where: CreditMemoWhereUniqueInput!): CreditMemo
+  creditMemos(where: CreditMemoWhereInput! = {}, orderBy: [CreditMemoOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CreditMemoWhereUniqueInput): [CreditMemo!]
+  creditMemosCount(where: CreditMemoWhereInput! = {}): Int
+  customerCreditEntry(where: CustomerCreditEntryWhereUniqueInput!): CustomerCreditEntry
+  customerCreditEntries(where: CustomerCreditEntryWhereInput! = {}, orderBy: [CustomerCreditEntryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CustomerCreditEntryWhereUniqueInput): [CustomerCreditEntry!]
+  customerCreditEntriesCount(where: CustomerCreditEntryWhereInput! = {}): Int
+  dispute(where: DisputeWhereUniqueInput!): Dispute
+  disputes(where: DisputeWhereInput! = {}, orderBy: [DisputeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DisputeWhereUniqueInput): [Dispute!]
+  disputesCount(where: DisputeWhereInput! = {}): Int
+  financingApplication(where: FinancingApplicationWhereUniqueInput!): FinancingApplication
+  financingApplications(where: FinancingApplicationWhereInput! = {}, orderBy: [FinancingApplicationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: FinancingApplicationWhereUniqueInput): [FinancingApplication!]
+  financingApplicationsCount(where: FinancingApplicationWhereInput! = {}): Int
+  financingFunding(where: FinancingFundingWhereUniqueInput!): FinancingFunding
+  financingFundings(where: FinancingFundingWhereInput! = {}, orderBy: [FinancingFundingOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: FinancingFundingWhereUniqueInput): [FinancingFunding!]
+  financingFundingsCount(where: FinancingFundingWhereInput! = {}): Int
+  financingProgram(where: FinancingProgramWhereUniqueInput!): FinancingProgram
+  financingPrograms(where: FinancingProgramWhereInput! = {}, orderBy: [FinancingProgramOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: FinancingProgramWhereUniqueInput): [FinancingProgram!]
+  financingProgramsCount(where: FinancingProgramWhereInput! = {}): Int
+  invoice(where: InvoiceWhereUniqueInput!): Invoice
+  invoices(where: InvoiceWhereInput! = {}, orderBy: [InvoiceOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: InvoiceWhereUniqueInput): [Invoice!]
+  invoicesCount(where: InvoiceWhereInput! = {}): Int
+  invoiceLine(where: InvoiceLineWhereUniqueInput!): InvoiceLine
+  invoiceLines(where: InvoiceLineWhereInput! = {}, orderBy: [InvoiceLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: InvoiceLineWhereUniqueInput): [InvoiceLine!]
+  invoiceLinesCount(where: InvoiceLineWhereInput! = {}): Int
+  payerProfile(where: PayerProfileWhereUniqueInput!): PayerProfile
+  payerProfiles(where: PayerProfileWhereInput! = {}, orderBy: [PayerProfileOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PayerProfileWhereUniqueInput): [PayerProfile!]
+  payerProfilesCount(where: PayerProfileWhereInput! = {}): Int
+  paymentAllocation(where: PaymentAllocationWhereUniqueInput!): PaymentAllocation
+  paymentAllocations(where: PaymentAllocationWhereInput! = {}, orderBy: [PaymentAllocationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentAllocationWhereUniqueInput): [PaymentAllocation!]
+  paymentAllocationsCount(where: PaymentAllocationWhereInput! = {}): Int
+  paymentAttempt(where: PaymentAttemptWhereUniqueInput!): PaymentAttempt
+  paymentAttempts(where: PaymentAttemptWhereInput! = {}, orderBy: [PaymentAttemptOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentAttemptWhereUniqueInput): [PaymentAttempt!]
+  paymentAttemptsCount(where: PaymentAttemptWhereInput! = {}): Int
+  paymentBatch(where: PaymentBatchWhereUniqueInput!): PaymentBatch
+  paymentBatches(where: PaymentBatchWhereInput! = {}, orderBy: [PaymentBatchOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentBatchWhereUniqueInput): [PaymentBatch!]
+  paymentBatchesCount(where: PaymentBatchWhereInput! = {}): Int
+  thirdPartyAuthorization(where: ThirdPartyAuthorizationWhereUniqueInput!): ThirdPartyAuthorization
+  thirdPartyAuthorizations(where: ThirdPartyAuthorizationWhereInput! = {}, orderBy: [ThirdPartyAuthorizationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ThirdPartyAuthorizationWhereUniqueInput): [ThirdPartyAuthorization!]
+  thirdPartyAuthorizationsCount(where: ThirdPartyAuthorizationWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   validateUserPasswordResetToken(email: String!, token: String!): ValidateUserPasswordResetTokenResult

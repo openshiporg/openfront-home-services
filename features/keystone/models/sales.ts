@@ -368,7 +368,7 @@ export const Authorization = list({
   },
 })
 
-export const PAYMENT_METHODS = ['card', 'ach', 'cash', 'check', 'other'] as const
+export const PAYMENT_METHODS = ['card', 'ach', 'cash', 'check', 'other', 'financing', 'third_party', 'customer_credit'] as const
 
 /**
  * Money the customer actually handed over, recorded against the sale it was paid toward. Rows are never
@@ -385,6 +385,9 @@ export const Payment = list({
     kind: fixedChoice(['deposit', 'payment'], 'deposit'),
     method: fixedChoice(PAYMENT_METHODS, 'card'),
     amountMinor: minor({ required: true }),
+    feeMinor: minor({ defaultValue: 0n }),
+    payer: relationship({ ref: 'PayerProfile', ...readOnly }),
+    checkNumber: systemText(),
     reference: systemText(),
     receivedAt: timestamp({ validation: { isRequired: true }, ...readOnly }),
     recordedBy: relationship({ ref: 'User', ...readOnly }),
@@ -403,6 +406,8 @@ export const Refund = list({
     notice: relationship({ ref: 'CancellationNotice.refunds', ...readOnly }),
     method: fixedChoice(['processor_refund', 'check'], 'processor_refund'),
     amountMinor: minor({ required: true }),
+    reason: systemText(),
+    approval: relationship({ ref: 'ApprovalRequest', ...readOnly }),
     reference: systemText({ required: true }),
     refundedAt: timestamp({ validation: { isRequired: true }, ...readOnly }),
     recordedBy: relationship({ ref: 'User', ...readOnly }),

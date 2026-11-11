@@ -64,6 +64,14 @@ model User {
   from_PriceBookVersion_submittedBy       PriceBookVersion[]       @relation("PriceBookVersion_submittedBy")
   from_PriceBookVersion_publishedBy       PriceBookVersion[]       @relation("PriceBookVersion_publishedBy")
   from_Refund_recordedBy                  Refund[]                 @relation("Refund_recordedBy")
+  from_AccountingExportBatch_createdBy    AccountingExportBatch[]  @relation("AccountingExportBatch_createdBy")
+  from_ArPeriod_closedBy                  ArPeriod[]               @relation("ArPeriod_closedBy")
+  from_CreditMemo_createdBy               CreditMemo[]             @relation("CreditMemo_createdBy")
+  from_FinancingApplication_createdBy     FinancingApplication[]   @relation("FinancingApplication_createdBy")
+  from_Invoice_postedBy                   Invoice[]                @relation("Invoice_postedBy")
+  from_PaymentAllocation_createdBy        PaymentAllocation[]      @relation("PaymentAllocation_createdBy")
+  from_PaymentAttempt_createdBy           PaymentAttempt[]         @relation("PaymentAttempt_createdBy")
+  from_PaymentBatch_closedBy              PaymentBatch[]           @relation("PaymentBatch_closedBy")
 
   @@index([roleId])
 }
@@ -411,6 +419,9 @@ model ApprovalRequest {
   from_CancellationNotice_startOverride       CancellationNotice[]    @relation("CancellationNotice_startOverride")
   from_EstimateVersion_discountApproval       EstimateVersion[]       @relation("EstimateVersion_discountApproval")
   from_PriceBookVersion_approval              PriceBookVersion[]      @relation("PriceBookVersion_approval")
+  from_Refund_approval                        Refund[]                @relation("Refund_approval")
+  from_ArPeriod_approval                      ArPeriod[]              @relation("ArPeriod_approval")
+  from_CreditMemo_approval                    CreditMemo[]            @relation("CreditMemo_approval")
 
   @@index([action])
   @@index([targetId])
@@ -499,23 +510,25 @@ model CommandReceipt {
 }
 
 model Document {
-  id                                       String               @id @default(cuid())
-  title                                    String               @default("")
-  kind                                     String               @default("other")
-  visibility                               String               @default("internal")
-  subjectType                              String               @default("")
-  subjectId                                String               @default("")
-  versions                                 DocumentVersion[]    @relation("DocumentVersion_document")
-  retentionUntil                           DateTime?            @postgresql.Date
-  createdAt                                DateTime             @default(now())
-  updatedAt                                DateTime             @default(now()) @updatedAt
-  from_Brand_logo                          Brand[]              @relation("Brand_logo")
-  from_ContractorLicense_insuranceDocument ContractorLicense[]  @relation("ContractorLicense_insuranceDocument")
-  from_Credential_evidence                 Credential[]         @relation("Credential_evidence")
-  from_Customer_taxExemptCertificate       Customer[]           @relation("Customer_taxExemptCertificate")
-  from_CancellationNotice_noticeDocument   CancellationNotice[] @relation("CancellationNotice_noticeDocument")
-  from_CancellationNotice_waiverDocument   CancellationNotice[] @relation("CancellationNotice_waiverDocument")
-  from_EstimateVersion_pdf                 EstimateVersion[]    @relation("EstimateVersion_pdf")
+  id                                       String                    @id @default(cuid())
+  title                                    String                    @default("")
+  kind                                     String                    @default("other")
+  visibility                               String                    @default("internal")
+  subjectType                              String                    @default("")
+  subjectId                                String                    @default("")
+  versions                                 DocumentVersion[]         @relation("DocumentVersion_document")
+  retentionUntil                           DateTime?                 @postgresql.Date
+  createdAt                                DateTime                  @default(now())
+  updatedAt                                DateTime                  @default(now()) @updatedAt
+  from_Brand_logo                          Brand[]                   @relation("Brand_logo")
+  from_ContractorLicense_insuranceDocument ContractorLicense[]       @relation("ContractorLicense_insuranceDocument")
+  from_Credential_evidence                 Credential[]              @relation("Credential_evidence")
+  from_Customer_taxExemptCertificate       Customer[]                @relation("Customer_taxExemptCertificate")
+  from_CancellationNotice_noticeDocument   CancellationNotice[]      @relation("CancellationNotice_noticeDocument")
+  from_CancellationNotice_waiverDocument   CancellationNotice[]      @relation("CancellationNotice_waiverDocument")
+  from_EstimateVersion_pdf                 EstimateVersion[]         @relation("EstimateVersion_pdf")
+  from_Invoice_pdf                         Invoice[]                 @relation("Invoice_pdf")
+  from_ThirdPartyAuthorization_evidence    ThirdPartyAuthorization[] @relation("ThirdPartyAuthorization_evidence")
 
   @@index([subjectId])
 }
@@ -1153,42 +1166,47 @@ model ContactPoint {
 }
 
 model Customer {
-  id                               String               @id @default(cuid())
-  ref                              String               @unique @default("")
-  kind                             String               @default("residential")
-  displayName                      String               @default("")
-  organizationName                 String               @default("")
-  primaryContact                   Contact?             @relation("Customer_primaryContact", fields: [primaryContactId], references: [id])
-  primaryContactId                 String?              @map("primaryContact")
-  contacts                         Contact[]            @relation("Contact_customer")
-  locations                        ServiceLocation[]    @relation("ServiceLocation_customer")
-  jobs                             Job[]                @relation("Job_customer")
-  billingLine1                     String               @default("")
-  billingLine2                     String               @default("")
-  billingCity                      String               @default("")
-  billingRegion                    String               @default("")
-  billingPostalCode                String               @default("")
-  taxExemptCertificate             Document?            @relation("Customer_taxExemptCertificate", fields: [taxExemptCertificateId], references: [id])
-  taxExemptCertificateId           String?              @map("taxExemptCertificate")
-  tags                             Tag[]                @relation("Customer_tags")
-  doNotService                     Boolean              @default(false)
-  doNotServiceReason               String               @default("")
-  mergedInto                       Customer?            @relation("Customer_mergedInto", fields: [mergedIntoId], references: [id])
-  mergedIntoId                     String?              @map("mergedInto")
-  source                           Campaign?            @relation("Customer_source", fields: [sourceId], references: [id])
-  sourceId                         String?              @map("source")
-  version                          Int                  @default(0)
-  createdAt                        DateTime             @default(now())
-  updatedAt                        DateTime             @default(now()) @updatedAt
-  from_Customer_mergedInto         Customer[]           @relation("Customer_mergedInto")
-  from_LocationOwnership_customer  LocationOwnership[]  @relation("LocationOwnership_customer")
-  from_Conversation_customer       Conversation[]       @relation("Conversation_customer")
-  from_Lead_customer               Lead[]               @relation("Lead_customer")
-  from_Opportunity_customer        Opportunity[]        @relation("Opportunity_customer")
-  from_JobPayer_payerCustomer      JobPayer[]           @relation("JobPayer_payerCustomer")
-  from_CancellationNotice_customer CancellationNotice[] @relation("CancellationNotice_customer")
-  from_Estimate_customer           Estimate[]           @relation("Estimate_customer")
-  from_Payment_customer            Payment[]            @relation("Payment_customer")
+  id                                 String                 @id @default(cuid())
+  ref                                String                 @unique @default("")
+  kind                               String                 @default("residential")
+  displayName                        String                 @default("")
+  organizationName                   String                 @default("")
+  primaryContact                     Contact?               @relation("Customer_primaryContact", fields: [primaryContactId], references: [id])
+  primaryContactId                   String?                @map("primaryContact")
+  contacts                           Contact[]              @relation("Contact_customer")
+  locations                          ServiceLocation[]      @relation("ServiceLocation_customer")
+  jobs                               Job[]                  @relation("Job_customer")
+  billingLine1                       String                 @default("")
+  billingLine2                       String                 @default("")
+  billingCity                        String                 @default("")
+  billingRegion                      String                 @default("")
+  billingPostalCode                  String                 @default("")
+  taxExemptCertificate               Document?              @relation("Customer_taxExemptCertificate", fields: [taxExemptCertificateId], references: [id])
+  taxExemptCertificateId             String?                @map("taxExemptCertificate")
+  tags                               Tag[]                  @relation("Customer_tags")
+  doNotService                       Boolean                @default(false)
+  doNotServiceReason                 String                 @default("")
+  mergedInto                         Customer?              @relation("Customer_mergedInto", fields: [mergedIntoId], references: [id])
+  mergedIntoId                       String?                @map("mergedInto")
+  source                             Campaign?              @relation("Customer_source", fields: [sourceId], references: [id])
+  sourceId                           String?                @map("source")
+  version                            Int                    @default(0)
+  createdAt                          DateTime               @default(now())
+  updatedAt                          DateTime               @default(now()) @updatedAt
+  from_Customer_mergedInto           Customer[]             @relation("Customer_mergedInto")
+  from_LocationOwnership_customer    LocationOwnership[]    @relation("LocationOwnership_customer")
+  from_Conversation_customer         Conversation[]         @relation("Conversation_customer")
+  from_Lead_customer                 Lead[]                 @relation("Lead_customer")
+  from_Opportunity_customer          Opportunity[]          @relation("Opportunity_customer")
+  from_JobPayer_payerCustomer        JobPayer[]             @relation("JobPayer_payerCustomer")
+  from_CancellationNotice_customer   CancellationNotice[]   @relation("CancellationNotice_customer")
+  from_Estimate_customer             Estimate[]             @relation("Estimate_customer")
+  from_Payment_customer              Payment[]              @relation("Payment_customer")
+  from_ArEntry_customer              ArEntry[]              @relation("ArEntry_customer")
+  from_CustomerCreditEntry_customer  CustomerCreditEntry[]  @relation("CustomerCreditEntry_customer")
+  from_FinancingApplication_customer FinancingApplication[] @relation("FinancingApplication_customer")
+  from_Invoice_customer              Invoice[]              @relation("Invoice_customer")
+  from_PaymentAttempt_customer       PaymentAttempt[]       @relation("PaymentAttempt_customer")
 
   @@index([primaryContactId])
   @@index([taxExemptCertificateId])
@@ -1275,6 +1293,7 @@ model ServiceLocation {
   from_Lead_location              Lead[]              @relation("Lead_location")
   from_Opportunity_location       Opportunity[]       @relation("Opportunity_location")
   from_Estimate_location          Estimate[]          @relation("Estimate_location")
+  from_Invoice_location           Invoice[]           @relation("Invoice_location")
 
   @@index([customerId])
   @@index([serviceAreaId])
@@ -1715,56 +1734,59 @@ model DispatchRecommendation {
 }
 
 model Job {
-  id                              String                   @id @default(cuid())
-  ref                             String                   @unique @default("")
-  publicCode                      String                   @unique @default("")
-  customer                        Customer?                @relation("Job_customer", fields: [customerId], references: [id])
-  customerId                      String?                  @map("customer")
-  location                        ServiceLocation?         @relation("Job_location", fields: [locationId], references: [id])
-  locationId                      String?                  @map("location")
-  businessUnit                    BusinessUnit?            @relation("Job_businessUnit", fields: [businessUnitId], references: [id])
-  businessUnitId                  String?                  @map("businessUnit")
-  jobType                         JobType?                 @relation("Job_jobType", fields: [jobTypeId], references: [id])
-  jobTypeId                       String?                  @map("jobType")
-  priority                        String
-  status                          String                   @default("draft")
-  statusBeforeHold                String                   @default("")
-  holdReason                      String                   @default("")
-  holdFollowUpOn                  DateTime?                @postgresql.Date
-  cancelReason                    String                   @default("")
-  summary                         String                   @default("")
-  source                          String
-  lead                            Lead?                    @relation("Job_lead", fields: [leadId], references: [id])
-  leadId                          String?                  @map("lead")
-  recallOf                        Job?                     @relation("Job_recallOf", fields: [recallOfId], references: [id])
-  recallOfId                      String?                  @map("recallOf")
-  payers                          JobPayer[]               @relation("JobPayer_job")
-  poNumber                        String                   @default("")
-  nteMinor                        BigInt?
-  visits                          Visit[]                  @relation("Visit_job")
-  workLines                       WorkLine[]               @relation("WorkLine_job")
-  bookedBy                        User?                    @relation("Job_bookedBy", fields: [bookedById], references: [id])
-  bookedById                      String?                  @map("bookedBy")
-  bookedByAgent                   AgentIdentity?           @relation("Job_bookedByAgent", fields: [bookedByAgentId], references: [id])
-  bookedByAgentId                 String?                  @map("bookedByAgent")
-  tags                            Tag[]                    @relation("Job_tags")
-  completedAt                     DateTime?
-  closedAt                        DateTime?
-  version                         Int                      @default(0)
-  createdAt                       DateTime                 @default(now())
-  updatedAt                       DateTime                 @default(now()) @updatedAt
-  from_Call_job                   Call[]                   @relation("Call_job")
-  from_Conversation_job           Conversation[]           @relation("Conversation_job")
-  from_Lead_job                   Lead[]                   @relation("Lead_job")
-  from_Message_job                Message[]                @relation("Message_job")
-  from_BookingHold_job            BookingHold[]            @relation("BookingHold_job")
-  from_Job_recallOf               Job[]                    @relation("Job_recallOf")
-  from_Authorization_job          Authorization[]          @relation("Authorization_job")
-  from_CancellationEvaluation_job CancellationEvaluation[] @relation("CancellationEvaluation_job")
-  from_CancellationNotice_job     CancellationNotice[]     @relation("CancellationNotice_job")
-  from_ChangeOrder_job            ChangeOrder[]            @relation("ChangeOrder_job")
-  from_Estimate_job               Estimate[]               @relation("Estimate_job")
-  from_Payment_job                Payment[]                @relation("Payment_job")
+  id                               String                    @id @default(cuid())
+  ref                              String                    @unique @default("")
+  publicCode                       String                    @unique @default("")
+  customer                         Customer?                 @relation("Job_customer", fields: [customerId], references: [id])
+  customerId                       String?                   @map("customer")
+  location                         ServiceLocation?          @relation("Job_location", fields: [locationId], references: [id])
+  locationId                       String?                   @map("location")
+  businessUnit                     BusinessUnit?             @relation("Job_businessUnit", fields: [businessUnitId], references: [id])
+  businessUnitId                   String?                   @map("businessUnit")
+  jobType                          JobType?                  @relation("Job_jobType", fields: [jobTypeId], references: [id])
+  jobTypeId                        String?                   @map("jobType")
+  priority                         String
+  status                           String                    @default("draft")
+  statusBeforeHold                 String                    @default("")
+  holdReason                       String                    @default("")
+  holdFollowUpOn                   DateTime?                 @postgresql.Date
+  cancelReason                     String                    @default("")
+  summary                          String                    @default("")
+  source                           String
+  lead                             Lead?                     @relation("Job_lead", fields: [leadId], references: [id])
+  leadId                           String?                   @map("lead")
+  recallOf                         Job?                      @relation("Job_recallOf", fields: [recallOfId], references: [id])
+  recallOfId                       String?                   @map("recallOf")
+  payers                           JobPayer[]                @relation("JobPayer_job")
+  poNumber                         String                    @default("")
+  nteMinor                         BigInt?
+  visits                           Visit[]                   @relation("Visit_job")
+  workLines                        WorkLine[]                @relation("WorkLine_job")
+  bookedBy                         User?                     @relation("Job_bookedBy", fields: [bookedById], references: [id])
+  bookedById                       String?                   @map("bookedBy")
+  bookedByAgent                    AgentIdentity?            @relation("Job_bookedByAgent", fields: [bookedByAgentId], references: [id])
+  bookedByAgentId                  String?                   @map("bookedByAgent")
+  tags                             Tag[]                     @relation("Job_tags")
+  completedAt                      DateTime?
+  closedAt                         DateTime?
+  version                          Int                       @default(0)
+  createdAt                        DateTime                  @default(now())
+  updatedAt                        DateTime                  @default(now()) @updatedAt
+  from_Call_job                    Call[]                    @relation("Call_job")
+  from_Conversation_job            Conversation[]            @relation("Conversation_job")
+  from_Lead_job                    Lead[]                    @relation("Lead_job")
+  from_Message_job                 Message[]                 @relation("Message_job")
+  from_BookingHold_job             BookingHold[]             @relation("BookingHold_job")
+  from_Job_recallOf                Job[]                     @relation("Job_recallOf")
+  from_Authorization_job           Authorization[]           @relation("Authorization_job")
+  from_CancellationEvaluation_job  CancellationEvaluation[]  @relation("CancellationEvaluation_job")
+  from_CancellationNotice_job      CancellationNotice[]      @relation("CancellationNotice_job")
+  from_ChangeOrder_job             ChangeOrder[]             @relation("ChangeOrder_job")
+  from_Estimate_job                Estimate[]                @relation("Estimate_job")
+  from_Payment_job                 Payment[]                 @relation("Payment_job")
+  from_FinancingApplication_job    FinancingApplication[]    @relation("FinancingApplication_job")
+  from_Invoice_job                 Invoice[]                 @relation("Invoice_job")
+  from_ThirdPartyAuthorization_job ThirdPartyAuthorization[] @relation("ThirdPartyAuthorization_job")
 
   @@index([customerId])
   @@index([locationId])
@@ -1884,28 +1906,29 @@ model VisitStatusEvent {
 }
 
 model WorkLine {
-  id                  String               @id @default(cuid())
-  job                 Job?                 @relation("WorkLine_job", fields: [jobId], references: [id])
-  jobId               String?              @map("job")
-  source              String
-  description         String               @default("")
-  snapshot            Json?
-  quantity            Decimal              @postgresql.Decimal(18, 4)
-  uom                 String               @default("")
-  unitPriceMinor      BigInt               @default(0)
-  amountMinor         BigInt               @default(0)
-  taxCategory         String
-  trade               String
-  cancellationClass   String
-  status              String               @default("planned")
-  estimateLine        EstimateLine?        @relation("WorkLine_estimateLine", fields: [estimateLineId], references: [id])
-  estimateLineId      String?              @map("estimateLine")
-  changeOrder         ChangeOrder?         @relation("WorkLine_changeOrder", fields: [changeOrderId], references: [id])
-  changeOrderId       String?              @map("changeOrder")
-  cancellationNotices CancellationNotice[] @relation("CancellationNotice_coveredWorkLines")
-  version             Int                  @default(0)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @default(now()) @updatedAt
+  id                        String               @id @default(cuid())
+  job                       Job?                 @relation("WorkLine_job", fields: [jobId], references: [id])
+  jobId                     String?              @map("job")
+  source                    String
+  description               String               @default("")
+  snapshot                  Json?
+  quantity                  Decimal              @postgresql.Decimal(18, 4)
+  uom                       String               @default("")
+  unitPriceMinor            BigInt               @default(0)
+  amountMinor               BigInt               @default(0)
+  taxCategory               String
+  trade                     String
+  cancellationClass         String
+  status                    String               @default("planned")
+  estimateLine              EstimateLine?        @relation("WorkLine_estimateLine", fields: [estimateLineId], references: [id])
+  estimateLineId            String?              @map("estimateLine")
+  changeOrder               ChangeOrder?         @relation("WorkLine_changeOrder", fields: [changeOrderId], references: [id])
+  changeOrderId             String?              @map("changeOrder")
+  cancellationNotices       CancellationNotice[] @relation("CancellationNotice_coveredWorkLines")
+  version                   Int                  @default(0)
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @default(now()) @updatedAt
+  from_InvoiceLine_workLine InvoiceLine[]        @relation("InvoiceLine_workLine")
 
   @@index([jobId])
   @@index([estimateLineId])
@@ -2182,47 +2205,48 @@ model EstimateOption {
 }
 
 model EstimateVersion {
-  id                                      String               @id @default(cuid())
-  estimate                                Estimate?            @relation("EstimateVersion_estimate", fields: [estimateId], references: [id])
-  estimateId                              String?              @map("estimate")
-  versionNumber                           Int
-  label                                   String               @default("")
-  status                                  String               @default("draft")
-  priceBookVersion                        PriceBookVersion?    @relation("EstimateVersion_priceBookVersion", fields: [priceBookVersionId], references: [id])
-  priceBookVersionId                      String?              @map("priceBookVersion")
-  supersedes                              EstimateVersion?     @relation("EstimateVersion_supersedes", fields: [supersedesId], references: [id])
-  supersedesId                            String?              @map("supersedes")
-  discountBps                             Int                  @default(0)
-  discountReason                          String               @default("")
-  discountApproval                        ApprovalRequest?     @relation("EstimateVersion_discountApproval", fields: [discountApprovalId], references: [id])
-  discountApprovalId                      String?              @map("discountApproval")
-  notes                                   String               @default("")
-  presentedAt                             DateTime?
-  presentedBy                             User?                @relation("EstimateVersion_presentedBy", fields: [presentedById], references: [id])
-  presentedById                           String?              @map("presentedBy")
-  presentedVia                            String               @default("")
-  validUntil                              DateTime?
-  snapshot                                Json?
-  contentHash                             String               @default("")
-  pdf                                     Document?            @relation("EstimateVersion_pdf", fields: [pdfId], references: [id])
-  pdfId                                   String?              @map("pdf")
-  options                                 EstimateOption[]     @relation("EstimateOption_estimateVersion")
-  soldOption                              EstimateOption?      @relation("EstimateVersion_soldOption", fields: [soldOptionId], references: [id])
-  soldOptionId                            String?              @map("soldOption")
-  authorization                           Authorization?       @relation("EstimateVersion_authorization", fields: [authorizationId], references: [id])
-  authorizationId                         String?              @map("authorization")
-  soldAt                                  DateTime?
-  depositRequiredMinor                    BigInt               @default(0)
-  declineReason                           String               @default("")
-  declineNote                             String               @default("")
-  closedAt                                DateTime?
-  version                                 Int                  @default(0)
-  createdAt                               DateTime             @default(now())
-  updatedAt                               DateTime             @default(now()) @updatedAt
-  from_CancellationNotice_estimateVersion CancellationNotice[] @relation("CancellationNotice_estimateVersion")
-  from_Estimate_currentVersion            Estimate[]           @relation("Estimate_currentVersion")
-  from_Estimate_soldVersion               Estimate[]           @relation("Estimate_soldVersion")
-  from_EstimateVersion_supersedes         EstimateVersion[]    @relation("EstimateVersion_supersedes")
+  id                                        String                 @id @default(cuid())
+  estimate                                  Estimate?              @relation("EstimateVersion_estimate", fields: [estimateId], references: [id])
+  estimateId                                String?                @map("estimate")
+  versionNumber                             Int
+  label                                     String                 @default("")
+  status                                    String                 @default("draft")
+  priceBookVersion                          PriceBookVersion?      @relation("EstimateVersion_priceBookVersion", fields: [priceBookVersionId], references: [id])
+  priceBookVersionId                        String?                @map("priceBookVersion")
+  supersedes                                EstimateVersion?       @relation("EstimateVersion_supersedes", fields: [supersedesId], references: [id])
+  supersedesId                              String?                @map("supersedes")
+  discountBps                               Int                    @default(0)
+  discountReason                            String                 @default("")
+  discountApproval                          ApprovalRequest?       @relation("EstimateVersion_discountApproval", fields: [discountApprovalId], references: [id])
+  discountApprovalId                        String?                @map("discountApproval")
+  notes                                     String                 @default("")
+  presentedAt                               DateTime?
+  presentedBy                               User?                  @relation("EstimateVersion_presentedBy", fields: [presentedById], references: [id])
+  presentedById                             String?                @map("presentedBy")
+  presentedVia                              String                 @default("")
+  validUntil                                DateTime?
+  snapshot                                  Json?
+  contentHash                               String                 @default("")
+  pdf                                       Document?              @relation("EstimateVersion_pdf", fields: [pdfId], references: [id])
+  pdfId                                     String?                @map("pdf")
+  options                                   EstimateOption[]       @relation("EstimateOption_estimateVersion")
+  soldOption                                EstimateOption?        @relation("EstimateVersion_soldOption", fields: [soldOptionId], references: [id])
+  soldOptionId                              String?                @map("soldOption")
+  authorization                             Authorization?         @relation("EstimateVersion_authorization", fields: [authorizationId], references: [id])
+  authorizationId                           String?                @map("authorization")
+  soldAt                                    DateTime?
+  depositRequiredMinor                      BigInt                 @default(0)
+  declineReason                             String                 @default("")
+  declineNote                               String                 @default("")
+  closedAt                                  DateTime?
+  version                                   Int                    @default(0)
+  createdAt                                 DateTime               @default(now())
+  updatedAt                                 DateTime               @default(now()) @updatedAt
+  from_CancellationNotice_estimateVersion   CancellationNotice[]   @relation("CancellationNotice_estimateVersion")
+  from_Estimate_currentVersion              Estimate[]             @relation("Estimate_currentVersion")
+  from_Estimate_soldVersion                 Estimate[]             @relation("Estimate_soldVersion")
+  from_EstimateVersion_supersedes           EstimateVersion[]      @relation("EstimateVersion_supersedes")
+  from_FinancingApplication_estimateVersion FinancingApplication[] @relation("FinancingApplication_estimateVersion")
 
   @@unique([estimateId, versionNumber], map: "EstimateVersion_estimate_number_key")
   @@index([estimateId])
@@ -2279,28 +2303,37 @@ model MemberPricingRule {
 }
 
 model Payment {
-  id              String         @id @default(cuid())
-  ref             String         @unique @default("")
-  job             Job?           @relation("Payment_job", fields: [jobId], references: [id])
-  jobId           String?        @map("job")
-  customer        Customer?      @relation("Payment_customer", fields: [customerId], references: [id])
-  customerId      String?        @map("customer")
-  authorization   Authorization? @relation("Payment_authorization", fields: [authorizationId], references: [id])
-  authorizationId String?        @map("authorization")
-  kind            String         @default("deposit")
-  method          String         @default("card")
-  amountMinor     BigInt
-  reference       String         @default("")
-  receivedAt      DateTime
-  recordedBy      User?          @relation("Payment_recordedBy", fields: [recordedById], references: [id])
-  recordedById    String?        @map("recordedBy")
-  refunds         Refund[]       @relation("Refund_payment")
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @default(now()) @updatedAt
+  id                             String              @id @default(cuid())
+  ref                            String              @unique @default("")
+  job                            Job?                @relation("Payment_job", fields: [jobId], references: [id])
+  jobId                          String?             @map("job")
+  customer                       Customer?           @relation("Payment_customer", fields: [customerId], references: [id])
+  customerId                     String?             @map("customer")
+  authorization                  Authorization?      @relation("Payment_authorization", fields: [authorizationId], references: [id])
+  authorizationId                String?             @map("authorization")
+  kind                           String              @default("deposit")
+  method                         String              @default("card")
+  amountMinor                    BigInt
+  feeMinor                       BigInt              @default(0)
+  payer                          PayerProfile?       @relation("Payment_payer", fields: [payerId], references: [id])
+  payerId                        String?             @map("payer")
+  checkNumber                    String              @default("")
+  reference                      String              @default("")
+  receivedAt                     DateTime
+  recordedBy                     User?               @relation("Payment_recordedBy", fields: [recordedById], references: [id])
+  recordedById                   String?             @map("recordedBy")
+  refunds                        Refund[]            @relation("Refund_payment")
+  createdAt                      DateTime            @default(now())
+  updatedAt                      DateTime            @default(now()) @updatedAt
+  from_Dispute_payment           Dispute[]           @relation("Dispute_payment")
+  from_FinancingFunding_payment  FinancingFunding[]  @relation("FinancingFunding_payment")
+  from_PaymentAllocation_payment PaymentAllocation[] @relation("PaymentAllocation_payment")
+  from_PaymentAttempt_payment    PaymentAttempt[]    @relation("PaymentAttempt_payment")
 
   @@index([jobId])
   @@index([customerId])
   @@index([authorizationId])
+  @@index([payerId])
   @@index([recordedById])
 }
 
@@ -2434,6 +2467,9 @@ model Refund {
   noticeId     String?             @map("notice")
   method       String              @default("processor_refund")
   amountMinor  BigInt
+  reason       String              @default("")
+  approval     ApprovalRequest?    @relation("Refund_approval", fields: [approvalId], references: [id])
+  approvalId   String?             @map("approval")
   reference    String              @default("")
   refundedAt   DateTime
   recordedBy   User?               @relation("Refund_recordedBy", fields: [recordedById], references: [id])
@@ -2443,6 +2479,7 @@ model Refund {
 
   @@index([paymentId])
   @@index([noticeId])
+  @@index([approvalId])
   @@index([recordedById])
 }
 
@@ -2454,6 +2491,417 @@ model UnitOfMeasure {
   maxDecimals Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
+}
+
+model AccountingExportBatch {
+  id          String                 @id @default(cuid())
+  ref         String                 @unique @default("")
+  format      String                 @default("csv")
+  periodFrom  DateTime?              @postgresql.Date
+  periodTo    DateTime?              @postgresql.Date
+  status      String                 @default("created")
+  lineCount   Int                    @default(0)
+  debitMinor  BigInt                 @default(0)
+  creditMinor BigInt                 @default(0)
+  sha256      String                 @default("")
+  lines       AccountingExportLine[] @relation("AccountingExportLine_batch")
+  createdBy   User?                  @relation("AccountingExportBatch_createdBy", fields: [createdById], references: [id])
+  createdById String?                @map("createdBy")
+  version     Int                    @default(0)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @default(now()) @updatedAt
+
+  @@index([createdById])
+}
+
+model AccountingExportLine {
+  id          String                 @id @default(cuid())
+  batch       AccountingExportBatch? @relation("AccountingExportLine_batch", fields: [batchId], references: [id])
+  batchId     String?                @map("batch")
+  sourceKey   String                 @unique @default("")
+  entryDate   DateTime?              @postgresql.Date
+  account     String                 @default("")
+  debitMinor  BigInt                 @default(0)
+  creditMinor BigInt                 @default(0)
+  memo        String                 @default("")
+  docRef      String                 @default("")
+  customerRef String                 @default("")
+  sortOrder   Int                    @default(0)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @default(now()) @updatedAt
+
+  @@index([batchId])
+}
+
+model ArEntry {
+  id          String        @id @default(cuid())
+  invoice     Invoice?      @relation("ArEntry_invoice", fields: [invoiceId], references: [id])
+  invoiceId   String?       @map("invoice")
+  customer    Customer?     @relation("ArEntry_customer", fields: [customerId], references: [id])
+  customerId  String?       @map("customer")
+  payer       PayerProfile? @relation("ArEntry_payer", fields: [payerId], references: [id])
+  payerId     String?       @map("payer")
+  kind        String        @default("invoice_posted")
+  amountMinor BigInt
+  sourceType  String        @default("")
+  sourceId    String        @default("")
+  arPeriod    ArPeriod?     @relation("ArEntry_arPeriod", fields: [arPeriodId], references: [id])
+  arPeriodId  String?       @map("arPeriod")
+  postedAt    DateTime
+  note        String        @default("")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now()) @updatedAt
+
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([payerId])
+  @@index([sourceId])
+  @@index([arPeriodId])
+}
+
+model ArPeriod {
+  id                    String           @id @default(cuid())
+  month                 DateTime         @unique @postgresql.Date
+  status                String           @default("open")
+  closedBy              User?            @relation("ArPeriod_closedBy", fields: [closedById], references: [id])
+  closedById            String?          @map("closedBy")
+  closedAt              DateTime?
+  approval              ApprovalRequest? @relation("ArPeriod_approval", fields: [approvalId], references: [id])
+  approvalId            String?          @map("approval")
+  version               Int              @default(0)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @default(now()) @updatedAt
+  from_ArEntry_arPeriod ArEntry[]        @relation("ArEntry_arPeriod")
+  from_Invoice_arPeriod Invoice[]        @relation("Invoice_arPeriod")
+
+  @@index([closedById])
+  @@index([approvalId])
+}
+
+model CreditMemo {
+  id                    String           @id @default(cuid())
+  ref                   String           @unique @default("")
+  invoice               Invoice?         @relation("CreditMemo_invoice", fields: [invoiceId], references: [id])
+  invoiceId             String?          @map("invoice")
+  reason                String           @default("other")
+  note                  String           @default("")
+  status                String           @default("draft")
+  totalMinor            BigInt           @default(0)
+  appliedToInvoiceMinor BigInt           @default(0)
+  appliedToCreditMinor  BigInt           @default(0)
+  appliesTo             String           @default("invoice_balance")
+  approval              ApprovalRequest? @relation("CreditMemo_approval", fields: [approvalId], references: [id])
+  approvalId            String?          @map("approval")
+  createdBy             User?            @relation("CreditMemo_createdBy", fields: [createdById], references: [id])
+  createdById           String?          @map("createdBy")
+  postedAt              DateTime?
+  version               Int              @default(0)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @default(now()) @updatedAt
+
+  @@index([invoiceId])
+  @@index([approvalId])
+  @@index([createdById])
+}
+
+model CustomerCreditEntry {
+  id          String    @id @default(cuid())
+  customer    Customer? @relation("CustomerCreditEntry_customer", fields: [customerId], references: [id])
+  customerId  String?   @map("customer")
+  kind        String    @default("issued")
+  amountMinor BigInt
+  sourceType  String    @default("")
+  sourceId    String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  @@index([customerId])
+  @@index([sourceId])
+}
+
+model Dispute {
+  id                String    @id @default(cuid())
+  payment           Payment?  @relation("Dispute_payment", fields: [paymentId], references: [id])
+  paymentId         String?   @map("payment")
+  providerDisputeId String    @unique @default("")
+  amountMinor       BigInt
+  reasonCode        String    @default("")
+  status            String    @default("opened")
+  evidenceDueBy     DateTime?
+  note              String    @default("")
+  version           Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  @@index([paymentId])
+}
+
+model FinancingApplication {
+  id                String             @id @default(cuid())
+  ref               String             @unique @default("")
+  customer          Customer?          @relation("FinancingApplication_customer", fields: [customerId], references: [id])
+  customerId        String?            @map("customer")
+  job               Job?               @relation("FinancingApplication_job", fields: [jobId], references: [id])
+  jobId             String?            @map("job")
+  estimateVersion   EstimateVersion?   @relation("FinancingApplication_estimateVersion", fields: [estimateVersionId], references: [id])
+  estimateVersionId String?            @map("estimateVersion")
+  invoice           Invoice?           @relation("FinancingApplication_invoice", fields: [invoiceId], references: [id])
+  invoiceId         String?            @map("invoice")
+  program           FinancingProgram?  @relation("FinancingApplication_program", fields: [programId], references: [id])
+  programId         String?            @map("program")
+  amountMinor       BigInt
+  status            String             @default("started")
+  consentRecordedAt DateTime?
+  partnerReference  String             @default("")
+  offers            Json?
+  selectedOffer     Json?
+  offerExpiresAt    DateTime?
+  declineNote       String             @default("")
+  fundings          FinancingFunding[] @relation("FinancingFunding_application")
+  createdBy         User?              @relation("FinancingApplication_createdBy", fields: [createdById], references: [id])
+  createdById       String?            @map("createdBy")
+  version           Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now()) @updatedAt
+
+  @@index([customerId])
+  @@index([jobId])
+  @@index([estimateVersionId])
+  @@index([invoiceId])
+  @@index([programId])
+  @@index([createdById])
+}
+
+model FinancingFunding {
+  id            String                @id @default(cuid())
+  application   FinancingApplication? @relation("FinancingFunding_application", fields: [applicationId], references: [id])
+  applicationId String?               @map("application")
+  grossMinor    BigInt
+  feeMinor      BigInt                @default(0)
+  reference     String                @default("")
+  fundedAt      DateTime
+  payment       Payment?              @relation("FinancingFunding_payment", fields: [paymentId], references: [id])
+  paymentId     String?               @map("payment")
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @default(now()) @updatedAt
+
+  @@index([applicationId])
+  @@index([paymentId])
+}
+
+model FinancingProgram {
+  id                                String                 @id @default(cuid())
+  name                              String                 @default("")
+  partner                           String                 @default("wisetack")
+  minMinor                          BigInt                 @default(50000)
+  maxMinor                          BigInt                 @default(2500000)
+  termsNote                         String                 @default("")
+  applyUrl                          String                 @default("")
+  active                            Boolean                @default(true)
+  createdAt                         DateTime               @default(now())
+  updatedAt                         DateTime               @default(now()) @updatedAt
+  from_FinancingApplication_program FinancingApplication[] @relation("FinancingApplication_program")
+}
+
+model Invoice {
+  id                                String                   @id @default(cuid())
+  ref                               String                   @unique @default("")
+  publicCode                        String                   @unique @default("")
+  job                               Job?                     @relation("Invoice_job", fields: [jobId], references: [id])
+  jobId                             String?                  @map("job")
+  customer                          Customer?                @relation("Invoice_customer", fields: [customerId], references: [id])
+  customerId                        String?                  @map("customer")
+  payer                             PayerProfile?            @relation("Invoice_payer", fields: [payerId], references: [id])
+  payerId                           String?                  @map("payer")
+  payerKind                         String                   @default("customer")
+  location                          ServiceLocation?         @relation("Invoice_location", fields: [locationId], references: [id])
+  locationId                        String?                  @map("location")
+  propertyClass                     String                   @default("residential")
+  contractTaxMode                   String                   @default("lump_sum")
+  taxResult                         Json?
+  status                            String                   @default("draft")
+  invoiceDate                       DateTime?                @postgresql.Date
+  dueDate                           DateTime?                @postgresql.Date
+  arPeriod                          ArPeriod?                @relation("Invoice_arPeriod", fields: [arPeriodId], references: [id])
+  arPeriodId                        String?                  @map("arPeriod")
+  subtotalMinor                     BigInt                   @default(0)
+  discountMinor                     BigInt                   @default(0)
+  taxMinor                          BigInt                   @default(0)
+  totalMinor                        BigInt                   @default(0)
+  balanceMinor                      BigInt                   @default(0)
+  poNumber                          String                   @default("")
+  authorization                     ThirdPartyAuthorization? @relation("Invoice_authorization", fields: [authorizationId], references: [id])
+  authorizationId                   String?                  @map("authorization")
+  progressReason                    String                   @default("")
+  collectionsStatus                 String                   @default("current")
+  snapshot                          Json?
+  pdf                               Document?                @relation("Invoice_pdf", fields: [pdfId], references: [id])
+  pdfId                             String?                  @map("pdf")
+  lines                             InvoiceLine[]            @relation("InvoiceLine_invoice")
+  allocations                       PaymentAllocation[]      @relation("PaymentAllocation_invoice")
+  arEntries                         ArEntry[]                @relation("ArEntry_invoice")
+  creditMemos                       CreditMemo[]             @relation("CreditMemo_invoice")
+  postedAt                          DateTime?
+  postedBy                          User?                    @relation("Invoice_postedBy", fields: [postedById], references: [id])
+  postedById                        String?                  @map("postedBy")
+  version                           Int                      @default(0)
+  createdAt                         DateTime                 @default(now())
+  updatedAt                         DateTime                 @default(now()) @updatedAt
+  from_FinancingApplication_invoice FinancingApplication[]   @relation("FinancingApplication_invoice")
+  from_PaymentAttempt_invoice       PaymentAttempt[]         @relation("PaymentAttempt_invoice")
+
+  @@index([jobId])
+  @@index([customerId])
+  @@index([payerId])
+  @@index([locationId])
+  @@index([arPeriodId])
+  @@index([authorizationId])
+  @@index([pdfId])
+  @@index([postedById])
+}
+
+model InvoiceLine {
+  id                 String    @id @default(cuid())
+  invoice            Invoice?  @relation("InvoiceLine_invoice", fields: [invoiceId], references: [id])
+  invoiceId          String?   @map("invoice")
+  workLine           WorkLine? @relation("InvoiceLine_workLine", fields: [workLineId], references: [id])
+  workLineId         String?   @map("workLine")
+  description        String    @default("")
+  quantity           Decimal   @postgresql.Decimal(18, 4)
+  uom                String    @default("")
+  unitPriceMinor     BigInt    @default(0)
+  amountMinor        BigInt    @default(0)
+  discountMinor      BigInt    @default(0)
+  taxCategory        String    @default("labor")
+  taxable            Boolean   @default(false)
+  taxBaseMinor       BigInt    @default(0)
+  taxRate            String    @default("")
+  taxMinor           BigInt    @default(0)
+  taxJurisdictions   Json?
+  costMinor          BigInt    @default(0)
+  revenueAccountCode String    @default("")
+  sortOrder          Int       @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @default(now()) @updatedAt
+
+  @@index([invoiceId])
+  @@index([workLineId])
+}
+
+model PayerProfile {
+  id                                 String                    @id @default(cuid())
+  name                               String                    @default("")
+  kind                               String                    @default("commercial")
+  terms                              String                    @default("net_30")
+  poRequired                         Boolean                   @default(false)
+  defaultNteMinor                    BigInt?
+  portalUrl                          String                    @default("")
+  billingContact                     String                    @default("")
+  accountingCustomerRef              String                    @default("")
+  active                             Boolean                   @default(true)
+  createdAt                          DateTime                  @default(now())
+  updatedAt                          DateTime                  @default(now()) @updatedAt
+  from_Payment_payer                 Payment[]                 @relation("Payment_payer")
+  from_ArEntry_payer                 ArEntry[]                 @relation("ArEntry_payer")
+  from_Invoice_payer                 Invoice[]                 @relation("Invoice_payer")
+  from_ThirdPartyAuthorization_payer ThirdPartyAuthorization[] @relation("ThirdPartyAuthorization_payer")
+}
+
+model PaymentAllocation {
+  id                              String              @id @default(cuid())
+  payment                         Payment?            @relation("PaymentAllocation_payment", fields: [paymentId], references: [id])
+  paymentId                       String?             @map("payment")
+  invoice                         Invoice?            @relation("PaymentAllocation_invoice", fields: [invoiceId], references: [id])
+  invoiceId                       String?             @map("invoice")
+  kind                            String              @default("apply")
+  reverses                        PaymentAllocation?  @relation("PaymentAllocation_reverses", fields: [reversesId], references: [id])
+  reversesId                      String?             @map("reverses")
+  amountMinor                     BigInt
+  reason                          String              @default("")
+  createdBy                       User?               @relation("PaymentAllocation_createdBy", fields: [createdById], references: [id])
+  createdById                     String?             @map("createdBy")
+  createdAt                       DateTime            @default(now())
+  updatedAt                       DateTime            @default(now()) @updatedAt
+  from_PaymentAllocation_reverses PaymentAllocation[] @relation("PaymentAllocation_reverses")
+
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@index([reversesId])
+  @@index([createdById])
+}
+
+model PaymentAttempt {
+  id             String    @id @default(cuid())
+  intentKey      String    @unique @default("")
+  invoice        Invoice?  @relation("PaymentAttempt_invoice", fields: [invoiceId], references: [id])
+  invoiceId      String?   @map("invoice")
+  customer       Customer? @relation("PaymentAttempt_customer", fields: [customerId], references: [id])
+  customerId     String?   @map("customer")
+  amountMinor    BigInt
+  method         String    @default("card")
+  status         String    @default("pending")
+  failureNote    String    @default("")
+  resolutionNote String    @default("")
+  payment        Payment?  @relation("PaymentAttempt_payment", fields: [paymentId], references: [id])
+  paymentId      String?   @map("payment")
+  createdBy      User?     @relation("PaymentAttempt_createdBy", fields: [createdById], references: [id])
+  createdById    String?   @map("createdBy")
+  version        Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([paymentId])
+  @@index([createdById])
+}
+
+model PaymentBatch {
+  id               String    @id @default(cuid())
+  ref              String    @unique @default("")
+  businessDate     DateTime? @postgresql.Date
+  tenderGroup      String    @default("card")
+  status           String    @default("open")
+  expectedMinor    BigInt    @default(0)
+  depositedMinor   BigInt    @default(0)
+  feesMinor        BigInt    @default(0)
+  varianceMinor    BigInt    @default(0)
+  depositReference String    @default("")
+  closedBy         User?     @relation("PaymentBatch_closedBy", fields: [closedById], references: [id])
+  closedById       String?   @map("closedBy")
+  closedAt         DateTime?
+  version          Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
+
+  @@index([closedById])
+}
+
+model ThirdPartyAuthorization {
+  id                                      String                    @id @default(cuid())
+  job                                     Job?                      @relation("ThirdPartyAuthorization_job", fields: [jobId], references: [id])
+  jobId                                   String?                   @map("job")
+  payer                                   PayerProfile?             @relation("ThirdPartyAuthorization_payer", fields: [payerId], references: [id])
+  payerId                                 String?                   @map("payer")
+  kind                                    String                    @default("po")
+  externalRef                             String                    @default("")
+  authorizedAmountMinor                   BigInt                    @default(0)
+  serviceFeeMinor                         BigInt                    @default(0)
+  status                                  String                    @default("requested")
+  revisionOf                              ThirdPartyAuthorization?  @relation("ThirdPartyAuthorization_revisionOf", fields: [revisionOfId], references: [id])
+  revisionOfId                            String?                   @map("revisionOf")
+  evidence                                Document?                 @relation("ThirdPartyAuthorization_evidence", fields: [evidenceId], references: [id])
+  evidenceId                              String?                   @map("evidence")
+  version                                 Int                       @default(0)
+  createdAt                               DateTime                  @default(now())
+  updatedAt                               DateTime                  @default(now()) @updatedAt
+  from_Invoice_authorization              Invoice[]                 @relation("Invoice_authorization")
+  from_ThirdPartyAuthorization_revisionOf ThirdPartyAuthorization[] @relation("ThirdPartyAuthorization_revisionOf")
+
+  @@index([jobId])
+  @@index([payerId])
+  @@index([revisionOfId])
+  @@index([evidenceId])
 }
 
 enum UserKindType {

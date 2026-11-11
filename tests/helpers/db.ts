@@ -15,7 +15,7 @@ export function testPrisma(connectionLimit = 12) {
   return new PrismaClient({ datasourceUrl: url.toString(), log: [] })
 }
 
-const GUARDED = ['AuditEvent', 'ApprovalDecision', 'DocumentVersion', 'ProviderObservation', 'PolicyVersion', 'AgentScopeGrant', 'ConsentRecord', 'VisitStatusEvent', 'EligibilityEvaluation', 'AccessSecretReveal', 'DispatchRecommendation', 'PriceBookVersion', 'PriceBookItem', 'PriceBookCategory', 'MarkupTable', 'LaborRate', 'MemberPricingRule', 'EstimateVersion', 'EstimateOption', 'EstimateLine', 'Authorization', 'CancellationEvaluation', 'CancellationNotice', 'Payment', 'Refund', 'Visit']
+const GUARDED = ['AuditEvent', 'ApprovalDecision', 'DocumentVersion', 'ProviderObservation', 'PolicyVersion', 'AgentScopeGrant', 'ConsentRecord', 'VisitStatusEvent', 'EligibilityEvaluation', 'AccessSecretReveal', 'DispatchRecommendation', 'PriceBookVersion', 'PriceBookItem', 'PriceBookCategory', 'MarkupTable', 'LaborRate', 'MemberPricingRule', 'EstimateVersion', 'EstimateOption', 'EstimateLine', 'Authorization', 'CancellationEvaluation', 'CancellationNotice', 'Payment', 'Refund', 'Visit', 'ArEntry', 'PaymentAllocation', 'CustomerCreditEntry', 'FinancingFunding', 'AccountingExportLine', 'Invoice', 'InvoiceLine', 'CreditMemo', 'PaymentBatch', 'ArPeriod', 'PaymentAttempt', 'AccountingExportBatch', 'FinancingApplication']
 
 /** Empties every application table in the test schema. Append-only tables need their triggers off. */
 export async function resetDatabase(prisma: PrismaClient) {

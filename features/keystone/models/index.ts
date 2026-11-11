@@ -12,6 +12,7 @@ import * as demand from './demand'
 import * as booking from './booking'
 import * as jobs from './jobs'
 import * as sales from './sales'
+import * as billing from './billing'
 
 const listsOf = (module: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(module).filter(([name, value]) => /^[A-Z]/.test(name) && typeof value === 'object' && value !== null && 'fields' in (value as object)))
@@ -31,6 +32,7 @@ export const models = {
   ...listsOf(booking),
   ...listsOf(jobs),
   ...listsOf(sales),
+  ...listsOf(billing),
 } as Record<string, any>
 
 export default models

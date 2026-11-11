@@ -5,6 +5,9 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all2) => {
   for (var name in all2)
     __defProp(target, name, { get: all2[name], enumerable: true });
@@ -27,6 +30,480 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// features/keystone/access.ts
+var permissionNames, approvalPermissions, isSignedIn, hasPermission, permissions, anyOf, sys, rules;
+var init_access = __esm({
+  "features/keystone/access.ts"() {
+    "use strict";
+    permissionNames = [
+      // Starter and fleet-mandatory
+      "canSeeOtherPeople",
+      "canEditOtherPeople",
+      "canManagePeople",
+      "canManageRoles",
+      "canAccessDashboard",
+      "canManageOnboarding",
+      "canManagePayments",
+      "canIssueRefunds",
+      "canReadAudit",
+      // Company, integrations, policies and operations
+      "canManageCompany",
+      "canManageIntegrations",
+      "canManagePolicies",
+      "canApprovePolicies",
+      // CRM
+      "canManageCustomers",
+      "canMergeCustomers",
+      "canApproveMerges",
+      "canRevealAccessSecret",
+      "canReadCustomerPII",
+      // Demand
+      "canManageLeads",
+      "canManageCampaigns",
+      // Booking and dispatch
+      "canBook",
+      "canOverbook",
+      "canApproveOverbook",
+      "canDispatch",
+      "canViewBoard",
+      // Field (staff tech app)
+      "canWorkVisits",
+      "canPresentEstimates",
+      "canSellEstimates",
+      // Price book and discounts
+      "canManagePriceBook",
+      "canApprovePriceBook",
+      "canApproveDiscounts",
+      // Billing
+      "canManageInvoices",
+      "canTakePayments",
+      "canPostInvoices",
+      "canApproveWriteOff",
+      "canApproveCredits",
+      "canApproveRefunds",
+      // Financing and memberships
+      "canOfferFinancing",
+      "canManageMemberships",
+      "canSellMemberships",
+      // Equipment and warranty
+      "canManageEquipment",
+      "canSubmitWarrantyClaims",
+      "canApproveWarrantyWriteOff",
+      // Inventory and purchasing
+      "canManageInventory",
+      "canPurchase",
+      "canReceive",
+      "canApprovePurchases",
+      "canApproveStockVariance",
+      // Compliance
+      "canManagePermits",
+      "canManageRefrigerant",
+      // Labour and pay
+      "canApproveTimesheets",
+      "canManagePayPlans",
+      "canRunPayroll",
+      "canApprovePayPlans",
+      "canApprovePayPeriods",
+      "canReadPay",
+      // Accounting
+      "canManageAccounting",
+      "canCloseAr",
+      "canApproveArClose",
+      // Communications
+      "canSendMessages",
+      "canManageTemplates",
+      "canRunCampaigns",
+      "canApproveCampaigns",
+      // Agents
+      "canManageAgents",
+      "canApproveAgentGrants",
+      // Raw status override. Never seeded on a default role; every use is audited.
+      "canBreakGlass"
+    ];
+    approvalPermissions = permissionNames.filter((name) => name.startsWith("canApprove") || name === "canBreakGlass");
+    isSignedIn = ({ session }) => {
+      if (!session) return false;
+      const expires = session.data?.accessExpiresAt;
+      return !expires || Date.parse(expires) > Date.now();
+    };
+    hasPermission = (session, permission) => isSignedIn({ session }) && session?.data.role?.[permission] === true;
+    permissions = Object.fromEntries(
+      permissionNames.map((name) => [name, ({ session }) => hasPermission(session, name)])
+    );
+    anyOf = (...names) => ({ session }) => names.some((name) => hasPermission(session, name));
+    sys = () => false;
+    rules = {
+      canReadPeople: ({ session }) => !isSignedIn({ session }) ? false : session.data.role?.canSeeOtherPeople || session.data.role?.canManagePeople ? true : { id: { equals: session.itemId } },
+      canUpdatePeople: ({ session }) => !isSignedIn({ session }) ? false : session.data.role?.canEditOtherPeople || session.data.role?.canManagePeople ? true : { id: { equals: session.itemId } }
+    };
+  }
+});
+
+// features/keystone/lib/errors.ts
+var DomainError, isDomainError, Codes;
+var init_errors = __esm({
+  "features/keystone/lib/errors.ts"() {
+    "use strict";
+    DomainError = class extends Error {
+      constructor(code, message, details = {}) {
+        super(message);
+        this.name = "DomainError";
+        this.code = code;
+        this.details = details;
+      }
+    };
+    isDomainError = (error) => error instanceof DomainError;
+    Codes = {
+      NOT_AUTHORIZED: "NOT_AUTHORIZED",
+      NOT_FOUND: "NOT_FOUND",
+      INVALID_INPUT: "INVALID_INPUT",
+      INVALID_TRANSITION: "INVALID_TRANSITION",
+      STALE_STATE: "STALE_STATE",
+      GUARD_FAILED: "GUARD_FAILED",
+      IDEMPOTENCY_KEY_REQUIRED: "IDEMPOTENCY_KEY_REQUIRED",
+      IDEMPOTENCY_KEY_REUSED: "IDEMPOTENCY_KEY_REUSED",
+      IN_PROGRESS: "IN_PROGRESS",
+      APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
+      SELF_APPROVAL: "SELF_APPROVAL",
+      AGENT_CANNOT_APPROVE: "AGENT_CANNOT_APPROVE",
+      APPROVAL_MISMATCH: "APPROVAL_MISMATCH",
+      LEASE_LOST: "LEASE_LOST",
+      STALE_FENCING_TOKEN: "STALE_FENCING_TOKEN",
+      AUDIT_CHAIN_BROKEN: "AUDIT_CHAIN_BROKEN",
+      POLICY_MISSING: "POLICY_MISSING",
+      POLICY_AMBIGUOUS: "POLICY_AMBIGUOUS",
+      POLICY_INVALID: "POLICY_INVALID",
+      SCOPE_DENIED: "SCOPE_DENIED",
+      AGENT_DISABLED: "AGENT_DISABLED",
+      CAPACITY_FULL: "CAPACITY_FULL",
+      HOLD_EXPIRED: "HOLD_EXPIRED",
+      OUT_OF_AREA: "OUT_OF_AREA",
+      NOT_ELIGIBLE: "NOT_ELIGIBLE",
+      SCHEDULE_CONFLICT: "SCHEDULE_CONFLICT"
+    };
+  }
+});
+
+// features/keystone/lib/actor.ts
+function actorFromSession(session) {
+  if (!session || !isSignedIn({ session })) throw new DomainError(Codes.NOT_AUTHORIZED, "Sign in to continue.");
+  const role = session.data.role;
+  const granted = new Set(role ? permissionNames.filter((name) => role[name] === true) : []);
+  return { kind: "user", userId: session.itemId, name: session.data.name, permissions: granted };
+}
+function can(actor, permission) {
+  return actor.kind === "user" && actor.permissions.has(permission);
+}
+function requirePermission(actor, ...anyOf2) {
+  if (actor.kind === "system") return;
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents act only through their tool grants.");
+  if (!anyOf2.some((permission) => actor.permissions.has(permission))) {
+    throw new DomainError(Codes.NOT_AUTHORIZED, `This needs the ${anyOf2.join(" or ")} permission.`);
+  }
+}
+var principalKey, actorUserId, actorAgentId;
+var init_actor = __esm({
+  "features/keystone/lib/actor.ts"() {
+    "use strict";
+    init_access();
+    init_errors();
+    principalKey = (actor) => actor.kind === "user" ? `user:${actor.userId}` : actor.kind === "agent" ? `agent:${actor.agentId}` : `system:${actor.name}`;
+    actorUserId = (actor) => actor.kind === "user" ? actor.userId : null;
+    actorAgentId = (actor) => actor.kind === "agent" ? actor.agentId : null;
+  }
+});
+
+// features/keystone/lib/decimal.ts
+function dec(value) {
+  if (value instanceof Decimal) return value;
+  if (typeof value === "bigint") return new Decimal(value.toString());
+  if (typeof value === "number") {
+    if (!Number.isSafeInteger(value)) throw new Error(`Refusing float ${value}: pass the exact decimal as a string`);
+    return new Decimal(value);
+  }
+  const text18 = String(value).trim();
+  if (!DECIMAL_TEXT.test(text18)) throw new Error(`Not a decimal number: ${JSON.stringify(text18).slice(0, 40)}`);
+  return new Decimal(text18);
+}
+function toScale(value, scale, rounding = Decimal.ROUND_HALF_UP) {
+  const places = typeof scale === "number" ? scale : Scale[scale];
+  return dec(value).toDecimalPlaces(places, rounding).toFixed(places);
+}
+var import_decimal, Decimal, Scale, DECIMAL_TEXT, plain, ZERO, ONE, BPS, decSum;
+var init_decimal = __esm({
+  "features/keystone/lib/decimal.ts"() {
+    "use strict";
+    import_decimal = __toESM(require("decimal.js"));
+    Decimal = import_decimal.default.clone({
+      precision: 60,
+      rounding: import_decimal.default.ROUND_HALF_UP,
+      toExpNeg: -40,
+      toExpPos: 60
+    });
+    Scale = { qty: 4, rate: 6, geo: 6 };
+    DECIMAL_TEXT = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+    plain = (value) => dec(value).toFixed();
+    ZERO = new Decimal(0);
+    ONE = new Decimal(1);
+    BPS = new Decimal(1e4);
+    decSum = (values) => values.map(dec).reduce((a, b) => a.plus(b), ZERO);
+  }
+});
+
+// features/keystone/lib/canonical.ts
+function canonicalize(value) {
+  if (value === null || value === void 0) return null;
+  if (typeof value === "bigint") return value.toString();
+  if (typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("Canonical JSON cannot hold a non-finite number");
+    return value;
+  }
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (typeof value === "object") {
+    const decimalLike = value;
+    if (typeof decimalLike.isFinite === "function" && typeof decimalLike.isNaN === "function") return plain(decimalLike.toString());
+    return Object.fromEntries(
+      Object.entries(value).filter(([, entry]) => entry !== void 0).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key2, entry]) => [key2, canonicalize(entry)])
+    );
+  }
+  throw new Error(`Canonical JSON cannot hold a ${typeof value}`);
+}
+function keyedPayloadHash(value, purpose = "cost-bound-hash") {
+  const secret2 = process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? "" : DEVELOPMENT_SECRET2);
+  if (secret2.length < 16) throw new Error("SESSION_SECRET must be set to hash priced content");
+  const key2 = (0, import_node_crypto2.createHmac)("sha256", secret2).update(`hs-keyed-hash\0${purpose}`, "utf8").digest();
+  return (0, import_node_crypto2.createHmac)("sha256", key2).update(canonicalJson(value), "utf8").digest("hex");
+}
+var import_node_crypto2, canonicalJson, sha256, payloadHash, toJsonValue, DEVELOPMENT_SECRET2;
+var init_canonical = __esm({
+  "features/keystone/lib/canonical.ts"() {
+    "use strict";
+    import_node_crypto2 = require("node:crypto");
+    init_decimal();
+    canonicalJson = (value) => JSON.stringify(canonicalize(value));
+    sha256 = (text18) => (0, import_node_crypto2.createHash)("sha256").update(text18).digest("hex");
+    payloadHash = (value) => sha256(canonicalJson(value));
+    toJsonValue = (value) => canonicalize(value);
+    DEVELOPMENT_SECRET2 = "this secret should only be used in testing";
+  }
+});
+
+// features/keystone/lib/db.ts
+async function advisoryLock(tx, key2) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key2}, 0))`;
+}
+function tableName(model) {
+  if (!MODEL_NAME.test(model)) throw new Error(`Invalid model name: ${model.slice(0, 40)}`);
+  return `"${model}"`;
+}
+function delegateOf(tx, model) {
+  tableName(model);
+  const delegate = tx[model[0].toLowerCase() + model.slice(1)];
+  if (!delegate) throw new Error(`Unknown model: ${model}`);
+  return delegate;
+}
+var MODEL_NAME, TRANSACTION_OPTIONS;
+var init_db = __esm({
+  "features/keystone/lib/db.ts"() {
+    "use strict";
+    MODEL_NAME = /^[A-Z][A-Za-z0-9]*$/;
+    TRANSACTION_OPTIONS = {
+      get maxWait() {
+        return Number.parseInt(process.env.HS_TX_MAX_WAIT_MS ?? "", 10) || 15e3;
+      },
+      timeout: 6e4
+    };
+  }
+});
+
+// features/keystone/lib/cas.ts
+async function lockRow(tx, model, id) {
+  const rows = await tx.$queryRawUnsafe(`SELECT id FROM ${tableName(model)} WHERE id = $1 FOR UPDATE`, id);
+  if (!rows.length) throw new DomainError(Codes.NOT_FOUND, `${model} not found.`, { model, id });
+  const row = await delegateOf(tx, model).findUnique({ where: { id } });
+  return row;
+}
+async function transition(uow, spec) {
+  const statusField = spec.statusField ?? "status";
+  if (!COLUMN.test(statusField)) throw new Error("Invalid status field");
+  const row = await lockRow(uow.tx, spec.model, spec.id);
+  const currentStatus = String(row[statusField]);
+  const currentVersion = Number(row.version);
+  if (spec.expectedVersion !== void 0 && spec.expectedVersion !== null && spec.expectedVersion !== currentVersion) {
+    throw new DomainError(Codes.STALE_STATE, `${spec.model} changed since you loaded it. Reload and try again.`, { currentStatus, currentVersion });
+  }
+  if (!spec.from.includes(currentStatus)) {
+    throw new DomainError(Codes.INVALID_TRANSITION, `${spec.model} can't move from ${currentStatus} to ${spec.to}.`, { currentStatus, currentVersion, to: spec.to });
+  }
+  if (spec.guard) await spec.guard(row);
+  const extra = typeof spec.data === "function" ? await spec.data(row) : spec.data ?? {};
+  const result = await delegateOf(uow.tx, spec.model).updateMany({
+    where: { id: spec.id, version: currentVersion, [statusField]: { in: [...spec.from] } },
+    data: { ...extra, [statusField]: spec.to, version: { increment: 1 } }
+  });
+  if (result.count !== 1) {
+    throw new DomainError(Codes.STALE_STATE, `${spec.model} changed since you loaded it. Reload and try again.`, { currentStatus, currentVersion });
+  }
+  uow.audit({
+    eventType: spec.eventType,
+    entityType: spec.model,
+    entityId: spec.id,
+    actorUserId: actorUserId(spec.actor),
+    actorAgentId: actorAgentId(spec.actor),
+    approverId: spec.approverId ?? null,
+    reason: spec.reason ?? null,
+    before: { [statusField]: currentStatus, version: currentVersion },
+    after: { [statusField]: spec.to, version: currentVersion + 1, ...extra },
+    metadata: { ...spec.metadata ?? {}, ...spec.actor.kind === "system" ? { system: spec.actor.name } : {} }
+  });
+  return await delegateOf(uow.tx, spec.model).findUnique({ where: { id: spec.id } });
+}
+async function casUpdate(uow, spec) {
+  const statusField = spec.statusField ?? "status";
+  if (!COLUMN.test(statusField)) throw new Error("Invalid status field");
+  const result = await delegateOf(uow.tx, spec.model).updateMany({
+    where: { id: spec.id, version: spec.version, [statusField]: { in: [...spec.from] } },
+    data: { ...spec.data ?? {}, [statusField]: spec.to, version: { increment: 1 } }
+  });
+  if (result.count !== 1) throw new DomainError(Codes.STALE_STATE, `${spec.model} changed since you loaded it. Reload and try again.`, { currentVersion: spec.version, to: spec.to });
+  uow.audit({
+    eventType: spec.eventType,
+    entityType: spec.model,
+    entityId: spec.id,
+    actorUserId: actorUserId(spec.actor),
+    actorAgentId: actorAgentId(spec.actor),
+    approverId: spec.approverId ?? null,
+    reason: spec.reason ?? null,
+    before: { [statusField]: spec.from.length === 1 ? spec.from[0] : spec.from, version: spec.version },
+    after: { [statusField]: spec.to, version: spec.version + 1, ...spec.audit ?? spec.data ?? {} },
+    metadata: { ...spec.metadata ?? {}, ...spec.actor.kind === "system" ? { system: spec.actor.name } : {} }
+  });
+  return spec.version + 1;
+}
+function auditCreate(uow, actor, model, id, eventType, after, extra = {}) {
+  uow.audit({
+    eventType,
+    entityType: model,
+    entityId: id,
+    actorUserId: actorUserId(actor),
+    actorAgentId: actorAgentId(actor),
+    reason: extra.reason ?? null,
+    after,
+    metadata: { ...extra.metadata ?? {}, ...actor.kind === "system" ? { system: actor.name } : {} }
+  });
+}
+var COLUMN;
+var init_cas = __esm({
+  "features/keystone/lib/cas.ts"() {
+    "use strict";
+    init_db();
+    init_errors();
+    init_actor();
+    COLUMN = /^[a-z][A-Za-z0-9]*$/;
+  }
+});
+
+// features/keystone/lib/separationOfDuties.ts
+function assertCanDecide(actor, requesterUserId, requesterAgentOwnerId, strictAgentOwner = true) {
+  if (actor.kind !== "user") throw new DomainError(Codes.AGENT_CANNOT_APPROVE, AGENT_APPROVAL_MESSAGE);
+  if (requesterUserId && requesterUserId === actor.userId) throw new DomainError(Codes.SELF_APPROVAL, SELF_APPROVAL_MESSAGE);
+  if (strictAgentOwner && requesterAgentOwnerId && requesterAgentOwnerId === actor.userId) throw new DomainError(Codes.SELF_APPROVAL, "You can't approve a proposal made by your own agent.");
+}
+var SELF_APPROVAL_MESSAGE, AGENT_APPROVAL_MESSAGE;
+var init_separationOfDuties = __esm({
+  "features/keystone/lib/separationOfDuties.ts"() {
+    "use strict";
+    init_errors();
+    SELF_APPROVAL_MESSAGE = "You can't approve your own request.";
+    AGENT_APPROVAL_MESSAGE = "An agent can propose but never approve.";
+  }
+});
+
+// features/keystone/lib/approval.ts
+var approval_exports = {};
+__export(approval_exports, {
+  consumeApproval: () => consumeApproval,
+  decideApproval: () => decideApproval,
+  requestApproval: () => requestApproval
+});
+async function requestApproval(uow, actor, input) {
+  const policy = await uow.tx.approvalPolicy.findUnique({ where: { action: input.action } });
+  const requiredPermission = policy?.requiredPermission ?? input.requiredPermission;
+  const minutes = input.expiresInMinutes ?? policy?.expiresAfterMinutes ?? 1440;
+  const created = await uow.tx.approvalRequest.create({
+    data: {
+      action: input.action,
+      summary: input.summary ?? "",
+      targetList: input.targetList,
+      targetId: input.targetId,
+      payload: toJsonValue(input.payload),
+      payloadHash: payloadHash(input.payload),
+      requiredPermission,
+      requestedById: actorUserId(actor),
+      requestedByAgentId: actorAgentId(actor),
+      status: "pending",
+      expiresAt: new Date(uow.now.getTime() + minutes * 6e4)
+    }
+  });
+  uow.audit({ eventType: "approval.requested", entityType: "ApprovalRequest", entityId: created.id, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { action: input.action, targetList: input.targetList, targetId: input.targetId, payloadHash: created.payloadHash, requiredPermission } });
+  return created;
+}
+async function decideApproval(uow, actor, input) {
+  const request = await lockRow(uow.tx, "ApprovalRequest", input.requestId);
+  let agentOwnerId = null;
+  if (request.requestedByAgentId) {
+    const agent = await uow.tx.agentIdentity.findUnique({ where: { id: request.requestedByAgentId }, select: { ownerId: true } });
+    agentOwnerId = agent?.ownerId ?? null;
+  }
+  assertCanDecide(actor, request.requestedById, agentOwnerId, input.strictAgentOwner ?? true);
+  if (actor.kind !== "user" || !actor.permissions.has(request.requiredPermission)) {
+    throw new DomainError(Codes.NOT_AUTHORIZED, `Deciding this needs the ${request.requiredPermission} permission.`);
+  }
+  if (request.expiresAt && new Date(request.expiresAt).getTime() <= uow.now.getTime()) {
+    await transition(uow, { model: "ApprovalRequest", id: input.requestId, from: ["pending"], to: "expired", actor, eventType: "approval.expired" });
+    throw new DomainError(Codes.GUARD_FAILED, "This approval request has expired.");
+  }
+  const to = input.decision === "approve" ? "approved" : "rejected";
+  const updated = await transition(uow, {
+    model: "ApprovalRequest",
+    id: input.requestId,
+    from: ["pending"],
+    to,
+    expectedVersion: input.expectedVersion,
+    actor,
+    eventType: `approval.${to}`,
+    reason: input.reason ?? null,
+    approverId: actor.userId
+  });
+  await uow.tx.approvalDecision.create({ data: { requestId: input.requestId, decidedById: actor.userId, decision: input.decision, reason: input.reason ?? "", at: uow.now } });
+  return updated;
+}
+async function consumeApproval(uow, input) {
+  const request = await lockRow(uow.tx, "ApprovalRequest", input.requestId);
+  if (request.status !== "approved") throw new DomainError(Codes.APPROVAL_REQUIRED, "This action needs an approved request.");
+  if (request.consumedAt) throw new DomainError(Codes.APPROVAL_MISMATCH, "This approval was already used.");
+  if (request.action !== input.action || request.targetList !== input.targetList || request.targetId !== input.targetId || request.payloadHash !== payloadHash(input.payload)) {
+    throw new DomainError(Codes.APPROVAL_MISMATCH, "The approval was given for a different action or payload.");
+  }
+  if (request.expiresAt && new Date(request.expiresAt).getTime() <= uow.now.getTime()) throw new DomainError(Codes.GUARD_FAILED, "The approval has expired.");
+  const decision = await uow.tx.approvalDecision.findFirst({ where: { requestId: input.requestId, decision: "approve" }, orderBy: { at: "desc" } });
+  await uow.tx.approvalRequest.update({ where: { id: input.requestId }, data: { consumedAt: uow.now, version: { increment: 1 } } });
+  uow.audit({ eventType: "approval.consumed", entityType: "ApprovalRequest", entityId: input.requestId, approverId: decision?.decidedById ?? null, after: { action: input.action, targetId: input.targetId } });
+  return { approverId: decision?.decidedById ?? null };
+}
+var init_approval = __esm({
+  "features/keystone/lib/approval.ts"() {
+    "use strict";
+    init_canonical();
+    init_actor();
+    init_errors();
+    init_separationOfDuties();
+    init_cas();
+  }
+});
+
 // keystone.ts
 var keystone_exports = {};
 __export(keystone_exports, {
@@ -36,7 +513,7 @@ module.exports = __toCommonJS(keystone_exports);
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core19 = require("@keystone-6/core");
+var import_core20 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 
 // features/keystone/models/User.ts
@@ -68,110 +545,8 @@ var trackingFields = {
   })
 };
 
-// features/keystone/access.ts
-var permissionNames = [
-  // Starter and fleet-mandatory
-  "canSeeOtherPeople",
-  "canEditOtherPeople",
-  "canManagePeople",
-  "canManageRoles",
-  "canAccessDashboard",
-  "canManageOnboarding",
-  "canManagePayments",
-  "canIssueRefunds",
-  "canReadAudit",
-  // Company, integrations, policies and operations
-  "canManageCompany",
-  "canManageIntegrations",
-  "canManagePolicies",
-  "canApprovePolicies",
-  // CRM
-  "canManageCustomers",
-  "canMergeCustomers",
-  "canApproveMerges",
-  "canRevealAccessSecret",
-  "canReadCustomerPII",
-  // Demand
-  "canManageLeads",
-  "canManageCampaigns",
-  // Booking and dispatch
-  "canBook",
-  "canOverbook",
-  "canApproveOverbook",
-  "canDispatch",
-  "canViewBoard",
-  // Field (staff tech app)
-  "canWorkVisits",
-  "canPresentEstimates",
-  "canSellEstimates",
-  // Price book and discounts
-  "canManagePriceBook",
-  "canApprovePriceBook",
-  "canApproveDiscounts",
-  // Billing
-  "canManageInvoices",
-  "canTakePayments",
-  "canPostInvoices",
-  "canApproveWriteOff",
-  "canApproveCredits",
-  "canApproveRefunds",
-  // Financing and memberships
-  "canOfferFinancing",
-  "canManageMemberships",
-  "canSellMemberships",
-  // Equipment and warranty
-  "canManageEquipment",
-  "canSubmitWarrantyClaims",
-  "canApproveWarrantyWriteOff",
-  // Inventory and purchasing
-  "canManageInventory",
-  "canPurchase",
-  "canReceive",
-  "canApprovePurchases",
-  "canApproveStockVariance",
-  // Compliance
-  "canManagePermits",
-  "canManageRefrigerant",
-  // Labour and pay
-  "canApproveTimesheets",
-  "canManagePayPlans",
-  "canRunPayroll",
-  "canApprovePayPlans",
-  "canApprovePayPeriods",
-  "canReadPay",
-  // Accounting
-  "canManageAccounting",
-  "canCloseAr",
-  "canApproveArClose",
-  // Communications
-  "canSendMessages",
-  "canManageTemplates",
-  "canRunCampaigns",
-  "canApproveCampaigns",
-  // Agents
-  "canManageAgents",
-  "canApproveAgentGrants",
-  // Raw status override. Never seeded on a default role; every use is audited.
-  "canBreakGlass"
-];
-var approvalPermissions = permissionNames.filter((name) => name.startsWith("canApprove") || name === "canBreakGlass");
-var isSignedIn = ({ session }) => {
-  if (!session) return false;
-  const expires = session.data?.accessExpiresAt;
-  return !expires || Date.parse(expires) > Date.now();
-};
-var hasPermission = (session, permission) => isSignedIn({ session }) && session?.data.role?.[permission] === true;
-var permissions = Object.fromEntries(
-  permissionNames.map((name) => [name, ({ session }) => hasPermission(session, name)])
-);
-var anyOf = (...names) => ({ session }) => names.some((name) => hasPermission(session, name));
-var sys = () => false;
-var rules = {
-  canReadPeople: ({ session }) => !isSignedIn({ session }) ? false : session.data.role?.canSeeOtherPeople || session.data.role?.canManagePeople ? true : { id: { equals: session.itemId } },
-  canUpdatePeople: ({ session }) => !isSignedIn({ session }) ? false : session.data.role?.canEditOtherPeople || session.data.role?.canManagePeople ? true : { id: { equals: session.itemId } }
-};
-
 // features/keystone/models/User.ts
+init_access();
 var User = (0, import_core.list)({
   access: {
     operation: {
@@ -261,6 +636,7 @@ var User = (0, import_core.list)({
 var import_core2 = require("@keystone-6/core");
 var import_access3 = require("@keystone-6/core/access");
 var import_fields3 = require("@keystone-6/core/fields");
+init_access();
 var Role = (0, import_core2.list)({
   access: {
     operation: {
@@ -297,6 +673,7 @@ var Role = (0, import_core2.list)({
 // features/keystone/models/OAuthApp.ts
 var import_core3 = require("@keystone-6/core");
 var import_fields4 = require("@keystone-6/core/fields");
+init_access();
 
 // features/keystone/mcp-oauth/core.ts
 var import_node_crypto = __toESM(require("node:crypto"));
@@ -453,6 +830,7 @@ var OAuthApp = (0, import_core3.list)({
 // features/keystone/models/OAuthToken.ts
 var import_core5 = require("@keystone-6/core");
 var import_fields5 = require("@keystone-6/core/fields");
+init_access();
 var digestTokenInput = {
   resolveInput: ({ resolvedData, fieldKey }) => resolvedData[fieldKey] ? digestToken(resolvedData[fieldKey]) : resolvedData[fieldKey]
 };
@@ -598,6 +976,7 @@ __export(company_exports, {
 });
 var import_core7 = require("@keystone-6/core");
 var import_fields7 = require("@keystone-6/core/fields");
+init_access();
 
 // features/keystone/models/domainFields.ts
 var import_fields6 = require("@keystone-6/core/fields");
@@ -659,6 +1038,7 @@ var fixedChoice = (values, initial) => (0, import_fields6.select)({
 });
 
 // features/keystone/models/listAccess.ts
+init_access();
 var rule = (permission) => permission === "signedIn" ? isSignedIn : Array.isArray(permission) ? anyOf(...permission) : permissions[permission];
 var governed = (read) => ({
   operation: { query: rule(read), create: sys, update: sys, delete: sys }
@@ -853,10 +1233,12 @@ __export(platform_exports, {
 });
 var import_core9 = require("@keystone-6/core");
 var import_fields9 = require("@keystone-6/core/fields");
+init_access();
 
 // features/keystone/models/costHidden.ts
 var import_core8 = require("@keystone-6/core");
 var import_fields8 = require("@keystone-6/core/fields");
+init_access();
 var COST_PERMISSIONS = ["canManagePriceBook", "canApprovePriceBook", "canApproveDiscounts"];
 var canReadCost = (session) => !!session && !session.agent && isSignedIn({ session }) && COST_PERMISSIONS.some((name) => session.data?.role?.[name] === true);
 var actorCanReadCost = (actor) => actor.kind === "user" && COST_PERMISSIONS.some((name) => actor.permissions?.has(name));
@@ -1297,6 +1679,7 @@ __export(agents_exports, {
 });
 var import_core11 = require("@keystone-6/core");
 var import_fields11 = require("@keystone-6/core/fields");
+init_access();
 var AGENT_AUTONOMY = ["disabled", "propose_only", "auto_within_policy"];
 var AgentIdentity = (0, import_core11.list)({
   access: { operation: { query: permissions.canAccessDashboard, create: () => false, update: () => false, delete: () => false } },
@@ -1389,6 +1772,7 @@ __export(people_exports, {
 });
 var import_core12 = require("@keystone-6/core");
 var import_fields12 = require("@keystone-6/core/fields");
+init_access();
 var EMPLOYEE_KINDS = ["technician", "csr", "dispatcher", "sales", "manager", "warehouse", "office", "apprentice"];
 var Employee = (0, import_core12.list)({
   access: managed("signedIn", "canManagePeople"),
@@ -1555,8 +1939,10 @@ __export(crm_exports, {
 });
 var import_core13 = require("@keystone-6/core");
 var import_fields13 = require("@keystone-6/core/fields");
+init_access();
 
 // features/keystone/models/scope.ts
+init_access();
 var has = (session, names) => names.some((name) => session?.data.role?.[name] === true);
 var OFFICE_READ = ["canManageCustomers", "canBook", "canViewBoard", "canDispatch", "canManageInvoices", "canManageLeads"];
 var assignedTo = (userId) => ({ some: { active: { equals: true }, employee: { user: { id: { equals: userId } } } } });
@@ -1777,6 +2163,7 @@ __export(demand_exports, {
 });
 var import_core14 = require("@keystone-6/core");
 var import_fields14 = require("@keystone-6/core/fields");
+init_access();
 var CAMPAIGN_CHANNELS = ["google_lsa", "google_ads", "seo", "direct_mail", "referral", "yard_sign", "truck_wrap", "tv_radio", "marketplace", "repeat", "tech_generated", "other"];
 var Campaign = (0, import_core14.list)({
   access: managed(["canManageCampaigns", "canManageLeads", "canBook"], "canManageCampaigns"),
@@ -2074,6 +2461,7 @@ __export(jobs_exports, {
 });
 var import_core16 = require("@keystone-6/core");
 var import_fields16 = require("@keystone-6/core/fields");
+init_access();
 var JOB_STATUSES = ["draft", "booked", "scheduled", "in_progress", "on_hold", "work_complete", "awaiting_inspection", "completed", "closed", "cancelled"];
 var JOB_HOLD_REASONS = ["", "parts", "customer_decision", "financing", "permit", "authorization", "access", "other"];
 var JOB_CANCEL_REASONS = ["", "customer_request", "duplicate", "no_access", "out_of_area", "scheduling", "weather", "other"];
@@ -2304,6 +2692,7 @@ __export(sales_exports, {
 });
 var import_core17 = require("@keystone-6/core");
 var import_fields17 = require("@keystone-6/core/fields");
+init_access();
 var TRADE_OR_GENERAL = ["hvac", "plumbing", "electrical", "general"];
 var TAX_CATEGORIES = ["labor", "material", "equipment", "fee", "disposal", "permit_passthrough", "warranty_reimbursed", "membership", "maintenance"];
 var CANCELLATION_CLASSES = ["requested_repair", "necessary_replacement_parts", "additional_goods_services"];
@@ -2621,7 +3010,7 @@ var Authorization = (0, import_core17.list)({
     ...trackingFields
   }
 });
-var PAYMENT_METHODS = ["card", "ach", "cash", "check", "other"];
+var PAYMENT_METHODS = ["card", "ach", "cash", "check", "other", "financing", "third_party", "customer_credit"];
 var Payment = (0, import_core17.list)({
   access: jobRows,
   ui: { labelField: "ref", listView: { initialColumns: ["ref", "job", "kind", "method", "amountMinor", "receivedAt"] } },
@@ -2633,6 +3022,9 @@ var Payment = (0, import_core17.list)({
     kind: fixedChoice(["deposit", "payment"], "deposit"),
     method: fixedChoice(PAYMENT_METHODS, "card"),
     amountMinor: minor({ required: true }),
+    feeMinor: minor({ defaultValue: 0n }),
+    payer: (0, import_fields17.relationship)({ ref: "PayerProfile", ...readOnly }),
+    checkNumber: systemText(),
     reference: systemText(),
     receivedAt: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
     recordedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
@@ -2649,6 +3041,8 @@ var Refund = (0, import_core17.list)({
     notice: (0, import_fields17.relationship)({ ref: "CancellationNotice.refunds", ...readOnly }),
     method: fixedChoice(["processor_refund", "check"], "processor_refund"),
     amountMinor: minor({ required: true }),
+    reason: systemText(),
+    approval: (0, import_fields17.relationship)({ ref: "ApprovalRequest", ...readOnly }),
     reference: systemText({ required: true }),
     refundedAt: (0, import_fields17.timestamp)({ validation: { isRequired: true }, ...readOnly }),
     recordedBy: (0, import_fields17.relationship)({ ref: "User", ...readOnly }),
@@ -2732,6 +3126,384 @@ var ChangeOrder = (0, import_core17.list)({
   }
 });
 
+// features/keystone/models/billing.ts
+var billing_exports = {};
+__export(billing_exports, {
+  AR_KINDS: () => AR_KINDS,
+  AccountingExportBatch: () => AccountingExportBatch,
+  AccountingExportLine: () => AccountingExportLine,
+  ArEntry: () => ArEntry,
+  ArPeriod: () => ArPeriod,
+  BILLING_OFFICE: () => BILLING_OFFICE,
+  COLLECTIONS_STATUSES: () => COLLECTIONS_STATUSES,
+  CreditMemo: () => CreditMemo,
+  CustomerCreditEntry: () => CustomerCreditEntry,
+  Dispute: () => Dispute,
+  FINANCING_STATUSES: () => FINANCING_STATUSES,
+  FinancingApplication: () => FinancingApplication,
+  FinancingFunding: () => FinancingFunding,
+  FinancingProgram: () => FinancingProgram,
+  INVOICE_STATUSES: () => INVOICE_STATUSES,
+  Invoice: () => Invoice,
+  InvoiceLine: () => InvoiceLine,
+  PAYER_KINDS: () => PAYER_KINDS,
+  PayerProfile: () => PayerProfile,
+  PaymentAllocation: () => PaymentAllocation,
+  PaymentAttempt: () => PaymentAttempt,
+  PaymentBatch: () => PaymentBatch,
+  TERMS: () => TERMS,
+  ThirdPartyAuthorization: () => ThirdPartyAuthorization
+});
+var import_core18 = require("@keystone-6/core");
+var import_fields18 = require("@keystone-6/core/fields");
+init_access();
+var INVOICE_STATUSES = ["draft", "posted", "partially_paid", "paid", "written_off", "voided", "discarded"];
+var COLLECTIONS_STATUSES = ["current", "reminder_1", "reminder_2", "final_notice", "collections_agency", "lien_track", "resolved"];
+var PAYER_KINDS = ["customer", "home_warranty_company", "property_manager", "commercial", "manufacturer", "distributor"];
+var TERMS = ["due_on_receipt", "net_15", "net_30", "net_45", "net_60"];
+var AR_KINDS = ["invoice_posted", "payment_applied", "payment_reversed", "credit_memo", "write_off", "write_off_reversal", "refund_reopen", "dispute_withdrawal", "dispute_reinstatement"];
+var FINANCING_STATUSES = ["started", "submitted", "approved", "declined", "needs_info", "docs_signed", "awaiting_funding", "funded", "cancelled", "expired"];
+var has3 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
+var BILLING_OFFICE = [
+  "canManageInvoices",
+  "canPostInvoices",
+  "canManagePayments",
+  "canIssueRefunds",
+  "canApproveWriteOff",
+  "canApproveCredits",
+  "canApproveRefunds",
+  "canManageAccounting",
+  "canCloseAr",
+  "canApproveArClose"
+];
+var COUNTER = ["canTakePayments", "canOfferFinancing"];
+var billingQuery = ({ session }) => isSignedIn({ session }) && (has3(session, BILLING_OFFICE) || has3(session, COUNTER));
+var officeOnlyQuery = ({ session }) => isSignedIn({ session }) && has3(session, BILLING_OFFICE);
+var jobScoped = (path) => ({
+  operation: { query: billingQuery, create: sys, update: sys, delete: sys },
+  filter: {
+    query: ({ session }) => {
+      if (!isSignedIn({ session })) return false;
+      if (has3(session, BILLING_OFFICE)) return true;
+      if (has3(session, ["canWorkVisits"])) return path(jobFilter(session.itemId));
+      return has3(session, COUNTER) ? true : false;
+    }
+  }
+});
+var invoiceRows = jobScoped((own) => ({ job: own }));
+var officeRows = { operation: { query: officeOnlyQuery, create: sys, update: sys, delete: sys } };
+var PayerProfile = (0, import_core18.list)({
+  access: managed(["canManageInvoices", "canPostInvoices", "canTakePayments", "canManageAccounting"], "canManageInvoices"),
+  ui: { labelField: "name", listView: { initialColumns: ["name", "kind", "terms", "poRequired", "defaultNteMinor"] } },
+  fields: {
+    name: (0, import_fields18.text)({ validation: { isRequired: true } }),
+    kind: fixedChoice(PAYER_KINDS, "commercial"),
+    terms: fixedChoice(TERMS, "net_30"),
+    poRequired: (0, import_fields18.checkbox)({ defaultValue: false }),
+    defaultNteMinor: minor({ description: "Not-to-exceed on this payer's jobs unless the job sets its own, in cents." }),
+    portalUrl: (0, import_fields18.text)(),
+    billingContact: (0, import_fields18.text)(),
+    accountingCustomerRef: (0, import_fields18.text)({ ui: { description: "The customer id in the accounting system, for the export." } }),
+    active: (0, import_fields18.checkbox)({ defaultValue: true }),
+    ...trackingFields
+  }
+});
+var ThirdPartyAuthorization = (0, import_core18.list)({
+  access: jobScoped((own) => ({ job: own })),
+  ui: { labelField: "externalRef", listView: { initialColumns: ["externalRef", "job", "payer", "kind", "authorizedAmountMinor", "status"] } },
+  fields: {
+    job: (0, import_fields18.relationship)({ ref: "Job", ...readOnly }),
+    payer: (0, import_fields18.relationship)({ ref: "PayerProfile", ...readOnly }),
+    kind: fixedChoice(["home_warranty", "po", "nte", "insurance"], "po"),
+    externalRef: systemText({ required: true }),
+    authorizedAmountMinor: minor({ defaultValue: 0n }),
+    serviceFeeMinor: minor({ defaultValue: 0n }),
+    status: lifecycle(["requested", "authorized", "cash_out_offered", "denied", "consumed", "expired", "revised"]),
+    revisionOf: (0, import_fields18.relationship)({ ref: "ThirdPartyAuthorization", ...readOnly }),
+    evidence: (0, import_fields18.relationship)({ ref: "Document", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var ArPeriod = (0, import_core18.list)({
+  access: governed(["canManageInvoices", "canPostInvoices", "canManageAccounting", "canCloseAr", "canApproveArClose"]),
+  ui: { labelField: "month" },
+  fields: {
+    month: (0, import_fields18.calendarDay)({ isIndexed: "unique", validation: { isRequired: true }, ...readOnly }),
+    status: lifecycle(["open", "closing", "closed"]),
+    closedBy: (0, import_fields18.relationship)({ ref: "User", ...readOnly }),
+    closedAt: (0, import_fields18.timestamp)({ ...readOnly }),
+    approval: (0, import_fields18.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var Invoice = (0, import_core18.list)({
+  access: invoiceRows,
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "customer", "status", "invoiceDate", "dueDate", "totalMinor", "balanceMinor"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    publicCode: systemText({ indexed: "unique", required: true }),
+    job: (0, import_fields18.relationship)({ ref: "Job", ...readOnly }),
+    customer: (0, import_fields18.relationship)({ ref: "Customer", ...readOnly }),
+    payer: (0, import_fields18.relationship)({ ref: "PayerProfile", ...readOnly }),
+    payerKind: fixedChoice(PAYER_KINDS, "customer"),
+    location: (0, import_fields18.relationship)({ ref: "ServiceLocation", ...readOnly }),
+    propertyClass: fixedChoice(["residential", "nonresidential", "multiple_use"], "residential"),
+    contractTaxMode: fixedChoice(["lump_sum", "separated", "not_applicable"], "lump_sum"),
+    taxResult: (0, import_fields18.json)({ ...readOnly }),
+    status: lifecycle(INVOICE_STATUSES),
+    invoiceDate: (0, import_fields18.calendarDay)({ ...readOnly }),
+    dueDate: (0, import_fields18.calendarDay)({ ...readOnly }),
+    arPeriod: (0, import_fields18.relationship)({ ref: "ArPeriod", ...readOnly }),
+    subtotalMinor: minor({ defaultValue: 0n }),
+    discountMinor: minor({ defaultValue: 0n }),
+    taxMinor: minor({ defaultValue: 0n }),
+    totalMinor: minor({ defaultValue: 0n }),
+    balanceMinor: minor({ defaultValue: 0n }),
+    poNumber: systemText(),
+    authorization: (0, import_fields18.relationship)({ ref: "ThirdPartyAuthorization", ...readOnly }),
+    progressReason: systemText(),
+    collectionsStatus: fixedChoice(COLLECTIONS_STATUSES, "current"),
+    snapshot: (0, import_fields18.json)({ ...readOnly }),
+    pdf: (0, import_fields18.relationship)({ ref: "Document", ...readOnly }),
+    lines: (0, import_fields18.relationship)({ ref: "InvoiceLine.invoice", many: true, ...readOnly }),
+    allocations: (0, import_fields18.relationship)({ ref: "PaymentAllocation.invoice", many: true, ...readOnly }),
+    arEntries: (0, import_fields18.relationship)({ ref: "ArEntry.invoice", many: true, ...readOnly }),
+    creditMemos: (0, import_fields18.relationship)({ ref: "CreditMemo.invoice", many: true, ...readOnly }),
+    postedAt: (0, import_fields18.timestamp)({ ...readOnly }),
+    postedBy: (0, import_fields18.relationship)({ ref: "User", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var InvoiceLine = (0, import_core18.list)({
+  access: jobScoped((own) => ({ invoice: { job: own } })),
+  ui: { labelField: "description", listView: { initialColumns: ["invoice", "description", "quantity", "unitPriceMinor", "amountMinor", "taxMinor"] } },
+  fields: {
+    invoice: (0, import_fields18.relationship)({ ref: "Invoice.lines", ...readOnly }),
+    workLine: (0, import_fields18.relationship)({ ref: "WorkLine", ...readOnly }),
+    description: systemText({ required: true }),
+    quantity: qty({ required: true, ...readOnly }),
+    uom: systemText(),
+    unitPriceMinor: minor({ defaultValue: 0n }),
+    amountMinor: minor({ defaultValue: 0n }),
+    discountMinor: minor({ defaultValue: 0n }),
+    taxCategory: fixedChoice(TAX_CATEGORIES, "labor"),
+    taxable: (0, import_fields18.checkbox)({ defaultValue: false, ...readOnly }),
+    taxBaseMinor: minor({ defaultValue: 0n }),
+    taxRate: systemText(),
+    taxMinor: minor({ defaultValue: 0n }),
+    taxJurisdictions: (0, import_fields18.json)({ ...readOnly }),
+    costMinor: minor({ defaultValue: 0n, ...costOnly }),
+    revenueAccountCode: systemText(),
+    sortOrder: (0, import_fields18.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    ...trackingFields
+  }
+});
+var CreditMemo = (0, import_core18.list)({
+  access: jobScoped((own) => ({ invoice: { job: own } })),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "invoice", "reason", "status", "totalMinor"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    invoice: (0, import_fields18.relationship)({ ref: "Invoice.creditMemos", ...readOnly }),
+    reason: fixedChoice(["pricing_error", "goodwill", "cancellation_right", "warranty", "recall", "duplicate", "other"], "other"),
+    note: systemText(),
+    status: lifecycle(["draft", "pending_approval", "posted", "applied", "rejected"]),
+    totalMinor: minor({ defaultValue: 0n }),
+    appliedToInvoiceMinor: minor({ defaultValue: 0n }),
+    appliedToCreditMinor: minor({ defaultValue: 0n }),
+    appliesTo: fixedChoice(["invoice_balance", "customer_credit"], "invoice_balance"),
+    approval: (0, import_fields18.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    createdBy: (0, import_fields18.relationship)({ ref: "User", ...readOnly }),
+    postedAt: (0, import_fields18.timestamp)({ ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var PaymentBatch = (0, import_core18.list)({
+  access: officeRows,
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "businessDate", "tenderGroup", "status", "expectedMinor", "depositedMinor", "varianceMinor"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    businessDate: (0, import_fields18.calendarDay)({ ...readOnly }),
+    tenderGroup: fixedChoice(["card", "ach", "check_cash", "financing", "third_party"], "card"),
+    status: lifecycle(["open", "closed", "reconciled", "exported"]),
+    expectedMinor: minor({ defaultValue: 0n }),
+    depositedMinor: minor({ defaultValue: 0n }),
+    feesMinor: minor({ defaultValue: 0n }),
+    varianceMinor: minor({ defaultValue: 0n }),
+    depositReference: systemText(),
+    closedBy: (0, import_fields18.relationship)({ ref: "User", ...readOnly }),
+    closedAt: (0, import_fields18.timestamp)({ ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var PaymentAttempt = (0, import_core18.list)({
+  access: officeRows,
+  ui: { labelField: "intentKey", listView: { initialColumns: ["intentKey", "invoice", "amountMinor", "status", "createdAt"] } },
+  fields: {
+    intentKey: systemText({ indexed: "unique", required: true }),
+    invoice: (0, import_fields18.relationship)({ ref: "Invoice", ...readOnly }),
+    customer: (0, import_fields18.relationship)({ ref: "Customer", ...readOnly }),
+    amountMinor: minor({ required: true }),
+    method: fixedChoice(["card", "ach"], "card"),
+    status: lifecycle(["pending", "succeeded", "failed", "unknown"]),
+    failureNote: systemText(),
+    resolutionNote: systemText(),
+    payment: (0, import_fields18.relationship)({ ref: "Payment", ...readOnly }),
+    createdBy: (0, import_fields18.relationship)({ ref: "User", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var PaymentAllocation = (0, import_core18.list)({
+  access: officeRows,
+  ui: { labelField: "kind", listView: { initialColumns: ["payment", "invoice", "kind", "amountMinor", "createdAt"] } },
+  fields: {
+    payment: (0, import_fields18.relationship)({ ref: "Payment", ...readOnly }),
+    invoice: (0, import_fields18.relationship)({ ref: "Invoice.allocations", ...readOnly }),
+    kind: fixedChoice(["apply", "reverse"], "apply"),
+    reverses: (0, import_fields18.relationship)({ ref: "PaymentAllocation", ...readOnly }),
+    amountMinor: minor({ required: true }),
+    reason: systemText(),
+    createdBy: (0, import_fields18.relationship)({ ref: "User", ...readOnly }),
+    ...trackingFields
+  }
+});
+var Dispute = (0, import_core18.list)({
+  access: officeRows,
+  ui: { labelField: "providerDisputeId", listView: { initialColumns: ["providerDisputeId", "payment", "amountMinor", "status", "evidenceDueBy"] } },
+  fields: {
+    payment: (0, import_fields18.relationship)({ ref: "Payment", ...readOnly }),
+    providerDisputeId: systemText({ indexed: "unique", required: true }),
+    amountMinor: minor({ required: true }),
+    reasonCode: systemText(),
+    status: lifecycle(["opened", "evidence_due", "evidence_submitted", "won", "lost"]),
+    evidenceDueBy: (0, import_fields18.timestamp)({ ...readOnly }),
+    note: systemText(),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var ArEntry = (0, import_core18.list)({
+  access: officeRows,
+  ui: { labelField: "kind", listView: { initialColumns: ["invoice", "kind", "amountMinor", "sourceType", "postedAt"] } },
+  fields: {
+    invoice: (0, import_fields18.relationship)({ ref: "Invoice.arEntries", ...readOnly }),
+    customer: (0, import_fields18.relationship)({ ref: "Customer", ...readOnly }),
+    payer: (0, import_fields18.relationship)({ ref: "PayerProfile", ...readOnly }),
+    kind: fixedChoice(AR_KINDS, "invoice_posted"),
+    amountMinor: minor({ required: true }),
+    sourceType: systemText(),
+    sourceId: systemText({ indexed: true }),
+    arPeriod: (0, import_fields18.relationship)({ ref: "ArPeriod", ...readOnly }),
+    postedAt: (0, import_fields18.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    note: systemText(),
+    ...trackingFields
+  }
+});
+var CustomerCreditEntry = (0, import_core18.list)({
+  access: officeRows,
+  ui: { labelField: "kind", listView: { initialColumns: ["customer", "kind", "amountMinor", "sourceType", "createdAt"] } },
+  fields: {
+    customer: (0, import_fields18.relationship)({ ref: "Customer", ...readOnly }),
+    kind: fixedChoice(["issued", "applied", "refunded", "expired"], "issued"),
+    amountMinor: minor({ required: true, description: "Signed: issued is positive, the others reduce the balance." }),
+    sourceType: systemText(),
+    sourceId: systemText({ indexed: true }),
+    ...trackingFields
+  }
+});
+var FinancingProgram = (0, import_core18.list)({
+  access: managed(["canOfferFinancing", "canManageInvoices", "canTakePayments"], ["canManageInvoices", "canManageAccounting"]),
+  ui: { labelField: "name", listView: { initialColumns: ["name", "partner", "minMinor", "maxMinor", "active"] } },
+  fields: {
+    name: (0, import_fields18.text)({ validation: { isRequired: true } }),
+    partner: fixedChoice(["wisetack", "other"], "wisetack"),
+    minMinor: minor({ defaultValue: 50000n }),
+    maxMinor: minor({ defaultValue: 2500000n }),
+    termsNote: (0, import_fields18.text)({ ui: { displayMode: "textarea", description: "As the partner publishes it. We do not compute or promise rates." } }),
+    applyUrl: (0, import_fields18.text)({ ui: { description: "The partner's hosted application link given to the customer." } }),
+    active: (0, import_fields18.checkbox)({ defaultValue: true }),
+    ...trackingFields
+  }
+});
+var FinancingApplication = (0, import_core18.list)({
+  access: jobScoped((own) => ({ job: own })),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "customer", "program", "amountMinor", "status"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    customer: (0, import_fields18.relationship)({ ref: "Customer", ...readOnly }),
+    job: (0, import_fields18.relationship)({ ref: "Job", ...readOnly }),
+    estimateVersion: (0, import_fields18.relationship)({ ref: "EstimateVersion", ...readOnly }),
+    invoice: (0, import_fields18.relationship)({ ref: "Invoice", ...readOnly }),
+    program: (0, import_fields18.relationship)({ ref: "FinancingProgram", ...readOnly }),
+    amountMinor: minor({ required: true }),
+    status: lifecycle(FINANCING_STATUSES),
+    consentRecordedAt: (0, import_fields18.timestamp)({ ...readOnly }),
+    partnerReference: systemText(),
+    offers: (0, import_fields18.json)({ ...readOnly, ui: { ...readOnly.ui, description: "Offers exactly as the partner gave them." } }),
+    selectedOffer: (0, import_fields18.json)({ ...readOnly }),
+    offerExpiresAt: (0, import_fields18.timestamp)({ ...readOnly }),
+    declineNote: systemText(),
+    fundings: (0, import_fields18.relationship)({ ref: "FinancingFunding.application", many: true, ...readOnly }),
+    createdBy: (0, import_fields18.relationship)({ ref: "User", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var FinancingFunding = (0, import_core18.list)({
+  access: officeRows,
+  ui: { labelField: "reference", listView: { initialColumns: ["application", "grossMinor", "feeMinor", "fundedAt"] } },
+  fields: {
+    application: (0, import_fields18.relationship)({ ref: "FinancingApplication.fundings", ...readOnly }),
+    grossMinor: minor({ required: true }),
+    feeMinor: minor({ defaultValue: 0n }),
+    reference: systemText({ required: true }),
+    fundedAt: (0, import_fields18.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    payment: (0, import_fields18.relationship)({ ref: "Payment", ...readOnly }),
+    ...trackingFields
+  }
+});
+var AccountingExportBatch = (0, import_core18.list)({
+  access: governed(["canManageAccounting", "canCloseAr"]),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "periodFrom", "periodTo", "lineCount", "debitMinor", "creditMinor", "createdAt"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    format: fixedChoice(["csv"], "csv"),
+    periodFrom: (0, import_fields18.calendarDay)({ ...readOnly }),
+    periodTo: (0, import_fields18.calendarDay)({ ...readOnly }),
+    status: lifecycle(["created", "downloaded"]),
+    lineCount: (0, import_fields18.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    debitMinor: minor({ defaultValue: 0n }),
+    creditMinor: minor({ defaultValue: 0n }),
+    sha256: systemText(),
+    lines: (0, import_fields18.relationship)({ ref: "AccountingExportLine.batch", many: true, ...readOnly }),
+    createdBy: (0, import_fields18.relationship)({ ref: "User", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var AccountingExportLine = (0, import_core18.list)({
+  access: governed(["canManageAccounting", "canCloseAr"]),
+  ui: { labelField: "memo", listView: { initialColumns: ["batch", "entryDate", "account", "debitMinor", "creditMinor", "memo"] } },
+  fields: {
+    batch: (0, import_fields18.relationship)({ ref: "AccountingExportBatch.lines", ...readOnly }),
+    sourceKey: systemText({ indexed: "unique", required: true }),
+    entryDate: (0, import_fields18.calendarDay)({ ...readOnly }),
+    account: systemText({ required: true }),
+    debitMinor: minor({ defaultValue: 0n }),
+    creditMinor: minor({ defaultValue: 0n }),
+    memo: systemText(),
+    docRef: systemText(),
+    customerRef: systemText(),
+    sortOrder: (0, import_fields18.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    ...trackingFields
+  }
+});
+
 // features/keystone/models/index.ts
 var listsOf = (module2) => Object.fromEntries(Object.entries(module2).filter(([name, value]) => /^[A-Z]/.test(name) && typeof value === "object" && value !== null && "fields" in value));
 var models = {
@@ -2748,7 +3520,8 @@ var models = {
   ...listsOf(demand_exports),
   ...listsOf(booking_exports),
   ...listsOf(jobs_exports),
-  ...listsOf(sales_exports)
+  ...listsOf(sales_exports),
+  ...listsOf(billing_exports)
 };
 
 // features/keystone/index.ts
@@ -2768,6 +3541,7 @@ async function redirectToInit(root, args, context) {
 var redirectToInit_default = redirectToInit;
 
 // features/keystone/mutations/updateActiveUser.ts
+init_access();
 async function updateActiveUser(_root, { data }, context) {
   const session = context.session;
   if (!isSignedIn({ session })) throw new Error("Not authenticated");
@@ -2779,47 +3553,7 @@ var updateActiveUser_default = updateActiveUser;
 
 // features/keystone/mutations/op.ts
 var import_graphql = require("graphql");
-
-// features/keystone/lib/errors.ts
-var DomainError = class extends Error {
-  constructor(code, message, details = {}) {
-    super(message);
-    this.name = "DomainError";
-    this.code = code;
-    this.details = details;
-  }
-};
-var isDomainError = (error) => error instanceof DomainError;
-var Codes = {
-  NOT_AUTHORIZED: "NOT_AUTHORIZED",
-  NOT_FOUND: "NOT_FOUND",
-  INVALID_INPUT: "INVALID_INPUT",
-  INVALID_TRANSITION: "INVALID_TRANSITION",
-  STALE_STATE: "STALE_STATE",
-  GUARD_FAILED: "GUARD_FAILED",
-  IDEMPOTENCY_KEY_REQUIRED: "IDEMPOTENCY_KEY_REQUIRED",
-  IDEMPOTENCY_KEY_REUSED: "IDEMPOTENCY_KEY_REUSED",
-  IN_PROGRESS: "IN_PROGRESS",
-  APPROVAL_REQUIRED: "APPROVAL_REQUIRED",
-  SELF_APPROVAL: "SELF_APPROVAL",
-  AGENT_CANNOT_APPROVE: "AGENT_CANNOT_APPROVE",
-  APPROVAL_MISMATCH: "APPROVAL_MISMATCH",
-  LEASE_LOST: "LEASE_LOST",
-  STALE_FENCING_TOKEN: "STALE_FENCING_TOKEN",
-  AUDIT_CHAIN_BROKEN: "AUDIT_CHAIN_BROKEN",
-  POLICY_MISSING: "POLICY_MISSING",
-  POLICY_AMBIGUOUS: "POLICY_AMBIGUOUS",
-  POLICY_INVALID: "POLICY_INVALID",
-  SCOPE_DENIED: "SCOPE_DENIED",
-  AGENT_DISABLED: "AGENT_DISABLED",
-  CAPACITY_FULL: "CAPACITY_FULL",
-  HOLD_EXPIRED: "HOLD_EXPIRED",
-  OUT_OF_AREA: "OUT_OF_AREA",
-  NOT_ELIGIBLE: "NOT_ELIGIBLE",
-  SCHEDULE_CONFLICT: "SCHEDULE_CONFLICT"
-};
-
-// features/keystone/mutations/op.ts
+init_errors();
 var UNSAFE = /prisma|invocation|\bat\s+\S+\s*\(|node_modules|postgres(ql)?:\/\/|\bSQL\b|ECONN|query engine|\.ts:\d+|\.js:\d+/i;
 var SAFE_DETAIL_KEYS = /* @__PURE__ */ new Set(["currentStatus", "currentVersion", "to", "reason", "field", "problems", "replay"]);
 var op = (fn) => async (root, args, context) => {
@@ -2838,97 +3572,14 @@ var op = (fn) => async (root, args, context) => {
   }
 };
 
-// features/keystone/lib/actor.ts
-function actorFromSession(session) {
-  if (!session || !isSignedIn({ session })) throw new DomainError(Codes.NOT_AUTHORIZED, "Sign in to continue.");
-  const role = session.data.role;
-  const granted = new Set(role ? permissionNames.filter((name) => role[name] === true) : []);
-  return { kind: "user", userId: session.itemId, name: session.data.name, permissions: granted };
-}
-function can(actor, permission) {
-  return actor.kind === "user" && actor.permissions.has(permission);
-}
-function requirePermission(actor, ...anyOf2) {
-  if (actor.kind === "system") return;
-  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "Agents act only through their tool grants.");
-  if (!anyOf2.some((permission) => actor.permissions.has(permission))) {
-    throw new DomainError(Codes.NOT_AUTHORIZED, `This needs the ${anyOf2.join(" or ")} permission.`);
-  }
-}
-var principalKey = (actor) => actor.kind === "user" ? `user:${actor.userId}` : actor.kind === "agent" ? `agent:${actor.agentId}` : `system:${actor.name}`;
-var actorUserId = (actor) => actor.kind === "user" ? actor.userId : null;
-var actorAgentId = (actor) => actor.kind === "agent" ? actor.agentId : null;
+// features/keystone/mutations/setup.ts
+init_actor();
 
 // features/keystone/lib/agentGate.ts
 var import_node_crypto3 = require("node:crypto");
-
-// features/keystone/lib/canonical.ts
-var import_node_crypto2 = require("node:crypto");
-
-// features/keystone/lib/decimal.ts
-var import_decimal = __toESM(require("decimal.js"));
-var Decimal = import_decimal.default.clone({
-  precision: 60,
-  rounding: import_decimal.default.ROUND_HALF_UP,
-  toExpNeg: -40,
-  toExpPos: 60
-});
-var Scale = { qty: 4, rate: 6, geo: 6 };
-var DECIMAL_TEXT = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
-function dec(value) {
-  if (value instanceof Decimal) return value;
-  if (typeof value === "bigint") return new Decimal(value.toString());
-  if (typeof value === "number") {
-    if (!Number.isSafeInteger(value)) throw new Error(`Refusing float ${value}: pass the exact decimal as a string`);
-    return new Decimal(value);
-  }
-  const text17 = String(value).trim();
-  if (!DECIMAL_TEXT.test(text17)) throw new Error(`Not a decimal number: ${JSON.stringify(text17).slice(0, 40)}`);
-  return new Decimal(text17);
-}
-function toScale(value, scale, rounding = Decimal.ROUND_HALF_UP) {
-  const places = typeof scale === "number" ? scale : Scale[scale];
-  return dec(value).toDecimalPlaces(places, rounding).toFixed(places);
-}
-var plain = (value) => dec(value).toFixed();
-var ZERO = new Decimal(0);
-var ONE = new Decimal(1);
-var BPS = new Decimal(1e4);
-var decSum = (values) => values.map(dec).reduce((a, b) => a.plus(b), ZERO);
-
-// features/keystone/lib/canonical.ts
-function canonicalize(value) {
-  if (value === null || value === void 0) return null;
-  if (typeof value === "bigint") return value.toString();
-  if (typeof value === "string" || typeof value === "boolean") return value;
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error("Canonical JSON cannot hold a non-finite number");
-    return value;
-  }
-  if (value instanceof Date) return value.toISOString();
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (typeof value === "object") {
-    const decimalLike = value;
-    if (typeof decimalLike.isFinite === "function" && typeof decimalLike.isNaN === "function") return plain(decimalLike.toString());
-    return Object.fromEntries(
-      Object.entries(value).filter(([, entry]) => entry !== void 0).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key2, entry]) => [key2, canonicalize(entry)])
-    );
-  }
-  throw new Error(`Canonical JSON cannot hold a ${typeof value}`);
-}
-var canonicalJson = (value) => JSON.stringify(canonicalize(value));
-var sha256 = (text17) => (0, import_node_crypto2.createHash)("sha256").update(text17).digest("hex");
-var payloadHash = (value) => sha256(canonicalJson(value));
-var toJsonValue = (value) => canonicalize(value);
-var DEVELOPMENT_SECRET2 = "this secret should only be used in testing";
-function keyedPayloadHash(value, purpose = "cost-bound-hash") {
-  const secret2 = process.env.SESSION_SECRET || (process.env.NODE_ENV === "production" ? "" : DEVELOPMENT_SECRET2);
-  if (secret2.length < 16) throw new Error("SESSION_SECRET must be set to hash priced content");
-  const key2 = (0, import_node_crypto2.createHmac)("sha256", secret2).update(`hs-keyed-hash\0${purpose}`, "utf8").digest();
-  return (0, import_node_crypto2.createHmac)("sha256", key2).update(canonicalJson(value), "utf8").digest("hex");
-}
-
-// features/keystone/lib/agentGate.ts
+init_canonical();
+init_actor();
+init_errors();
 async function authorizeOperation(db, actor, tool, permissions2, inputs = {}) {
   if (actor.kind !== "agent") return requirePermission(actor, ...permissions2);
   if (actor.scopes.has(tool)) return;
@@ -2967,6 +3618,10 @@ async function recordAgentRead(db, actor, spec) {
   });
   return row.id;
 }
+
+// features/keystone/mutations/actorFor.ts
+init_actor();
+init_errors();
 
 // features/keystone/mcp-oauth/agentSession.ts
 var AGENT_ROLE_ID = "seed_role_ai_agent";
@@ -3033,29 +3688,14 @@ async function actorFor(context) {
   return { kind: "agent", agentId: agent.id, ownerUserId: agent.ownerId, name: agent.name, scopes: new Set(agent.grants.map((g) => g.tool)) };
 }
 
-// features/keystone/lib/db.ts
-async function advisoryLock(tx, key2) {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key2}, 0))`;
-}
-var MODEL_NAME = /^[A-Z][A-Za-z0-9]*$/;
-function tableName(model) {
-  if (!MODEL_NAME.test(model)) throw new Error(`Invalid model name: ${model.slice(0, 40)}`);
-  return `"${model}"`;
-}
-function delegateOf(tx, model) {
-  tableName(model);
-  const delegate = tx[model[0].toLowerCase() + model.slice(1)];
-  if (!delegate) throw new Error(`Unknown model: ${model}`);
-  return delegate;
-}
-var TRANSACTION_OPTIONS = {
-  get maxWait() {
-    return Number.parseInt(process.env.HS_TX_MAX_WAIT_MS ?? "", 10) || 15e3;
-  },
-  timeout: 6e4
-};
+// features/keystone/lib/command.ts
+init_canonical();
+init_actor();
 
 // features/keystone/lib/idempotency.ts
+init_canonical();
+init_db();
+init_errors();
 var IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{8,200}$/;
 function assertIdempotencyKey(key2) {
   if (typeof key2 !== "string" || !key2.trim()) throw new DomainError(Codes.IDEMPOTENCY_KEY_REQUIRED, "An idempotency key is required.");
@@ -3090,6 +3730,8 @@ async function writeReceipt(tx, input) {
 
 // features/keystone/lib/audit.ts
 var import_node_crypto4 = require("node:crypto");
+init_canonical();
+init_db();
 var GENESIS_HASH = "0".repeat(64);
 function auditHashBody(row) {
   return {
@@ -3195,6 +3837,7 @@ async function verifyAuditChain(db, batchSize = 1e3) {
 }
 
 // features/keystone/lib/unitOfWork.ts
+init_db();
 var UnitOfWork = class {
   constructor(tx, now, requestId) {
     this.tx = tx;
@@ -3239,6 +3882,12 @@ async function command(db, spec, work) {
     }
   }
 }
+
+// features/keystone/mutations/setup.ts
+init_errors();
+
+// features/keystone/seed/platform.ts
+init_access();
 
 // features/keystone/lib/calendar.ts
 var FEDERAL_HOLIDAYS = [
@@ -3352,83 +4001,9 @@ function cancelByDeadline(calendar, transactionAt, timeZone, businessDays) {
   return { transactionDate, lastDay, deadline: zonedInstant(timeZone, addDays(lastDay, 1), "00:00") };
 }
 
-// features/keystone/lib/cas.ts
-var COLUMN = /^[a-z][A-Za-z0-9]*$/;
-async function lockRow(tx, model, id) {
-  const rows = await tx.$queryRawUnsafe(`SELECT id FROM ${tableName(model)} WHERE id = $1 FOR UPDATE`, id);
-  if (!rows.length) throw new DomainError(Codes.NOT_FOUND, `${model} not found.`, { model, id });
-  const row = await delegateOf(tx, model).findUnique({ where: { id } });
-  return row;
-}
-async function transition(uow, spec) {
-  const statusField = spec.statusField ?? "status";
-  if (!COLUMN.test(statusField)) throw new Error("Invalid status field");
-  const row = await lockRow(uow.tx, spec.model, spec.id);
-  const currentStatus = String(row[statusField]);
-  const currentVersion = Number(row.version);
-  if (spec.expectedVersion !== void 0 && spec.expectedVersion !== null && spec.expectedVersion !== currentVersion) {
-    throw new DomainError(Codes.STALE_STATE, `${spec.model} changed since you loaded it. Reload and try again.`, { currentStatus, currentVersion });
-  }
-  if (!spec.from.includes(currentStatus)) {
-    throw new DomainError(Codes.INVALID_TRANSITION, `${spec.model} can't move from ${currentStatus} to ${spec.to}.`, { currentStatus, currentVersion, to: spec.to });
-  }
-  if (spec.guard) await spec.guard(row);
-  const extra = typeof spec.data === "function" ? await spec.data(row) : spec.data ?? {};
-  const result = await delegateOf(uow.tx, spec.model).updateMany({
-    where: { id: spec.id, version: currentVersion, [statusField]: { in: [...spec.from] } },
-    data: { ...extra, [statusField]: spec.to, version: { increment: 1 } }
-  });
-  if (result.count !== 1) {
-    throw new DomainError(Codes.STALE_STATE, `${spec.model} changed since you loaded it. Reload and try again.`, { currentStatus, currentVersion });
-  }
-  uow.audit({
-    eventType: spec.eventType,
-    entityType: spec.model,
-    entityId: spec.id,
-    actorUserId: actorUserId(spec.actor),
-    actorAgentId: actorAgentId(spec.actor),
-    approverId: spec.approverId ?? null,
-    reason: spec.reason ?? null,
-    before: { [statusField]: currentStatus, version: currentVersion },
-    after: { [statusField]: spec.to, version: currentVersion + 1, ...extra },
-    metadata: { ...spec.metadata ?? {}, ...spec.actor.kind === "system" ? { system: spec.actor.name } : {} }
-  });
-  return await delegateOf(uow.tx, spec.model).findUnique({ where: { id: spec.id } });
-}
-async function casUpdate(uow, spec) {
-  const statusField = spec.statusField ?? "status";
-  if (!COLUMN.test(statusField)) throw new Error("Invalid status field");
-  const result = await delegateOf(uow.tx, spec.model).updateMany({
-    where: { id: spec.id, version: spec.version, [statusField]: { in: [...spec.from] } },
-    data: { ...spec.data ?? {}, [statusField]: spec.to, version: { increment: 1 } }
-  });
-  if (result.count !== 1) throw new DomainError(Codes.STALE_STATE, `${spec.model} changed since you loaded it. Reload and try again.`, { currentVersion: spec.version, to: spec.to });
-  uow.audit({
-    eventType: spec.eventType,
-    entityType: spec.model,
-    entityId: spec.id,
-    actorUserId: actorUserId(spec.actor),
-    actorAgentId: actorAgentId(spec.actor),
-    approverId: spec.approverId ?? null,
-    reason: spec.reason ?? null,
-    before: { [statusField]: spec.from.length === 1 ? spec.from[0] : spec.from, version: spec.version },
-    after: { [statusField]: spec.to, version: spec.version + 1, ...spec.audit ?? spec.data ?? {} },
-    metadata: { ...spec.metadata ?? {}, ...spec.actor.kind === "system" ? { system: spec.actor.name } : {} }
-  });
-  return spec.version + 1;
-}
-function auditCreate(uow, actor, model, id, eventType, after, extra = {}) {
-  uow.audit({
-    eventType,
-    entityType: model,
-    entityId: id,
-    actorUserId: actorUserId(actor),
-    actorAgentId: actorAgentId(actor),
-    reason: extra.reason ?? null,
-    after,
-    metadata: { ...extra.metadata ?? {}, ...actor.kind === "system" ? { system: actor.name } : {} }
-  });
-}
+// features/keystone/seed/platform.ts
+init_cas();
+init_canonical();
 
 // features/keystone/domain/policySchemas.ts
 var import_zod = require("zod");
@@ -3571,6 +4146,7 @@ function parsePolicyRules(kind, rules2) {
 }
 
 // features/keystone/seed/company.ts
+init_access();
 var COMPANY = {
   legalName: "Summit Plumbing & Air LLC",
   displayName: "Summit Plumbing & Air",
@@ -4209,8 +4785,12 @@ async function seedPolicyPacks(uow, actor) {
   return created;
 }
 
+// features/keystone/seed/operations.ts
+init_cas();
+
 // features/keystone/domain/contact.ts
 var import_node_crypto5 = require("node:crypto");
+init_errors();
 function normalizePhone(input) {
   const raw = String(input ?? "").trim();
   if (raw.startsWith("+")) {
@@ -4294,6 +4874,7 @@ var current = manualGeocoder();
 var geocoder = () => current;
 
 // features/keystone/seed/operationsData.ts
+init_decimal();
 var acr = (cls, number) => ({ kind: "state_trade_license", trade: "hvac", issuer: "TDLR", number, licenseClass: cls, expiresOn: "2027-06-30" });
 var epa = (type, number) => ({ kind: "epa_608", trade: "hvac", issuer: "EPA-approved certifying organization", number, epaType: type });
 var plb = (cls, number, extra = {}) => ({ kind: "state_trade_license", trade: "plumbing", issuer: "TSBPE", number, licenseClass: cls, expiresOn: "2027-03-31", ...extra });
@@ -4586,8 +5167,15 @@ async function seedOperations(uow, actor) {
   return created;
 }
 
+// features/keystone/services/booking.ts
+init_actor();
+init_cas();
+init_decimal();
+init_errors();
+
 // features/keystone/lib/sequence.ts
 var import_node_crypto6 = require("node:crypto");
+init_db();
 async function nextReference(tx, prefix, now = /* @__PURE__ */ new Date(), width = 6) {
   if (!/^[A-Z]{2,5}$/.test(prefix)) throw new Error("Reference prefix must be 2-5 capital letters");
   const key2 = `${prefix}-${now.getUTCFullYear()}`;
@@ -4605,6 +5193,7 @@ function publicCode(prefix, groups = 2) {
 }
 
 // features/keystone/domain/capacity.ts
+init_decimal();
 function windowsForDate(templates, date, timeZone, isOpen) {
   assertDate(date);
   if (!isOpen(date)) return [];
@@ -4925,81 +5514,12 @@ async function createLocationInTx(uow, actor, customerId, input, geo2) {
   return location;
 }
 
-// features/keystone/lib/separationOfDuties.ts
-var SELF_APPROVAL_MESSAGE = "You can't approve your own request.";
-var AGENT_APPROVAL_MESSAGE = "An agent can propose but never approve.";
-function assertCanDecide(actor, requesterUserId, requesterAgentOwnerId, strictAgentOwner = true) {
-  if (actor.kind !== "user") throw new DomainError(Codes.AGENT_CANNOT_APPROVE, AGENT_APPROVAL_MESSAGE);
-  if (requesterUserId && requesterUserId === actor.userId) throw new DomainError(Codes.SELF_APPROVAL, SELF_APPROVAL_MESSAGE);
-  if (strictAgentOwner && requesterAgentOwnerId && requesterAgentOwnerId === actor.userId) throw new DomainError(Codes.SELF_APPROVAL, "You can't approve a proposal made by your own agent.");
-}
+// features/keystone/seed/pricebook.ts
+init_cas();
 
-// features/keystone/lib/approval.ts
-async function requestApproval(uow, actor, input) {
-  const policy = await uow.tx.approvalPolicy.findUnique({ where: { action: input.action } });
-  const requiredPermission = policy?.requiredPermission ?? input.requiredPermission;
-  const minutes = input.expiresInMinutes ?? policy?.expiresAfterMinutes ?? 1440;
-  const created = await uow.tx.approvalRequest.create({
-    data: {
-      action: input.action,
-      summary: input.summary ?? "",
-      targetList: input.targetList,
-      targetId: input.targetId,
-      payload: toJsonValue(input.payload),
-      payloadHash: payloadHash(input.payload),
-      requiredPermission,
-      requestedById: actorUserId(actor),
-      requestedByAgentId: actorAgentId(actor),
-      status: "pending",
-      expiresAt: new Date(uow.now.getTime() + minutes * 6e4)
-    }
-  });
-  uow.audit({ eventType: "approval.requested", entityType: "ApprovalRequest", entityId: created.id, actorUserId: actorUserId(actor), actorAgentId: actorAgentId(actor), after: { action: input.action, targetList: input.targetList, targetId: input.targetId, payloadHash: created.payloadHash, requiredPermission } });
-  return created;
-}
-async function decideApproval(uow, actor, input) {
-  const request = await lockRow(uow.tx, "ApprovalRequest", input.requestId);
-  let agentOwnerId = null;
-  if (request.requestedByAgentId) {
-    const agent = await uow.tx.agentIdentity.findUnique({ where: { id: request.requestedByAgentId }, select: { ownerId: true } });
-    agentOwnerId = agent?.ownerId ?? null;
-  }
-  assertCanDecide(actor, request.requestedById, agentOwnerId, input.strictAgentOwner ?? true);
-  if (actor.kind !== "user" || !actor.permissions.has(request.requiredPermission)) {
-    throw new DomainError(Codes.NOT_AUTHORIZED, `Deciding this needs the ${request.requiredPermission} permission.`);
-  }
-  if (request.expiresAt && new Date(request.expiresAt).getTime() <= uow.now.getTime()) {
-    await transition(uow, { model: "ApprovalRequest", id: input.requestId, from: ["pending"], to: "expired", actor, eventType: "approval.expired" });
-    throw new DomainError(Codes.GUARD_FAILED, "This approval request has expired.");
-  }
-  const to = input.decision === "approve" ? "approved" : "rejected";
-  const updated = await transition(uow, {
-    model: "ApprovalRequest",
-    id: input.requestId,
-    from: ["pending"],
-    to,
-    expectedVersion: input.expectedVersion,
-    actor,
-    eventType: `approval.${to}`,
-    reason: input.reason ?? null,
-    approverId: actor.userId
-  });
-  await uow.tx.approvalDecision.create({ data: { requestId: input.requestId, decidedById: actor.userId, decision: input.decision, reason: input.reason ?? "", at: uow.now } });
-  return updated;
-}
-async function consumeApproval(uow, input) {
-  const request = await lockRow(uow.tx, "ApprovalRequest", input.requestId);
-  if (request.status !== "approved") throw new DomainError(Codes.APPROVAL_REQUIRED, "This action needs an approved request.");
-  if (request.consumedAt) throw new DomainError(Codes.APPROVAL_MISMATCH, "This approval was already used.");
-  if (request.action !== input.action || request.targetList !== input.targetList || request.targetId !== input.targetId || request.payloadHash !== payloadHash(input.payload)) {
-    throw new DomainError(Codes.APPROVAL_MISMATCH, "The approval was given for a different action or payload.");
-  }
-  if (request.expiresAt && new Date(request.expiresAt).getTime() <= uow.now.getTime()) throw new DomainError(Codes.GUARD_FAILED, "The approval has expired.");
-  const decision = await uow.tx.approvalDecision.findFirst({ where: { requestId: input.requestId, decision: "approve" }, orderBy: { at: "desc" } });
-  await uow.tx.approvalRequest.update({ where: { id: input.requestId }, data: { consumedAt: uow.now, version: { increment: 1 } } });
-  uow.audit({ eventType: "approval.consumed", entityType: "ApprovalRequest", entityId: input.requestId, approverId: decision?.decidedById ?? null, after: { action: input.action, targetId: input.targetId } });
-  return { approverId: decision?.decidedById ?? null };
-}
+// features/keystone/mutations/approvals.ts
+init_actor();
+init_approval();
 
 // features/keystone/lib/approvalAppliers.ts
 var appliers = /* @__PURE__ */ new Map();
@@ -5011,7 +5531,13 @@ function applierFor(action) {
   return appliers.get(action) ?? null;
 }
 
+// features/keystone/mutations/approvals.ts
+init_cas();
+init_errors();
+
 // features/keystone/lib/companyControls.ts
+init_errors();
+init_approval();
 var CONTROL_KEYS = ["discountApprovalThresholdBps", "refundApprovalThresholdMinor", "poApprovalThresholdMinor"];
 var minorIn = (value, name) => {
   if (typeof value !== "string" || !/^\d{1,15}$/.test(value)) throw new DomainError(Codes.INVALID_INPUT, `${name} must be whole cents as a string, e.g. "50000".`, { field: name });
@@ -5121,7 +5647,15 @@ async function requestCompanyControls(_root, args, context) {
   return { replay: result.replay, ...result.value };
 }
 
+// features/keystone/services/pricebook.ts
+init_actor();
+init_approval();
+init_cas();
+init_decimal();
+init_errors();
+
 // features/keystone/lib/money.ts
+init_decimal();
 function allocateMinor(total, weights) {
   if (weights.length === 0) throw new Error("allocateMinor needs at least one weight");
   const w = weights.map(dec);
@@ -5156,6 +5690,8 @@ function bpsOf(amountMinor, bps2) {
 }
 
 // features/keystone/domain/pricing.ts
+init_canonical();
+init_decimal();
 var PricingError = class extends Error {
   constructor(code, message, details = {}) {
     super(message);
@@ -5923,7 +6459,15 @@ async function priceBookVersionReview(db, actor, args) {
   return { ...version, live: { diff: diffItems(before, content.items), findings: submitFindings(content.items, uoms), formula: Array.isArray(formula2) ? formula2.map((f) => ({ itemKey: f.itemKey, unitPriceMinor: f.unitPriceMinor.toString() })) : formula2 } };
 }
 
+// features/keystone/services/estimates.ts
+init_actor();
+init_approval();
+init_cas();
+init_canonical();
+init_errors();
+
 // features/keystone/domain/policy.ts
+init_errors();
 var SCOPE_SPECIFICITY = { company: 0, branch: 1, state: 2, county: 3, city: 4, zip: 5 };
 function matches(binding, place) {
   switch (binding.scope) {
@@ -6115,10 +6659,10 @@ var PAGE_H = 792;
 var MARGIN = 54;
 var W = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
 var WB = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
-function ansi(text17) {
+function ansi(text18) {
   const map = { "\u20AC": 128, "\u201A": 130, "\u201E": 132, "\u2026": 133, "\u2018": 145, "\u2019": 146, "\u201C": 147, "\u201D": 148, "\u2022": 149, "\u2013": 150, "\u2014": 151, "\u2122": 153, "\u2212": 45, "\xB7": 183, "\xA7": 167 };
   let out = "";
-  for (const ch of text17) {
+  for (const ch of text18) {
     const c = ch.codePointAt(0);
     const b = map[ch] ?? (c >= 32 && c <= 255 && !(c >= 127 && c < 160) ? c : 63);
     out += String.fromCharCode(b);
@@ -6126,19 +6670,19 @@ function ansi(text17) {
   return out;
 }
 var esc = (s) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-function textWidth(text17, size, font = "regular") {
-  if (font === "mono") return ansi(text17).length * 600 * size / 1e3;
+function textWidth(text18, size, font = "regular") {
+  if (font === "mono") return ansi(text18).length * 600 * size / 1e3;
   const table = font === "bold" ? WB : W;
   let w = 0;
-  for (const ch of ansi(text17)) {
+  for (const ch of ansi(text18)) {
     const c = ch.charCodeAt(0);
     w += c >= 32 && c <= 126 ? table[c - 32] : 556;
   }
   return w * size / 1e3;
 }
-function wrap(text17, width, size, font = "regular") {
+function wrap(text18, width, size, font = "regular") {
   const lines = [];
-  for (const para of text17.split("\n")) {
+  for (const para of text18.split("\n")) {
     let line = "";
     for (const word of para.split(/\s+/).filter(Boolean)) {
       const next = line ? `${line} ${word}` : word;
@@ -6396,6 +6940,12 @@ function renderNoticePdf(s) {
   return pdf.toBytes({ title: `Notice of cancellation ${s.ref}`, author: s.seller.name });
 }
 
+// features/keystone/services/cancellation.ts
+init_actor();
+init_approval();
+init_cas();
+init_errors();
+
 // features/keystone/domain/cancellation-rights.ts
 var CancellationRightsError = class extends Error {
   constructor(code, message) {
@@ -6520,6 +7070,8 @@ var noticeRuleOf = (code) => code === "ftc_cooling_off" ? "ftc_16cfr429" : code 
 
 // features/keystone/services/salesShared.ts
 var import_node_crypto7 = require("node:crypto");
+init_actor();
+init_cas();
 var placeOfLocation = (loc) => {
   const state2 = loc?.state ? `US-${loc.state}` : "US-TX";
   return { state: state2, zip: loc?.postalCode || null, city: loc?.city ? `${state2}-${loc.city.toUpperCase().replace(/\s+/g, "-")}` : null };
@@ -7754,6 +8306,7 @@ registerApplier("pricebook.publish", (uow, actor, request) => applyPriceBookPubl
 registerApplier("estimate.discount", (uow, actor, request) => applyEstimateDiscount(uow, actor, request));
 
 // features/keystone/seed/pricebookData.ts
+init_decimal();
 var usd2 = (dollars) => (BigInt(dollars) * 100n).toString();
 var PRICE_BOOK = { name: "Summit standard price book", code: "SUMMIT-STD" };
 var SUPPLIER = "Hill Country Supply";
@@ -8398,6 +8951,7 @@ async function verifyAuditChain2(_root, _args, context) {
 }
 
 // features/keystone/mutations/policy.ts
+init_errors();
 async function resolvePolicyQuery(_root, args, context) {
   const actor = await actorFor(context);
   await authorizeOperation(context.prisma, actor, "policy.resolve", ["canAccessDashboard"], args);
@@ -8439,8 +8993,15 @@ async function advanceTimedStates(db, options = {}) {
 
 // features/keystone/services/dispatch.ts
 var import_node_crypto8 = require("node:crypto");
+init_actor();
+init_db();
+init_cas();
+init_canonical();
+init_decimal();
+init_errors();
 
 // features/keystone/domain/eligibility.ts
+init_decimal();
 function credentialCurrent(c, date) {
   return c.status === "verified" && (!c.expiresOn || c.expiresOn >= date);
 }
@@ -8522,6 +9083,7 @@ function evaluateEligibility(input) {
 }
 
 // features/keystone/domain/dispatch.ts
+init_decimal();
 var DISPATCH_MODEL = "hs-dispatch-v1";
 var DISPATCH_FEATURES = ["eligibility", "drive_minutes", "skills", "continuity", "fairness"];
 function rankCandidates(candidates) {
@@ -8960,6 +9522,9 @@ async function checkEligibility(db, actor, args) {
 }
 
 // features/keystone/services/comms.ts
+init_actor();
+init_cas();
+init_errors();
 async function recordConsent(db, actor, args) {
   await authorizeOperation(db, actor, "consent.record", ["canManageCustomers", "canBook", "canSendMessages"], args);
   if (!CONSENT_PURPOSES.includes(args.purpose)) throw new DomainError(Codes.INVALID_INPUT, "Unknown consent purpose.", { field: "purpose" });
@@ -8981,6 +9546,11 @@ async function recordConsent(db, actor, args) {
   });
   return { replay: result.replay, ...result.value };
 }
+
+// features/keystone/services/crm.ts
+init_actor();
+init_cas();
+init_errors();
 
 // features/keystone/lib/secretBox.ts
 var import_node_crypto9 = require("node:crypto");
@@ -9234,14 +9804,14 @@ async function mergeLead(db, actor, args) {
 }
 async function matchJobType(db, actor, args) {
   await authorizeOperation(db, actor, "jobtype.match", ["canBook"], args);
-  const text17 = args.description.toLowerCase();
+  const text18 = args.description.toLowerCase();
   const types = await db.jobType.findMany({ where: { active: true }, select: { id: true, code: true, name: true, trade: true, priority: true, keywords: true, emergencyPolicy: true, bookableByAi: true, bookingQuestions: true, businessUnitId: true } });
-  const words = new Set(text17.split(/[^a-z0-9]+/).filter(Boolean));
+  const words = new Set(text18.split(/[^a-z0-9]+/).filter(Boolean));
   const scored = types.map((t) => {
     const keys = (t.keywords ?? []).map((k) => k.toLowerCase());
-    const hits = keys.filter((k) => k.includes(" ") ? text17.includes(k) : words.has(k));
+    const hits = keys.filter((k) => k.includes(" ") ? text18.includes(k) : words.has(k));
     const emergency = t.emergencyPolicy;
-    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text17.includes(k.toLowerCase()));
+    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text18.includes(k.toLowerCase()));
     return { jobTypeId: t.id, code: t.code, name: t.name, trade: t.trade, priority: t.priority, bookableByAi: t.bookableByAi, score: hits.length * 10 + emergencyHits.length * 25, matched: hits, emergency: emergencyHits.length ? { matched: emergencyHits, script: emergency?.script ?? "", page: !!emergency?.page } : null, questions: t.bookingQuestions ?? [], businessUnitId: t.businessUnitId };
   }).filter((t) => t.score > 0).sort((a, b) => b.score - a.score || a.code.localeCompare(b.code)).slice(0, 3);
   let inArea = null;
@@ -9506,10 +10076,1040 @@ var phase2Resolvers = {
   }
 };
 
-// features/keystone/mutations/agentBinding.ts
+// features/keystone/services/invoices.ts
+init_actor();
+init_approval();
+init_cas();
+init_errors();
+
+// features/keystone/services/billingShared.ts
+init_actor();
+init_cas();
+init_errors();
+var TERMS_DAYS = { due_on_receipt: 0, net_15: 15, net_30: 30, net_45: 45, net_60: 60 };
+var asDate = (day3) => /* @__PURE__ */ new Date(`${day3}T00:00:00Z`);
+async function companyToday(tx, at) {
+  const company = await tx.companySettings.findFirst({ select: { homeTimeZone: true } });
+  return localDate({ timeZone: company?.homeTimeZone || "America/Chicago" }, at);
+}
+async function arPeriodFor(tx, day3, { requireOpen = true } = {}) {
+  const month = asDate(`${day3.slice(0, 7)}-01`);
+  const period = await tx.arPeriod.upsert({ where: { month }, create: { month, status: "open" }, update: {}, select: { id: true, status: true } });
+  if (requireOpen && period.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The AR period for ${day3.slice(0, 7)} is ${period.status}. Choose a date in an open period.`, { reason: "ar_period_closed", month: day3.slice(0, 7) });
+  return period;
+}
+async function lockInvoice(tx, id) {
+  return lockRow(tx, "Invoice", id);
+}
+function statusForBalance(total, balance) {
+  return balance === 0n ? "paid" : balance < total ? "partially_paid" : "posted";
+}
+async function postArEntry(uow, input) {
+  const day3 = await companyToday(uow.tx, uow.now);
+  const period = await arPeriodFor(uow.tx, day3);
+  return uow.tx.arEntry.create({
+    data: { invoiceId: input.invoice.id, customerId: input.invoice.customerId, payerId: input.invoice.payerId, kind: input.kind, amountMinor: input.amountMinor, sourceType: input.sourceType, sourceId: input.sourceId, arPeriodId: period.id, postedAt: uow.now, note: input.note ?? "" },
+    select: { id: true }
+  });
+}
+async function settleInvoice(uow, actor, invoice, delta, eventType, extra = {}) {
+  const balance = invoice.balanceMinor + delta;
+  if (balance < 0n) throw new DomainError(Codes.GUARD_FAILED, "That is more than the invoice balance.", { balanceMinor: invoice.balanceMinor.toString() });
+  const to = extra.to ?? statusForBalance(invoice.totalMinor, balance);
+  const version = await casUpdate(uow, { model: "Invoice", id: invoice.id, version: invoice.version, from: ["posted", "partially_paid", "paid"], to, actor, eventType, reason: extra.reason ?? null, data: { balanceMinor: balance }, audit: { balanceMinor: balance.toString() } });
+  return { ...invoice, status: to, version, balanceMinor: balance };
+}
+async function allocatePayment(uow, actor, invoice, paymentId, amount) {
+  if (!["posted", "partially_paid"].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no payment.`, { status: invoice.status });
+  if (amount <= 0n || amount > invoice.balanceMinor) throw new DomainError(Codes.GUARD_FAILED, `Apply between $0.01 and the $${(Number(invoice.balanceMinor) / 100).toFixed(2)} balance.`);
+  const allocation = await uow.tx.paymentAllocation.create({ data: { paymentId, invoiceId: invoice.id, kind: "apply", amountMinor: amount, createdById: actorUserId(actor) }, select: { id: true } });
+  await postArEntry(uow, { invoice, kind: "payment_applied", amountMinor: -amount, sourceType: "Payment", sourceId: paymentId });
+  const next = await settleInvoice(uow, actor, invoice, -amount, "invoice.payment_applied");
+  auditCreate(uow, actor, "PaymentAllocation", allocation.id, "payment.allocated", { paymentId, invoiceId: invoice.id, amountMinor: amount.toString() });
+  return next;
+}
+async function reverseAllocations(uow, actor, paymentId, amount, kind, reason) {
+  const rows = await uow.tx.paymentAllocation.findMany({ where: { paymentId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+  const reversedOf = /* @__PURE__ */ new Map();
+  for (const r of rows) if (r.kind === "reverse" && r.reversesId) reversedOf.set(r.reversesId, (reversedOf.get(r.reversesId) ?? 0n) + r.amountMinor);
+  let left = amount;
+  for (const row of rows) {
+    if (left === 0n) break;
+    if (row.kind !== "apply" || !row.invoiceId) continue;
+    const open = row.amountMinor - (reversedOf.get(row.id) ?? 0n);
+    if (open <= 0n) continue;
+    const take = open < left ? open : left;
+    await uow.tx.paymentAllocation.create({ data: { paymentId, invoiceId: row.invoiceId, kind: "reverse", reversesId: row.id, amountMinor: take, reason, createdById: actorUserId(actor) } });
+    const invoice = await lockInvoice(uow.tx, row.invoiceId);
+    await postArEntry(uow, { invoice, kind, amountMinor: take, sourceType: "Payment", sourceId: paymentId, note: reason });
+    await settleInvoice(uow, actor, invoice, take, `invoice.${kind}`, { reason });
+    left -= take;
+  }
+  return amount - left;
+}
+async function unappliedOf(tx, paymentId) {
+  const [payment, allocations, refunds] = await Promise.all([
+    tx.payment.findUniqueOrThrow({ where: { id: paymentId }, select: { amountMinor: true } }),
+    tx.paymentAllocation.findMany({ where: { paymentId }, select: { kind: true, amountMinor: true } }),
+    tx.refund.aggregate({ where: { paymentId }, _sum: { amountMinor: true } })
+  ]);
+  const applied = allocations.reduce((a, r) => a + (r.kind === "apply" ? r.amountMinor : -r.amountMinor), 0n);
+  const refunded = refunds._sum.amountMinor ?? 0n;
+  return { amountMinor: payment.amountMinor, applied, refunded, unapplied: payment.amountMinor - applied - refunded };
+}
+var money = (minor2) => `$${(Number(minor2) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// features/keystone/services/invoices.ts
+var BILL = ["canManageInvoices", "canPostInvoices"];
+var REVENUE_ACCOUNT = { labor: "4000", material: "4100", equipment: "4100", fee: "4300", disposal: "4300", permit_passthrough: "2300", warranty_reimbursed: "4200", membership: "4400", maintenance: "4400" };
+var BILLABLE_JOB = ["work_complete", "awaiting_inspection", "completed", "closed"];
+var mustReason = (text18, field = "reason") => {
+  const v = String(text18 ?? "").trim();
+  if (v.length < 3) throw new DomainError(Codes.INVALID_INPUT, "Say why, in a few words.", { field });
+  return v;
+};
+var costOf = (snapshot) => {
+  const raw = snapshot?.costMinor;
+  return raw && /^\d+$/.test(raw) ? BigInt(raw) : 0n;
+};
+async function taxContext2(tx, loc, on) {
+  if (!loc) throw new DomainError(Codes.GUARD_FAILED, "The job has no service address; sales tax depends on it.", { reason: "no_location" });
+  const place = placeOfLocation(loc);
+  const policy = await resolvePolicyFromDb(tx, "sales_tax", place, localDate({ timeZone: loc.timeZone }, on));
+  const company = await tx.companySettings.findFirst({ select: { features: true } });
+  const mode = company?.features?.contractTaxMode === "separated" ? "separated" : "lump_sum";
+  return { propertyClass: loc.propertyClass, contractTaxMode: mode, cityCode: place.city, rules: policy.rules };
+}
+async function createInvoiceDraft(db, actor, args) {
+  await authorizeOperation(db, actor, "invoice.draft", BILL, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "invoice.draft", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const job = await tx.job.findUnique({ where: { id: args.jobId }, select: { id: true, status: true, customerId: true, locationId: true, businessUnitId: true, poNumber: true, location: { select: { id: true } } } });
+    if (!job) throw new DomainError(Codes.NOT_FOUND, "Job not found.");
+    if (job.status === "cancelled") throw new DomainError(Codes.GUARD_FAILED, "A cancelled job is not invoiced.");
+    const finished = BILLABLE_JOB.includes(job.status);
+    const progressReason = args.progressReason?.trim() ?? "";
+    if (!finished && progressReason.length < 3) throw new DomainError(Codes.GUARD_FAILED, "Work is not finished. Say why you are billing part of it now (progress billing).", { reason: "progress_reason_required" });
+    if (!job.customerId) throw new DomainError(Codes.GUARD_FAILED, "The job has no customer to bill.");
+    let payer = null;
+    if (args.payerId) {
+      payer = await tx.payerProfile.findUnique({ where: { id: args.payerId }, select: { id: true, kind: true, terms: true, poRequired: true } });
+      if (!payer) throw new DomainError(Codes.NOT_FOUND, "Payer not found.");
+    }
+    if (args.authorizationId) {
+      const auth = await tx.thirdPartyAuthorization.findUnique({ where: { id: args.authorizationId }, select: { jobId: true, status: true } });
+      if (!auth || auth.jobId !== job.id) throw new DomainError(Codes.NOT_FOUND, "That authorization is not on this job.");
+      if (auth.status !== "authorized") throw new DomainError(Codes.GUARD_FAILED, `The authorization is ${auth.status.replace(/_/g, " ")}, not authorized.`);
+    }
+    const poNumber = (args.poNumber ?? job.poNumber ?? "").trim();
+    if (payer?.poRequired && !poNumber) throw new DomainError(Codes.GUARD_FAILED, `${payer.kind.replace(/_/g, " ")} payers need a PO number on the invoice.`, { reason: "po_required" });
+    const already = await tx.invoiceLine.findMany({ where: { workLineId: { not: null }, invoice: { status: { notIn: ["discarded", "voided"] } } }, select: { workLineId: true } });
+    const taken = new Set(already.map((l) => l.workLineId));
+    const work = await tx.workLine.findMany({ where: { jobId: job.id, status: { in: ["planned", "completed"] }, ...args.workLineIds?.length ? { id: { in: args.workLineIds } } : {} }, orderBy: { createdAt: "asc" } });
+    if (args.workLineIds?.length) {
+      for (const id of args.workLineIds) if (!work.some((w) => w.id === id)) throw new DomainError(Codes.GUARD_FAILED, "A chosen work line is not billable (removed or cancelled).", { workLineId: id });
+    }
+    const open = work.filter((w) => !taken.has(w.id));
+    if (args.workLineIds?.length && open.length !== work.length) throw new DomainError(Codes.GUARD_FAILED, "A chosen work line is already on another invoice.", { reason: "already_invoiced" });
+    const lines = open.map((w) => ({
+      workLineId: w.id,
+      description: w.description,
+      quantity: w.quantity.toFixed(),
+      uom: w.uom,
+      unitPriceMinor: w.unitPriceMinor,
+      amountMinor: w.amountMinor,
+      taxCategory: w.taxCategory,
+      costMinor: costOf(w.snapshot)
+    }));
+    if (args.items?.length) {
+      const active = await activeVersionFor(tx, job.businessUnitId);
+      const quoted = await quoteFromVersion(tx, active.versionId, args.items.map((i) => ({ itemKey: i.itemKey, quantity: i.quantity, description: i.description })), false);
+      for (const q of quoted) lines.push({ workLineId: null, description: q.description || q.name, quantity: q.quantity, uom: q.uom, unitPriceMinor: BigInt(q.unitPriceMinor), amountMinor: q.amountMinor, taxCategory: q.taxCategory, costMinor: BigInt(q.costMinor) });
+    }
+    if (!lines.length) throw new DomainError(Codes.GUARD_FAILED, "Nothing to bill: every work line is already invoiced.", { reason: "nothing_to_bill" });
+    const subtotal = lines.reduce((a, l) => a + l.amountMinor, 0n);
+    const discount = args.discountMinor ? BigInt(args.discountMinor) : 0n;
+    if (discount < 0n || discount > subtotal) throw new DomainError(Codes.INVALID_INPUT, "The discount is between zero and the subtotal.", { field: "discountMinor" });
+    if (discount > 0n && !can(actor, "canApproveCredits") && !can(actor, "canPostInvoices")) throw new DomainError(Codes.NOT_AUTHORIZED, "Giving a discount here needs the post-invoices permission.");
+    const shares = discount > 0n ? allocateMinor(discount, lines.map((l) => l.amountMinor.toString())) : lines.map(() => 0n);
+    const ref = await nextReference(tx, "INV", uow.now);
+    const loc = await tx.serviceLocation.findUnique({ where: { id: job.locationId ?? "" }, select: { id: true, state: true, postalCode: true, city: true, timeZone: true, propertyClass: true } });
+    const company = await tx.companySettings.findFirst({ select: { features: true } });
+    const mode = company?.features?.contractTaxMode === "separated" ? "separated" : "lump_sum";
+    const invoice = await tx.invoice.create({
+      data: {
+        ref,
+        publicCode: publicCode("INV"),
+        jobId: job.id,
+        customerId: job.customerId,
+        payerId: payer?.id ?? null,
+        payerKind: payer?.kind ?? "customer",
+        locationId: loc?.id ?? null,
+        propertyClass: loc?.propertyClass ?? "residential",
+        contractTaxMode: mode,
+        status: "draft",
+        poNumber,
+        authorizationId: args.authorizationId ?? null,
+        progressReason,
+        subtotalMinor: subtotal,
+        discountMinor: discount,
+        taxMinor: 0n,
+        totalMinor: subtotal - discount,
+        balanceMinor: 0n
+      },
+      select: { id: true }
+    });
+    for (const [i, l] of lines.entries()) {
+      await tx.invoiceLine.create({ data: { invoiceId: invoice.id, workLineId: l.workLineId, description: l.description, quantity: l.quantity, uom: l.uom, unitPriceMinor: l.unitPriceMinor, amountMinor: l.amountMinor, discountMinor: shares[i], taxCategory: l.taxCategory, costMinor: l.costMinor, revenueAccountCode: REVENUE_ACCOUNT[l.taxCategory] ?? "4000", sortOrder: i } });
+    }
+    auditCreate(uow, actor, "Invoice", invoice.id, "invoice.drafted", { ref, jobId: job.id, lines: lines.length, subtotalMinor: subtotal.toString(), progress: !finished });
+    return { invoiceId: invoice.id, ref, subtotalMinor: subtotal.toString(), lines: lines.length };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function discardInvoiceDraft(db, actor, args) {
+  await authorizeOperation(db, actor, "invoice.discard", BILL, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "invoice.discard", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockInvoice(uow.tx, args.invoiceId);
+    if (row.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This invoice changed since you loaded it. Reload and try again.", { currentStatus: row.status, currentVersion: row.version });
+    const version = await casUpdate(uow, { model: "Invoice", id: row.id, version: row.version, from: ["draft"], to: "discarded", actor, eventType: "invoice.discarded", reason: args.reason ?? null });
+    return { invoiceId: row.id, status: "discarded", version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function postInvoice(db, actor, args) {
+  await authorizeOperation(db, actor, "invoice.post", ["canPostInvoices"], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "invoice.post", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const row = await lockInvoice(tx, args.invoiceId);
+    if (row.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This invoice changed since you loaded it. Reload and try again.", { currentStatus: row.status, currentVersion: row.version });
+    if (row.status !== "draft") throw new DomainError(Codes.INVALID_TRANSITION, `Invoice ${row.ref} is ${row.status}; only a draft is posted.`);
+    const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: row.id }, include: { lines: { orderBy: { sortOrder: "asc" } }, payer: { select: { terms: true } } } });
+    const today = await companyToday(tx, uow.now);
+    const invoiceDate = args.invoiceDate ?? today;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate) || invoiceDate > today) throw new DomainError(Codes.INVALID_INPUT, "The invoice date is today or earlier.", { field: "invoiceDate" });
+    const period = await arPeriodFor(tx, invoiceDate);
+    const sum = invoice.lines.reduce((a, l) => a + l.amountMinor, 0n);
+    const disc = invoice.lines.reduce((a, l) => a + l.discountMinor, 0n);
+    if (sum !== invoice.subtotalMinor || disc !== invoice.discountMinor) throw new DomainError(Codes.GUARD_FAILED, "The invoice lines do not add up to its totals.", { reason: "totals_do_not_reconcile" });
+    const loc = invoice.locationId ? await tx.serviceLocation.findUnique({ where: { id: invoice.locationId }, select: { state: true, postalCode: true, city: true, timeZone: true, propertyClass: true } }) : null;
+    let taxed;
+    let ctx;
+    try {
+      ctx = await taxContext2(tx, loc, uow.now);
+      taxed = estimateSalesTax(invoice.lines.map((l) => ({ taxCategory: l.taxCategory, netMinor: l.amountMinor - l.discountMinor, costMinor: l.costMinor })), ctx);
+    } catch (error) {
+      if (error instanceof PricingError) throw new DomainError(Codes.GUARD_FAILED, error.message, { reason: "tax_unresolved" });
+      throw error;
+    }
+    const baseWeights = taxed.rows.map((r) => r.baseMinor.toString());
+    const shares = taxed.taxMinor > 0n && taxed.rows.some((r) => r.baseMinor > 0n) ? allocateMinor(taxed.taxMinor, baseWeights) : taxed.rows.map(() => 0n);
+    for (const [i, l] of invoice.lines.entries()) {
+      await tx.invoiceLine.update({ where: { id: l.id }, data: { taxable: taxed.rows[i].taxable, taxBaseMinor: taxed.rows[i].baseMinor, taxRate: taxed.rate, taxMinor: shares[i], taxJurisdictions: { state: ctx.rules.stateRate, localRateCode: taxed.localRateCode } } });
+    }
+    const total = invoice.subtotalMinor - invoice.discountMinor + taxed.taxMinor;
+    if (invoice.authorizationId) {
+      const auth = await tx.thirdPartyAuthorization.findUniqueOrThrow({ where: { id: invoice.authorizationId }, select: { authorizedAmountMinor: true, status: true } });
+      if (auth.status !== "authorized") throw new DomainError(Codes.GUARD_FAILED, `The third-party authorization is ${auth.status.replace(/_/g, " ")}.`, { reason: "authorization_not_active" });
+      const billed = await tx.invoice.aggregate({ where: { authorizationId: invoice.authorizationId, status: { in: ["posted", "partially_paid", "paid", "written_off"] } }, _sum: { totalMinor: true } });
+      if ((billed._sum.totalMinor ?? 0n) + total > auth.authorizedAmountMinor) throw new DomainError(Codes.GUARD_FAILED, `That would bill ${money((billed._sum.totalMinor ?? 0n) + total)}; the payer authorized ${money(auth.authorizedAmountMinor)}.`, { reason: "over_authorized_amount" });
+    }
+    const terms = TERMS_DAYS[invoice.payer?.terms ?? "due_on_receipt"] ?? 0;
+    const dueDate = addDays(invoiceDate, terms);
+    const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString() };
+    const snapshot = { ref: invoice.ref, lines: invoice.lines.map((l, i) => ({ id: l.id, description: l.description, quantity: l.quantity.toFixed(), uom: l.uom, unitPriceMinor: l.unitPriceMinor.toString(), amountMinor: l.amountMinor.toString(), discountMinor: l.discountMinor.toString(), taxMinor: shares[i].toString() })) };
+    const posted = await tx.invoice.updateMany({
+      where: { id: row.id, version: row.version, status: "draft" },
+      data: { status: "posted", version: { increment: 1 }, invoiceDate: asDate(invoiceDate), dueDate: asDate(dueDate), arPeriodId: period.id, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxResult, snapshot, taxMinor: taxed.taxMinor, totalMinor: total, balanceMinor: total, postedAt: uow.now, postedById: actorUserId(actor) }
+    });
+    if (posted.count !== 1) throw new DomainError(Codes.STALE_STATE, "Invoice changed while posting. Reload and try again.");
+    if (total > 0n) await postArEntry(uow, { invoice: row, kind: "invoice_posted", amountMinor: total, sourceType: "Invoice", sourceId: row.id });
+    else await tx.invoice.update({ where: { id: row.id }, data: { status: "paid" } });
+    uow.audit({ eventType: "invoice.posted", entityType: "Invoice", entityId: row.id, actorUserId: actorUserId(actor), after: { ref: invoice.ref, totalMinor: total.toString(), taxMinor: taxed.taxMinor.toString(), invoiceDate, dueDate } });
+    return { invoiceId: row.id, ref: invoice.ref, totalMinor: total.toString(), taxMinor: taxed.taxMinor.toString(), dueDate };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function setCollectionsStatus(db, actor, args) {
+  await authorizeOperation(db, actor, "invoice.collections", ["canManageInvoices", "canManageAccounting"], args);
+  const allowed = ["current", "reminder_1", "reminder_2", "final_notice", "collections_agency", "lien_track", "resolved"];
+  if (!allowed.includes(args.status)) throw new DomainError(Codes.INVALID_INPUT, `Status is one of ${allowed.join(", ")}.`, { field: "status" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "invoice.collections", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockInvoice(uow.tx, args.invoiceId);
+    if (!["posted", "partially_paid"].includes(row.status)) throw new DomainError(Codes.GUARD_FAILED, "Only an open invoice has a collections status.");
+    await uow.tx.invoice.update({ where: { id: row.id }, data: { collectionsStatus: args.status } });
+    auditCreate(uow, actor, "Invoice", row.id, "invoice.collections_status", { status: args.status });
+    return { invoiceId: row.id, collectionsStatus: args.status };
+  });
+  return { replay: result.replay, ...result.value };
+}
+var MEMO_REASONS = ["pricing_error", "goodwill", "cancellation_right", "warranty", "recall", "duplicate", "other"];
+async function postedMemoTotal(tx, invoiceId) {
+  const sum = await tx.creditMemo.aggregate({ where: { invoiceId, status: { in: ["posted", "applied"] } }, _sum: { totalMinor: true } });
+  return sum._sum.totalMinor ?? 0n;
+}
+async function postMemo(uow, actor, memoId, voidInvoice2) {
+  const { tx } = uow;
+  const memo = await tx.creditMemo.findUniqueOrThrow({ where: { id: memoId } });
+  const invoice = await lockInvoice(tx, memo.invoiceId);
+  if (!["posted", "partially_paid", "paid"].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no credit memo.`);
+  if (await postedMemoTotal(tx, invoice.id) + memo.totalMinor > invoice.totalMinor) throw new DomainError(Codes.GUARD_FAILED, "Credit memos cannot add up to more than the invoice.", { reason: "memo_exceeds_invoice" });
+  let appliedInvoice = 0n;
+  let appliedCredit = 0n;
+  if (memo.appliesTo === "customer_credit") {
+    if (voidInvoice2) throw new DomainError(Codes.INVALID_INPUT, "A void reduces the balance; it does not issue credit.");
+    if (!invoice.customerId) throw new DomainError(Codes.GUARD_FAILED, "The invoice has no customer to credit.");
+    await tx.customerCreditEntry.create({ data: { customerId: invoice.customerId, kind: "issued", amountMinor: memo.totalMinor, sourceType: "CreditMemo", sourceId: memo.id } });
+    appliedCredit = memo.totalMinor;
+  } else {
+    if (memo.totalMinor > invoice.balanceMinor) throw new DomainError(Codes.GUARD_FAILED, `The memo is ${money(memo.totalMinor)} but only ${money(invoice.balanceMinor)} is owed. Issue it as customer credit, or refund the payment.`, { reason: "memo_exceeds_balance" });
+    await postArEntry(uow, { invoice, kind: "credit_memo", amountMinor: -memo.totalMinor, sourceType: "CreditMemo", sourceId: memo.id, note: memo.reason });
+    await settleInvoice(uow, actor, invoice, -memo.totalMinor, "invoice.credit_memo_applied", { to: voidInvoice2 ? "voided" : void 0, reason: memo.note });
+    appliedInvoice = memo.totalMinor;
+  }
+  const posted = await casUpdate(uow, { model: "CreditMemo", id: memo.id, version: memo.version, from: ["draft", "pending_approval"], to: "posted", actor, eventType: "credit_memo.posted", data: { postedAt: uow.now } });
+  await casUpdate(uow, { model: "CreditMemo", id: memo.id, version: posted, from: ["posted"], to: "applied", actor, eventType: "credit_memo.applied", data: { appliedToInvoiceMinor: appliedInvoice, appliedToCreditMinor: appliedCredit } });
+  return { memoId: memo.id, appliedToInvoiceMinor: appliedInvoice.toString(), appliedToCreditMinor: appliedCredit.toString() };
+}
+async function memoThreshold(tx) {
+  const c = await tx.companySettings.findFirst({ select: { refundApprovalThresholdMinor: true } });
+  return c?.refundApprovalThresholdMinor ?? 50000n;
+}
+async function createMemo(uow, actor, a) {
+  const { tx } = uow;
+  const invoice = await lockInvoice(tx, a.invoiceId);
+  if (!["posted", "partially_paid", "paid"].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no credit memo.`);
+  if (a.amountMinor <= 0n) throw new DomainError(Codes.INVALID_INPUT, "The memo is for more than zero.", { field: "amountMinor" });
+  if (await postedMemoTotal(tx, invoice.id) + a.amountMinor > invoice.totalMinor) throw new DomainError(Codes.GUARD_FAILED, "Credit memos cannot add up to more than the invoice.", { reason: "memo_exceeds_invoice" });
+  const ref = await nextReference(tx, "CRM", uow.now);
+  const needsApproval = a.amountMinor > await memoThreshold(tx) || a.voidInvoice === true && invoice.status !== "posted";
+  const memo = await tx.creditMemo.create({ data: { ref, invoiceId: invoice.id, reason: a.reason, note: a.note, status: needsApproval ? "pending_approval" : "draft", totalMinor: a.amountMinor, appliesTo: a.appliesTo, createdById: actorUserId(actor) }, select: { id: true } });
+  auditCreate(uow, actor, "CreditMemo", memo.id, "credit_memo.created", { ref, invoiceId: invoice.id, amountMinor: a.amountMinor.toString(), void: a.voidInvoice });
+  if (!needsApproval) return { ...await postMemo(uow, actor, memo.id, a.voidInvoice), ref, status: "applied", approvalRequestId: null };
+  const approval = await requestApproval(uow, actor, {
+    action: "credit.issue",
+    targetList: "CreditMemo",
+    targetId: memo.id,
+    requiredPermission: "canApproveCredits",
+    payload: { memoId: memo.id, invoiceId: invoice.id, amountMinor: a.amountMinor.toString(), appliesTo: a.appliesTo, void: a.voidInvoice },
+    summary: `${ref}: ${a.voidInvoice ? "void" : "credit"} ${invoice.ref} for ${money(a.amountMinor)} \u2014 ${a.note}`
+  });
+  await tx.creditMemo.update({ where: { id: memo.id }, data: { approvalId: approval.id } });
+  return { memoId: memo.id, ref, status: "pending_approval", approvalRequestId: approval.id };
+}
+registerApplier("credit.issue", async (uow, actor, request) => {
+  const memo = await uow.tx.creditMemo.findUnique({ where: { id: request.targetId } });
+  if (!memo || memo.status !== "pending_approval" || memo.approvalId !== request.id || memo.totalMinor.toString() !== request.payload.amountMinor || memo.invoiceId !== request.payload.invoiceId) throw new DomainError(Codes.APPROVAL_MISMATCH, "The credit memo changed after approval was requested.");
+  return postMemo(uow, actor, memo.id, request.payload.void === true);
+});
+async function issueCreditMemo(db, actor, args) {
+  await authorizeOperation(db, actor, "credit_memo.issue", ["canManageInvoices", "canPostInvoices"], args);
+  if (!/^[1-9]\d{0,12}$/.test(args.amountMinor ?? "")) throw new DomainError(Codes.INVALID_INPUT, "Amount is whole cents, more than zero.", { field: "amountMinor" });
+  if (!MEMO_REASONS.includes(args.reason)) throw new DomainError(Codes.INVALID_INPUT, `Reason is one of ${MEMO_REASONS.join(", ")}.`, { field: "reason" });
+  const appliesTo = args.appliesTo === "customer_credit" ? "customer_credit" : "invoice_balance";
+  const note = mustReason(args.note, "note");
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "credit_memo.issue", actor, idempotencyKey, params, now: args.now }, (uow) => createMemo(uow, actor, { invoiceId: args.invoiceId, amountMinor: BigInt(args.amountMinor), reason: args.reason, note, appliesTo, voidInvoice: false }));
+  return { replay: result.replay, ...result.value };
+}
+async function voidInvoice(db, actor, args) {
+  await authorizeOperation(db, actor, "invoice.void", ["canPostInvoices"], args);
+  const note = mustReason(args.reason);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "invoice.void", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const inv = await lockInvoice(uow.tx, args.invoiceId);
+    const allocations = await uow.tx.paymentAllocation.count({ where: { invoiceId: inv.id } });
+    if (inv.status !== "posted" || allocations > 0 || inv.balanceMinor !== inv.totalMinor) throw new DomainError(Codes.GUARD_FAILED, "Only an invoice with no payments or credits can be voided. Credit it instead.", { reason: "not_voidable" });
+    return createMemo(uow, actor, { invoiceId: inv.id, amountMinor: inv.totalMinor, reason: "duplicate", note, appliesTo: "invoice_balance", voidInvoice: true });
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requestWriteOff(db, actor, args) {
+  await authorizeOperation(db, actor, "invoice.write_off_request", ["canManageInvoices", "canManageAccounting"], args);
+  const reason = mustReason(args.reason);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "invoice.write_off_request", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const inv = await lockInvoice(uow.tx, args.invoiceId);
+    if (!["posted", "partially_paid"].includes(inv.status) || inv.balanceMinor <= 0n) throw new DomainError(Codes.GUARD_FAILED, "Only an invoice with a balance is written off.");
+    const pending = await uow.tx.approvalRequest.count({ where: { action: "invoice.write_off", targetId: inv.id, status: "pending" } });
+    if (pending) throw new DomainError(Codes.GUARD_FAILED, "A write-off is already waiting for approval on this invoice.");
+    const approval = await requestApproval(uow, actor, {
+      action: "invoice.write_off",
+      targetList: "Invoice",
+      targetId: inv.id,
+      requiredPermission: "canApproveWriteOff",
+      payload: { invoiceId: inv.id, balanceMinor: inv.balanceMinor.toString(), version: inv.version },
+      summary: `${inv.ref}: write off ${money(inv.balanceMinor)} \u2014 ${reason}`
+    });
+    auditCreate(uow, actor, "Invoice", inv.id, "invoice.write_off_requested", { approvalId: approval.id, balanceMinor: inv.balanceMinor.toString() }, { reason });
+    return { invoiceId: inv.id, approvalRequestId: approval.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+registerApplier("invoice.write_off", async (uow, actor, request) => {
+  const inv = await lockInvoice(uow.tx, request.targetId);
+  if (!["posted", "partially_paid"].includes(inv.status) || inv.balanceMinor.toString() !== request.payload.balanceMinor || inv.version !== request.payload.version) throw new DomainError(Codes.APPROVAL_MISMATCH, "The invoice changed after the write-off was requested.");
+  await postArEntry(uow, { invoice: inv, kind: "write_off", amountMinor: -inv.balanceMinor, sourceType: "ApprovalRequest", sourceId: request.id, note: "Written off" });
+  await settleInvoice(uow, actor, inv, -inv.balanceMinor, "invoice.written_off", { to: "written_off" });
+  return { invoiceId: inv.id, status: "written_off", writtenOffMinor: inv.balanceMinor.toString() };
+});
+
+// features/keystone/services/payments.ts
+init_actor();
+init_approval();
+init_cas();
+init_errors();
+var TAKE = ["canTakePayments", "canManagePayments"];
+var METHODS = ["card", "ach", "cash", "check", "other", "financing", "third_party", "customer_credit"];
+var cents = (v, field) => {
+  if (typeof v !== "string" || !/^[1-9]\d{0,12}$/.test(v)) throw new DomainError(Codes.INVALID_INPUT, "Amount is whole cents, more than zero.", { field });
+  return BigInt(v);
+};
+var tenderGroup = (method) => method === "card" ? "card" : method === "ach" ? "ach" : method === "financing" ? "financing" : method === "third_party" ? "third_party" : "check_cash";
+async function batchFor(uow, method, day3) {
+  const group = tenderGroup(method);
+  const date = asDate(day3);
+  const existing = await uow.tx.paymentBatch.findFirst({ where: { businessDate: date, tenderGroup: group }, select: { id: true, status: true, expectedMinor: true, version: true } });
+  if (existing) return existing;
+  const ref = await nextReference(uow.tx, "PBT", uow.now);
+  return uow.tx.paymentBatch.create({ data: { ref, businessDate: date, tenderGroup: group, status: "open" }, select: { id: true, status: true, expectedMinor: true, version: true } });
+}
+async function createPayment(uow, actor, a) {
+  const ref = await nextReference(uow.tx, "PMT", uow.now);
+  const payment = await uow.tx.payment.create({
+    data: { ref, jobId: a.jobId, customerId: a.customerId, payerId: a.payerId ?? null, kind: a.kind ?? "payment", method: a.method, amountMinor: a.amountMinor, feeMinor: a.feeMinor ?? 0n, reference: a.reference ?? "", checkNumber: a.checkNumber ?? "", receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
+    select: { id: true, ref: true }
+  });
+  const day3 = await companyToday(uow.tx, a.receivedAt);
+  const batch = await batchFor(uow, a.method, day3);
+  if (batch.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The ${tenderGroup(a.method).replace("_", "/")} batch for ${day3} is ${batch.status}. Record it on today's date, or reopen nothing: closed batches are final.`, { reason: "batch_closed" });
+  await uow.tx.paymentBatch.update({ where: { id: batch.id }, data: { expectedMinor: { increment: a.amountMinor - (a.feeMinor ?? 0n) }, feesMinor: { increment: a.feeMinor ?? 0n } } });
+  return { ...payment, batchId: batch.id };
+}
+async function recordInvoicePayment(db, actor, args) {
+  await authorizeOperation(db, actor, "payment.record_invoice", [...TAKE], args);
+  if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person takes payments.");
+  const amount = cents(args.amountMinor, "amountMinor");
+  if (!METHODS.includes(args.method)) throw new DomainError(Codes.INVALID_INPUT, `Paid by one of ${METHODS.join(", ")}.`, { field: "method" });
+  if (args.method === "customer_credit") throw new DomainError(Codes.INVALID_INPUT, "Use apply credit to pay with a customer credit.", { field: "method" });
+  if (args.method === "check" && !args.checkNumber?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Enter the check number.", { field: "checkNumber" });
+  const fee = args.feeMinor ? BigInt(args.feeMinor) : 0n;
+  if (fee < 0n || fee >= amount) throw new DomainError(Codes.INVALID_INPUT, "The processing fee is less than the payment.", { field: "feeMinor" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "payment.record_invoice", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const invoice = await lockInvoice(tx, args.invoiceId);
+    if (!["posted", "partially_paid"].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no payment.`, { status: invoice.status });
+    const receivedAt = args.receivedAt ? new Date(args.receivedAt) : uow.now;
+    if (Number.isNaN(receivedAt.getTime()) || receivedAt.getTime() > uow.now.getTime()) throw new DomainError(Codes.INVALID_INPUT, "When was it received? Not in the future.", { field: "receivedAt" });
+    if (["card", "ach"].includes(args.method)) {
+      const blocked = await tx.paymentAttempt.findFirst({ where: { invoiceId: invoice.id, status: "unknown", ...args.attemptId ? { id: { not: args.attemptId } } : {} }, select: { intentKey: true } });
+      if (blocked) throw new DomainError(Codes.GUARD_FAILED, "An earlier card or ACH try on this invoice has an unknown outcome. Resolve it before taking another payment (I-M5).", { reason: "unknown_attempt", intentKey: blocked.intentKey });
+    }
+    let attempt = null;
+    if (args.attemptId) {
+      attempt = await lockRow(tx, "PaymentAttempt", args.attemptId);
+      if (attempt.invoiceId !== invoice.id || attempt.amountMinor !== amount || !["pending", "unknown"].includes(attempt.status)) throw new DomainError(Codes.GUARD_FAILED, "That attempt does not match this payment.", { reason: "attempt_mismatch" });
+    }
+    const payment = await createPayment(uow, actor, { customerId: invoice.customerId, jobId: invoice.jobId, payerId: invoice.payerId, method: args.method, amountMinor: amount, feeMinor: fee, reference: args.reference?.trim(), checkNumber: args.checkNumber?.trim(), receivedAt });
+    if (attempt) await casUpdate(uow, { model: "PaymentAttempt", id: attempt.id, version: attempt.version, from: ["pending", "unknown"], to: "succeeded", actor, eventType: "payment_attempt.succeeded", data: { paymentId: payment.id } });
+    const apply = amount < invoice.balanceMinor ? amount : invoice.balanceMinor;
+    await allocatePayment(uow, actor, invoice, payment.id, apply);
+    const excess = amount - apply;
+    if (excess > 0n && invoice.customerId) {
+      await uow.tx.customerCreditEntry.create({ data: { customerId: invoice.customerId, kind: "issued", amountMinor: excess, sourceType: "Payment", sourceId: payment.id } });
+      await uow.tx.paymentAllocation.create({ data: { paymentId: payment.id, invoiceId: null, kind: "apply", amountMinor: excess, reason: "overpayment to customer credit", createdById: actorUserId(actor) } });
+    }
+    auditCreate(uow, actor, "Payment", payment.id, "payment.recorded", { ref: payment.ref, invoiceId: invoice.id, amountMinor: amount.toString(), method: args.method, appliedMinor: apply.toString(), creditMinor: excess.toString() });
+    return { paymentId: payment.id, ref: payment.ref, appliedMinor: apply.toString(), customerCreditMinor: excess.toString() };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function applyCustomerCredit(db, actor, args) {
+  await authorizeOperation(db, actor, "credit.apply", [...TAKE], args);
+  const amount = cents(args.amountMinor, "amountMinor");
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "credit.apply", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const invoice = await lockInvoice(tx, args.invoiceId);
+    if (!invoice.customerId) throw new DomainError(Codes.GUARD_FAILED, "The invoice has no customer.");
+    const balance = await tx.customerCreditEntry.aggregate({ where: { customerId: invoice.customerId }, _sum: { amountMinor: true } });
+    const available = balance._sum.amountMinor ?? 0n;
+    if (amount > available) throw new DomainError(Codes.GUARD_FAILED, `Only ${money(available)} of credit is available.`, { reason: "insufficient_credit" });
+    const payment = await createPayment(uow, actor, { customerId: invoice.customerId, jobId: invoice.jobId, payerId: invoice.payerId, method: "customer_credit", amountMinor: amount, reference: "Customer credit", receivedAt: uow.now });
+    await tx.customerCreditEntry.create({ data: { customerId: invoice.customerId, kind: "applied", amountMinor: -amount, sourceType: "Payment", sourceId: payment.id } });
+    await allocatePayment(uow, actor, invoice, payment.id, amount);
+    auditCreate(uow, actor, "Payment", payment.id, "credit.applied", { invoiceId: invoice.id, amountMinor: amount.toString() });
+    return { paymentId: payment.id, ref: payment.ref };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function startPaymentAttempt(db, actor, args) {
+  await authorizeOperation(db, actor, "payment.attempt_start", [...TAKE], args);
+  const amount = cents(args.amountMinor, "amountMinor");
+  if (!["card", "ach"].includes(args.method)) throw new DomainError(Codes.INVALID_INPUT, "A try is card or ACH.", { field: "method" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "payment.attempt_start", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const invoice = await lockInvoice(uow.tx, args.invoiceId);
+    if (!["posted", "partially_paid"].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no payment.`);
+    if (amount > invoice.balanceMinor) throw new DomainError(Codes.GUARD_FAILED, `That is more than the ${money(invoice.balanceMinor)} balance.`);
+    if (await uow.tx.paymentAttempt.count({ where: { invoiceId: invoice.id, status: { in: ["pending", "unknown"] } } })) throw new DomainError(Codes.GUARD_FAILED, "A try on this invoice is still open. Finish or resolve it first.", { reason: "attempt_open" });
+    const attempt = await uow.tx.paymentAttempt.create({ data: { intentKey: `${invoice.ref}-${idempotencyKey}`.slice(0, 120), invoiceId: invoice.id, customerId: invoice.customerId, amountMinor: amount, method: args.method, status: "pending", createdById: actorUserId(actor) }, select: { id: true, intentKey: true } });
+    auditCreate(uow, actor, "PaymentAttempt", attempt.id, "payment_attempt.started", { invoiceId: invoice.id, amountMinor: amount.toString(), method: args.method });
+    return { attemptId: attempt.id, intentKey: attempt.intentKey };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function markAttemptUnknown(db, actor, args) {
+  await authorizeOperation(db, actor, "payment.attempt_unknown", [...TAKE], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "payment.attempt_unknown", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const a = await lockRow(uow.tx, "PaymentAttempt", args.attemptId);
+    if (a.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This try changed since you loaded it. Reload and try again.");
+    const version = await casUpdate(uow, { model: "PaymentAttempt", id: a.id, version: a.version, from: ["pending"], to: "unknown", actor, eventType: "payment_attempt.unknown", reason: args.note ?? null, data: { failureNote: args.note?.trim() ?? "" } });
+    return { attemptId: a.id, status: "unknown", version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function resolveAttemptFailed(db, actor, args) {
+  await authorizeOperation(db, actor, "payment.attempt_resolve", ["canManagePayments"], args);
+  if (String(args.evidence ?? "").trim().length < 5) throw new DomainError(Codes.INVALID_INPUT, "Say what you checked (for example the processor dashboard and the time).", { field: "evidence" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "payment.attempt_resolve", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const a = await lockRow(uow.tx, "PaymentAttempt", args.attemptId);
+    if (a.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This try changed since you loaded it. Reload and try again.");
+    const version = await casUpdate(uow, { model: "PaymentAttempt", id: a.id, version: a.version, from: ["pending", "unknown"], to: "failed", actor, eventType: "payment_attempt.resolved_failed", reason: args.evidence, data: { resolutionNote: args.evidence.trim() } });
+    return { attemptId: a.id, status: "failed", version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function writeRefund(uow, actor, a) {
+  const { tx } = uow;
+  const u = await unappliedOf(tx, a.paymentId);
+  if (a.amountMinor > u.amountMinor - u.refunded) throw new DomainError(Codes.GUARD_FAILED, `At most ${money(u.amountMinor - u.refunded)} is left to refund on this payment.`, { reason: "refund_exceeds_payment" });
+  const needBack = a.amountMinor - u.unapplied;
+  const customerId = (await tx.payment.findUniqueOrThrow({ where: { id: a.paymentId }, select: { customerId: true } })).customerId;
+  if (needBack > 0n) {
+    const credit = customerId ? (await tx.customerCreditEntry.aggregate({ where: { customerId, sourceType: "Payment", sourceId: a.paymentId }, _sum: { amountMinor: true } }))._sum.amountMinor ?? 0n : 0n;
+    const fromCredit = credit < needBack ? credit : needBack;
+    if (fromCredit > 0n && customerId) {
+      await tx.customerCreditEntry.create({ data: { customerId, kind: "refunded", amountMinor: -fromCredit, sourceType: "Payment", sourceId: a.paymentId } });
+      await tx.paymentAllocation.create({ data: { paymentId: a.paymentId, invoiceId: null, kind: "reverse", reversesId: (await tx.paymentAllocation.findFirst({ where: { paymentId: a.paymentId, invoiceId: null, kind: "apply" }, select: { id: true } }))?.id, amountMinor: fromCredit, reason: "refund of customer credit", createdById: actorUserId(actor) } });
+    }
+    const back = needBack - fromCredit;
+    if (back > 0n) {
+      const done = await reverseAllocations(uow, actor, a.paymentId, back, "refund_reopen", `Refund: ${a.reason}`);
+      if (done !== back) throw new DomainError(Codes.GUARD_FAILED, "The refund is more than this payment has applied.");
+    }
+  }
+  const ref = await nextReference(tx, "RFD", uow.now);
+  const refund = await tx.refund.create({ data: { ref, paymentId: a.paymentId, method: a.method, amountMinor: a.amountMinor, reason: a.reason, approvalId: a.approvalId, reference: a.reference, refundedAt: uow.now, recordedById: actorUserId(actor) }, select: { id: true } });
+  auditCreate(uow, actor, "Refund", refund.id, "refund.recorded", { ref, paymentId: a.paymentId, amountMinor: a.amountMinor.toString(), method: a.method, approvalId: a.approvalId });
+  return { refundId: refund.id, ref };
+}
+async function requestRefund(db, actor, args) {
+  await authorizeOperation(db, actor, "refund.issue", ["canIssueRefunds"], args);
+  const amount = cents(args.amountMinor, "amountMinor");
+  if (!["processor_refund", "check"].includes(args.method)) throw new DomainError(Codes.INVALID_INPUT, "Refund by processor refund or check.", { field: "method" });
+  const reason = String(args.reason ?? "").trim();
+  if (reason.length < 3) throw new DomainError(Codes.INVALID_INPUT, "Say why, in a few words.", { field: "reason" });
+  const reference = String(args.reference ?? "").trim();
+  if (!reference) throw new DomainError(Codes.INVALID_INPUT, "Enter the processor refund id or the check number.", { field: "reference" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "refund.issue", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    await lockRow(tx, "Payment", args.paymentId);
+    const u = await unappliedOf(tx, args.paymentId);
+    if (amount > u.amountMinor - u.refunded) throw new DomainError(Codes.GUARD_FAILED, `At most ${money(u.amountMinor - u.refunded)} is left to refund on this payment.`, { reason: "refund_exceeds_payment" });
+    const settings = await tx.companySettings.findFirst({ select: { refundApprovalThresholdMinor: true } });
+    if (amount <= (settings?.refundApprovalThresholdMinor ?? 50000n)) {
+      return { status: "recorded", approvalRequestId: null, ...await writeRefund(uow, actor, { paymentId: args.paymentId, amountMinor: amount, method: args.method, reason, reference, approvalId: null }) };
+    }
+    const approval = await requestApproval(uow, actor, {
+      action: "refund.issue",
+      targetList: "Payment",
+      targetId: args.paymentId,
+      requiredPermission: "canApproveRefunds",
+      payload: { paymentId: args.paymentId, amountMinor: amount.toString(), method: args.method, reason, reference },
+      summary: `Refund ${money(amount)} by ${args.method === "check" ? "check" : "processor"} \u2014 ${reason}`
+    });
+    return { status: "pending_approval", approvalRequestId: approval.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function recordApprovedRefund(db, actor, args) {
+  await authorizeOperation(db, actor, "refund.record_approved", ["canIssueRefunds"], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "refund.record_approved", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { consumeApproval: consumeApproval2 } = await Promise.resolve().then(() => (init_approval(), approval_exports));
+    const request = await uow.tx.approvalRequest.findUnique({ where: { id: args.approvalRequestId } });
+    if (!request || request.action !== "refund.issue") throw new DomainError(Codes.NOT_FOUND, "Refund approval not found.");
+    const payload = request.payload;
+    await consumeApproval2(uow, { requestId: request.id, action: request.action, targetList: request.targetList, targetId: request.targetId, payload });
+    await lockRow(uow.tx, "Payment", payload.paymentId);
+    return { status: "recorded", ...await writeRefund(uow, actor, { paymentId: payload.paymentId, amountMinor: BigInt(payload.amountMinor), method: payload.method, reason: payload.reason, reference: payload.reference, approvalId: request.id }) };
+  });
+  return { replay: result.replay, ...result.value };
+}
+registerApplier("refund.issue", async () => ({ deferred: true }), { applyOnApprove: false });
+async function closePaymentBatch(db, actor, args) {
+  await authorizeOperation(db, actor, "payment_batch.close", ["canManagePayments", "canManageAccounting"], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "payment_batch.close", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const b = await lockRow(uow.tx, "PaymentBatch", args.batchId);
+    if (b.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This batch changed since you loaded it. Reload and try again.");
+    const version = await casUpdate(uow, { model: "PaymentBatch", id: b.id, version: b.version, from: ["open"], to: "closed", actor, eventType: "payment_batch.closed", data: { closedById: actorUserId(actor), closedAt: uow.now } });
+    return { batchId: b.id, status: "closed", version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function reconcilePaymentBatch(db, actor, args) {
+  await authorizeOperation(db, actor, "payment_batch.reconcile", ["canManagePayments", "canManageAccounting"], args);
+  if (!/^\d{1,13}$/.test(args.depositedMinor ?? "")) throw new DomainError(Codes.INVALID_INPUT, "Deposit is whole cents.", { field: "depositedMinor" });
+  if (!String(args.depositReference ?? "").trim()) throw new DomainError(Codes.INVALID_INPUT, "Enter the deposit or payout reference.", { field: "depositReference" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "payment_batch.reconcile", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const b = await lockRow(uow.tx, "PaymentBatch", args.batchId);
+    if (b.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This batch changed since you loaded it. Reload and try again.");
+    const deposited = BigInt(args.depositedMinor);
+    const variance = deposited - b.expectedMinor + b.feesMinor;
+    const version = await casUpdate(uow, { model: "PaymentBatch", id: b.id, version: b.version, from: ["closed"], to: "reconciled", actor, eventType: "payment_batch.reconciled", data: { depositedMinor: deposited, varianceMinor: variance, depositReference: args.depositReference.trim() }, audit: { varianceMinor: variance.toString() } });
+    return { batchId: b.id, status: "reconciled", varianceMinor: variance.toString(), version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+
+// features/keystone/services/financing.ts
+init_actor();
+init_approval();
+init_cas();
+init_errors();
+
+// features/keystone/services/financingPayment.ts
+init_actor();
+init_errors();
+async function createPaymentForFunding(uow, actor, a) {
+  const { tx } = uow;
+  const ref = await nextReference(tx, "PMT", uow.now);
+  const payment = await tx.payment.create({
+    data: { ref, jobId: a.invoice.jobId, customerId: a.invoice.customerId, payerId: a.invoice.payerId, kind: "payment", method: "financing", amountMinor: a.gross, feeMinor: a.fee, reference: a.reference, receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
+    select: { id: true }
+  });
+  const day3 = await companyToday(tx, a.receivedAt);
+  const date = asDate(day3);
+  let batch = await tx.paymentBatch.findFirst({ where: { businessDate: date, tenderGroup: "financing" }, select: { id: true, status: true } });
+  if (!batch) batch = await tx.paymentBatch.create({ data: { ref: await nextReference(tx, "PBT", uow.now), businessDate: date, tenderGroup: "financing", status: "open" }, select: { id: true, status: true } });
+  if (batch.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The financing batch for ${day3} is ${batch.status}; record the payout on a day with an open batch.`, { reason: "batch_closed" });
+  await tx.paymentBatch.update({ where: { id: batch.id }, data: { expectedMinor: { increment: a.gross - a.fee }, feesMinor: { increment: a.fee } } });
+  return payment;
+}
+
+// features/keystone/services/financing.ts
+var FIN = ["canOfferFinancing", "canManageInvoices"];
+var cents2 = (v, field) => {
+  if (typeof v !== "string" || !/^[1-9]\d{0,12}$/.test(v)) throw new DomainError(Codes.INVALID_INPUT, "Amount is whole cents, more than zero.", { field });
+  return BigInt(v);
+};
+async function startFinancing(db, actor, args) {
+  await authorizeOperation(db, actor, "financing.start", [...FIN], args);
+  const amount = cents2(args.amountMinor, "amountMinor");
+  if (args.consent !== true) throw new DomainError(Codes.GUARD_FAILED, "Record that the customer agreed to be sent to the partner's application first.", { reason: "consent_required" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "financing.start", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const program = await tx.financingProgram.findUnique({ where: { id: args.programId } });
+    if (!program || !program.active) throw new DomainError(Codes.GUARD_FAILED, "That financing program is not offered.");
+    if (amount < program.minMinor || amount > program.maxMinor) throw new DomainError(Codes.GUARD_FAILED, `This program covers ${money(program.minMinor)} to ${money(program.maxMinor)}.`, { reason: "outside_program_range" });
+    const customer = await tx.customer.findUnique({ where: { id: args.customerId }, select: { id: true } });
+    if (!customer) throw new DomainError(Codes.NOT_FOUND, "Customer not found.");
+    if (args.invoiceId) {
+      const inv = await tx.invoice.findUnique({ where: { id: args.invoiceId }, select: { customerId: true, balanceMinor: true, status: true } });
+      if (!inv || inv.customerId !== customer.id) throw new DomainError(Codes.GUARD_FAILED, "That invoice is not this customer's.");
+      if (amount > inv.balanceMinor) throw new DomainError(Codes.GUARD_FAILED, `That is more than the ${money(inv.balanceMinor)} still owed.`);
+    }
+    const ref = await nextReference(tx, "FIN", uow.now);
+    const app = await tx.financingApplication.create({ data: { ref, customerId: customer.id, jobId: args.jobId ?? null, invoiceId: args.invoiceId ?? null, estimateVersionId: args.estimateVersionId ?? null, programId: program.id, amountMinor: amount, status: "started", consentRecordedAt: uow.now, createdById: actorUserId(actor) }, select: { id: true } });
+    auditCreate(uow, actor, "FinancingApplication", app.id, "financing.started", { ref, amountMinor: amount.toString(), programId: program.id });
+    return { applicationId: app.id, ref, applyUrl: program.applyUrl };
+  });
+  return { replay: result.replay, ...result.value };
+}
+var FLOW = {
+  started: ["submitted", "cancelled"],
+  submitted: ["approved", "declined", "needs_info", "cancelled"],
+  needs_info: ["submitted", "declined", "cancelled"],
+  approved: ["docs_signed", "declined", "expired", "cancelled"],
+  docs_signed: ["awaiting_funding", "cancelled"],
+  awaiting_funding: ["funded", "cancelled"]
+};
+async function recordFinancingStatus(db, actor, args) {
+  await authorizeOperation(db, actor, "financing.record_status", [...FIN], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "financing.record_status", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const app = await lockRow(uow.tx, "FinancingApplication", args.applicationId);
+    if (app.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This application changed since you loaded it. Reload and try again.", { currentStatus: app.status, currentVersion: app.version });
+    if (args.to === "funded") throw new DomainError(Codes.INVALID_INPUT, "Funding is recorded with the partner's payout reference.", { field: "to" });
+    if (!(FLOW[app.status] ?? []).includes(args.to)) throw new DomainError(Codes.INVALID_TRANSITION, `Financing cannot go from ${app.status.replace(/_/g, " ")} to ${args.to.replace(/_/g, " ")}.`);
+    if (args.to === "declined" && !args.note?.trim()) throw new DomainError(Codes.INVALID_INPUT, "Note the reason the partner gave.", { field: "note" });
+    if (args.to === "approved" && !args.offers) throw new DomainError(Codes.INVALID_INPUT, "Record the offers exactly as the partner showed them.", { field: "offers" });
+    const data = {};
+    if (args.partnerReference) data.partnerReference = args.partnerReference.trim();
+    if (args.offers) data.offers = args.offers;
+    if (args.selectedOffer) data.selectedOffer = args.selectedOffer;
+    if (args.offerExpiresAt) data.offerExpiresAt = new Date(args.offerExpiresAt);
+    if (args.to === "declined") data.declineNote = args.note.trim();
+    const version = await casUpdate(uow, { model: "FinancingApplication", id: app.id, version: app.version, from: [app.status], to: args.to, actor, eventType: `financing.${args.to}`, reason: args.note ?? null, data, audit: { partnerReference: args.partnerReference ?? null } });
+    return { applicationId: app.id, status: args.to, version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function recordFinancingFunding(db, actor, args) {
+  await authorizeOperation(db, actor, "financing.fund", ["canManagePayments", "canManageAccounting"], args);
+  const gross = cents2(args.grossMinor, "grossMinor");
+  const fee = args.feeMinor ? BigInt(args.feeMinor) : 0n;
+  if (fee < 0n || fee >= gross) throw new DomainError(Codes.INVALID_INPUT, "The partner fee is less than the payout.", { field: "feeMinor" });
+  if (!String(args.reference ?? "").trim()) throw new DomainError(Codes.INVALID_INPUT, "Enter the partner's payout reference.", { field: "reference" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "financing.fund", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const app = await lockRow(tx, "FinancingApplication", args.applicationId);
+    if (app.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This application changed since you loaded it. Reload and try again.");
+    if (app.status !== "awaiting_funding") throw new DomainError(Codes.GUARD_FAILED, `Funding is recorded once the loan is signed and awaiting funding; this one is ${app.status.replace(/_/g, " ")}.`);
+    if (gross !== app.amountMinor) throw new DomainError(Codes.GUARD_FAILED, `The partner funded ${money(gross)} but the customer chose ${money(app.amountMinor)}.`, { reason: "amount_mismatch" });
+    if (!app.invoiceId) throw new DomainError(Codes.GUARD_FAILED, "Link the financing to an invoice before recording funding.", { reason: "invoice_required" });
+    const fundedAt = args.fundedAt ? new Date(args.fundedAt) : uow.now;
+    if (Number.isNaN(fundedAt.getTime()) || fundedAt.getTime() > uow.now.getTime()) throw new DomainError(Codes.INVALID_INPUT, "When did the money arrive? Not in the future.", { field: "fundedAt" });
+    if (app.jobId) {
+      const open = await tx.cancellationNotice.findFirst({ where: { jobId: app.jobId, status: { in: ["issued", "delivered"] }, cancelBy: { gt: uow.now } }, select: { ref: true, cancelBy: true } });
+      if (open) throw new DomainError(Codes.GUARD_FAILED, `The customer can still cancel this sale until ${open.cancelBy.toISOString().slice(0, 10)} (${open.ref}). Record funding after that.`, { reason: "cancel_window_open", cancelBy: open.cancelBy.toISOString() });
+      const cancelled = await tx.cancellationNotice.findFirst({ where: { jobId: app.jobId, status: { in: ["cancelled_by_buyer", "refunded"] } }, select: { ref: true } });
+      if (cancelled) throw new DomainError(Codes.GUARD_FAILED, `The customer cancelled this sale (${cancelled.ref}); do not record funding.`, { reason: "sale_cancelled" });
+    }
+    const invoice = await lockInvoice(tx, app.invoiceId);
+    const payment = await createPaymentForFunding(uow, actor, { invoice, gross, fee, reference: args.reference.trim(), receivedAt: fundedAt });
+    const funding = await tx.financingFunding.create({ data: { applicationId: app.id, grossMinor: gross, feeMinor: fee, reference: args.reference.trim(), fundedAt, paymentId: payment.id }, select: { id: true } });
+    const apply = gross < invoice.balanceMinor ? gross : invoice.balanceMinor;
+    await allocatePayment(uow, actor, invoice, payment.id, apply);
+    const version = await casUpdate(uow, { model: "FinancingApplication", id: app.id, version: app.version, from: ["awaiting_funding"], to: "funded", actor, eventType: "financing.funded", data: {}, audit: { grossMinor: gross.toString(), feeMinor: fee.toString() } });
+    auditCreate(uow, actor, "FinancingFunding", funding.id, "financing.funding_recorded", { applicationId: app.id, grossMinor: gross.toString(), feeMinor: fee.toString(), reference: args.reference, paymentId: payment.id });
+    return { applicationId: app.id, status: "funded", version, paymentId: payment.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function saveFinancingProgram(db, actor, args) {
+  await authorizeOperation(db, actor, "financing.program_save", ["canManageInvoices", "canManageAccounting"], args);
+  const min = cents2(args.minMinor, "minMinor");
+  const max = cents2(args.maxMinor, "maxMinor");
+  if (max < min) throw new DomainError(Codes.INVALID_INPUT, "The maximum is at least the minimum.", { field: "maxMinor" });
+  if (!String(args.name ?? "").trim()) throw new DomainError(Codes.INVALID_INPUT, "Name the program.", { field: "name" });
+  if (args.applyUrl && !/^https:\/\//i.test(args.applyUrl)) throw new DomainError(Codes.INVALID_INPUT, "The application link is an https address.", { field: "applyUrl" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "financing.program_save", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const data = { name: args.name.trim(), partner: args.partner === "other" ? "other" : "wisetack", minMinor: min, maxMinor: max, termsNote: args.termsNote?.trim() ?? "", applyUrl: args.applyUrl?.trim() ?? "", active: args.active !== false };
+    const row = args.programId ? await uow.tx.financingProgram.update({ where: { id: args.programId }, data, select: { id: true } }) : await uow.tx.financingProgram.create({ data, select: { id: true } });
+    auditCreate(uow, actor, "FinancingProgram", row.id, args.programId ? "financing.program_updated" : "financing.program_created", { name: data.name });
+    return { programId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function recordThirdPartyAuthorization(db, actor, args) {
+  await authorizeOperation(db, actor, "authorization.record", ["canManageInvoices"], args);
+  const amount = cents2(args.authorizedAmountMinor, "authorizedAmountMinor");
+  if (!["home_warranty", "po", "nte", "insurance"].includes(args.kind)) throw new DomainError(Codes.INVALID_INPUT, "Kind is home_warranty, po, nte or insurance.", { field: "kind" });
+  if (!String(args.externalRef ?? "").trim()) throw new DomainError(Codes.INVALID_INPUT, "Enter the payer's authorization or PO number.", { field: "externalRef" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "authorization.record", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const [job, payer] = await Promise.all([tx.job.findUnique({ where: { id: args.jobId }, select: { id: true } }), tx.payerProfile.findUnique({ where: { id: args.payerId }, select: { id: true } })]);
+    if (!job || !payer) throw new DomainError(Codes.NOT_FOUND, "Job or payer not found.");
+    const prior = await tx.thirdPartyAuthorization.findFirst({ where: { jobId: job.id, payerId: payer.id, externalRef: args.externalRef.trim(), status: "authorized" } });
+    if (prior) await casUpdate(uow, { model: "ThirdPartyAuthorization", id: prior.id, version: prior.version, from: ["authorized"], to: "revised", actor, eventType: "authorization.revised" });
+    const row = await tx.thirdPartyAuthorization.create({ data: { jobId: job.id, payerId: payer.id, kind: args.kind, externalRef: args.externalRef.trim(), authorizedAmountMinor: amount, serviceFeeMinor: args.serviceFeeMinor ? BigInt(args.serviceFeeMinor) : 0n, status: "authorized", revisionOfId: prior?.id ?? null }, select: { id: true } });
+    auditCreate(uow, actor, "ThirdPartyAuthorization", row.id, "authorization.recorded", { jobId: job.id, kind: args.kind, amountMinor: amount.toString(), revisionOf: prior?.id ?? null });
+    return { authorizationId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function savePayerProfile(db, actor, args) {
+  await authorizeOperation(db, actor, "payer.save", ["canManageInvoices"], args);
+  if (!String(args.name ?? "").trim()) throw new DomainError(Codes.INVALID_INPUT, "Name the payer.", { field: "name" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "payer.save", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const data = { name: args.name.trim(), kind: args.kind, terms: args.terms, poRequired: args.poRequired === true, billingContact: args.billingContact?.trim() ?? "", accountingCustomerRef: args.accountingCustomerRef?.trim() ?? "" };
+    const row = args.payerId ? await uow.tx.payerProfile.update({ where: { id: args.payerId }, data, select: { id: true } }) : await uow.tx.payerProfile.create({ data, select: { id: true } });
+    auditCreate(uow, actor, "PayerProfile", row.id, args.payerId ? "payer.updated" : "payer.created", { name: data.name, kind: data.kind, terms: data.terms });
+    return { payerId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requestArPeriodClose(db, actor, args) {
+  await authorizeOperation(db, actor, "ar_period.close_request", ["canCloseAr"], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "ar_period.close_request", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const p = await lockRow(uow.tx, "ArPeriod", args.periodId);
+    if (p.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This period changed since you loaded it. Reload and try again.");
+    const drafts = await uow.tx.invoice.count({ where: { status: "draft", arPeriodId: p.id } });
+    const openBatches = await uow.tx.paymentBatch.count({ where: { status: "open", businessDate: { gte: p.month, lt: new Date(Date.UTC(p.month.getUTCFullYear(), p.month.getUTCMonth() + 1, 1)) } } });
+    if (openBatches) throw new DomainError(Codes.GUARD_FAILED, `${openBatches} payment batch${openBatches === 1 ? " is" : "es are"} still open in this month. Close them first.`, { reason: "open_batches" });
+    const approval = await requestApproval(uow, actor, { action: "ar_period.close", targetList: "ArPeriod", targetId: p.id, requiredPermission: "canApproveArClose", payload: { periodId: p.id, month: p.month.toISOString().slice(0, 7), version: p.version + 1 }, summary: `Close AR period ${p.month.toISOString().slice(0, 7)}` });
+    const version = await casUpdate(uow, { model: "ArPeriod", id: p.id, version: p.version, from: ["open"], to: "closing", actor, eventType: "ar_period.close_requested", data: { approvalId: approval.id } });
+    return { periodId: p.id, status: "closing", version, approvalRequestId: approval.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+registerApplier("ar_period.close", async (uow, actor, request) => {
+  const p = await lockRow(uow.tx, "ArPeriod", request.targetId);
+  if (p.status !== "closing" || p.approvalId !== request.id || p.version !== request.payload.version) throw new DomainError(Codes.APPROVAL_MISMATCH, "The period changed after the close was requested.");
+  await casUpdate(uow, { model: "ArPeriod", id: p.id, version: p.version, from: ["closing"], to: "closed", actor, eventType: "ar_period.closed", approverId: actorUserId(actor), data: { closedById: actorUserId(actor), closedAt: uow.now } });
+  return { periodId: p.id, status: "closed" };
+});
+async function reopenArPeriod(db, actor, args) {
+  await authorizeOperation(db, actor, "ar_period.reopen", ["canCloseAr"], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "ar_period.reopen", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const p = await lockRow(uow.tx, "ArPeriod", args.periodId);
+    if (p.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This period changed since you loaded it. Reload and try again.");
+    if (p.approvalId) {
+      const req = await uow.tx.approvalRequest.findUnique({ where: { id: p.approvalId }, select: { id: true, status: true, version: true } });
+      if (req?.status === "pending") await casUpdate(uow, { model: "ApprovalRequest", id: req.id, version: req.version, from: ["pending"], to: "cancelled", actor, eventType: "approval.cancelled", reason: "AR period reopened" });
+    }
+    const version = await casUpdate(uow, { model: "ArPeriod", id: p.id, version: p.version, from: ["closing"], to: "open", actor, eventType: "ar_period.reopened", data: { approvalId: null } });
+    return { periodId: p.id, status: "open", version };
+  });
+  return { replay: result.replay, ...result.value };
+}
+
+// features/keystone/services/accounting.ts
+var import_node_crypto10 = require("node:crypto");
+init_actor();
+init_cas();
+init_errors();
+
+// features/keystone/services/accountingDates.ts
+init_errors();
+function assertDateRange(from, to) {
+  try {
+    assertDate(from);
+    assertDate(to);
+  } catch {
+    throw new DomainError(Codes.INVALID_INPUT, "Dates are YYYY-MM-DD.", { field: "from" });
+  }
+  if (to < from) throw new DomainError(Codes.INVALID_INPUT, "The end date is on or after the start date.", { field: "to" });
+  if (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`) > 400 * 864e5) throw new DomainError(Codes.INVALID_INPUT, "Export at most 400 days at a time.", { field: "to" });
+}
+
+// features/keystone/services/accounting.ts
+var ACCOUNTS = {
+  ar: "1200",
+  cash: "1010",
+  card: "1020",
+  ach: "1030",
+  financing: "1040",
+  thirdParty: "1050",
+  customerCredit: "2400",
+  salesTax: "2200",
+  refundClearing: "2500",
+  fees: "6100",
+  salesReturns: "4900",
+  badDebt: "6900"
+};
+var TENDER_ACCOUNT = { cash: ACCOUNTS.cash, check: ACCOUNTS.cash, other: ACCOUNTS.cash, card: ACCOUNTS.card, ach: ACCOUNTS.ach, financing: ACCOUNTS.financing, third_party: ACCOUNTS.thirdParty, customer_credit: ACCOUNTS.customerCredit };
+var dr = (base, account, amount, n) => ({ sourceKey: `${base.key}:${n}`, entryDate: base.entryDate, account, debitMinor: amount, creditMinor: 0n, memo: base.memo, docRef: base.docRef, customerRef: base.customerRef });
+var cr = (base, account, amount, n) => ({ sourceKey: `${base.key}:${n}`, entryDate: base.entryDate, account, debitMinor: 0n, creditMinor: amount, memo: base.memo, docRef: base.docRef, customerRef: base.customerRef });
+async function journalFor(tx, from, to, tz) {
+  const lo = /* @__PURE__ */ new Date(`${from}T00:00:00Z`);
+  lo.setUTCDate(lo.getUTCDate() - 1);
+  const hi = /* @__PURE__ */ new Date(`${to}T00:00:00Z`);
+  hi.setUTCDate(hi.getUTCDate() + 2);
+  const inRange = (d) => {
+    const day3 = localDate({ timeZone: tz }, d);
+    return day3 >= from && day3 <= to ? day3 : null;
+  };
+  const lines = [];
+  const customerRefOf = async (customerId, payerId) => {
+    if (payerId) {
+      const p = await tx.payerProfile.findUnique({ where: { id: payerId }, select: { accountingCustomerRef: true, name: true } });
+      return p?.accountingCustomerRef || p?.name || "";
+    }
+    if (!customerId) return "";
+    const c = await tx.customer.findUnique({ where: { id: customerId }, select: { ref: true } });
+    return c?.ref ?? "";
+  };
+  const entries = await tx.arEntry.findMany({ where: { postedAt: { gte: lo, lt: hi } }, orderBy: [{ postedAt: "asc" }, { id: "asc" }], include: { invoice: { select: { ref: true, lines: { orderBy: { sortOrder: "asc" } } } } } });
+  for (const e of entries) {
+    const day3 = inRange(e.postedAt);
+    if (!day3) continue;
+    const base = { key: `ar:${e.id}`, entryDate: day3, memo: `${e.kind.replace(/_/g, " ")} ${e.invoice?.ref ?? ""}`.trim(), docRef: e.invoice?.ref ?? "", customerRef: await customerRefOf(e.customerId, e.payerId) };
+    const amt = e.amountMinor < 0n ? -e.amountMinor : e.amountMinor;
+    if (e.kind === "invoice_posted") {
+      lines.push(dr(base, ACCOUNTS.ar, amt, 0));
+      let n = 1;
+      let tax = 0n;
+      for (const l of e.invoice?.lines ?? []) {
+        const net = l.amountMinor - l.discountMinor;
+        if (net > 0n) lines.push(cr(base, l.revenueAccountCode || "4000", net, n++));
+        tax += l.taxMinor;
+      }
+      if (tax > 0n) lines.push(cr(base, ACCOUNTS.salesTax, tax, n++));
+    } else if (e.kind === "payment_applied" || e.kind === "payment_reversed" || e.kind === "refund_reopen") {
+      const pay = e.sourceId ? await tx.payment.findUnique({ where: { id: e.sourceId }, select: { method: true } }) : null;
+      const tender = e.kind === "refund_reopen" ? ACCOUNTS.refundClearing : TENDER_ACCOUNT[pay?.method ?? "other"] ?? ACCOUNTS.cash;
+      if (e.kind === "payment_applied") {
+        lines.push(dr(base, tender, amt, 0));
+        lines.push(cr(base, ACCOUNTS.ar, amt, 1));
+      } else if (e.kind === "refund_reopen") {
+        lines.push(dr(base, ACCOUNTS.ar, amt, 0));
+        lines.push(cr(base, tender, amt, 1));
+      } else {
+        lines.push(dr(base, ACCOUNTS.ar, amt, 0));
+        lines.push(cr(base, tender, amt, 1));
+      }
+    } else if (e.kind === "credit_memo") {
+      lines.push(dr(base, ACCOUNTS.salesReturns, amt, 0));
+      lines.push(cr(base, ACCOUNTS.ar, amt, 1));
+    } else if (e.kind === "write_off") {
+      lines.push(dr(base, ACCOUNTS.badDebt, amt, 0));
+      lines.push(cr(base, ACCOUNTS.ar, amt, 1));
+    }
+  }
+  const payments = await tx.payment.findMany({ where: { receivedAt: { gte: lo, lt: hi } }, select: { id: true, ref: true, method: true, feeMinor: true, receivedAt: true, customerId: true, payerId: true } });
+  for (const p of payments) {
+    const day3 = inRange(p.receivedAt);
+    if (!day3 || p.feeMinor === 0n) continue;
+    const base = { key: `fee:${p.id}`, entryDate: day3, memo: `processing fee ${p.ref}`, docRef: p.ref, customerRef: await customerRefOf(p.customerId, p.payerId) };
+    lines.push(dr(base, ACCOUNTS.fees, p.feeMinor, 0));
+    lines.push(cr(base, TENDER_ACCOUNT[p.method] ?? ACCOUNTS.cash, p.feeMinor, 1));
+  }
+  const credits = await tx.customerCreditEntry.findMany({ where: { createdAt: { gte: lo, lt: hi } }, orderBy: { createdAt: "asc" } });
+  for (const c of credits) {
+    const day3 = inRange(c.createdAt);
+    if (!day3) continue;
+    const base = { key: `credit:${c.id}`, entryDate: day3, memo: `customer credit ${c.kind}`, docRef: c.sourceId, customerRef: await customerRefOf(c.customerId, null) };
+    const amt = c.amountMinor < 0n ? -c.amountMinor : c.amountMinor;
+    if (c.kind === "issued") {
+      const src = c.sourceType === "Payment" ? await tx.payment.findUnique({ where: { id: c.sourceId }, select: { method: true } }) : null;
+      lines.push(dr(base, src ? TENDER_ACCOUNT[src.method] ?? ACCOUNTS.cash : ACCOUNTS.salesReturns, amt, 0));
+      lines.push(cr(base, ACCOUNTS.customerCredit, amt, 1));
+    } else if (c.kind === "refunded") {
+      lines.push(dr(base, ACCOUNTS.customerCredit, amt, 0));
+      lines.push(cr(base, ACCOUNTS.refundClearing, amt, 1));
+    }
+  }
+  const refunds = await tx.refund.findMany({ where: { refundedAt: { gte: lo, lt: hi } }, include: { payment: { select: { method: true, customerId: true, payerId: true } } } });
+  for (const r of refunds) {
+    const day3 = inRange(r.refundedAt);
+    if (!day3) continue;
+    const base = { key: `refund:${r.id}`, entryDate: day3, memo: `refund ${r.ref}`, docRef: r.ref, customerRef: await customerRefOf(r.payment?.customerId ?? null, r.payment?.payerId ?? null) };
+    lines.push(dr(base, ACCOUNTS.refundClearing, r.amountMinor, 0));
+    lines.push(cr(base, TENDER_ACCOUNT[r.payment?.method ?? "other"] ?? ACCOUNTS.cash, r.amountMinor, 1));
+  }
+  return lines;
+}
+async function createExportBatch(db, actor, args) {
+  await authorizeOperation(db, actor, "accounting.export", ["canManageAccounting"], args);
+  assertDateRange(args.from, args.to);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "accounting.export", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const company = await tx.companySettings.findFirst({ select: { homeTimeZone: true } });
+    const all2 = await journalFor(tx, args.from, args.to, company?.homeTimeZone || "America/Chicago");
+    const done = new Set((await tx.accountingExportLine.findMany({ where: { sourceKey: { in: all2.map((l) => l.sourceKey) } }, select: { sourceKey: true } })).map((l) => l.sourceKey));
+    const fresh = all2.filter((l) => !done.has(l.sourceKey));
+    if (!fresh.length) throw new DomainError(Codes.GUARD_FAILED, "Nothing new to export in that range.", { reason: "nothing_to_export" });
+    const debit = fresh.reduce((a, l) => a + l.debitMinor, 0n);
+    const credit = fresh.reduce((a, l) => a + l.creditMinor, 0n);
+    if (debit !== credit) throw new DomainError(Codes.GUARD_FAILED, `The journal does not balance (debits ${debit}, credits ${credit}). Nothing was exported.`, { reason: "unbalanced" });
+    const ref = await nextReference(tx, "EXP", uow.now);
+    const sha = (0, import_node_crypto10.createHash)("sha256").update(fresh.map((l) => l.sourceKey).join("\n")).digest("hex");
+    const batch = await tx.accountingExportBatch.create({ data: { ref, periodFrom: /* @__PURE__ */ new Date(`${args.from}T00:00:00Z`), periodTo: /* @__PURE__ */ new Date(`${args.to}T00:00:00Z`), status: "created", lineCount: fresh.length, debitMinor: debit, creditMinor: credit, sha256: sha, createdById: actorUserId(actor) }, select: { id: true } });
+    await tx.accountingExportLine.createMany({ data: fresh.map((l, i) => ({ batchId: batch.id, sourceKey: l.sourceKey, entryDate: /* @__PURE__ */ new Date(`${l.entryDate}T00:00:00Z`), account: l.account, debitMinor: l.debitMinor, creditMinor: l.creditMinor, memo: l.memo, docRef: l.docRef, customerRef: l.customerRef, sortOrder: i })) });
+    auditCreate(uow, actor, "AccountingExportBatch", batch.id, "accounting.exported", { ref, lines: fresh.length, debitMinor: debit.toString(), from: args.from, to: args.to });
+    return { batchId: batch.id, ref, lineCount: fresh.length, debitMinor: debit.toString() };
+  });
+  return { replay: result.replay, ...result.value };
+}
+
+// features/keystone/mutations/phase3.ts
 var graphql4 = String.raw;
+var bind3 = (fn) => op(async (_root, args, context) => {
+  const { now: _ignored, ...clean } = args;
+  const actor = await actorFor(context);
+  await advanceTimedStates(context.prisma);
+  return fn(context.prisma, actor, clean);
+});
+var phase3TypeDefs = graphql4`
+  type Mutation {
+    createInvoiceDraft(jobId: ID!, workLineIds: [ID!], items: JSON, payerId: ID, authorizationId: ID, poNumber: String, progressReason: String, discountMinor: String, idempotencyKey: String!): JSON
+    discardInvoiceDraft(invoiceId: ID!, expectedVersion: Int!, reason: String, idempotencyKey: String!): JSON
+    postInvoice(invoiceId: ID!, expectedVersion: Int!, invoiceDate: String, idempotencyKey: String!): JSON
+    voidInvoice(invoiceId: ID!, reason: String!, idempotencyKey: String!): JSON
+    issueCreditMemo(invoiceId: ID!, amountMinor: String!, reason: String!, note: String!, appliesTo: String, idempotencyKey: String!): JSON
+    requestWriteOff(invoiceId: ID!, reason: String!, idempotencyKey: String!): JSON
+    setCollectionsStatus(invoiceId: ID!, status: String!, idempotencyKey: String!): JSON
+
+    recordInvoicePayment(invoiceId: ID!, amountMinor: String!, method: String!, reference: String, checkNumber: String, feeMinor: String, receivedAt: String, attemptId: ID, idempotencyKey: String!): JSON
+    applyCustomerCredit(invoiceId: ID!, amountMinor: String!, idempotencyKey: String!): JSON
+    startPaymentAttempt(invoiceId: ID!, amountMinor: String!, method: String!, idempotencyKey: String!): JSON
+    markAttemptUnknown(attemptId: ID!, expectedVersion: Int!, note: String, idempotencyKey: String!): JSON
+    resolveAttemptFailed(attemptId: ID!, expectedVersion: Int!, evidence: String!, idempotencyKey: String!): JSON
+    requestRefund(paymentId: ID!, amountMinor: String!, method: String!, reason: String!, reference: String!, idempotencyKey: String!): JSON
+    recordApprovedRefund(approvalRequestId: ID!, idempotencyKey: String!): JSON
+    closePaymentBatch(batchId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    reconcilePaymentBatch(batchId: ID!, expectedVersion: Int!, depositedMinor: String!, depositReference: String!, idempotencyKey: String!): JSON
+
+    saveFinancingProgram(programId: ID, name: String!, partner: String, minMinor: String!, maxMinor: String!, termsNote: String, applyUrl: String, active: Boolean, idempotencyKey: String!): JSON
+    startFinancing(customerId: ID!, programId: ID!, amountMinor: String!, jobId: ID, invoiceId: ID, estimateVersionId: ID, consent: Boolean!, idempotencyKey: String!): JSON
+    recordFinancingStatus(applicationId: ID!, to: String!, expectedVersion: Int!, partnerReference: String, offers: JSON, selectedOffer: JSON, offerExpiresAt: String, note: String, idempotencyKey: String!): JSON
+    recordFinancingFunding(applicationId: ID!, expectedVersion: Int!, grossMinor: String!, feeMinor: String, reference: String!, fundedAt: String, idempotencyKey: String!): JSON
+    savePayerProfile(payerId: ID, name: String!, kind: String!, terms: String!, poRequired: Boolean, billingContact: String, accountingCustomerRef: String, idempotencyKey: String!): JSON
+    recordThirdPartyAuthorization(jobId: ID!, payerId: ID!, kind: String!, externalRef: String!, authorizedAmountMinor: String!, serviceFeeMinor: String, idempotencyKey: String!): JSON
+
+    requestArPeriodClose(periodId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    reopenArPeriod(periodId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+    createExportBatch(from: String!, to: String!, idempotencyKey: String!): JSON
+  }
+`;
+var phase3Resolvers = {
+  Mutation: {
+    createInvoiceDraft: bind3(createInvoiceDraft),
+    discardInvoiceDraft: bind3(discardInvoiceDraft),
+    postInvoice: bind3(postInvoice),
+    voidInvoice: bind3(voidInvoice),
+    issueCreditMemo: bind3(issueCreditMemo),
+    requestWriteOff: bind3(requestWriteOff),
+    setCollectionsStatus: bind3(setCollectionsStatus),
+    recordInvoicePayment: bind3(recordInvoicePayment),
+    applyCustomerCredit: bind3(applyCustomerCredit),
+    startPaymentAttempt: bind3(startPaymentAttempt),
+    markAttemptUnknown: bind3(markAttemptUnknown),
+    resolveAttemptFailed: bind3(resolveAttemptFailed),
+    requestRefund: bind3(requestRefund),
+    recordApprovedRefund: bind3(recordApprovedRefund),
+    closePaymentBatch: bind3(closePaymentBatch),
+    reconcilePaymentBatch: bind3(reconcilePaymentBatch),
+    saveFinancingProgram: bind3(saveFinancingProgram),
+    startFinancing: bind3(startFinancing),
+    recordFinancingStatus: bind3(recordFinancingStatus),
+    recordFinancingFunding: bind3(recordFinancingFunding),
+    savePayerProfile: bind3(savePayerProfile),
+    recordThirdPartyAuthorization: bind3(recordThirdPartyAuthorization),
+    requestArPeriodClose: bind3(requestArPeriodClose),
+    reopenArPeriod: bind3(reopenArPeriod),
+    createExportBatch: bind3(createExportBatch)
+  }
+};
+
+// features/keystone/mutations/agentBinding.ts
+init_actor();
+init_errors();
+init_cas();
+var graphql5 = String.raw;
 var UNUSABLE_PASSWORD_HASH3 = "$2a$10$3dITCbIvf5zFA.1U8KZDhOHC3EEexi3KYy5ysZK1cRF6LHMm0H.ya";
-var agentBindingTypeDefs = graphql4`
+var agentBindingTypeDefs = graphql5`
   type Query { agentBindings: JSON }
   type Mutation {
     bindAgentApp(agentId: ID!, oauthAppId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
@@ -9583,11 +11183,11 @@ var agentBindingResolvers = {
 };
 
 // features/keystone/mutations/index.ts
-var graphql5 = String.raw;
+var graphql6 = String.raw;
 function extendGraphqlSchema(baseSchema) {
   const core = (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
-    typeDefs: graphql5`
+    typeDefs: graphql6`
       scalar JSON
       type Query {
         redirectToInit: Boolean
@@ -9624,7 +11224,7 @@ function extendGraphqlSchema(baseSchema) {
       }
     }
   });
-  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, agentBindingResolvers] });
+  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, phase3TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, phase3Resolvers, agentBindingResolvers] });
 }
 
 // features/keystone/lib/mail.ts
@@ -9692,6 +11292,9 @@ async function sendPasswordResetEmail(resetToken, to, baseUrl) {
     console.log(`\u{1F4E7} Message Sent!  Preview it at ${(0, import_nodemailer.getTestMessageUrl)(info)}`);
   }
 }
+
+// features/keystone/index.ts
+init_access();
 
 // features/keystone/prismaConstraints.ts
 var COMPOUND_UNIQUES = {
@@ -9841,7 +11444,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   `
 });
 var keystone_default = withAuth(
-  (0, import_core19.config)({
+  (0, import_core20.config)({
     db: {
       provider: "postgresql",
       url: databaseURL,
