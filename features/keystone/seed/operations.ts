@@ -19,6 +19,8 @@ export { CAMPAIGNS, COMMERCIAL, HOUSEHOLDS, JOB_TYPES, REQUIREMENTS, SKILLS, TEC
 const UNUSABLE_PASSWORD_HASH = '$2a$10$3dITCbIvf5zFA.1U8KZDhOHC3EEexi3KYy5ysZK1cRF6LHMm0H.ya'
 const day = (iso: string) => new Date(`${iso}T00:00:00Z`)
 
+import { seedStock } from './stock'
+
 export async function seedOperations(uow: UnitOfWork, actor: Actor) {
   const { tx, now } = uow
   const created: Record<string, number> = { skills: 0, technicians: 0, credentials: 0, requirements: 0, jobTypes: 0, windowTemplates: 0, shiftTemplates: 0, onCall: 0, campaigns: 0, customers: 0, locations: 0, consents: 0 }
@@ -162,5 +164,7 @@ export async function seedOperations(uow: UnitOfWork, actor: Actor) {
     created.locations = fresh.length
     created.consents = consents.length
   }
+  const stock = await seedStock(uow, actor)
+  Object.assign(created, Object.fromEntries(Object.entries(stock).map(([k, v]) => [`stock_${k}`, v])))
   return created
 }

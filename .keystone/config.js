@@ -221,9 +221,9 @@ function dec(value) {
     if (!Number.isSafeInteger(value)) throw new Error(`Refusing float ${value}: pass the exact decimal as a string`);
     return new Decimal(value);
   }
-  const text20 = String(value).trim();
-  if (!DECIMAL_TEXT.test(text20)) throw new Error(`Not a decimal number: ${JSON.stringify(text20).slice(0, 40)}`);
-  return new Decimal(text20);
+  const text23 = String(value).trim();
+  if (!DECIMAL_TEXT.test(text23)) throw new Error(`Not a decimal number: ${JSON.stringify(text23).slice(0, 40)}`);
+  return new Decimal(text23);
 }
 function toScale(value, scale, rounding = Decimal.ROUND_HALF_UP) {
   const places = typeof scale === "number" ? scale : Scale[scale];
@@ -283,7 +283,7 @@ var init_canonical = __esm({
     import_node_crypto2 = require("node:crypto");
     init_decimal();
     canonicalJson = (value) => JSON.stringify(canonicalize(value));
-    sha256 = (text20) => (0, import_node_crypto2.createHash)("sha256").update(text20).digest("hex");
+    sha256 = (text23) => (0, import_node_crypto2.createHash)("sha256").update(text23).digest("hex");
     payloadHash = (value) => sha256(canonicalJson(value));
     toJsonValue = (value) => canonicalize(value);
     DEVELOPMENT_SECRET2 = "this secret should only be used in testing";
@@ -513,7 +513,7 @@ module.exports = __toCommonJS(keystone_exports);
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core21 = require("@keystone-6/core");
+var import_core24 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 
 // features/keystone/models/User.ts
@@ -3771,6 +3771,633 @@ var ServiceAgreement = (0, import_core19.list)({
   }
 });
 
+// features/keystone/models/equipment.ts
+var equipment_exports = {};
+__export(equipment_exports, {
+  APPLIANCE_CLASSES: () => APPLIANCE_CLASSES,
+  CLAIM_STATUSES: () => CLAIM_STATUSES,
+  EQUIPMENT_KINDS: () => EQUIPMENT_KINDS,
+  EQUIPMENT_OFFICE: () => EQUIPMENT_OFFICE,
+  EQUIPMENT_STATUSES: () => EQUIPMENT_STATUSES,
+  EquipmentReading: () => EquipmentReading,
+  HOME_WARRANTY_STATUSES: () => HOME_WARRANTY_STATUSES,
+  HomeWarrantyDispatch: () => HomeWarrantyDispatch,
+  InstalledEquipment: () => InstalledEquipment,
+  REGISTRATION_STATUSES: () => REGISTRATION_STATUSES,
+  WarrantyClaim: () => WarrantyClaim,
+  WarrantyCoverage: () => WarrantyCoverage,
+  WarrantyRegistration: () => WarrantyRegistration,
+  WarrantyRule: () => WarrantyRule
+});
+var import_core20 = require("@keystone-6/core");
+var import_fields20 = require("@keystone-6/core/fields");
+
+// features/keystone/models/fieldAccess.ts
+init_access();
+var has4 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
+var rowAccess = (all2, own) => ({
+  operation: {
+    query: ({ session }) => isSignedIn({ session }) && (has4(session, all2) || !!own && has4(session, ["canWorkVisits"])),
+    create: () => false,
+    update: () => false,
+    delete: () => false
+  },
+  filter: {
+    query: ({ session }) => {
+      if (!isSignedIn({ session })) return false;
+      if (has4(session, all2)) return true;
+      if (own && has4(session, ["canWorkVisits"])) return own(session.itemId);
+      return false;
+    }
+  }
+});
+var PURCHASING = ["canPurchase", "canApprovePurchases", "canManageAccounting"];
+var purchaseCostRule = ({ session }) => !!session && !session.agent && isSignedIn({ session }) && (canReadCost(session) || has4(session, PURCHASING));
+var purchaseCost = { access: { read: purchaseCostRule }, isFilterable: purchaseCostRule, isOrderable: purchaseCostRule };
+
+// features/keystone/models/equipment.ts
+var EQUIPMENT_STATUSES = ["active", "replaced", "removed", "decommissioned"];
+var EQUIPMENT_KINDS = ["ac_condenser", "heat_pump", "furnace", "air_handler", "coil", "mini_split", "water_heater_tank", "water_heater_tankless", "boiler", "panel", "generator", "ev_charger", "other"];
+var APPLIANCE_CLASSES = ["residential_ac", "light_commercial_ac", "comfort_cooling", "commercial_refrigeration", "industrial_process", "other"];
+var REGISTRATION_STATUSES = ["due", "submitted", "confirmed", "overdue"];
+var CLAIM_STATUSES = ["draft", "ready", "submitted", "info_requested", "approved", "partially_approved", "denied", "settled", "closed"];
+var HOME_WARRANTY_STATUSES = ["dispatch_received", "accepted", "declined", "auth_requested", "authorized", "cash_out_offered", "denied", "invoiced", "paid"];
+var EQUIPMENT_OFFICE = ["canDispatch", "canViewBoard", "canBook", "canManageCustomers", "canManageInvoices", "canSubmitWarrantyClaims", "canManageInventory"];
+var WARRANTY_READ = ["canSubmitWarrantyClaims", "canDispatch", "canManageInvoices", "canManageEquipment"];
+var atMyJobs = (userId) => ({ location: { jobs: { some: jobFilter(userId, true) } } });
+var InstalledEquipment = (0, import_core20.list)({
+  access: rowAccess(EQUIPMENT_OFFICE, atMyJobs),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "location", "manufacturer", "modelNumber", "serialNumber", "kind", "status"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    location: (0, import_fields20.relationship)({ ref: "ServiceLocation" }),
+    model: (0, import_fields20.relationship)({ ref: "EquipmentModel" }),
+    manufacturer: (0, import_fields20.text)(),
+    modelNumber: (0, import_fields20.text)(),
+    serialNumber: (0, import_fields20.text)({ isIndexed: true }),
+    kind: fixedChoice(EQUIPMENT_KINDS, "other"),
+    applianceClass: fixedChoice(APPLIANCE_CLASSES, "residential_ac"),
+    tonnage: qty(),
+    btuh: (0, import_fields20.integer)(),
+    refrigerantType: (0, import_fields20.text)(),
+    refrigerantChargeLb: qty(),
+    manufactureDate: (0, import_fields20.calendarDay)(),
+    installDate: (0, import_fields20.calendarDay)(),
+    installedBy: (0, import_fields20.relationship)({ ref: "Job" }),
+    serializedUnit: (0, import_fields20.relationship)({ ref: "SerializedUnit" }),
+    status: lifecycle(EQUIPMENT_STATUSES),
+    replacedBy: (0, import_fields20.relationship)({ ref: "InstalledEquipment" }),
+    locationInHome: (0, import_fields20.text)(),
+    nameplatePhoto: (0, import_fields20.relationship)({ ref: "Media" }),
+    source: fixedChoice(["installed_by_us", "recorded_on_visit", "nameplate_scan", "import"], "recorded_on_visit"),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var EquipmentReading = (0, import_core20.list)({
+  access: rowAccess(EQUIPMENT_OFFICE, (u) => ({ equipment: atMyJobs(u) })),
+  ui: { labelField: "kind", listView: { initialColumns: ["equipment", "kind", "value", "unit", "recordedAt"] } },
+  fields: {
+    equipment: (0, import_fields20.relationship)({ ref: "InstalledEquipment" }),
+    visit: (0, import_fields20.relationship)({ ref: "Visit" }),
+    kind: (0, import_fields20.text)({ validation: { isRequired: true } }),
+    value: qty({ required: true }),
+    unit: (0, import_fields20.text)(),
+    recordedBy: (0, import_fields20.relationship)({ ref: "User" }),
+    recordedAt: (0, import_fields20.timestamp)(),
+    ...trackingFields
+  }
+});
+var WarrantyRule = (0, import_core20.list)({
+  access: governed([...WARRANTY_READ]),
+  ui: { labelField: "manufacturer", listView: { initialColumns: ["manufacturer", "brand", "registrationDeadlineDays", "partsYearsRegistered", "partsYearsUnregistered", "laborYears", "submitMethod"] } },
+  fields: {
+    manufacturer: (0, import_fields20.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    brand: (0, import_fields20.text)(),
+    registrationDeadlineDays: (0, import_fields20.integer)({ defaultValue: 90, validation: { isRequired: true } }),
+    partsYearsRegistered: (0, import_fields20.integer)({ defaultValue: 10, validation: { isRequired: true } }),
+    partsYearsUnregistered: (0, import_fields20.integer)({ defaultValue: 5, validation: { isRequired: true } }),
+    laborYears: (0, import_fields20.integer)({ defaultValue: 1, validation: { isRequired: true } }),
+    claimDeadlineDays: (0, import_fields20.integer)({ defaultValue: 60, validation: { isRequired: true } }),
+    submitMethod: fixedChoice(["manual_portal", "api", "distributor"], "manual_portal"),
+    portalUrl: (0, import_fields20.text)(),
+    /** The brand terms are the owner's to confirm; a rule is a starting point, not a quotation of the manufacturer's paper. */
+    verified: (0, import_fields20.checkbox)({ defaultValue: false }),
+    notes: (0, import_fields20.text)(),
+    ...trackingFields
+  }
+});
+var WarrantyCoverage = (0, import_core20.list)({
+  access: governed([...WARRANTY_READ]),
+  ui: { labelField: "kind", listView: { initialColumns: ["equipment", "kind", "startsOn", "endsOn", "provider"] } },
+  fields: {
+    equipment: (0, import_fields20.relationship)({ ref: "InstalledEquipment" }),
+    kind: fixedChoice(["manufacturer_parts", "manufacturer_labor", "extended", "workmanship", "home_warranty"], "manufacturer_parts"),
+    startsOn: (0, import_fields20.calendarDay)(),
+    endsOn: (0, import_fields20.calendarDay)(),
+    provider: (0, import_fields20.text)(),
+    contractNumber: (0, import_fields20.text)(),
+    document: (0, import_fields20.relationship)({ ref: "Document" }),
+    /** The registration this coverage was worked out from, if any. */
+    registration: (0, import_fields20.relationship)({ ref: "WarrantyRegistration" }),
+    ...trackingFields
+  }
+});
+var WarrantyRegistration = (0, import_core20.list)({
+  access: governed([...WARRANTY_READ]),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "equipment", "deadline", "status", "confirmationNumber"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    equipment: (0, import_fields20.relationship)({ ref: "InstalledEquipment" }),
+    rule: (0, import_fields20.relationship)({ ref: "WarrantyRule" }),
+    deadline: (0, import_fields20.calendarDay)(),
+    status: lifecycle(REGISTRATION_STATUSES),
+    confirmationNumber: systemText(),
+    submittedBy: (0, import_fields20.relationship)({ ref: "User" }),
+    submittedAt: (0, import_fields20.timestamp)(),
+    overdueSince: (0, import_fields20.timestamp)(),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var WarrantyClaim = (0, import_core20.list)({
+  access: governed([...WARRANTY_READ]),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "job", "equipment", "status", "claimedMinor", "recoveredMinor", "deadline"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    job: (0, import_fields20.relationship)({ ref: "Job" }),
+    equipment: (0, import_fields20.relationship)({ ref: "InstalledEquipment" }),
+    rule: (0, import_fields20.relationship)({ ref: "WarrantyRule" }),
+    claimant: fixedChoice(["manufacturer", "distributor"], "manufacturer"),
+    distributor: (0, import_fields20.relationship)({ ref: "Supplier" }),
+    failedPart: (0, import_fields20.text)(),
+    failureDate: (0, import_fields20.calendarDay)(),
+    replacementItem: (0, import_fields20.relationship)({ ref: "Item" }),
+    replacementSerial: (0, import_fields20.text)(),
+    laborHours: qty(),
+    claimedMinor: minor({ defaultValue: 0n }),
+    recoveredMinor: minor({ defaultValue: 0n }),
+    status: lifecycle(CLAIM_STATUSES),
+    externalClaimNumber: systemText(),
+    evidence: (0, import_fields20.relationship)({ ref: "Media", many: true }),
+    rma: (0, import_fields20.relationship)({ ref: "Rma" }),
+    draftedBy: (0, import_fields20.relationship)({ ref: "User" }),
+    draftedByAgent: (0, import_fields20.relationship)({ ref: "AgentIdentity" }),
+    submittedBy: (0, import_fields20.relationship)({ ref: "User" }),
+    deadline: (0, import_fields20.calendarDay)(),
+    decisionNote: systemText(),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var HomeWarrantyDispatch = (0, import_core20.list)({
+  access: governed(["canManageInvoices", "canDispatch", "canBook", "canSubmitWarrantyClaims"]),
+  ui: { labelField: "externalDispatchNumber", listView: { initialColumns: ["externalDispatchNumber", "payer", "job", "status", "serviceFeeMinor"] } },
+  fields: {
+    payer: (0, import_fields20.relationship)({ ref: "PayerProfile" }),
+    externalDispatchNumber: (0, import_fields20.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    job: (0, import_fields20.relationship)({ ref: "Job" }),
+    serviceFeeMinor: minor({ defaultValue: 0n }),
+    authorizedMinor: minor({ defaultValue: 0n }),
+    status: lifecycle(HOME_WARRANTY_STATUSES),
+    authorization: (0, import_fields20.relationship)({ ref: "ThirdPartyAuthorization" }),
+    note: systemText(),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/inventory.ts
+var inventory_exports = {};
+__export(inventory_exports, {
+  CycleCount: () => CycleCount,
+  Item: () => Item,
+  ItemUomConversion: () => ItemUomConversion,
+  LOCATION_KINDS: () => LOCATION_KINDS,
+  MOVEMENT_TYPES: () => MOVEMENT_TYPES,
+  MinMaxRule: () => MinMaxRule,
+  PO_STATUSES: () => PO_STATUSES,
+  PurchaseOrder: () => PurchaseOrder,
+  PurchaseOrderLine: () => PurchaseOrderLine,
+  Receipt: () => Receipt,
+  ReplenishmentRequest: () => ReplenishmentRequest,
+  Rma: () => Rma,
+  STOCK_READ: () => STOCK_READ,
+  SerializedUnit: () => SerializedUnit,
+  StockLevel: () => StockLevel,
+  StockLocation: () => StockLocation,
+  StockMovement: () => StockMovement,
+  StockReservation: () => StockReservation,
+  Supplier: () => Supplier,
+  SupplierItem: () => SupplierItem,
+  VendorBill: () => VendorBill
+});
+var import_core21 = require("@keystone-6/core");
+var import_fields21 = require("@keystone-6/core/fields");
+var MOVEMENT_TYPES = ["receipt", "transfer_out", "transfer_in", "consume_job", "return_job", "adjust", "count_variance", "rma_out", "scrap", "refrigerant_charge", "refrigerant_recover"];
+var LOCATION_KINDS = ["warehouse", "truck", "job_site", "in_transit", "rma_staging", "scrap"];
+var PO_STATUSES = ["draft", "pending_approval", "approved", "sent", "acknowledged", "partially_received", "received", "billed", "closed", "cancelled"];
+var STOCK_READ = ["canManageInventory", "canPurchase", "canReceive", "canApprovePurchases", "canApproveStockVariance", "canManageAccounting", "canDispatch"];
+var myTruck = (userId) => ({ location: { employee: { user: { id: { equals: userId } } } } });
+var BUY = ["canPurchase", "canApprovePurchases", "canManageAccounting", "canReceive"];
+var Item = (0, import_core21.list)({
+  // A catalogue: no per-row owner. Anyone who stocks, buys, claims or works a visit may look an item up; nobody writes it through the API.
+  access: governed([...STOCK_READ, "canManageEquipment", "canSubmitWarrantyClaims", "canWorkVisits"]),
+  ui: { labelField: "sku", listView: { initialColumns: ["sku", "name", "kind", "baseUom", "trackSerial"] } },
+  fields: {
+    sku: (0, import_fields21.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    name: (0, import_fields21.text)({ validation: { isRequired: true } }),
+    kind: fixedChoice(["part", "material", "equipment", "refrigerant", "consumable"], "part"),
+    trackSerial: (0, import_fields21.checkbox)({ defaultValue: false }),
+    trackLot: (0, import_fields21.checkbox)({ defaultValue: false }),
+    baseUom: (0, import_fields21.relationship)({ ref: "UnitOfMeasure" }),
+    defaultSupplier: (0, import_fields21.relationship)({ ref: "Supplier" }),
+    standardCostMinor: minor({ defaultValue: 0n, ...purchaseCost }),
+    pricebookItemKeys: (0, import_fields21.json)({ isFilterable: false, isOrderable: false }),
+    active: (0, import_fields21.checkbox)({ defaultValue: true }),
+    ...trackingFields
+  }
+});
+var ItemUomConversion = (0, import_core21.list)({
+  access: governed([...STOCK_READ]),
+  ui: { labelField: "factor" },
+  fields: {
+    item: (0, import_fields21.relationship)({ ref: "Item" }),
+    fromUom: (0, import_fields21.relationship)({ ref: "UnitOfMeasure" }),
+    toUom: (0, import_fields21.relationship)({ ref: "UnitOfMeasure" }),
+    factor: qty({ required: true }),
+    ...trackingFields
+  }
+});
+var StockLocation = (0, import_core21.list)({
+  access: rowAccess(STOCK_READ, (userId) => ({ employee: { user: { id: { equals: userId } } } })),
+  ui: { labelField: "name", listView: { initialColumns: ["code", "name", "kind", "branch", "employee", "active"] } },
+  fields: {
+    code: (0, import_fields21.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    name: (0, import_fields21.text)({ validation: { isRequired: true } }),
+    kind: fixedChoice(LOCATION_KINDS, "warehouse"),
+    branch: (0, import_fields21.relationship)({ ref: "Branch" }),
+    employee: (0, import_fields21.relationship)({ ref: "Employee" }),
+    active: (0, import_fields21.checkbox)({ defaultValue: true }),
+    ...trackingFields
+  }
+});
+var StockLevel = (0, import_core21.list)({
+  access: rowAccess(STOCK_READ, myTruck),
+  ui: { labelField: "onHand", listView: { initialColumns: ["location", "item", "onHand", "reserved", "negativeSince"] } },
+  fields: {
+    location: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    item: (0, import_fields21.relationship)({ ref: "Item" }),
+    onHand: qty(),
+    reserved: qty(),
+    negativeSince: (0, import_fields21.timestamp)(),
+    ...trackingFields
+  }
+});
+var StockMovement = (0, import_core21.list)({
+  access: rowAccess(STOCK_READ, myTruck),
+  ui: { labelField: "type", listView: { initialColumns: ["type", "item", "location", "quantity", "job", "occurredAt"] } },
+  fields: {
+    idempotencyKey: (0, import_fields21.text)({ isIndexed: "unique", validation: { isRequired: true }, access: { read: () => false }, isFilterable: false, isOrderable: false }),
+    type: fixedChoice(MOVEMENT_TYPES, "adjust"),
+    item: (0, import_fields21.relationship)({ ref: "Item" }),
+    location: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    quantity: qty({ required: true }),
+    uom: (0, import_fields21.relationship)({ ref: "UnitOfMeasure" }),
+    baseQuantity: qty({ required: true }),
+    unitCostMinor: minor({ defaultValue: 0n, ...purchaseCost }),
+    job: (0, import_fields21.relationship)({ ref: "Job" }),
+    workLine: (0, import_fields21.relationship)({ ref: "WorkLine" }),
+    receipt: (0, import_fields21.relationship)({ ref: "Receipt" }),
+    transferGroup: (0, import_fields21.text)({ isIndexed: true }),
+    serializedUnit: (0, import_fields21.relationship)({ ref: "SerializedUnit" }),
+    reason: (0, import_fields21.text)(),
+    reverses: (0, import_fields21.relationship)({ ref: "StockMovement" }),
+    actor: (0, import_fields21.relationship)({ ref: "User" }),
+    occurredAt: (0, import_fields21.timestamp)(),
+    clientRecordedAt: (0, import_fields21.timestamp)(),
+    ...trackingFields
+  }
+});
+var StockReservation = (0, import_core21.list)({
+  access: rowAccess(STOCK_READ, (userId) => ({ job: { visits: { some: { assignments: { some: { active: { equals: true }, employee: { user: { id: { equals: userId } } } } } } } } })),
+  ui: { labelField: "status", listView: { initialColumns: ["item", "location", "quantity", "job", "status", "expiresAt"] } },
+  fields: {
+    item: (0, import_fields21.relationship)({ ref: "Item" }),
+    location: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    quantity: qty({ required: true }),
+    job: (0, import_fields21.relationship)({ ref: "Job" }),
+    workLine: (0, import_fields21.relationship)({ ref: "WorkLine" }),
+    status: lifecycle(["reserved", "fulfilled", "released", "expired"]),
+    expiresAt: (0, import_fields21.timestamp)(),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var MinMaxRule = (0, import_core21.list)({
+  access: governed([...STOCK_READ]),
+  ui: { labelField: "min", listView: { initialColumns: ["location", "item", "min", "max", "reorderFrom", "supplier"] } },
+  fields: {
+    location: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    item: (0, import_fields21.relationship)({ ref: "Item" }),
+    min: qty({ required: true }),
+    max: qty({ required: true }),
+    reorderFrom: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    supplier: (0, import_fields21.relationship)({ ref: "Supplier" }),
+    ...trackingFields
+  }
+});
+var ReplenishmentRequest = (0, import_core21.list)({
+  access: rowAccess(STOCK_READ, myTruck),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "location", "status", "proposedBy", "purchaseOrder"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    location: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    lines: (0, import_fields21.json)({ isFilterable: false, isOrderable: false }),
+    status: lifecycle(["proposed", "approved", "picking", "transferred", "ordered", "closed", "rejected"]),
+    proposedBy: systemText(),
+    purchaseOrder: (0, import_fields21.relationship)({ ref: "PurchaseOrder" }),
+    transferGroup: systemText(),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var CycleCount = (0, import_core21.list)({
+  access: governed([...STOCK_READ]),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "location", "status", "varianceMinor"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    location: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    status: lifecycle(["planned", "counting", "submitted", "approved", "posted"]),
+    /** [{ itemId, expected, counted }] */
+    lines: (0, import_fields21.json)({ isFilterable: false, isOrderable: false }),
+    varianceMinor: minor({ defaultValue: 0n, ...purchaseCost }),
+    approval: (0, import_fields21.relationship)({ ref: "ApprovalRequest" }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var SerializedUnit = (0, import_core21.list)({
+  access: governed([...STOCK_READ, "canManageEquipment"]),
+  ui: { labelField: "serialNumber", listView: { initialColumns: ["item", "serialNumber", "status", "location", "installedEquipment"] } },
+  fields: {
+    item: (0, import_fields21.relationship)({ ref: "Item" }),
+    serialNumber: (0, import_fields21.text)({ validation: { isRequired: true } }),
+    status: lifecycle(["in_stock", "reserved", "installed", "rma", "scrapped"]),
+    location: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    installedEquipment: (0, import_fields21.relationship)({ ref: "InstalledEquipment" }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var Supplier = (0, import_core21.list)({
+  access: governed([...BUY, "canManageInventory", "canSubmitWarrantyClaims"]),
+  ui: { labelField: "name", listView: { initialColumns: ["name", "kind", "accountNumber", "orderMethod"] } },
+  fields: {
+    name: (0, import_fields21.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    kind: fixedChoice(["supply_house", "distributor", "manufacturer", "other"], "supply_house"),
+    accountNumber: (0, import_fields21.text)(),
+    branchContact: (0, import_fields21.text)(),
+    orderMethod: fixedChoice(["email_pdf", "api", "edi", "punchout", "phone"], "phone"),
+    adapterKey: (0, import_fields21.text)(),
+    ...trackingFields
+  }
+});
+var SupplierItem = (0, import_core21.list)({
+  access: governed([...BUY]),
+  ui: { labelField: "supplierSku", listView: { initialColumns: ["supplier", "supplierSku", "item", "costMinor", "effectiveOn"] } },
+  fields: {
+    supplier: (0, import_fields21.relationship)({ ref: "Supplier" }),
+    item: (0, import_fields21.relationship)({ ref: "Item" }),
+    supplierSku: (0, import_fields21.text)({ validation: { isRequired: true } }),
+    costMinor: minor({ defaultValue: 0n, ...purchaseCost }),
+    uom: (0, import_fields21.relationship)({ ref: "UnitOfMeasure" }),
+    effectiveOn: (0, import_fields21.calendarDay)(),
+    ...trackingFields
+  }
+});
+var PurchaseOrder = (0, import_core21.list)({
+  access: governed([...BUY, "canManageInventory"]),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "supplier", "status", "totalMinor", "createdAt"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    supplier: (0, import_fields21.relationship)({ ref: "Supplier" }),
+    shipTo: (0, import_fields21.relationship)({ ref: "StockLocation" }),
+    job: (0, import_fields21.relationship)({ ref: "Job" }),
+    status: lifecycle(PO_STATUSES),
+    totalMinor: minor({ defaultValue: 0n, ...purchaseCost }),
+    approval: (0, import_fields21.relationship)({ ref: "ApprovalRequest" }),
+    externalOrderNumber: systemText(),
+    lines: (0, import_fields21.relationship)({ ref: "PurchaseOrderLine.po", many: true }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var PurchaseOrderLine = (0, import_core21.list)({
+  access: governed([...BUY, "canManageInventory"]),
+  ui: { labelField: "supplierSku", listView: { initialColumns: ["po", "item", "quantity", "receivedQuantity", "unitCostMinor"] } },
+  fields: {
+    po: (0, import_fields21.relationship)({ ref: "PurchaseOrder.lines" }),
+    item: (0, import_fields21.relationship)({ ref: "Item" }),
+    supplierSku: (0, import_fields21.text)(),
+    quantity: qty({ required: true }),
+    uom: (0, import_fields21.relationship)({ ref: "UnitOfMeasure" }),
+    unitCostMinor: minor({ defaultValue: 0n, ...purchaseCost }),
+    receivedQuantity: qty(),
+    job: (0, import_fields21.relationship)({ ref: "Job" }),
+    ...trackingFields
+  }
+});
+var Receipt = (0, import_core21.list)({
+  access: governed([...BUY, "canManageInventory"]),
+  ui: { labelField: "receivedAt", listView: { initialColumns: ["po", "receivedAt", "receivedBy"] } },
+  fields: {
+    po: (0, import_fields21.relationship)({ ref: "PurchaseOrder" }),
+    lines: (0, import_fields21.json)({ isFilterable: false, isOrderable: false }),
+    receivedAt: (0, import_fields21.timestamp)(),
+    receivedBy: (0, import_fields21.relationship)({ ref: "User" }),
+    packingSlip: (0, import_fields21.relationship)({ ref: "Media" }),
+    overReceiptApproval: (0, import_fields21.relationship)({ ref: "ApprovalRequest" }),
+    ...trackingFields
+  }
+});
+var VendorBill = (0, import_core21.list)({
+  access: governed(["canPurchase", "canApprovePurchases", "canManageAccounting", "canManageInvoices"]),
+  ui: { labelField: "billNumber", listView: { initialColumns: ["billNumber", "supplier", "po", "totalMinor", "matchStatus"] } },
+  fields: {
+    supplier: (0, import_fields21.relationship)({ ref: "Supplier" }),
+    po: (0, import_fields21.relationship)({ ref: "PurchaseOrder" }),
+    billNumber: (0, import_fields21.text)({ validation: { isRequired: true } }),
+    totalMinor: minor({ defaultValue: 0n, ...purchaseCost }),
+    matchStatus: lifecycle(["unmatched", "matched", "variance", "approved_variance"]),
+    matchDetail: (0, import_fields21.json)({ isFilterable: false, isOrderable: false }),
+    approval: (0, import_fields21.relationship)({ ref: "ApprovalRequest" }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var Rma = (0, import_core21.list)({
+  access: governed([...BUY, "canSubmitWarrantyClaims", "canManageInventory"]),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "supplier", "status", "creditMinor", "trackingNumber"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    supplier: (0, import_fields21.relationship)({ ref: "Supplier" }),
+    warrantyClaim: (0, import_fields21.relationship)({ ref: "WarrantyClaim" }),
+    lines: (0, import_fields21.json)({ isFilterable: false, isOrderable: false }),
+    status: lifecycle(["requested", "shipped", "credited", "rejected"]),
+    creditMinor: minor({ defaultValue: 0n, ...purchaseCost }),
+    trackingNumber: (0, import_fields21.text)(),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/compliance.ts
+var compliance_exports = {};
+__export(compliance_exports, {
+  CYLINDER_STATUSES: () => CYLINDER_STATUSES,
+  INSPECTION_STATUSES: () => INSPECTION_STATUSES,
+  Inspection: () => Inspection,
+  LEAK_STATUSES: () => LEAK_STATUSES,
+  LIEN_STATUSES: () => LIEN_STATUSES,
+  LeakRateEvaluation: () => LeakRateEvaluation,
+  LienTrack: () => LienTrack,
+  PERMIT_STATUSES: () => PERMIT_STATUSES,
+  Permit: () => Permit,
+  REFRIGERANT_KINDS: () => REFRIGERANT_KINDS,
+  RefrigerantCylinder: () => RefrigerantCylinder,
+  RefrigerantInstallCheck: () => RefrigerantInstallCheck,
+  RefrigerantLogEntry: () => RefrigerantLogEntry
+});
+var import_core22 = require("@keystone-6/core");
+var import_fields22 = require("@keystone-6/core/fields");
+var PERMIT_STATUSES = ["needed", "applied", "issued", "closed", "not_required", "rejected"];
+var INSPECTION_STATUSES = ["requested", "scheduled", "passed", "failed", "cancelled"];
+var REFRIGERANT_KINDS = ["charge", "recover", "transfer", "reclaim_shipment", "disposal_verification"];
+var CYLINDER_STATUSES = ["in_service", "full_recovery", "sent_reclaim", "empty", "retired"];
+var LEAK_STATUSES = ["open", "repair_due", "repaired_verified", "retrofit_plan", "retired", "not_applicable"];
+var LIEN_STATUSES = ["monitoring", "notice_sent", "affidavit_filed", "released", "abandoned"];
+var PERMIT_OFFICE = ["canManagePermits", "canDispatch", "canManageInvoices", "canViewBoard"];
+var REFRIGERANT_OFFICE = ["canManageRefrigerant", "canDispatch", "canManageEquipment"];
+var myJob = (userId) => ({ job: jobFilter(userId) });
+var LIEN_READ = ["canManageInvoices", "canManageAccounting", "canPostInvoices"];
+var Permit = (0, import_core22.list)({
+  access: rowAccess(PERMIT_OFFICE, myJob),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "job", "ahj", "permitType", "status", "externalNumber", "expiresOn"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    job: (0, import_fields22.relationship)({ ref: "Job" }),
+    ahj: (0, import_fields22.text)(),
+    permitType: (0, import_fields22.text)(),
+    externalNumber: systemText(),
+    status: lifecycle(PERMIT_STATUSES),
+    feeMinor: minor({ defaultValue: 0n }),
+    appliedOn: (0, import_fields22.calendarDay)(),
+    issuedOn: (0, import_fields22.calendarDay)(),
+    expiresOn: (0, import_fields22.calendarDay)(),
+    documents: (0, import_fields22.relationship)({ ref: "Document", many: true }),
+    note: systemText(),
+    inspections: (0, import_fields22.relationship)({ ref: "Inspection.permit", many: true }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var Inspection = (0, import_core22.list)({
+  access: rowAccess(PERMIT_OFFICE, (u) => ({ permit: myJob(u) })),
+  ui: { labelField: "kind", listView: { initialColumns: ["permit", "kind", "status", "scheduledFor", "inspectorName"] } },
+  fields: {
+    permit: (0, import_fields22.relationship)({ ref: "Permit.inspections" }),
+    kind: (0, import_fields22.text)({ validation: { isRequired: true } }),
+    status: lifecycle(INSPECTION_STATUSES),
+    scheduledFor: (0, import_fields22.timestamp)(),
+    inspectorName: (0, import_fields22.text)(),
+    result: (0, import_fields22.json)({ isFilterable: false, isOrderable: false }),
+    correctionsVisit: (0, import_fields22.relationship)({ ref: "Visit" }),
+    report: (0, import_fields22.relationship)({ ref: "Document" }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var RefrigerantCylinder = (0, import_core22.list)({
+  access: rowAccess(REFRIGERANT_OFFICE, (userId) => ({ location: { employee: { user: { id: { equals: userId } } } } })),
+  ui: { labelField: "serialOrTag", listView: { initialColumns: ["serialOrTag", "refrigerantType", "kind", "location", "tareLb", "status"] } },
+  fields: {
+    item: (0, import_fields22.relationship)({ ref: "Item" }),
+    serialOrTag: (0, import_fields22.text)({ isIndexed: "unique", validation: { isRequired: true } }),
+    refrigerantType: (0, import_fields22.text)({ validation: { isRequired: true } }),
+    kind: fixedChoice(["virgin", "recovery", "reclaim"], "virgin"),
+    location: (0, import_fields22.relationship)({ ref: "StockLocation" }),
+    tareLb: qty(),
+    status: lifecycle(CYLINDER_STATUSES),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var RefrigerantLogEntry = (0, import_core22.list)({
+  access: rowAccess(REFRIGERANT_OFFICE, (userId) => ({ technician: { user: { id: { equals: userId } } } })),
+  ui: { labelField: "kind", listView: { initialColumns: ["occurredAt", "kind", "refrigerantType", "quantityLb", "equipment", "job", "technician", "cylinder"] } },
+  fields: {
+    idempotencyKey: (0, import_fields22.text)({ isIndexed: "unique", validation: { isRequired: true }, access: { read: () => false }, isFilterable: false, isOrderable: false }),
+    kind: fixedChoice(REFRIGERANT_KINDS, "charge"),
+    equipment: (0, import_fields22.relationship)({ ref: "InstalledEquipment" }),
+    job: (0, import_fields22.relationship)({ ref: "Job" }),
+    cylinder: (0, import_fields22.relationship)({ ref: "RefrigerantCylinder" }),
+    refrigerantType: (0, import_fields22.text)({ validation: { isRequired: true } }),
+    quantityLb: qty({ required: true }),
+    technician: (0, import_fields22.relationship)({ ref: "Employee" }),
+    credential: (0, import_fields22.relationship)({ ref: "Credential" }),
+    occurredAt: (0, import_fields22.timestamp)(),
+    notes: (0, import_fields22.text)(),
+    ...trackingFields
+  }
+});
+var LeakRateEvaluation = (0, import_core22.list)({
+  access: rowAccess(REFRIGERANT_OFFICE),
+  ui: { labelField: "status", listView: { initialColumns: ["equipment", "chargeLb", "addedLb", "leakRatePct", "threshold", "status", "repairDueBy"] } },
+  fields: {
+    equipment: (0, import_fields22.relationship)({ ref: "InstalledEquipment" }),
+    chargeLb: qty(),
+    addedLb: qty(),
+    leakRatePct: rate(),
+    threshold: rate(),
+    status: lifecycle(LEAK_STATUSES),
+    repairDueBy: (0, import_fields22.calendarDay)(),
+    policyVersion: (0, import_fields22.relationship)({ ref: "PolicyVersion" }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var RefrigerantInstallCheck = (0, import_core22.list)({
+  access: rowAccess(REFRIGERANT_OFFICE),
+  ui: { labelField: "result", listView: { initialColumns: ["workLine", "equipmentModel", "stage", "result"] } },
+  fields: {
+    workLine: (0, import_fields22.relationship)({ ref: "WorkLine" }),
+    equipmentModel: (0, import_fields22.relationship)({ ref: "EquipmentModel" }),
+    stage: fixedChoice(["sold", "work_complete"], "sold"),
+    policyVersion: (0, import_fields22.relationship)({ ref: "PolicyVersion" }),
+    result: fixedChoice(["allowed", "blocked", "warning"], "allowed"),
+    findings: (0, import_fields22.json)({ isFilterable: false, isOrderable: false }),
+    ...trackingFields
+  }
+});
+var LienTrack = (0, import_core22.list)({
+  access: governed([...LIEN_READ]),
+  ui: { labelField: "status", listView: { initialColumns: ["invoice", "job", "completionMonth", "noticeDueOn", "affidavitDueOn", "status"] } },
+  fields: {
+    invoice: (0, import_fields22.relationship)({ ref: "Invoice" }),
+    job: (0, import_fields22.relationship)({ ref: "Job" }),
+    policyVersion: (0, import_fields22.relationship)({ ref: "PolicyVersion" }),
+    completionMonth: (0, import_fields22.calendarDay)(),
+    noticeDueOn: (0, import_fields22.calendarDay)(),
+    affidavitDueOn: (0, import_fields22.calendarDay)(),
+    status: lifecycle(LIEN_STATUSES),
+    documents: (0, import_fields22.relationship)({ ref: "Document", many: true }),
+    note: systemText(),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+
 // features/keystone/models/index.ts
 var listsOf = (module2) => Object.fromEntries(Object.entries(module2).filter(([name, value]) => /^[A-Z]/.test(name) && typeof value === "object" && value !== null && "fields" in value));
 var models = {
@@ -3789,7 +4416,10 @@ var models = {
   ...listsOf(jobs_exports),
   ...listsOf(sales_exports),
   ...listsOf(billing_exports),
-  ...listsOf(memberships_exports)
+  ...listsOf(memberships_exports),
+  ...listsOf(equipment_exports),
+  ...listsOf(inventory_exports),
+  ...listsOf(compliance_exports)
 };
 
 // features/keystone/index.ts
@@ -6944,10 +7574,10 @@ var PAGE_H = 792;
 var MARGIN = 54;
 var W = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
 var WB = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
-function ansi(text20) {
+function ansi(text23) {
   const map = { "\u20AC": 128, "\u201A": 130, "\u201E": 132, "\u2026": 133, "\u2018": 145, "\u2019": 146, "\u201C": 147, "\u201D": 148, "\u2022": 149, "\u2013": 150, "\u2014": 151, "\u2122": 153, "\u2212": 45, "\xB7": 183, "\xA7": 167 };
   let out = "";
-  for (const ch of text20) {
+  for (const ch of text23) {
     const c = ch.codePointAt(0);
     const b = map[ch] ?? (c >= 32 && c <= 255 && !(c >= 127 && c < 160) ? c : 63);
     out += String.fromCharCode(b);
@@ -6955,19 +7585,19 @@ function ansi(text20) {
   return out;
 }
 var esc = (s) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-function textWidth(text20, size, font = "regular") {
-  if (font === "mono") return ansi(text20).length * 600 * size / 1e3;
+function textWidth(text23, size, font = "regular") {
+  if (font === "mono") return ansi(text23).length * 600 * size / 1e3;
   const table = font === "bold" ? WB : W;
   let w = 0;
-  for (const ch of ansi(text20)) {
+  for (const ch of ansi(text23)) {
     const c = ch.charCodeAt(0);
     w += c >= 32 && c <= 126 ? table[c - 32] : 556;
   }
   return w * size / 1e3;
 }
-function wrap(text20, width, size, font = "regular") {
+function wrap(text23, width, size, font = "regular") {
   const lines = [];
-  for (const para of text20.split("\n")) {
+  for (const para of text23.split("\n")) {
     let line = "";
     for (const word of para.split(/\s+/).filter(Boolean)) {
       const next = line ? `${line} ${word}` : word;
@@ -7410,7 +8040,7 @@ async function storeRecordedDocument(uow, actor, spec) {
 var MANAGE = ["canManageMemberships"];
 var SELL2 = ["canSellMemberships", "canManageMemberships"];
 var ymd = (d) => d ? d.toISOString().slice(0, 10) : "";
-var text19 = (v, field, min = 1, max = 400) => {
+var text22 = (v, field, min = 1, max = 400) => {
   const s = String(v ?? "").trim();
   if (s.length < min || s.length > max) throw new DomainError(Codes.INVALID_INPUT, min > 0 ? `${field.replace(/([A-Z])/g, " $1").toLowerCase()} is needed.` : "Too long.", { field });
   return s;
@@ -7470,7 +8100,7 @@ function draftData(input) {
 }
 async function createPlan(db, actor, args) {
   await authorizeOperation(db, actor, "membership.plan_create", MANAGE, args);
-  const name = text19(args.name, "name", 3, 80);
+  const name = text22(args.name, "name", 3, 80);
   const code = String(args.code ?? "").trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(code)) throw new DomainError(Codes.INVALID_INPUT, "The code is lower-case letters, digits and dashes.", { field: "code" });
   const { idempotencyKey, now: _now, ...params } = args;
@@ -7668,7 +8298,7 @@ async function updatePaymentMethod(db, actor, args) {
     const m = await lockRow(uow.tx, "Membership", args.membershipId);
     if (["cancelled", "transferred", "expired"].includes(m.status)) throw new DomainError(Codes.GUARD_FAILED, `This membership is ${m.status}.`);
     if (!/^pm_[A-Za-z0-9_]{6,100}$/.test(args.paymentMethodRef.trim())) throw new DomainError(Codes.INVALID_INPUT, "That is not a saved card reference.", { field: "paymentMethodRef" });
-    await uow.tx.membership.update({ where: { id: m.id }, data: { paymentMethodRef: args.paymentMethodRef.trim(), paymentMethodLabel: text19(args.paymentMethodLabel, "paymentMethodLabel", 2, 60) } });
+    await uow.tx.membership.update({ where: { id: m.id }, data: { paymentMethodRef: args.paymentMethodRef.trim(), paymentMethodLabel: text22(args.paymentMethodLabel, "paymentMethodLabel", 2, 60) } });
     auditCreate(uow, actor, "Membership", m.id, "membership.payment_method_set", { label: args.paymentMethodLabel });
     return { membershipId: m.id };
   });
@@ -7734,7 +8364,7 @@ async function bookVisit(db, actor, args) {
 }
 async function releaseVisit(db, actor, args) {
   await authorizeOperation(db, actor, "membership.visit_release", [...SELL2, "canBook"], args);
-  const reason = text19(args.reason, "reason", 3, 200);
+  const reason = text22(args.reason, "reason", 3, 200);
   const { idempotencyKey, now: _now, ...params } = args;
   const result = await command(db, { name: "membership.visit_release", actor, idempotencyKey, params, now: args.now }, async (uow) => {
     const event = await lockRow(uow.tx, "RecurringServiceEvent", args.eventId);
@@ -7828,7 +8458,7 @@ async function closeTermForRefund(uow, actor, a) {
 }
 async function cancelMembership(db, actor, args) {
   await authorizeOperation(db, actor, "membership.cancel", SELL2, args);
-  const reason = text19(args.reason, "reason", 3, 300);
+  const reason = text22(args.reason, "reason", 3, 300);
   const { idempotencyKey, now: _now, ...params } = args;
   const result = await command(db, { name: "membership.cancel", actor, idempotencyKey, params, now: args.now }, (uow) => cancelMembershipInTx(uow, actor, args.membershipId, reason, "staff"));
   return { replay: result.replay, ...result.value };
@@ -10713,14 +11343,14 @@ async function mergeLead(db, actor, args) {
 }
 async function matchJobType(db, actor, args) {
   await authorizeOperation(db, actor, "jobtype.match", ["canBook"], args);
-  const text20 = args.description.toLowerCase();
+  const text23 = args.description.toLowerCase();
   const types = await db.jobType.findMany({ where: { active: true }, select: { id: true, code: true, name: true, trade: true, priority: true, keywords: true, emergencyPolicy: true, bookableByAi: true, bookingQuestions: true, businessUnitId: true } });
-  const words = new Set(text20.split(/[^a-z0-9]+/).filter(Boolean));
+  const words = new Set(text23.split(/[^a-z0-9]+/).filter(Boolean));
   const scored = types.map((t) => {
     const keys = (t.keywords ?? []).map((k) => k.toLowerCase());
-    const hits = keys.filter((k) => k.includes(" ") ? text20.includes(k) : words.has(k));
+    const hits = keys.filter((k) => k.includes(" ") ? text23.includes(k) : words.has(k));
     const emergency = t.emergencyPolicy;
-    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text20.includes(k.toLowerCase()));
+    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text23.includes(k.toLowerCase()));
     return { jobTypeId: t.id, code: t.code, name: t.name, trade: t.trade, priority: t.priority, bookableByAi: t.bookableByAi, score: hits.length * 10 + emergencyHits.length * 25, matched: hits, emergency: emergencyHits.length ? { matched: emergencyHits, script: emergency?.script ?? "", page: !!emergency?.page } : null, questions: t.bookingQuestions ?? [], businessUnitId: t.businessUnitId };
   }).filter((t) => t.score > 0).sort((a, b) => b.score - a.score || a.code.localeCompare(b.code)).slice(0, 3);
   let inArea = null;
@@ -10993,8 +11623,8 @@ init_errors();
 var BILL = ["canManageInvoices", "canPostInvoices"];
 var REVENUE_ACCOUNT = { labor: "4000", material: "4100", equipment: "4100", fee: "4300", disposal: "4300", permit_passthrough: "2300", warranty_reimbursed: "4200", membership: "4400", maintenance: "4400" };
 var BILLABLE_JOB = ["work_complete", "awaiting_inspection", "completed", "closed"];
-var mustReason = (text20, field = "reason") => {
-  const v = String(text20 ?? "").trim();
+var mustReason = (text23, field = "reason") => {
+  const v = String(text23 ?? "").trim();
   if (v.length < 3) throw new DomainError(Codes.INVALID_INPUT, "Say why, in a few words.", { field });
   return v;
 };
@@ -12035,23 +12665,23 @@ var StripeTestAdapter = class {
     } catch {
       return { outcome: "unknown", providerRef: "", note: "No answer from the processor. The card may or may not have been charged." };
     }
-    const json16 = await response.json().catch(() => null);
-    if (response.status >= 500 || !json16) return { outcome: "unknown", providerRef: "", note: "The processor answered with an error. The card may or may not have been charged." };
-    if (json16.error) {
-      const intent = json16.error.payment_intent;
-      if (intent?.id) return { outcome: "failed", providerRef: intent.id, note: json16.error.message?.slice(0, 200) || "The card was declined." };
-      if (response.status === 429 || json16.error.type === "api_connection_error") return { outcome: "unknown", providerRef: "", note: "The processor was busy. Nothing is known about this charge yet." };
-      return { outcome: "failed", providerRef: "", note: json16.error.message?.slice(0, 200) || "The card was declined." };
+    const json18 = await response.json().catch(() => null);
+    if (response.status >= 500 || !json18) return { outcome: "unknown", providerRef: "", note: "The processor answered with an error. The card may or may not have been charged." };
+    if (json18.error) {
+      const intent = json18.error.payment_intent;
+      if (intent?.id) return { outcome: "failed", providerRef: intent.id, note: json18.error.message?.slice(0, 200) || "The card was declined." };
+      if (response.status === 429 || json18.error.type === "api_connection_error") return { outcome: "unknown", providerRef: "", note: "The processor was busy. Nothing is known about this charge yet." };
+      return { outcome: "failed", providerRef: "", note: json18.error.message?.slice(0, 200) || "The card was declined." };
     }
-    return toResult(json16);
+    return toResult(json18);
   }
   async lookup(providerKey) {
     const key2 = (0, import_node_crypto11.createHash)("sha256").update(providerKey).digest("hex").slice(0, 40);
     try {
       const response = await this.call(`/payment_intents/search?query=${encodeURIComponent(`metadata['providerKey']:'${key2}'`)}&limit=1`, { method: "GET" });
-      const json16 = await response.json();
-      if (!response.ok || json16.error) return { outcome: "unknown", providerRef: "", note: "The processor could not be asked right now." };
-      const found = json16.data?.[0];
+      const json18 = await response.json();
+      if (!response.ok || json18.error) return { outcome: "unknown", providerRef: "", note: "The processor could not be asked right now." };
+      const found = json18.data?.[0];
       return found ? toResult(found) : { outcome: "none" };
     } catch {
       return { outcome: "unknown", providerRef: "", note: "The processor could not be reached." };
@@ -12709,7 +13339,13 @@ var COMPOUND_UNIQUES = {
   PriceBookVersion: ['@@unique([priceBookId, versionNumber], map: "PriceBookVersion_book_number_key")'],
   PriceBookItem: ['@@unique([priceBookVersionId, itemKey], map: "PriceBookItem_version_key_key")'],
   PriceBookCategory: ['@@unique([priceBookVersionId, categoryKey], map: "PriceBookCategory_version_key_key")'],
-  EstimateVersion: ['@@unique([estimateId, versionNumber], map: "EstimateVersion_estimate_number_key")']
+  EstimateVersion: ['@@unique([estimateId, versionNumber], map: "EstimateVersion_estimate_number_key")'],
+  // Phase 5: stock, serial numbers, supplier catalogues
+  StockLevel: ['@@unique([locationId, itemId], map: "StockLevel_location_item_key")'],
+  SerializedUnit: ['@@unique([itemId, serialNumber], map: "SerializedUnit_item_serial_key")'],
+  SupplierItem: ['@@unique([supplierId, supplierSku], map: "SupplierItem_supplier_sku_key")'],
+  ItemUomConversion: ['@@unique([itemId, fromUomId, toUomId], map: "ItemUomConversion_item_from_to_key")'],
+  MinMaxRule: ['@@unique([locationId, itemId], map: "MinMaxRule_location_item_key")']
 };
 function addDatabaseConstraints(schema) {
   for (const [modelName, directives] of Object.entries(COMPOUND_UNIQUES)) {
@@ -12833,7 +13469,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   `
 });
 var keystone_default = withAuth(
-  (0, import_core21.config)({
+  (0, import_core24.config)({
     db: {
       provider: "postgresql",
       url: databaseURL,

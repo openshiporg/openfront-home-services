@@ -13664,6 +13664,2824 @@ input RecurringServiceEventRelateToManyForCreateInput {
   connect: [RecurringServiceEventWhereUniqueInput!]
 }
 
+type EquipmentReading {
+  id: ID!
+  equipment: InstalledEquipment
+  visit: Visit
+  kind: String
+  value: Decimal
+  unit: String
+  recordedBy: User
+  recordedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EquipmentReadingWhereUniqueInput {
+  id: ID
+}
+
+input EquipmentReadingWhereInput {
+  AND: [EquipmentReadingWhereInput!]
+  OR: [EquipmentReadingWhereInput!]
+  NOT: [EquipmentReadingWhereInput!]
+  id: IDFilter
+  equipment: InstalledEquipmentWhereInput
+  visit: VisitWhereInput
+  kind: StringFilter
+  value: DecimalFilter
+  unit: StringFilter
+  recordedBy: UserWhereInput
+  recordedAt: DateTimeNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EquipmentReadingOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  value: OrderDirection
+  unit: OrderDirection
+  recordedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EquipmentReadingUpdateInput {
+  equipment: InstalledEquipmentRelateToOneForUpdateInput
+  visit: VisitRelateToOneForUpdateInput
+  kind: String
+  value: Decimal
+  unit: String
+  recordedBy: UserRelateToOneForUpdateInput
+  recordedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InstalledEquipmentRelateToOneForUpdateInput {
+  create: InstalledEquipmentCreateInput
+  connect: InstalledEquipmentWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EquipmentReadingUpdateArgs {
+  where: EquipmentReadingWhereUniqueInput!
+  data: EquipmentReadingUpdateInput!
+}
+
+input EquipmentReadingCreateInput {
+  equipment: InstalledEquipmentRelateToOneForCreateInput
+  visit: VisitRelateToOneForCreateInput
+  kind: String
+  value: Decimal
+  unit: String
+  recordedBy: UserRelateToOneForCreateInput
+  recordedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InstalledEquipmentRelateToOneForCreateInput {
+  create: InstalledEquipmentCreateInput
+  connect: InstalledEquipmentWhereUniqueInput
+}
+
+type HomeWarrantyDispatch {
+  id: ID!
+  payer: PayerProfile
+  externalDispatchNumber: String
+  job: Job
+  serviceFeeMinor: BigInt
+  authorizedMinor: BigInt
+  status: String
+  authorization: ThirdPartyAuthorization
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input HomeWarrantyDispatchWhereUniqueInput {
+  id: ID
+  externalDispatchNumber: String
+}
+
+input HomeWarrantyDispatchWhereInput {
+  AND: [HomeWarrantyDispatchWhereInput!]
+  OR: [HomeWarrantyDispatchWhereInput!]
+  NOT: [HomeWarrantyDispatchWhereInput!]
+  id: IDFilter
+  payer: PayerProfileWhereInput
+  externalDispatchNumber: StringFilter
+  job: JobWhereInput
+  serviceFeeMinor: BigIntFilter
+  authorizedMinor: BigIntFilter
+  status: StringFilter
+  authorization: ThirdPartyAuthorizationWhereInput
+  note: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input HomeWarrantyDispatchOrderByInput {
+  id: OrderDirection
+  externalDispatchNumber: OrderDirection
+  serviceFeeMinor: OrderDirection
+  authorizedMinor: OrderDirection
+  status: OrderDirection
+  note: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input HomeWarrantyDispatchUpdateInput {
+  payer: PayerProfileRelateToOneForUpdateInput
+  externalDispatchNumber: String
+  job: JobRelateToOneForUpdateInput
+  serviceFeeMinor: BigInt
+  authorizedMinor: BigInt
+  status: String
+  authorization: ThirdPartyAuthorizationRelateToOneForUpdateInput
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input HomeWarrantyDispatchUpdateArgs {
+  where: HomeWarrantyDispatchWhereUniqueInput!
+  data: HomeWarrantyDispatchUpdateInput!
+}
+
+input HomeWarrantyDispatchCreateInput {
+  payer: PayerProfileRelateToOneForCreateInput
+  externalDispatchNumber: String
+  job: JobRelateToOneForCreateInput
+  serviceFeeMinor: BigInt
+  authorizedMinor: BigInt
+  status: String
+  authorization: ThirdPartyAuthorizationRelateToOneForCreateInput
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type InstalledEquipment {
+  id: ID!
+  ref: String
+  location: ServiceLocation
+  model: EquipmentModel
+  manufacturer: String
+  modelNumber: String
+  serialNumber: String
+  kind: String
+  applianceClass: String
+  tonnage: Decimal
+  btuh: Int
+  refrigerantType: String
+  refrigerantChargeLb: Decimal
+  manufactureDate: CalendarDay
+  installDate: CalendarDay
+  installedBy: Job
+  serializedUnit: SerializedUnit
+  status: String
+  replacedBy: InstalledEquipment
+  locationInHome: String
+  nameplatePhoto: Media
+  source: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InstalledEquipmentWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input InstalledEquipmentWhereInput {
+  AND: [InstalledEquipmentWhereInput!]
+  OR: [InstalledEquipmentWhereInput!]
+  NOT: [InstalledEquipmentWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  location: ServiceLocationWhereInput
+  model: EquipmentModelWhereInput
+  manufacturer: StringFilter
+  modelNumber: StringFilter
+  serialNumber: StringFilter
+  kind: StringFilter
+  applianceClass: StringFilter
+  tonnage: DecimalNullableFilter
+  btuh: IntNullableFilter
+  refrigerantType: StringFilter
+  refrigerantChargeLb: DecimalNullableFilter
+  manufactureDate: CalendarDayNullableFilter
+  installDate: CalendarDayNullableFilter
+  installedBy: JobWhereInput
+  serializedUnit: SerializedUnitWhereInput
+  status: StringFilter
+  replacedBy: InstalledEquipmentWhereInput
+  locationInHome: StringFilter
+  nameplatePhoto: MediaWhereInput
+  source: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input InstalledEquipmentOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  manufacturer: OrderDirection
+  modelNumber: OrderDirection
+  serialNumber: OrderDirection
+  kind: OrderDirection
+  applianceClass: OrderDirection
+  tonnage: OrderDirection
+  btuh: OrderDirection
+  refrigerantType: OrderDirection
+  refrigerantChargeLb: OrderDirection
+  manufactureDate: OrderDirection
+  installDate: OrderDirection
+  status: OrderDirection
+  locationInHome: OrderDirection
+  source: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input InstalledEquipmentUpdateInput {
+  ref: String
+  location: ServiceLocationRelateToOneForUpdateInput
+  model: EquipmentModelRelateToOneForUpdateInput
+  manufacturer: String
+  modelNumber: String
+  serialNumber: String
+  kind: String
+  applianceClass: String
+  tonnage: Decimal
+  btuh: Int
+  refrigerantType: String
+  refrigerantChargeLb: Decimal
+  manufactureDate: CalendarDay
+  installDate: CalendarDay
+  installedBy: JobRelateToOneForUpdateInput
+  serializedUnit: SerializedUnitRelateToOneForUpdateInput
+  status: String
+  replacedBy: InstalledEquipmentRelateToOneForUpdateInput
+  locationInHome: String
+  nameplatePhoto: MediaRelateToOneForUpdateInput
+  source: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SerializedUnitRelateToOneForUpdateInput {
+  create: SerializedUnitCreateInput
+  connect: SerializedUnitWhereUniqueInput
+  disconnect: Boolean
+}
+
+input InstalledEquipmentUpdateArgs {
+  where: InstalledEquipmentWhereUniqueInput!
+  data: InstalledEquipmentUpdateInput!
+}
+
+input InstalledEquipmentCreateInput {
+  ref: String
+  location: ServiceLocationRelateToOneForCreateInput
+  model: EquipmentModelRelateToOneForCreateInput
+  manufacturer: String
+  modelNumber: String
+  serialNumber: String
+  kind: String
+  applianceClass: String
+  tonnage: Decimal
+  btuh: Int
+  refrigerantType: String
+  refrigerantChargeLb: Decimal
+  manufactureDate: CalendarDay
+  installDate: CalendarDay
+  installedBy: JobRelateToOneForCreateInput
+  serializedUnit: SerializedUnitRelateToOneForCreateInput
+  status: String
+  replacedBy: InstalledEquipmentRelateToOneForCreateInput
+  locationInHome: String
+  nameplatePhoto: MediaRelateToOneForCreateInput
+  source: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SerializedUnitRelateToOneForCreateInput {
+  create: SerializedUnitCreateInput
+  connect: SerializedUnitWhereUniqueInput
+}
+
+type WarrantyClaim {
+  id: ID!
+  ref: String
+  job: Job
+  equipment: InstalledEquipment
+  rule: WarrantyRule
+  claimant: String
+  distributor: Supplier
+  failedPart: String
+  failureDate: CalendarDay
+  replacementItem: Item
+  replacementSerial: String
+  laborHours: Decimal
+  claimedMinor: BigInt
+  recoveredMinor: BigInt
+  status: String
+  externalClaimNumber: String
+  evidence(where: MediaWhereInput! = {}, orderBy: [MediaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MediaWhereUniqueInput): [Media!]
+  evidenceCount(where: MediaWhereInput! = {}): Int
+  rma: Rma
+  draftedBy: User
+  draftedByAgent: AgentIdentity
+  submittedBy: User
+  deadline: CalendarDay
+  decisionNote: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyClaimWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input WarrantyClaimWhereInput {
+  AND: [WarrantyClaimWhereInput!]
+  OR: [WarrantyClaimWhereInput!]
+  NOT: [WarrantyClaimWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  job: JobWhereInput
+  equipment: InstalledEquipmentWhereInput
+  rule: WarrantyRuleWhereInput
+  claimant: StringFilter
+  distributor: SupplierWhereInput
+  failedPart: StringFilter
+  failureDate: CalendarDayNullableFilter
+  replacementItem: ItemWhereInput
+  replacementSerial: StringFilter
+  laborHours: DecimalNullableFilter
+  claimedMinor: BigIntFilter
+  recoveredMinor: BigIntFilter
+  status: StringFilter
+  externalClaimNumber: StringFilter
+  evidence: MediaManyRelationFilter
+  rma: RmaWhereInput
+  draftedBy: UserWhereInput
+  draftedByAgent: AgentIdentityWhereInput
+  submittedBy: UserWhereInput
+  deadline: CalendarDayNullableFilter
+  decisionNote: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MediaManyRelationFilter {
+  every: MediaWhereInput
+  some: MediaWhereInput
+  none: MediaWhereInput
+}
+
+input WarrantyClaimOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  claimant: OrderDirection
+  failedPart: OrderDirection
+  failureDate: OrderDirection
+  replacementSerial: OrderDirection
+  laborHours: OrderDirection
+  claimedMinor: OrderDirection
+  recoveredMinor: OrderDirection
+  status: OrderDirection
+  externalClaimNumber: OrderDirection
+  deadline: OrderDirection
+  decisionNote: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input WarrantyClaimUpdateInput {
+  ref: String
+  job: JobRelateToOneForUpdateInput
+  equipment: InstalledEquipmentRelateToOneForUpdateInput
+  rule: WarrantyRuleRelateToOneForUpdateInput
+  claimant: String
+  distributor: SupplierRelateToOneForUpdateInput
+  failedPart: String
+  failureDate: CalendarDay
+  replacementItem: ItemRelateToOneForUpdateInput
+  replacementSerial: String
+  laborHours: Decimal
+  claimedMinor: BigInt
+  recoveredMinor: BigInt
+  status: String
+  externalClaimNumber: String
+  evidence: MediaRelateToManyForUpdateInput
+  rma: RmaRelateToOneForUpdateInput
+  draftedBy: UserRelateToOneForUpdateInput
+  draftedByAgent: AgentIdentityRelateToOneForUpdateInput
+  submittedBy: UserRelateToOneForUpdateInput
+  deadline: CalendarDay
+  decisionNote: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyRuleRelateToOneForUpdateInput {
+  create: WarrantyRuleCreateInput
+  connect: WarrantyRuleWhereUniqueInput
+  disconnect: Boolean
+}
+
+input SupplierRelateToOneForUpdateInput {
+  create: SupplierCreateInput
+  connect: SupplierWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ItemRelateToOneForUpdateInput {
+  create: ItemCreateInput
+  connect: ItemWhereUniqueInput
+  disconnect: Boolean
+}
+
+input MediaRelateToManyForUpdateInput {
+  disconnect: [MediaWhereUniqueInput!]
+  set: [MediaWhereUniqueInput!]
+  create: [MediaCreateInput!]
+  connect: [MediaWhereUniqueInput!]
+}
+
+input RmaRelateToOneForUpdateInput {
+  create: RmaCreateInput
+  connect: RmaWhereUniqueInput
+  disconnect: Boolean
+}
+
+input WarrantyClaimUpdateArgs {
+  where: WarrantyClaimWhereUniqueInput!
+  data: WarrantyClaimUpdateInput!
+}
+
+input WarrantyClaimCreateInput {
+  ref: String
+  job: JobRelateToOneForCreateInput
+  equipment: InstalledEquipmentRelateToOneForCreateInput
+  rule: WarrantyRuleRelateToOneForCreateInput
+  claimant: String
+  distributor: SupplierRelateToOneForCreateInput
+  failedPart: String
+  failureDate: CalendarDay
+  replacementItem: ItemRelateToOneForCreateInput
+  replacementSerial: String
+  laborHours: Decimal
+  claimedMinor: BigInt
+  recoveredMinor: BigInt
+  status: String
+  externalClaimNumber: String
+  evidence: MediaRelateToManyForCreateInput
+  rma: RmaRelateToOneForCreateInput
+  draftedBy: UserRelateToOneForCreateInput
+  draftedByAgent: AgentIdentityRelateToOneForCreateInput
+  submittedBy: UserRelateToOneForCreateInput
+  deadline: CalendarDay
+  decisionNote: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyRuleRelateToOneForCreateInput {
+  create: WarrantyRuleCreateInput
+  connect: WarrantyRuleWhereUniqueInput
+}
+
+input SupplierRelateToOneForCreateInput {
+  create: SupplierCreateInput
+  connect: SupplierWhereUniqueInput
+}
+
+input ItemRelateToOneForCreateInput {
+  create: ItemCreateInput
+  connect: ItemWhereUniqueInput
+}
+
+input MediaRelateToManyForCreateInput {
+  create: [MediaCreateInput!]
+  connect: [MediaWhereUniqueInput!]
+}
+
+input RmaRelateToOneForCreateInput {
+  create: RmaCreateInput
+  connect: RmaWhereUniqueInput
+}
+
+type WarrantyCoverage {
+  id: ID!
+  equipment: InstalledEquipment
+  kind: String
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  provider: String
+  contractNumber: String
+  document: Document
+  registration: WarrantyRegistration
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyCoverageWhereUniqueInput {
+  id: ID
+}
+
+input WarrantyCoverageWhereInput {
+  AND: [WarrantyCoverageWhereInput!]
+  OR: [WarrantyCoverageWhereInput!]
+  NOT: [WarrantyCoverageWhereInput!]
+  id: IDFilter
+  equipment: InstalledEquipmentWhereInput
+  kind: StringFilter
+  startsOn: CalendarDayNullableFilter
+  endsOn: CalendarDayNullableFilter
+  provider: StringFilter
+  contractNumber: StringFilter
+  document: DocumentWhereInput
+  registration: WarrantyRegistrationWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input WarrantyCoverageOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  startsOn: OrderDirection
+  endsOn: OrderDirection
+  provider: OrderDirection
+  contractNumber: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input WarrantyCoverageUpdateInput {
+  equipment: InstalledEquipmentRelateToOneForUpdateInput
+  kind: String
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  provider: String
+  contractNumber: String
+  document: DocumentRelateToOneForUpdateInput
+  registration: WarrantyRegistrationRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyRegistrationRelateToOneForUpdateInput {
+  create: WarrantyRegistrationCreateInput
+  connect: WarrantyRegistrationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input WarrantyCoverageUpdateArgs {
+  where: WarrantyCoverageWhereUniqueInput!
+  data: WarrantyCoverageUpdateInput!
+}
+
+input WarrantyCoverageCreateInput {
+  equipment: InstalledEquipmentRelateToOneForCreateInput
+  kind: String
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  provider: String
+  contractNumber: String
+  document: DocumentRelateToOneForCreateInput
+  registration: WarrantyRegistrationRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyRegistrationRelateToOneForCreateInput {
+  create: WarrantyRegistrationCreateInput
+  connect: WarrantyRegistrationWhereUniqueInput
+}
+
+type WarrantyRegistration {
+  id: ID!
+  ref: String
+  equipment: InstalledEquipment
+  rule: WarrantyRule
+  deadline: CalendarDay
+  status: String
+  confirmationNumber: String
+  submittedBy: User
+  submittedAt: DateTime
+  overdueSince: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyRegistrationWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input WarrantyRegistrationWhereInput {
+  AND: [WarrantyRegistrationWhereInput!]
+  OR: [WarrantyRegistrationWhereInput!]
+  NOT: [WarrantyRegistrationWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  equipment: InstalledEquipmentWhereInput
+  rule: WarrantyRuleWhereInput
+  deadline: CalendarDayNullableFilter
+  status: StringFilter
+  confirmationNumber: StringFilter
+  submittedBy: UserWhereInput
+  submittedAt: DateTimeNullableFilter
+  overdueSince: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input WarrantyRegistrationOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  deadline: OrderDirection
+  status: OrderDirection
+  confirmationNumber: OrderDirection
+  submittedAt: OrderDirection
+  overdueSince: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input WarrantyRegistrationUpdateInput {
+  ref: String
+  equipment: InstalledEquipmentRelateToOneForUpdateInput
+  rule: WarrantyRuleRelateToOneForUpdateInput
+  deadline: CalendarDay
+  status: String
+  confirmationNumber: String
+  submittedBy: UserRelateToOneForUpdateInput
+  submittedAt: DateTime
+  overdueSince: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyRegistrationUpdateArgs {
+  where: WarrantyRegistrationWhereUniqueInput!
+  data: WarrantyRegistrationUpdateInput!
+}
+
+input WarrantyRegistrationCreateInput {
+  ref: String
+  equipment: InstalledEquipmentRelateToOneForCreateInput
+  rule: WarrantyRuleRelateToOneForCreateInput
+  deadline: CalendarDay
+  status: String
+  confirmationNumber: String
+  submittedBy: UserRelateToOneForCreateInput
+  submittedAt: DateTime
+  overdueSince: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type WarrantyRule {
+  id: ID!
+  manufacturer: String
+  brand: String
+  registrationDeadlineDays: Int
+  partsYearsRegistered: Int
+  partsYearsUnregistered: Int
+  laborYears: Int
+  claimDeadlineDays: Int
+  submitMethod: String
+  portalUrl: String
+  verified: Boolean
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyRuleWhereUniqueInput {
+  id: ID
+  manufacturer: String
+}
+
+input WarrantyRuleWhereInput {
+  AND: [WarrantyRuleWhereInput!]
+  OR: [WarrantyRuleWhereInput!]
+  NOT: [WarrantyRuleWhereInput!]
+  id: IDFilter
+  manufacturer: StringFilter
+  brand: StringFilter
+  registrationDeadlineDays: IntFilter
+  partsYearsRegistered: IntFilter
+  partsYearsUnregistered: IntFilter
+  laborYears: IntFilter
+  claimDeadlineDays: IntFilter
+  submitMethod: StringFilter
+  portalUrl: StringFilter
+  verified: BooleanFilter
+  notes: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input WarrantyRuleOrderByInput {
+  id: OrderDirection
+  manufacturer: OrderDirection
+  brand: OrderDirection
+  registrationDeadlineDays: OrderDirection
+  partsYearsRegistered: OrderDirection
+  partsYearsUnregistered: OrderDirection
+  laborYears: OrderDirection
+  claimDeadlineDays: OrderDirection
+  submitMethod: OrderDirection
+  portalUrl: OrderDirection
+  verified: OrderDirection
+  notes: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input WarrantyRuleUpdateInput {
+  manufacturer: String
+  brand: String
+  registrationDeadlineDays: Int
+  partsYearsRegistered: Int
+  partsYearsUnregistered: Int
+  laborYears: Int
+  claimDeadlineDays: Int
+  submitMethod: String
+  portalUrl: String
+  verified: Boolean
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyRuleUpdateArgs {
+  where: WarrantyRuleWhereUniqueInput!
+  data: WarrantyRuleUpdateInput!
+}
+
+input WarrantyRuleCreateInput {
+  manufacturer: String
+  brand: String
+  registrationDeadlineDays: Int
+  partsYearsRegistered: Int
+  partsYearsUnregistered: Int
+  laborYears: Int
+  claimDeadlineDays: Int
+  submitMethod: String
+  portalUrl: String
+  verified: Boolean
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type CycleCount {
+  id: ID!
+  ref: String
+  location: StockLocation
+  status: String
+  lines: JSON
+  varianceMinor: BigInt
+  approval: ApprovalRequest
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CycleCountWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input CycleCountWhereInput {
+  AND: [CycleCountWhereInput!]
+  OR: [CycleCountWhereInput!]
+  NOT: [CycleCountWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  location: StockLocationWhereInput
+  status: StringFilter
+  varianceMinor: BigIntFilter
+  approval: ApprovalRequestWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CycleCountOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  status: OrderDirection
+  varianceMinor: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CycleCountUpdateInput {
+  ref: String
+  location: StockLocationRelateToOneForUpdateInput
+  status: String
+  lines: JSON
+  varianceMinor: BigInt
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockLocationRelateToOneForUpdateInput {
+  create: StockLocationCreateInput
+  connect: StockLocationWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CycleCountUpdateArgs {
+  where: CycleCountWhereUniqueInput!
+  data: CycleCountUpdateInput!
+}
+
+input CycleCountCreateInput {
+  ref: String
+  location: StockLocationRelateToOneForCreateInput
+  status: String
+  lines: JSON
+  varianceMinor: BigInt
+  approval: ApprovalRequestRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockLocationRelateToOneForCreateInput {
+  create: StockLocationCreateInput
+  connect: StockLocationWhereUniqueInput
+}
+
+type Item {
+  id: ID!
+  sku: String
+  name: String
+  kind: String
+  trackSerial: Boolean
+  trackLot: Boolean
+  baseUom: UnitOfMeasure
+  defaultSupplier: Supplier
+  standardCostMinor: BigInt
+  pricebookItemKeys: JSON
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ItemWhereUniqueInput {
+  id: ID
+  sku: String
+}
+
+input ItemWhereInput {
+  AND: [ItemWhereInput!]
+  OR: [ItemWhereInput!]
+  NOT: [ItemWhereInput!]
+  id: IDFilter
+  sku: StringFilter
+  name: StringFilter
+  kind: StringFilter
+  trackSerial: BooleanFilter
+  trackLot: BooleanFilter
+  baseUom: UnitOfMeasureWhereInput
+  defaultSupplier: SupplierWhereInput
+  standardCostMinor: BigIntFilter
+  active: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ItemOrderByInput {
+  id: OrderDirection
+  sku: OrderDirection
+  name: OrderDirection
+  kind: OrderDirection
+  trackSerial: OrderDirection
+  trackLot: OrderDirection
+  standardCostMinor: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ItemUpdateInput {
+  sku: String
+  name: String
+  kind: String
+  trackSerial: Boolean
+  trackLot: Boolean
+  baseUom: UnitOfMeasureRelateToOneForUpdateInput
+  defaultSupplier: SupplierRelateToOneForUpdateInput
+  standardCostMinor: BigInt
+  pricebookItemKeys: JSON
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input UnitOfMeasureRelateToOneForUpdateInput {
+  create: UnitOfMeasureCreateInput
+  connect: UnitOfMeasureWhereUniqueInput
+  disconnect: Boolean
+}
+
+input ItemUpdateArgs {
+  where: ItemWhereUniqueInput!
+  data: ItemUpdateInput!
+}
+
+input ItemCreateInput {
+  sku: String
+  name: String
+  kind: String
+  trackSerial: Boolean
+  trackLot: Boolean
+  baseUom: UnitOfMeasureRelateToOneForCreateInput
+  defaultSupplier: SupplierRelateToOneForCreateInput
+  standardCostMinor: BigInt
+  pricebookItemKeys: JSON
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input UnitOfMeasureRelateToOneForCreateInput {
+  create: UnitOfMeasureCreateInput
+  connect: UnitOfMeasureWhereUniqueInput
+}
+
+type ItemUomConversion {
+  id: ID!
+  item: Item
+  fromUom: UnitOfMeasure
+  toUom: UnitOfMeasure
+  factor: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ItemUomConversionWhereUniqueInput {
+  id: ID
+}
+
+input ItemUomConversionWhereInput {
+  AND: [ItemUomConversionWhereInput!]
+  OR: [ItemUomConversionWhereInput!]
+  NOT: [ItemUomConversionWhereInput!]
+  id: IDFilter
+  item: ItemWhereInput
+  fromUom: UnitOfMeasureWhereInput
+  toUom: UnitOfMeasureWhereInput
+  factor: DecimalFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ItemUomConversionOrderByInput {
+  id: OrderDirection
+  factor: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ItemUomConversionUpdateInput {
+  item: ItemRelateToOneForUpdateInput
+  fromUom: UnitOfMeasureRelateToOneForUpdateInput
+  toUom: UnitOfMeasureRelateToOneForUpdateInput
+  factor: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ItemUomConversionUpdateArgs {
+  where: ItemUomConversionWhereUniqueInput!
+  data: ItemUomConversionUpdateInput!
+}
+
+input ItemUomConversionCreateInput {
+  item: ItemRelateToOneForCreateInput
+  fromUom: UnitOfMeasureRelateToOneForCreateInput
+  toUom: UnitOfMeasureRelateToOneForCreateInput
+  factor: Decimal
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type MinMaxRule {
+  id: ID!
+  location: StockLocation
+  item: Item
+  min: Decimal
+  max: Decimal
+  reorderFrom: StockLocation
+  supplier: Supplier
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MinMaxRuleWhereUniqueInput {
+  id: ID
+}
+
+input MinMaxRuleWhereInput {
+  AND: [MinMaxRuleWhereInput!]
+  OR: [MinMaxRuleWhereInput!]
+  NOT: [MinMaxRuleWhereInput!]
+  id: IDFilter
+  location: StockLocationWhereInput
+  item: ItemWhereInput
+  min: DecimalFilter
+  max: DecimalFilter
+  reorderFrom: StockLocationWhereInput
+  supplier: SupplierWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MinMaxRuleOrderByInput {
+  id: OrderDirection
+  min: OrderDirection
+  max: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MinMaxRuleUpdateInput {
+  location: StockLocationRelateToOneForUpdateInput
+  item: ItemRelateToOneForUpdateInput
+  min: Decimal
+  max: Decimal
+  reorderFrom: StockLocationRelateToOneForUpdateInput
+  supplier: SupplierRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MinMaxRuleUpdateArgs {
+  where: MinMaxRuleWhereUniqueInput!
+  data: MinMaxRuleUpdateInput!
+}
+
+input MinMaxRuleCreateInput {
+  location: StockLocationRelateToOneForCreateInput
+  item: ItemRelateToOneForCreateInput
+  min: Decimal
+  max: Decimal
+  reorderFrom: StockLocationRelateToOneForCreateInput
+  supplier: SupplierRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type PurchaseOrder {
+  id: ID!
+  ref: String
+  supplier: Supplier
+  shipTo: StockLocation
+  job: Job
+  status: String
+  totalMinor: BigInt
+  approval: ApprovalRequest
+  externalOrderNumber: String
+  lines(where: PurchaseOrderLineWhereInput! = {}, orderBy: [PurchaseOrderLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PurchaseOrderLineWhereUniqueInput): [PurchaseOrderLine!]
+  linesCount(where: PurchaseOrderLineWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PurchaseOrderWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input PurchaseOrderWhereInput {
+  AND: [PurchaseOrderWhereInput!]
+  OR: [PurchaseOrderWhereInput!]
+  NOT: [PurchaseOrderWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  supplier: SupplierWhereInput
+  shipTo: StockLocationWhereInput
+  job: JobWhereInput
+  status: StringFilter
+  totalMinor: BigIntFilter
+  approval: ApprovalRequestWhereInput
+  externalOrderNumber: StringFilter
+  lines: PurchaseOrderLineManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PurchaseOrderLineManyRelationFilter {
+  every: PurchaseOrderLineWhereInput
+  some: PurchaseOrderLineWhereInput
+  none: PurchaseOrderLineWhereInput
+}
+
+input PurchaseOrderOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  status: OrderDirection
+  totalMinor: OrderDirection
+  externalOrderNumber: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PurchaseOrderUpdateInput {
+  ref: String
+  supplier: SupplierRelateToOneForUpdateInput
+  shipTo: StockLocationRelateToOneForUpdateInput
+  job: JobRelateToOneForUpdateInput
+  status: String
+  totalMinor: BigInt
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  externalOrderNumber: String
+  lines: PurchaseOrderLineRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PurchaseOrderLineRelateToManyForUpdateInput {
+  disconnect: [PurchaseOrderLineWhereUniqueInput!]
+  set: [PurchaseOrderLineWhereUniqueInput!]
+  create: [PurchaseOrderLineCreateInput!]
+  connect: [PurchaseOrderLineWhereUniqueInput!]
+}
+
+input PurchaseOrderUpdateArgs {
+  where: PurchaseOrderWhereUniqueInput!
+  data: PurchaseOrderUpdateInput!
+}
+
+input PurchaseOrderCreateInput {
+  ref: String
+  supplier: SupplierRelateToOneForCreateInput
+  shipTo: StockLocationRelateToOneForCreateInput
+  job: JobRelateToOneForCreateInput
+  status: String
+  totalMinor: BigInt
+  approval: ApprovalRequestRelateToOneForCreateInput
+  externalOrderNumber: String
+  lines: PurchaseOrderLineRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PurchaseOrderLineRelateToManyForCreateInput {
+  create: [PurchaseOrderLineCreateInput!]
+  connect: [PurchaseOrderLineWhereUniqueInput!]
+}
+
+type PurchaseOrderLine {
+  id: ID!
+  po: PurchaseOrder
+  item: Item
+  supplierSku: String
+  quantity: Decimal
+  uom: UnitOfMeasure
+  unitCostMinor: BigInt
+  receivedQuantity: Decimal
+  job: Job
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PurchaseOrderLineWhereUniqueInput {
+  id: ID
+}
+
+input PurchaseOrderLineWhereInput {
+  AND: [PurchaseOrderLineWhereInput!]
+  OR: [PurchaseOrderLineWhereInput!]
+  NOT: [PurchaseOrderLineWhereInput!]
+  id: IDFilter
+  po: PurchaseOrderWhereInput
+  item: ItemWhereInput
+  supplierSku: StringFilter
+  quantity: DecimalFilter
+  uom: UnitOfMeasureWhereInput
+  unitCostMinor: BigIntFilter
+  receivedQuantity: DecimalNullableFilter
+  job: JobWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PurchaseOrderLineOrderByInput {
+  id: OrderDirection
+  supplierSku: OrderDirection
+  quantity: OrderDirection
+  unitCostMinor: OrderDirection
+  receivedQuantity: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PurchaseOrderLineUpdateInput {
+  po: PurchaseOrderRelateToOneForUpdateInput
+  item: ItemRelateToOneForUpdateInput
+  supplierSku: String
+  quantity: Decimal
+  uom: UnitOfMeasureRelateToOneForUpdateInput
+  unitCostMinor: BigInt
+  receivedQuantity: Decimal
+  job: JobRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PurchaseOrderRelateToOneForUpdateInput {
+  create: PurchaseOrderCreateInput
+  connect: PurchaseOrderWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PurchaseOrderLineUpdateArgs {
+  where: PurchaseOrderLineWhereUniqueInput!
+  data: PurchaseOrderLineUpdateInput!
+}
+
+input PurchaseOrderLineCreateInput {
+  po: PurchaseOrderRelateToOneForCreateInput
+  item: ItemRelateToOneForCreateInput
+  supplierSku: String
+  quantity: Decimal
+  uom: UnitOfMeasureRelateToOneForCreateInput
+  unitCostMinor: BigInt
+  receivedQuantity: Decimal
+  job: JobRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PurchaseOrderRelateToOneForCreateInput {
+  create: PurchaseOrderCreateInput
+  connect: PurchaseOrderWhereUniqueInput
+}
+
+type Receipt {
+  id: ID!
+  po: PurchaseOrder
+  lines: JSON
+  receivedAt: DateTime
+  receivedBy: User
+  packingSlip: Media
+  overReceiptApproval: ApprovalRequest
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ReceiptWhereUniqueInput {
+  id: ID
+}
+
+input ReceiptWhereInput {
+  AND: [ReceiptWhereInput!]
+  OR: [ReceiptWhereInput!]
+  NOT: [ReceiptWhereInput!]
+  id: IDFilter
+  po: PurchaseOrderWhereInput
+  receivedAt: DateTimeNullableFilter
+  receivedBy: UserWhereInput
+  packingSlip: MediaWhereInput
+  overReceiptApproval: ApprovalRequestWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ReceiptOrderByInput {
+  id: OrderDirection
+  receivedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ReceiptUpdateInput {
+  po: PurchaseOrderRelateToOneForUpdateInput
+  lines: JSON
+  receivedAt: DateTime
+  receivedBy: UserRelateToOneForUpdateInput
+  packingSlip: MediaRelateToOneForUpdateInput
+  overReceiptApproval: ApprovalRequestRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ReceiptUpdateArgs {
+  where: ReceiptWhereUniqueInput!
+  data: ReceiptUpdateInput!
+}
+
+input ReceiptCreateInput {
+  po: PurchaseOrderRelateToOneForCreateInput
+  lines: JSON
+  receivedAt: DateTime
+  receivedBy: UserRelateToOneForCreateInput
+  packingSlip: MediaRelateToOneForCreateInput
+  overReceiptApproval: ApprovalRequestRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type ReplenishmentRequest {
+  id: ID!
+  ref: String
+  location: StockLocation
+  lines: JSON
+  status: String
+  proposedBy: String
+  purchaseOrder: PurchaseOrder
+  transferGroup: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ReplenishmentRequestWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input ReplenishmentRequestWhereInput {
+  AND: [ReplenishmentRequestWhereInput!]
+  OR: [ReplenishmentRequestWhereInput!]
+  NOT: [ReplenishmentRequestWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  location: StockLocationWhereInput
+  status: StringFilter
+  proposedBy: StringFilter
+  purchaseOrder: PurchaseOrderWhereInput
+  transferGroup: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input ReplenishmentRequestOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  status: OrderDirection
+  proposedBy: OrderDirection
+  transferGroup: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ReplenishmentRequestUpdateInput {
+  ref: String
+  location: StockLocationRelateToOneForUpdateInput
+  lines: JSON
+  status: String
+  proposedBy: String
+  purchaseOrder: PurchaseOrderRelateToOneForUpdateInput
+  transferGroup: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ReplenishmentRequestUpdateArgs {
+  where: ReplenishmentRequestWhereUniqueInput!
+  data: ReplenishmentRequestUpdateInput!
+}
+
+input ReplenishmentRequestCreateInput {
+  ref: String
+  location: StockLocationRelateToOneForCreateInput
+  lines: JSON
+  status: String
+  proposedBy: String
+  purchaseOrder: PurchaseOrderRelateToOneForCreateInput
+  transferGroup: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Rma {
+  id: ID!
+  ref: String
+  supplier: Supplier
+  warrantyClaim: WarrantyClaim
+  lines: JSON
+  status: String
+  creditMinor: BigInt
+  trackingNumber: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RmaWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input RmaWhereInput {
+  AND: [RmaWhereInput!]
+  OR: [RmaWhereInput!]
+  NOT: [RmaWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  supplier: SupplierWhereInput
+  warrantyClaim: WarrantyClaimWhereInput
+  status: StringFilter
+  creditMinor: BigIntFilter
+  trackingNumber: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input RmaOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  status: OrderDirection
+  creditMinor: OrderDirection
+  trackingNumber: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input RmaUpdateInput {
+  ref: String
+  supplier: SupplierRelateToOneForUpdateInput
+  warrantyClaim: WarrantyClaimRelateToOneForUpdateInput
+  lines: JSON
+  status: String
+  creditMinor: BigInt
+  trackingNumber: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyClaimRelateToOneForUpdateInput {
+  create: WarrantyClaimCreateInput
+  connect: WarrantyClaimWhereUniqueInput
+  disconnect: Boolean
+}
+
+input RmaUpdateArgs {
+  where: RmaWhereUniqueInput!
+  data: RmaUpdateInput!
+}
+
+input RmaCreateInput {
+  ref: String
+  supplier: SupplierRelateToOneForCreateInput
+  warrantyClaim: WarrantyClaimRelateToOneForCreateInput
+  lines: JSON
+  status: String
+  creditMinor: BigInt
+  trackingNumber: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input WarrantyClaimRelateToOneForCreateInput {
+  create: WarrantyClaimCreateInput
+  connect: WarrantyClaimWhereUniqueInput
+}
+
+type SerializedUnit {
+  id: ID!
+  item: Item
+  serialNumber: String
+  status: String
+  location: StockLocation
+  installedEquipment: InstalledEquipment
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SerializedUnitWhereUniqueInput {
+  id: ID
+}
+
+input SerializedUnitWhereInput {
+  AND: [SerializedUnitWhereInput!]
+  OR: [SerializedUnitWhereInput!]
+  NOT: [SerializedUnitWhereInput!]
+  id: IDFilter
+  item: ItemWhereInput
+  serialNumber: StringFilter
+  status: StringFilter
+  location: StockLocationWhereInput
+  installedEquipment: InstalledEquipmentWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input SerializedUnitOrderByInput {
+  id: OrderDirection
+  serialNumber: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SerializedUnitUpdateInput {
+  item: ItemRelateToOneForUpdateInput
+  serialNumber: String
+  status: String
+  location: StockLocationRelateToOneForUpdateInput
+  installedEquipment: InstalledEquipmentRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SerializedUnitUpdateArgs {
+  where: SerializedUnitWhereUniqueInput!
+  data: SerializedUnitUpdateInput!
+}
+
+input SerializedUnitCreateInput {
+  item: ItemRelateToOneForCreateInput
+  serialNumber: String
+  status: String
+  location: StockLocationRelateToOneForCreateInput
+  installedEquipment: InstalledEquipmentRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type StockLevel {
+  id: ID!
+  location: StockLocation
+  item: Item
+  onHand: Decimal
+  reserved: Decimal
+  negativeSince: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockLevelWhereUniqueInput {
+  id: ID
+}
+
+input StockLevelWhereInput {
+  AND: [StockLevelWhereInput!]
+  OR: [StockLevelWhereInput!]
+  NOT: [StockLevelWhereInput!]
+  id: IDFilter
+  location: StockLocationWhereInput
+  item: ItemWhereInput
+  onHand: DecimalNullableFilter
+  reserved: DecimalNullableFilter
+  negativeSince: DateTimeNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input StockLevelOrderByInput {
+  id: OrderDirection
+  onHand: OrderDirection
+  reserved: OrderDirection
+  negativeSince: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input StockLevelUpdateInput {
+  location: StockLocationRelateToOneForUpdateInput
+  item: ItemRelateToOneForUpdateInput
+  onHand: Decimal
+  reserved: Decimal
+  negativeSince: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockLevelUpdateArgs {
+  where: StockLevelWhereUniqueInput!
+  data: StockLevelUpdateInput!
+}
+
+input StockLevelCreateInput {
+  location: StockLocationRelateToOneForCreateInput
+  item: ItemRelateToOneForCreateInput
+  onHand: Decimal
+  reserved: Decimal
+  negativeSince: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type StockLocation {
+  id: ID!
+  code: String
+  name: String
+  kind: String
+  branch: Branch
+  employee: Employee
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockLocationWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input StockLocationWhereInput {
+  AND: [StockLocationWhereInput!]
+  OR: [StockLocationWhereInput!]
+  NOT: [StockLocationWhereInput!]
+  id: IDFilter
+  code: StringFilter
+  name: StringFilter
+  kind: StringFilter
+  branch: BranchWhereInput
+  employee: EmployeeWhereInput
+  active: BooleanFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input StockLocationOrderByInput {
+  id: OrderDirection
+  code: OrderDirection
+  name: OrderDirection
+  kind: OrderDirection
+  active: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input StockLocationUpdateInput {
+  code: String
+  name: String
+  kind: String
+  branch: BranchRelateToOneForUpdateInput
+  employee: EmployeeRelateToOneForUpdateInput
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockLocationUpdateArgs {
+  where: StockLocationWhereUniqueInput!
+  data: StockLocationUpdateInput!
+}
+
+input StockLocationCreateInput {
+  code: String
+  name: String
+  kind: String
+  branch: BranchRelateToOneForCreateInput
+  employee: EmployeeRelateToOneForCreateInput
+  active: Boolean
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type StockMovement {
+  id: ID!
+  idempotencyKey: String
+  type: String
+  item: Item
+  location: StockLocation
+  quantity: Decimal
+  uom: UnitOfMeasure
+  baseQuantity: Decimal
+  unitCostMinor: BigInt
+  job: Job
+  workLine: WorkLine
+  receipt: Receipt
+  transferGroup: String
+  serializedUnit: SerializedUnit
+  reason: String
+  reverses: StockMovement
+  actor: User
+  occurredAt: DateTime
+  clientRecordedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockMovementWhereUniqueInput {
+  id: ID
+}
+
+input StockMovementWhereInput {
+  AND: [StockMovementWhereInput!]
+  OR: [StockMovementWhereInput!]
+  NOT: [StockMovementWhereInput!]
+  id: IDFilter
+  type: StringFilter
+  item: ItemWhereInput
+  location: StockLocationWhereInput
+  quantity: DecimalFilter
+  uom: UnitOfMeasureWhereInput
+  baseQuantity: DecimalFilter
+  unitCostMinor: BigIntFilter
+  job: JobWhereInput
+  workLine: WorkLineWhereInput
+  receipt: ReceiptWhereInput
+  transferGroup: StringFilter
+  serializedUnit: SerializedUnitWhereInput
+  reason: StringFilter
+  reverses: StockMovementWhereInput
+  actor: UserWhereInput
+  occurredAt: DateTimeNullableFilter
+  clientRecordedAt: DateTimeNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input StockMovementOrderByInput {
+  id: OrderDirection
+  type: OrderDirection
+  quantity: OrderDirection
+  baseQuantity: OrderDirection
+  unitCostMinor: OrderDirection
+  transferGroup: OrderDirection
+  reason: OrderDirection
+  occurredAt: OrderDirection
+  clientRecordedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input StockMovementUpdateInput {
+  idempotencyKey: String
+  type: String
+  item: ItemRelateToOneForUpdateInput
+  location: StockLocationRelateToOneForUpdateInput
+  quantity: Decimal
+  uom: UnitOfMeasureRelateToOneForUpdateInput
+  baseQuantity: Decimal
+  unitCostMinor: BigInt
+  job: JobRelateToOneForUpdateInput
+  workLine: WorkLineRelateToOneForUpdateInput
+  receipt: ReceiptRelateToOneForUpdateInput
+  transferGroup: String
+  serializedUnit: SerializedUnitRelateToOneForUpdateInput
+  reason: String
+  reverses: StockMovementRelateToOneForUpdateInput
+  actor: UserRelateToOneForUpdateInput
+  occurredAt: DateTime
+  clientRecordedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ReceiptRelateToOneForUpdateInput {
+  create: ReceiptCreateInput
+  connect: ReceiptWhereUniqueInput
+  disconnect: Boolean
+}
+
+input StockMovementRelateToOneForUpdateInput {
+  create: StockMovementCreateInput
+  connect: StockMovementWhereUniqueInput
+  disconnect: Boolean
+}
+
+input StockMovementUpdateArgs {
+  where: StockMovementWhereUniqueInput!
+  data: StockMovementUpdateInput!
+}
+
+input StockMovementCreateInput {
+  idempotencyKey: String
+  type: String
+  item: ItemRelateToOneForCreateInput
+  location: StockLocationRelateToOneForCreateInput
+  quantity: Decimal
+  uom: UnitOfMeasureRelateToOneForCreateInput
+  baseQuantity: Decimal
+  unitCostMinor: BigInt
+  job: JobRelateToOneForCreateInput
+  workLine: WorkLineRelateToOneForCreateInput
+  receipt: ReceiptRelateToOneForCreateInput
+  transferGroup: String
+  serializedUnit: SerializedUnitRelateToOneForCreateInput
+  reason: String
+  reverses: StockMovementRelateToOneForCreateInput
+  actor: UserRelateToOneForCreateInput
+  occurredAt: DateTime
+  clientRecordedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ReceiptRelateToOneForCreateInput {
+  create: ReceiptCreateInput
+  connect: ReceiptWhereUniqueInput
+}
+
+input StockMovementRelateToOneForCreateInput {
+  create: StockMovementCreateInput
+  connect: StockMovementWhereUniqueInput
+}
+
+type StockReservation {
+  id: ID!
+  item: Item
+  location: StockLocation
+  quantity: Decimal
+  job: Job
+  workLine: WorkLine
+  status: String
+  expiresAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockReservationWhereUniqueInput {
+  id: ID
+}
+
+input StockReservationWhereInput {
+  AND: [StockReservationWhereInput!]
+  OR: [StockReservationWhereInput!]
+  NOT: [StockReservationWhereInput!]
+  id: IDFilter
+  item: ItemWhereInput
+  location: StockLocationWhereInput
+  quantity: DecimalFilter
+  job: JobWhereInput
+  workLine: WorkLineWhereInput
+  status: StringFilter
+  expiresAt: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input StockReservationOrderByInput {
+  id: OrderDirection
+  quantity: OrderDirection
+  status: OrderDirection
+  expiresAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input StockReservationUpdateInput {
+  item: ItemRelateToOneForUpdateInput
+  location: StockLocationRelateToOneForUpdateInput
+  quantity: Decimal
+  job: JobRelateToOneForUpdateInput
+  workLine: WorkLineRelateToOneForUpdateInput
+  status: String
+  expiresAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input StockReservationUpdateArgs {
+  where: StockReservationWhereUniqueInput!
+  data: StockReservationUpdateInput!
+}
+
+input StockReservationCreateInput {
+  item: ItemRelateToOneForCreateInput
+  location: StockLocationRelateToOneForCreateInput
+  quantity: Decimal
+  job: JobRelateToOneForCreateInput
+  workLine: WorkLineRelateToOneForCreateInput
+  status: String
+  expiresAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Supplier {
+  id: ID!
+  name: String
+  kind: String
+  accountNumber: String
+  branchContact: String
+  orderMethod: String
+  adapterKey: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SupplierWhereUniqueInput {
+  id: ID
+  name: String
+}
+
+input SupplierWhereInput {
+  AND: [SupplierWhereInput!]
+  OR: [SupplierWhereInput!]
+  NOT: [SupplierWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  kind: StringFilter
+  accountNumber: StringFilter
+  branchContact: StringFilter
+  orderMethod: StringFilter
+  adapterKey: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input SupplierOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  kind: OrderDirection
+  accountNumber: OrderDirection
+  branchContact: OrderDirection
+  orderMethod: OrderDirection
+  adapterKey: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SupplierUpdateInput {
+  name: String
+  kind: String
+  accountNumber: String
+  branchContact: String
+  orderMethod: String
+  adapterKey: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SupplierUpdateArgs {
+  where: SupplierWhereUniqueInput!
+  data: SupplierUpdateInput!
+}
+
+input SupplierCreateInput {
+  name: String
+  kind: String
+  accountNumber: String
+  branchContact: String
+  orderMethod: String
+  adapterKey: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type SupplierItem {
+  id: ID!
+  supplier: Supplier
+  item: Item
+  supplierSku: String
+  costMinor: BigInt
+  uom: UnitOfMeasure
+  effectiveOn: CalendarDay
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SupplierItemWhereUniqueInput {
+  id: ID
+}
+
+input SupplierItemWhereInput {
+  AND: [SupplierItemWhereInput!]
+  OR: [SupplierItemWhereInput!]
+  NOT: [SupplierItemWhereInput!]
+  id: IDFilter
+  supplier: SupplierWhereInput
+  item: ItemWhereInput
+  supplierSku: StringFilter
+  costMinor: BigIntFilter
+  uom: UnitOfMeasureWhereInput
+  effectiveOn: CalendarDayNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input SupplierItemOrderByInput {
+  id: OrderDirection
+  supplierSku: OrderDirection
+  costMinor: OrderDirection
+  effectiveOn: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input SupplierItemUpdateInput {
+  supplier: SupplierRelateToOneForUpdateInput
+  item: ItemRelateToOneForUpdateInput
+  supplierSku: String
+  costMinor: BigInt
+  uom: UnitOfMeasureRelateToOneForUpdateInput
+  effectiveOn: CalendarDay
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input SupplierItemUpdateArgs {
+  where: SupplierItemWhereUniqueInput!
+  data: SupplierItemUpdateInput!
+}
+
+input SupplierItemCreateInput {
+  supplier: SupplierRelateToOneForCreateInput
+  item: ItemRelateToOneForCreateInput
+  supplierSku: String
+  costMinor: BigInt
+  uom: UnitOfMeasureRelateToOneForCreateInput
+  effectiveOn: CalendarDay
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type VendorBill {
+  id: ID!
+  supplier: Supplier
+  po: PurchaseOrder
+  billNumber: String
+  totalMinor: BigInt
+  matchStatus: String
+  matchDetail: JSON
+  approval: ApprovalRequest
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VendorBillWhereUniqueInput {
+  id: ID
+}
+
+input VendorBillWhereInput {
+  AND: [VendorBillWhereInput!]
+  OR: [VendorBillWhereInput!]
+  NOT: [VendorBillWhereInput!]
+  id: IDFilter
+  supplier: SupplierWhereInput
+  po: PurchaseOrderWhereInput
+  billNumber: StringFilter
+  totalMinor: BigIntFilter
+  matchStatus: StringFilter
+  approval: ApprovalRequestWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input VendorBillOrderByInput {
+  id: OrderDirection
+  billNumber: OrderDirection
+  totalMinor: OrderDirection
+  matchStatus: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input VendorBillUpdateInput {
+  supplier: SupplierRelateToOneForUpdateInput
+  po: PurchaseOrderRelateToOneForUpdateInput
+  billNumber: String
+  totalMinor: BigInt
+  matchStatus: String
+  matchDetail: JSON
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input VendorBillUpdateArgs {
+  where: VendorBillWhereUniqueInput!
+  data: VendorBillUpdateInput!
+}
+
+input VendorBillCreateInput {
+  supplier: SupplierRelateToOneForCreateInput
+  po: PurchaseOrderRelateToOneForCreateInput
+  billNumber: String
+  totalMinor: BigInt
+  matchStatus: String
+  matchDetail: JSON
+  approval: ApprovalRequestRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type Inspection {
+  id: ID!
+  permit: Permit
+  kind: String
+  status: String
+  scheduledFor: DateTime
+  inspectorName: String
+  result: JSON
+  correctionsVisit: Visit
+  report: Document
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InspectionWhereUniqueInput {
+  id: ID
+}
+
+input InspectionWhereInput {
+  AND: [InspectionWhereInput!]
+  OR: [InspectionWhereInput!]
+  NOT: [InspectionWhereInput!]
+  id: IDFilter
+  permit: PermitWhereInput
+  kind: StringFilter
+  status: StringFilter
+  scheduledFor: DateTimeNullableFilter
+  inspectorName: StringFilter
+  correctionsVisit: VisitWhereInput
+  report: DocumentWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input InspectionOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  status: OrderDirection
+  scheduledFor: OrderDirection
+  inspectorName: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input InspectionUpdateInput {
+  permit: PermitRelateToOneForUpdateInput
+  kind: String
+  status: String
+  scheduledFor: DateTime
+  inspectorName: String
+  result: JSON
+  correctionsVisit: VisitRelateToOneForUpdateInput
+  report: DocumentRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PermitRelateToOneForUpdateInput {
+  create: PermitCreateInput
+  connect: PermitWhereUniqueInput
+  disconnect: Boolean
+}
+
+input InspectionUpdateArgs {
+  where: InspectionWhereUniqueInput!
+  data: InspectionUpdateInput!
+}
+
+input InspectionCreateInput {
+  permit: PermitRelateToOneForCreateInput
+  kind: String
+  status: String
+  scheduledFor: DateTime
+  inspectorName: String
+  result: JSON
+  correctionsVisit: VisitRelateToOneForCreateInput
+  report: DocumentRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PermitRelateToOneForCreateInput {
+  create: PermitCreateInput
+  connect: PermitWhereUniqueInput
+}
+
+type LeakRateEvaluation {
+  id: ID!
+  equipment: InstalledEquipment
+  chargeLb: Decimal
+  addedLb: Decimal
+  leakRatePct: Decimal
+  threshold: Decimal
+  status: String
+  repairDueBy: CalendarDay
+  policyVersion: PolicyVersion
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LeakRateEvaluationWhereUniqueInput {
+  id: ID
+}
+
+input LeakRateEvaluationWhereInput {
+  AND: [LeakRateEvaluationWhereInput!]
+  OR: [LeakRateEvaluationWhereInput!]
+  NOT: [LeakRateEvaluationWhereInput!]
+  id: IDFilter
+  equipment: InstalledEquipmentWhereInput
+  chargeLb: DecimalNullableFilter
+  addedLb: DecimalNullableFilter
+  leakRatePct: DecimalNullableFilter
+  threshold: DecimalNullableFilter
+  status: StringFilter
+  repairDueBy: CalendarDayNullableFilter
+  policyVersion: PolicyVersionWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input LeakRateEvaluationOrderByInput {
+  id: OrderDirection
+  chargeLb: OrderDirection
+  addedLb: OrderDirection
+  leakRatePct: OrderDirection
+  threshold: OrderDirection
+  status: OrderDirection
+  repairDueBy: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input LeakRateEvaluationUpdateInput {
+  equipment: InstalledEquipmentRelateToOneForUpdateInput
+  chargeLb: Decimal
+  addedLb: Decimal
+  leakRatePct: Decimal
+  threshold: Decimal
+  status: String
+  repairDueBy: CalendarDay
+  policyVersion: PolicyVersionRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LeakRateEvaluationUpdateArgs {
+  where: LeakRateEvaluationWhereUniqueInput!
+  data: LeakRateEvaluationUpdateInput!
+}
+
+input LeakRateEvaluationCreateInput {
+  equipment: InstalledEquipmentRelateToOneForCreateInput
+  chargeLb: Decimal
+  addedLb: Decimal
+  leakRatePct: Decimal
+  threshold: Decimal
+  status: String
+  repairDueBy: CalendarDay
+  policyVersion: PolicyVersionRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type LienTrack {
+  id: ID!
+  invoice: Invoice
+  job: Job
+  policyVersion: PolicyVersion
+  completionMonth: CalendarDay
+  noticeDueOn: CalendarDay
+  affidavitDueOn: CalendarDay
+  status: String
+  documents(where: DocumentWhereInput! = {}, orderBy: [DocumentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DocumentWhereUniqueInput): [Document!]
+  documentsCount(where: DocumentWhereInput! = {}): Int
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input LienTrackWhereUniqueInput {
+  id: ID
+}
+
+input LienTrackWhereInput {
+  AND: [LienTrackWhereInput!]
+  OR: [LienTrackWhereInput!]
+  NOT: [LienTrackWhereInput!]
+  id: IDFilter
+  invoice: InvoiceWhereInput
+  job: JobWhereInput
+  policyVersion: PolicyVersionWhereInput
+  completionMonth: CalendarDayNullableFilter
+  noticeDueOn: CalendarDayNullableFilter
+  affidavitDueOn: CalendarDayNullableFilter
+  status: StringFilter
+  documents: DocumentManyRelationFilter
+  note: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input DocumentManyRelationFilter {
+  every: DocumentWhereInput
+  some: DocumentWhereInput
+  none: DocumentWhereInput
+}
+
+input LienTrackOrderByInput {
+  id: OrderDirection
+  completionMonth: OrderDirection
+  noticeDueOn: OrderDirection
+  affidavitDueOn: OrderDirection
+  status: OrderDirection
+  note: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input LienTrackUpdateInput {
+  invoice: InvoiceRelateToOneForUpdateInput
+  job: JobRelateToOneForUpdateInput
+  policyVersion: PolicyVersionRelateToOneForUpdateInput
+  completionMonth: CalendarDay
+  noticeDueOn: CalendarDay
+  affidavitDueOn: CalendarDay
+  status: String
+  documents: DocumentRelateToManyForUpdateInput
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DocumentRelateToManyForUpdateInput {
+  disconnect: [DocumentWhereUniqueInput!]
+  set: [DocumentWhereUniqueInput!]
+  create: [DocumentCreateInput!]
+  connect: [DocumentWhereUniqueInput!]
+}
+
+input LienTrackUpdateArgs {
+  where: LienTrackWhereUniqueInput!
+  data: LienTrackUpdateInput!
+}
+
+input LienTrackCreateInput {
+  invoice: InvoiceRelateToOneForCreateInput
+  job: JobRelateToOneForCreateInput
+  policyVersion: PolicyVersionRelateToOneForCreateInput
+  completionMonth: CalendarDay
+  noticeDueOn: CalendarDay
+  affidavitDueOn: CalendarDay
+  status: String
+  documents: DocumentRelateToManyForCreateInput
+  note: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input DocumentRelateToManyForCreateInput {
+  create: [DocumentCreateInput!]
+  connect: [DocumentWhereUniqueInput!]
+}
+
+type Permit {
+  id: ID!
+  ref: String
+  job: Job
+  ahj: String
+  permitType: String
+  externalNumber: String
+  status: String
+  feeMinor: BigInt
+  appliedOn: CalendarDay
+  issuedOn: CalendarDay
+  expiresOn: CalendarDay
+  documents(where: DocumentWhereInput! = {}, orderBy: [DocumentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DocumentWhereUniqueInput): [Document!]
+  documentsCount(where: DocumentWhereInput! = {}): Int
+  note: String
+  inspections(where: InspectionWhereInput! = {}, orderBy: [InspectionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: InspectionWhereUniqueInput): [Inspection!]
+  inspectionsCount(where: InspectionWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PermitWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input PermitWhereInput {
+  AND: [PermitWhereInput!]
+  OR: [PermitWhereInput!]
+  NOT: [PermitWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  job: JobWhereInput
+  ahj: StringFilter
+  permitType: StringFilter
+  externalNumber: StringFilter
+  status: StringFilter
+  feeMinor: BigIntFilter
+  appliedOn: CalendarDayNullableFilter
+  issuedOn: CalendarDayNullableFilter
+  expiresOn: CalendarDayNullableFilter
+  documents: DocumentManyRelationFilter
+  note: StringFilter
+  inspections: InspectionManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input InspectionManyRelationFilter {
+  every: InspectionWhereInput
+  some: InspectionWhereInput
+  none: InspectionWhereInput
+}
+
+input PermitOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  ahj: OrderDirection
+  permitType: OrderDirection
+  externalNumber: OrderDirection
+  status: OrderDirection
+  feeMinor: OrderDirection
+  appliedOn: OrderDirection
+  issuedOn: OrderDirection
+  expiresOn: OrderDirection
+  note: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PermitUpdateInput {
+  ref: String
+  job: JobRelateToOneForUpdateInput
+  ahj: String
+  permitType: String
+  externalNumber: String
+  status: String
+  feeMinor: BigInt
+  appliedOn: CalendarDay
+  issuedOn: CalendarDay
+  expiresOn: CalendarDay
+  documents: DocumentRelateToManyForUpdateInput
+  note: String
+  inspections: InspectionRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InspectionRelateToManyForUpdateInput {
+  disconnect: [InspectionWhereUniqueInput!]
+  set: [InspectionWhereUniqueInput!]
+  create: [InspectionCreateInput!]
+  connect: [InspectionWhereUniqueInput!]
+}
+
+input PermitUpdateArgs {
+  where: PermitWhereUniqueInput!
+  data: PermitUpdateInput!
+}
+
+input PermitCreateInput {
+  ref: String
+  job: JobRelateToOneForCreateInput
+  ahj: String
+  permitType: String
+  externalNumber: String
+  status: String
+  feeMinor: BigInt
+  appliedOn: CalendarDay
+  issuedOn: CalendarDay
+  expiresOn: CalendarDay
+  documents: DocumentRelateToManyForCreateInput
+  note: String
+  inspections: InspectionRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input InspectionRelateToManyForCreateInput {
+  create: [InspectionCreateInput!]
+  connect: [InspectionWhereUniqueInput!]
+}
+
+type RefrigerantCylinder {
+  id: ID!
+  item: Item
+  serialOrTag: String
+  refrigerantType: String
+  kind: String
+  location: StockLocation
+  tareLb: Decimal
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RefrigerantCylinderWhereUniqueInput {
+  id: ID
+  serialOrTag: String
+}
+
+input RefrigerantCylinderWhereInput {
+  AND: [RefrigerantCylinderWhereInput!]
+  OR: [RefrigerantCylinderWhereInput!]
+  NOT: [RefrigerantCylinderWhereInput!]
+  id: IDFilter
+  item: ItemWhereInput
+  serialOrTag: StringFilter
+  refrigerantType: StringFilter
+  kind: StringFilter
+  location: StockLocationWhereInput
+  tareLb: DecimalNullableFilter
+  status: StringFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input RefrigerantCylinderOrderByInput {
+  id: OrderDirection
+  serialOrTag: OrderDirection
+  refrigerantType: OrderDirection
+  kind: OrderDirection
+  tareLb: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input RefrigerantCylinderUpdateInput {
+  item: ItemRelateToOneForUpdateInput
+  serialOrTag: String
+  refrigerantType: String
+  kind: String
+  location: StockLocationRelateToOneForUpdateInput
+  tareLb: Decimal
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RefrigerantCylinderUpdateArgs {
+  where: RefrigerantCylinderWhereUniqueInput!
+  data: RefrigerantCylinderUpdateInput!
+}
+
+input RefrigerantCylinderCreateInput {
+  item: ItemRelateToOneForCreateInput
+  serialOrTag: String
+  refrigerantType: String
+  kind: String
+  location: StockLocationRelateToOneForCreateInput
+  tareLb: Decimal
+  status: String
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type RefrigerantInstallCheck {
+  id: ID!
+  workLine: WorkLine
+  equipmentModel: EquipmentModel
+  stage: String
+  policyVersion: PolicyVersion
+  result: String
+  findings: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RefrigerantInstallCheckWhereUniqueInput {
+  id: ID
+}
+
+input RefrigerantInstallCheckWhereInput {
+  AND: [RefrigerantInstallCheckWhereInput!]
+  OR: [RefrigerantInstallCheckWhereInput!]
+  NOT: [RefrigerantInstallCheckWhereInput!]
+  id: IDFilter
+  workLine: WorkLineWhereInput
+  equipmentModel: EquipmentModelWhereInput
+  stage: StringFilter
+  policyVersion: PolicyVersionWhereInput
+  result: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input RefrigerantInstallCheckOrderByInput {
+  id: OrderDirection
+  stage: OrderDirection
+  result: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input RefrigerantInstallCheckUpdateInput {
+  workLine: WorkLineRelateToOneForUpdateInput
+  equipmentModel: EquipmentModelRelateToOneForUpdateInput
+  stage: String
+  policyVersion: PolicyVersionRelateToOneForUpdateInput
+  result: String
+  findings: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RefrigerantInstallCheckUpdateArgs {
+  where: RefrigerantInstallCheckWhereUniqueInput!
+  data: RefrigerantInstallCheckUpdateInput!
+}
+
+input RefrigerantInstallCheckCreateInput {
+  workLine: WorkLineRelateToOneForCreateInput
+  equipmentModel: EquipmentModelRelateToOneForCreateInput
+  stage: String
+  policyVersion: PolicyVersionRelateToOneForCreateInput
+  result: String
+  findings: JSON
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type RefrigerantLogEntry {
+  id: ID!
+  idempotencyKey: String
+  kind: String
+  equipment: InstalledEquipment
+  job: Job
+  cylinder: RefrigerantCylinder
+  refrigerantType: String
+  quantityLb: Decimal
+  technician: Employee
+  credential: Credential
+  occurredAt: DateTime
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RefrigerantLogEntryWhereUniqueInput {
+  id: ID
+}
+
+input RefrigerantLogEntryWhereInput {
+  AND: [RefrigerantLogEntryWhereInput!]
+  OR: [RefrigerantLogEntryWhereInput!]
+  NOT: [RefrigerantLogEntryWhereInput!]
+  id: IDFilter
+  kind: StringFilter
+  equipment: InstalledEquipmentWhereInput
+  job: JobWhereInput
+  cylinder: RefrigerantCylinderWhereInput
+  refrigerantType: StringFilter
+  quantityLb: DecimalFilter
+  technician: EmployeeWhereInput
+  credential: CredentialWhereInput
+  occurredAt: DateTimeNullableFilter
+  notes: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input RefrigerantLogEntryOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  refrigerantType: OrderDirection
+  quantityLb: OrderDirection
+  occurredAt: OrderDirection
+  notes: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input RefrigerantLogEntryUpdateInput {
+  idempotencyKey: String
+  kind: String
+  equipment: InstalledEquipmentRelateToOneForUpdateInput
+  job: JobRelateToOneForUpdateInput
+  cylinder: RefrigerantCylinderRelateToOneForUpdateInput
+  refrigerantType: String
+  quantityLb: Decimal
+  technician: EmployeeRelateToOneForUpdateInput
+  credential: CredentialRelateToOneForUpdateInput
+  occurredAt: DateTime
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RefrigerantCylinderRelateToOneForUpdateInput {
+  create: RefrigerantCylinderCreateInput
+  connect: RefrigerantCylinderWhereUniqueInput
+  disconnect: Boolean
+}
+
+input CredentialRelateToOneForUpdateInput {
+  create: CredentialCreateInput
+  connect: CredentialWhereUniqueInput
+  disconnect: Boolean
+}
+
+input RefrigerantLogEntryUpdateArgs {
+  where: RefrigerantLogEntryWhereUniqueInput!
+  data: RefrigerantLogEntryUpdateInput!
+}
+
+input RefrigerantLogEntryCreateInput {
+  idempotencyKey: String
+  kind: String
+  equipment: InstalledEquipmentRelateToOneForCreateInput
+  job: JobRelateToOneForCreateInput
+  cylinder: RefrigerantCylinderRelateToOneForCreateInput
+  refrigerantType: String
+  quantityLb: Decimal
+  technician: EmployeeRelateToOneForCreateInput
+  credential: CredentialRelateToOneForCreateInput
+  occurredAt: DateTime
+  notes: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RefrigerantCylinderRelateToOneForCreateInput {
+  create: RefrigerantCylinderCreateInput
+  connect: RefrigerantCylinderWhereUniqueInput
+}
+
+input CredentialRelateToOneForCreateInput {
+  create: CredentialCreateInput
+  connect: CredentialWhereUniqueInput
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -14414,6 +17232,192 @@ type Mutation {
   updateServiceAgreements(data: [ServiceAgreementUpdateArgs!]!): [ServiceAgreement]
   deleteServiceAgreement(where: ServiceAgreementWhereUniqueInput!): ServiceAgreement
   deleteServiceAgreements(where: [ServiceAgreementWhereUniqueInput!]!): [ServiceAgreement]
+  createEquipmentReading(data: EquipmentReadingCreateInput!): EquipmentReading
+  createEquipmentReadings(data: [EquipmentReadingCreateInput!]!): [EquipmentReading]
+  updateEquipmentReading(where: EquipmentReadingWhereUniqueInput!, data: EquipmentReadingUpdateInput!): EquipmentReading
+  updateEquipmentReadings(data: [EquipmentReadingUpdateArgs!]!): [EquipmentReading]
+  deleteEquipmentReading(where: EquipmentReadingWhereUniqueInput!): EquipmentReading
+  deleteEquipmentReadings(where: [EquipmentReadingWhereUniqueInput!]!): [EquipmentReading]
+  createHomeWarrantyDispatch(data: HomeWarrantyDispatchCreateInput!): HomeWarrantyDispatch
+  createHomeWarrantyDispatches(data: [HomeWarrantyDispatchCreateInput!]!): [HomeWarrantyDispatch]
+  updateHomeWarrantyDispatch(where: HomeWarrantyDispatchWhereUniqueInput!, data: HomeWarrantyDispatchUpdateInput!): HomeWarrantyDispatch
+  updateHomeWarrantyDispatches(data: [HomeWarrantyDispatchUpdateArgs!]!): [HomeWarrantyDispatch]
+  deleteHomeWarrantyDispatch(where: HomeWarrantyDispatchWhereUniqueInput!): HomeWarrantyDispatch
+  deleteHomeWarrantyDispatches(where: [HomeWarrantyDispatchWhereUniqueInput!]!): [HomeWarrantyDispatch]
+  createInstalledEquipment(data: InstalledEquipmentCreateInput!): InstalledEquipment
+  createInstalledEquipments(data: [InstalledEquipmentCreateInput!]!): [InstalledEquipment]
+  updateInstalledEquipment(where: InstalledEquipmentWhereUniqueInput!, data: InstalledEquipmentUpdateInput!): InstalledEquipment
+  updateInstalledEquipments(data: [InstalledEquipmentUpdateArgs!]!): [InstalledEquipment]
+  deleteInstalledEquipment(where: InstalledEquipmentWhereUniqueInput!): InstalledEquipment
+  deleteInstalledEquipments(where: [InstalledEquipmentWhereUniqueInput!]!): [InstalledEquipment]
+  createWarrantyClaim(data: WarrantyClaimCreateInput!): WarrantyClaim
+  createWarrantyClaims(data: [WarrantyClaimCreateInput!]!): [WarrantyClaim]
+  updateWarrantyClaim(where: WarrantyClaimWhereUniqueInput!, data: WarrantyClaimUpdateInput!): WarrantyClaim
+  updateWarrantyClaims(data: [WarrantyClaimUpdateArgs!]!): [WarrantyClaim]
+  deleteWarrantyClaim(where: WarrantyClaimWhereUniqueInput!): WarrantyClaim
+  deleteWarrantyClaims(where: [WarrantyClaimWhereUniqueInput!]!): [WarrantyClaim]
+  createWarrantyCoverage(data: WarrantyCoverageCreateInput!): WarrantyCoverage
+  createWarrantyCoverages(data: [WarrantyCoverageCreateInput!]!): [WarrantyCoverage]
+  updateWarrantyCoverage(where: WarrantyCoverageWhereUniqueInput!, data: WarrantyCoverageUpdateInput!): WarrantyCoverage
+  updateWarrantyCoverages(data: [WarrantyCoverageUpdateArgs!]!): [WarrantyCoverage]
+  deleteWarrantyCoverage(where: WarrantyCoverageWhereUniqueInput!): WarrantyCoverage
+  deleteWarrantyCoverages(where: [WarrantyCoverageWhereUniqueInput!]!): [WarrantyCoverage]
+  createWarrantyRegistration(data: WarrantyRegistrationCreateInput!): WarrantyRegistration
+  createWarrantyRegistrations(data: [WarrantyRegistrationCreateInput!]!): [WarrantyRegistration]
+  updateWarrantyRegistration(where: WarrantyRegistrationWhereUniqueInput!, data: WarrantyRegistrationUpdateInput!): WarrantyRegistration
+  updateWarrantyRegistrations(data: [WarrantyRegistrationUpdateArgs!]!): [WarrantyRegistration]
+  deleteWarrantyRegistration(where: WarrantyRegistrationWhereUniqueInput!): WarrantyRegistration
+  deleteWarrantyRegistrations(where: [WarrantyRegistrationWhereUniqueInput!]!): [WarrantyRegistration]
+  createWarrantyRule(data: WarrantyRuleCreateInput!): WarrantyRule
+  createWarrantyRules(data: [WarrantyRuleCreateInput!]!): [WarrantyRule]
+  updateWarrantyRule(where: WarrantyRuleWhereUniqueInput!, data: WarrantyRuleUpdateInput!): WarrantyRule
+  updateWarrantyRules(data: [WarrantyRuleUpdateArgs!]!): [WarrantyRule]
+  deleteWarrantyRule(where: WarrantyRuleWhereUniqueInput!): WarrantyRule
+  deleteWarrantyRules(where: [WarrantyRuleWhereUniqueInput!]!): [WarrantyRule]
+  createCycleCount(data: CycleCountCreateInput!): CycleCount
+  createCycleCounts(data: [CycleCountCreateInput!]!): [CycleCount]
+  updateCycleCount(where: CycleCountWhereUniqueInput!, data: CycleCountUpdateInput!): CycleCount
+  updateCycleCounts(data: [CycleCountUpdateArgs!]!): [CycleCount]
+  deleteCycleCount(where: CycleCountWhereUniqueInput!): CycleCount
+  deleteCycleCounts(where: [CycleCountWhereUniqueInput!]!): [CycleCount]
+  createItem(data: ItemCreateInput!): Item
+  createItems(data: [ItemCreateInput!]!): [Item]
+  updateItem(where: ItemWhereUniqueInput!, data: ItemUpdateInput!): Item
+  updateItems(data: [ItemUpdateArgs!]!): [Item]
+  deleteItem(where: ItemWhereUniqueInput!): Item
+  deleteItems(where: [ItemWhereUniqueInput!]!): [Item]
+  createItemUomConversion(data: ItemUomConversionCreateInput!): ItemUomConversion
+  createItemUomConversions(data: [ItemUomConversionCreateInput!]!): [ItemUomConversion]
+  updateItemUomConversion(where: ItemUomConversionWhereUniqueInput!, data: ItemUomConversionUpdateInput!): ItemUomConversion
+  updateItemUomConversions(data: [ItemUomConversionUpdateArgs!]!): [ItemUomConversion]
+  deleteItemUomConversion(where: ItemUomConversionWhereUniqueInput!): ItemUomConversion
+  deleteItemUomConversions(where: [ItemUomConversionWhereUniqueInput!]!): [ItemUomConversion]
+  createMinMaxRule(data: MinMaxRuleCreateInput!): MinMaxRule
+  createMinMaxRules(data: [MinMaxRuleCreateInput!]!): [MinMaxRule]
+  updateMinMaxRule(where: MinMaxRuleWhereUniqueInput!, data: MinMaxRuleUpdateInput!): MinMaxRule
+  updateMinMaxRules(data: [MinMaxRuleUpdateArgs!]!): [MinMaxRule]
+  deleteMinMaxRule(where: MinMaxRuleWhereUniqueInput!): MinMaxRule
+  deleteMinMaxRules(where: [MinMaxRuleWhereUniqueInput!]!): [MinMaxRule]
+  createPurchaseOrder(data: PurchaseOrderCreateInput!): PurchaseOrder
+  createPurchaseOrders(data: [PurchaseOrderCreateInput!]!): [PurchaseOrder]
+  updatePurchaseOrder(where: PurchaseOrderWhereUniqueInput!, data: PurchaseOrderUpdateInput!): PurchaseOrder
+  updatePurchaseOrders(data: [PurchaseOrderUpdateArgs!]!): [PurchaseOrder]
+  deletePurchaseOrder(where: PurchaseOrderWhereUniqueInput!): PurchaseOrder
+  deletePurchaseOrders(where: [PurchaseOrderWhereUniqueInput!]!): [PurchaseOrder]
+  createPurchaseOrderLine(data: PurchaseOrderLineCreateInput!): PurchaseOrderLine
+  createPurchaseOrderLines(data: [PurchaseOrderLineCreateInput!]!): [PurchaseOrderLine]
+  updatePurchaseOrderLine(where: PurchaseOrderLineWhereUniqueInput!, data: PurchaseOrderLineUpdateInput!): PurchaseOrderLine
+  updatePurchaseOrderLines(data: [PurchaseOrderLineUpdateArgs!]!): [PurchaseOrderLine]
+  deletePurchaseOrderLine(where: PurchaseOrderLineWhereUniqueInput!): PurchaseOrderLine
+  deletePurchaseOrderLines(where: [PurchaseOrderLineWhereUniqueInput!]!): [PurchaseOrderLine]
+  createReceipt(data: ReceiptCreateInput!): Receipt
+  createReceipts(data: [ReceiptCreateInput!]!): [Receipt]
+  updateReceipt(where: ReceiptWhereUniqueInput!, data: ReceiptUpdateInput!): Receipt
+  updateReceipts(data: [ReceiptUpdateArgs!]!): [Receipt]
+  deleteReceipt(where: ReceiptWhereUniqueInput!): Receipt
+  deleteReceipts(where: [ReceiptWhereUniqueInput!]!): [Receipt]
+  createReplenishmentRequest(data: ReplenishmentRequestCreateInput!): ReplenishmentRequest
+  createReplenishmentRequests(data: [ReplenishmentRequestCreateInput!]!): [ReplenishmentRequest]
+  updateReplenishmentRequest(where: ReplenishmentRequestWhereUniqueInput!, data: ReplenishmentRequestUpdateInput!): ReplenishmentRequest
+  updateReplenishmentRequests(data: [ReplenishmentRequestUpdateArgs!]!): [ReplenishmentRequest]
+  deleteReplenishmentRequest(where: ReplenishmentRequestWhereUniqueInput!): ReplenishmentRequest
+  deleteReplenishmentRequests(where: [ReplenishmentRequestWhereUniqueInput!]!): [ReplenishmentRequest]
+  createRma(data: RmaCreateInput!): Rma
+  createRmas(data: [RmaCreateInput!]!): [Rma]
+  updateRma(where: RmaWhereUniqueInput!, data: RmaUpdateInput!): Rma
+  updateRmas(data: [RmaUpdateArgs!]!): [Rma]
+  deleteRma(where: RmaWhereUniqueInput!): Rma
+  deleteRmas(where: [RmaWhereUniqueInput!]!): [Rma]
+  createSerializedUnit(data: SerializedUnitCreateInput!): SerializedUnit
+  createSerializedUnits(data: [SerializedUnitCreateInput!]!): [SerializedUnit]
+  updateSerializedUnit(where: SerializedUnitWhereUniqueInput!, data: SerializedUnitUpdateInput!): SerializedUnit
+  updateSerializedUnits(data: [SerializedUnitUpdateArgs!]!): [SerializedUnit]
+  deleteSerializedUnit(where: SerializedUnitWhereUniqueInput!): SerializedUnit
+  deleteSerializedUnits(where: [SerializedUnitWhereUniqueInput!]!): [SerializedUnit]
+  createStockLevel(data: StockLevelCreateInput!): StockLevel
+  createStockLevels(data: [StockLevelCreateInput!]!): [StockLevel]
+  updateStockLevel(where: StockLevelWhereUniqueInput!, data: StockLevelUpdateInput!): StockLevel
+  updateStockLevels(data: [StockLevelUpdateArgs!]!): [StockLevel]
+  deleteStockLevel(where: StockLevelWhereUniqueInput!): StockLevel
+  deleteStockLevels(where: [StockLevelWhereUniqueInput!]!): [StockLevel]
+  createStockLocation(data: StockLocationCreateInput!): StockLocation
+  createStockLocations(data: [StockLocationCreateInput!]!): [StockLocation]
+  updateStockLocation(where: StockLocationWhereUniqueInput!, data: StockLocationUpdateInput!): StockLocation
+  updateStockLocations(data: [StockLocationUpdateArgs!]!): [StockLocation]
+  deleteStockLocation(where: StockLocationWhereUniqueInput!): StockLocation
+  deleteStockLocations(where: [StockLocationWhereUniqueInput!]!): [StockLocation]
+  createStockMovement(data: StockMovementCreateInput!): StockMovement
+  createStockMovements(data: [StockMovementCreateInput!]!): [StockMovement]
+  updateStockMovement(where: StockMovementWhereUniqueInput!, data: StockMovementUpdateInput!): StockMovement
+  updateStockMovements(data: [StockMovementUpdateArgs!]!): [StockMovement]
+  deleteStockMovement(where: StockMovementWhereUniqueInput!): StockMovement
+  deleteStockMovements(where: [StockMovementWhereUniqueInput!]!): [StockMovement]
+  createStockReservation(data: StockReservationCreateInput!): StockReservation
+  createStockReservations(data: [StockReservationCreateInput!]!): [StockReservation]
+  updateStockReservation(where: StockReservationWhereUniqueInput!, data: StockReservationUpdateInput!): StockReservation
+  updateStockReservations(data: [StockReservationUpdateArgs!]!): [StockReservation]
+  deleteStockReservation(where: StockReservationWhereUniqueInput!): StockReservation
+  deleteStockReservations(where: [StockReservationWhereUniqueInput!]!): [StockReservation]
+  createSupplier(data: SupplierCreateInput!): Supplier
+  createSuppliers(data: [SupplierCreateInput!]!): [Supplier]
+  updateSupplier(where: SupplierWhereUniqueInput!, data: SupplierUpdateInput!): Supplier
+  updateSuppliers(data: [SupplierUpdateArgs!]!): [Supplier]
+  deleteSupplier(where: SupplierWhereUniqueInput!): Supplier
+  deleteSuppliers(where: [SupplierWhereUniqueInput!]!): [Supplier]
+  createSupplierItem(data: SupplierItemCreateInput!): SupplierItem
+  createSupplierItems(data: [SupplierItemCreateInput!]!): [SupplierItem]
+  updateSupplierItem(where: SupplierItemWhereUniqueInput!, data: SupplierItemUpdateInput!): SupplierItem
+  updateSupplierItems(data: [SupplierItemUpdateArgs!]!): [SupplierItem]
+  deleteSupplierItem(where: SupplierItemWhereUniqueInput!): SupplierItem
+  deleteSupplierItems(where: [SupplierItemWhereUniqueInput!]!): [SupplierItem]
+  createVendorBill(data: VendorBillCreateInput!): VendorBill
+  createVendorBills(data: [VendorBillCreateInput!]!): [VendorBill]
+  updateVendorBill(where: VendorBillWhereUniqueInput!, data: VendorBillUpdateInput!): VendorBill
+  updateVendorBills(data: [VendorBillUpdateArgs!]!): [VendorBill]
+  deleteVendorBill(where: VendorBillWhereUniqueInput!): VendorBill
+  deleteVendorBills(where: [VendorBillWhereUniqueInput!]!): [VendorBill]
+  createInspection(data: InspectionCreateInput!): Inspection
+  createInspections(data: [InspectionCreateInput!]!): [Inspection]
+  updateInspection(where: InspectionWhereUniqueInput!, data: InspectionUpdateInput!): Inspection
+  updateInspections(data: [InspectionUpdateArgs!]!): [Inspection]
+  deleteInspection(where: InspectionWhereUniqueInput!): Inspection
+  deleteInspections(where: [InspectionWhereUniqueInput!]!): [Inspection]
+  createLeakRateEvaluation(data: LeakRateEvaluationCreateInput!): LeakRateEvaluation
+  createLeakRateEvaluations(data: [LeakRateEvaluationCreateInput!]!): [LeakRateEvaluation]
+  updateLeakRateEvaluation(where: LeakRateEvaluationWhereUniqueInput!, data: LeakRateEvaluationUpdateInput!): LeakRateEvaluation
+  updateLeakRateEvaluations(data: [LeakRateEvaluationUpdateArgs!]!): [LeakRateEvaluation]
+  deleteLeakRateEvaluation(where: LeakRateEvaluationWhereUniqueInput!): LeakRateEvaluation
+  deleteLeakRateEvaluations(where: [LeakRateEvaluationWhereUniqueInput!]!): [LeakRateEvaluation]
+  createLienTrack(data: LienTrackCreateInput!): LienTrack
+  createLienTracks(data: [LienTrackCreateInput!]!): [LienTrack]
+  updateLienTrack(where: LienTrackWhereUniqueInput!, data: LienTrackUpdateInput!): LienTrack
+  updateLienTracks(data: [LienTrackUpdateArgs!]!): [LienTrack]
+  deleteLienTrack(where: LienTrackWhereUniqueInput!): LienTrack
+  deleteLienTracks(where: [LienTrackWhereUniqueInput!]!): [LienTrack]
+  createPermit(data: PermitCreateInput!): Permit
+  createPermits(data: [PermitCreateInput!]!): [Permit]
+  updatePermit(where: PermitWhereUniqueInput!, data: PermitUpdateInput!): Permit
+  updatePermits(data: [PermitUpdateArgs!]!): [Permit]
+  deletePermit(where: PermitWhereUniqueInput!): Permit
+  deletePermits(where: [PermitWhereUniqueInput!]!): [Permit]
+  createRefrigerantCylinder(data: RefrigerantCylinderCreateInput!): RefrigerantCylinder
+  createRefrigerantCylinders(data: [RefrigerantCylinderCreateInput!]!): [RefrigerantCylinder]
+  updateRefrigerantCylinder(where: RefrigerantCylinderWhereUniqueInput!, data: RefrigerantCylinderUpdateInput!): RefrigerantCylinder
+  updateRefrigerantCylinders(data: [RefrigerantCylinderUpdateArgs!]!): [RefrigerantCylinder]
+  deleteRefrigerantCylinder(where: RefrigerantCylinderWhereUniqueInput!): RefrigerantCylinder
+  deleteRefrigerantCylinders(where: [RefrigerantCylinderWhereUniqueInput!]!): [RefrigerantCylinder]
+  createRefrigerantInstallCheck(data: RefrigerantInstallCheckCreateInput!): RefrigerantInstallCheck
+  createRefrigerantInstallChecks(data: [RefrigerantInstallCheckCreateInput!]!): [RefrigerantInstallCheck]
+  updateRefrigerantInstallCheck(where: RefrigerantInstallCheckWhereUniqueInput!, data: RefrigerantInstallCheckUpdateInput!): RefrigerantInstallCheck
+  updateRefrigerantInstallChecks(data: [RefrigerantInstallCheckUpdateArgs!]!): [RefrigerantInstallCheck]
+  deleteRefrigerantInstallCheck(where: RefrigerantInstallCheckWhereUniqueInput!): RefrigerantInstallCheck
+  deleteRefrigerantInstallChecks(where: [RefrigerantInstallCheckWhereUniqueInput!]!): [RefrigerantInstallCheck]
+  createRefrigerantLogEntry(data: RefrigerantLogEntryCreateInput!): RefrigerantLogEntry
+  createRefrigerantLogEntries(data: [RefrigerantLogEntryCreateInput!]!): [RefrigerantLogEntry]
+  updateRefrigerantLogEntry(where: RefrigerantLogEntryWhereUniqueInput!, data: RefrigerantLogEntryUpdateInput!): RefrigerantLogEntry
+  updateRefrigerantLogEntries(data: [RefrigerantLogEntryUpdateArgs!]!): [RefrigerantLogEntry]
+  deleteRefrigerantLogEntry(where: RefrigerantLogEntryWhereUniqueInput!): RefrigerantLogEntry
+  deleteRefrigerantLogEntries(where: [RefrigerantLogEntryWhereUniqueInput!]!): [RefrigerantLogEntry]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -14937,6 +17941,99 @@ type Query {
   serviceAgreement(where: ServiceAgreementWhereUniqueInput!): ServiceAgreement
   serviceAgreements(where: ServiceAgreementWhereInput! = {}, orderBy: [ServiceAgreementOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ServiceAgreementWhereUniqueInput): [ServiceAgreement!]
   serviceAgreementsCount(where: ServiceAgreementWhereInput! = {}): Int
+  equipmentReading(where: EquipmentReadingWhereUniqueInput!): EquipmentReading
+  equipmentReadings(where: EquipmentReadingWhereInput! = {}, orderBy: [EquipmentReadingOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EquipmentReadingWhereUniqueInput): [EquipmentReading!]
+  equipmentReadingsCount(where: EquipmentReadingWhereInput! = {}): Int
+  homeWarrantyDispatch(where: HomeWarrantyDispatchWhereUniqueInput!): HomeWarrantyDispatch
+  homeWarrantyDispatches(where: HomeWarrantyDispatchWhereInput! = {}, orderBy: [HomeWarrantyDispatchOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: HomeWarrantyDispatchWhereUniqueInput): [HomeWarrantyDispatch!]
+  homeWarrantyDispatchesCount(where: HomeWarrantyDispatchWhereInput! = {}): Int
+  installedEquipment(where: InstalledEquipmentWhereUniqueInput!): InstalledEquipment
+  installedEquipments(where: InstalledEquipmentWhereInput! = {}, orderBy: [InstalledEquipmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: InstalledEquipmentWhereUniqueInput): [InstalledEquipment!]
+  installedEquipmentsCount(where: InstalledEquipmentWhereInput! = {}): Int
+  warrantyClaim(where: WarrantyClaimWhereUniqueInput!): WarrantyClaim
+  warrantyClaims(where: WarrantyClaimWhereInput! = {}, orderBy: [WarrantyClaimOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WarrantyClaimWhereUniqueInput): [WarrantyClaim!]
+  warrantyClaimsCount(where: WarrantyClaimWhereInput! = {}): Int
+  warrantyCoverage(where: WarrantyCoverageWhereUniqueInput!): WarrantyCoverage
+  warrantyCoverages(where: WarrantyCoverageWhereInput! = {}, orderBy: [WarrantyCoverageOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WarrantyCoverageWhereUniqueInput): [WarrantyCoverage!]
+  warrantyCoveragesCount(where: WarrantyCoverageWhereInput! = {}): Int
+  warrantyRegistration(where: WarrantyRegistrationWhereUniqueInput!): WarrantyRegistration
+  warrantyRegistrations(where: WarrantyRegistrationWhereInput! = {}, orderBy: [WarrantyRegistrationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WarrantyRegistrationWhereUniqueInput): [WarrantyRegistration!]
+  warrantyRegistrationsCount(where: WarrantyRegistrationWhereInput! = {}): Int
+  warrantyRule(where: WarrantyRuleWhereUniqueInput!): WarrantyRule
+  warrantyRules(where: WarrantyRuleWhereInput! = {}, orderBy: [WarrantyRuleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: WarrantyRuleWhereUniqueInput): [WarrantyRule!]
+  warrantyRulesCount(where: WarrantyRuleWhereInput! = {}): Int
+  cycleCount(where: CycleCountWhereUniqueInput!): CycleCount
+  cycleCounts(where: CycleCountWhereInput! = {}, orderBy: [CycleCountOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CycleCountWhereUniqueInput): [CycleCount!]
+  cycleCountsCount(where: CycleCountWhereInput! = {}): Int
+  item(where: ItemWhereUniqueInput!): Item
+  items(where: ItemWhereInput! = {}, orderBy: [ItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ItemWhereUniqueInput): [Item!]
+  itemsCount(where: ItemWhereInput! = {}): Int
+  itemUomConversion(where: ItemUomConversionWhereUniqueInput!): ItemUomConversion
+  itemUomConversions(where: ItemUomConversionWhereInput! = {}, orderBy: [ItemUomConversionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ItemUomConversionWhereUniqueInput): [ItemUomConversion!]
+  itemUomConversionsCount(where: ItemUomConversionWhereInput! = {}): Int
+  minMaxRule(where: MinMaxRuleWhereUniqueInput!): MinMaxRule
+  minMaxRules(where: MinMaxRuleWhereInput! = {}, orderBy: [MinMaxRuleOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MinMaxRuleWhereUniqueInput): [MinMaxRule!]
+  minMaxRulesCount(where: MinMaxRuleWhereInput! = {}): Int
+  purchaseOrder(where: PurchaseOrderWhereUniqueInput!): PurchaseOrder
+  purchaseOrders(where: PurchaseOrderWhereInput! = {}, orderBy: [PurchaseOrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PurchaseOrderWhereUniqueInput): [PurchaseOrder!]
+  purchaseOrdersCount(where: PurchaseOrderWhereInput! = {}): Int
+  purchaseOrderLine(where: PurchaseOrderLineWhereUniqueInput!): PurchaseOrderLine
+  purchaseOrderLines(where: PurchaseOrderLineWhereInput! = {}, orderBy: [PurchaseOrderLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PurchaseOrderLineWhereUniqueInput): [PurchaseOrderLine!]
+  purchaseOrderLinesCount(where: PurchaseOrderLineWhereInput! = {}): Int
+  receipt(where: ReceiptWhereUniqueInput!): Receipt
+  receipts(where: ReceiptWhereInput! = {}, orderBy: [ReceiptOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReceiptWhereUniqueInput): [Receipt!]
+  receiptsCount(where: ReceiptWhereInput! = {}): Int
+  replenishmentRequest(where: ReplenishmentRequestWhereUniqueInput!): ReplenishmentRequest
+  replenishmentRequests(where: ReplenishmentRequestWhereInput! = {}, orderBy: [ReplenishmentRequestOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ReplenishmentRequestWhereUniqueInput): [ReplenishmentRequest!]
+  replenishmentRequestsCount(where: ReplenishmentRequestWhereInput! = {}): Int
+  rma(where: RmaWhereUniqueInput!): Rma
+  rmas(where: RmaWhereInput! = {}, orderBy: [RmaOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RmaWhereUniqueInput): [Rma!]
+  rmasCount(where: RmaWhereInput! = {}): Int
+  serializedUnit(where: SerializedUnitWhereUniqueInput!): SerializedUnit
+  serializedUnits(where: SerializedUnitWhereInput! = {}, orderBy: [SerializedUnitOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SerializedUnitWhereUniqueInput): [SerializedUnit!]
+  serializedUnitsCount(where: SerializedUnitWhereInput! = {}): Int
+  stockLevel(where: StockLevelWhereUniqueInput!): StockLevel
+  stockLevels(where: StockLevelWhereInput! = {}, orderBy: [StockLevelOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: StockLevelWhereUniqueInput): [StockLevel!]
+  stockLevelsCount(where: StockLevelWhereInput! = {}): Int
+  stockLocation(where: StockLocationWhereUniqueInput!): StockLocation
+  stockLocations(where: StockLocationWhereInput! = {}, orderBy: [StockLocationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: StockLocationWhereUniqueInput): [StockLocation!]
+  stockLocationsCount(where: StockLocationWhereInput! = {}): Int
+  stockMovement(where: StockMovementWhereUniqueInput!): StockMovement
+  stockMovements(where: StockMovementWhereInput! = {}, orderBy: [StockMovementOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: StockMovementWhereUniqueInput): [StockMovement!]
+  stockMovementsCount(where: StockMovementWhereInput! = {}): Int
+  stockReservation(where: StockReservationWhereUniqueInput!): StockReservation
+  stockReservations(where: StockReservationWhereInput! = {}, orderBy: [StockReservationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: StockReservationWhereUniqueInput): [StockReservation!]
+  stockReservationsCount(where: StockReservationWhereInput! = {}): Int
+  supplier(where: SupplierWhereUniqueInput!): Supplier
+  suppliers(where: SupplierWhereInput! = {}, orderBy: [SupplierOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SupplierWhereUniqueInput): [Supplier!]
+  suppliersCount(where: SupplierWhereInput! = {}): Int
+  supplierItem(where: SupplierItemWhereUniqueInput!): SupplierItem
+  supplierItems(where: SupplierItemWhereInput! = {}, orderBy: [SupplierItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: SupplierItemWhereUniqueInput): [SupplierItem!]
+  supplierItemsCount(where: SupplierItemWhereInput! = {}): Int
+  vendorBill(where: VendorBillWhereUniqueInput!): VendorBill
+  vendorBills(where: VendorBillWhereInput! = {}, orderBy: [VendorBillOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: VendorBillWhereUniqueInput): [VendorBill!]
+  vendorBillsCount(where: VendorBillWhereInput! = {}): Int
+  inspection(where: InspectionWhereUniqueInput!): Inspection
+  inspections(where: InspectionWhereInput! = {}, orderBy: [InspectionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: InspectionWhereUniqueInput): [Inspection!]
+  inspectionsCount(where: InspectionWhereInput! = {}): Int
+  leakRateEvaluation(where: LeakRateEvaluationWhereUniqueInput!): LeakRateEvaluation
+  leakRateEvaluations(where: LeakRateEvaluationWhereInput! = {}, orderBy: [LeakRateEvaluationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LeakRateEvaluationWhereUniqueInput): [LeakRateEvaluation!]
+  leakRateEvaluationsCount(where: LeakRateEvaluationWhereInput! = {}): Int
+  lienTrack(where: LienTrackWhereUniqueInput!): LienTrack
+  lienTracks(where: LienTrackWhereInput! = {}, orderBy: [LienTrackOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: LienTrackWhereUniqueInput): [LienTrack!]
+  lienTracksCount(where: LienTrackWhereInput! = {}): Int
+  permit(where: PermitWhereUniqueInput!): Permit
+  permits(where: PermitWhereInput! = {}, orderBy: [PermitOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PermitWhereUniqueInput): [Permit!]
+  permitsCount(where: PermitWhereInput! = {}): Int
+  refrigerantCylinder(where: RefrigerantCylinderWhereUniqueInput!): RefrigerantCylinder
+  refrigerantCylinders(where: RefrigerantCylinderWhereInput! = {}, orderBy: [RefrigerantCylinderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RefrigerantCylinderWhereUniqueInput): [RefrigerantCylinder!]
+  refrigerantCylindersCount(where: RefrigerantCylinderWhereInput! = {}): Int
+  refrigerantInstallCheck(where: RefrigerantInstallCheckWhereUniqueInput!): RefrigerantInstallCheck
+  refrigerantInstallChecks(where: RefrigerantInstallCheckWhereInput! = {}, orderBy: [RefrigerantInstallCheckOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RefrigerantInstallCheckWhereUniqueInput): [RefrigerantInstallCheck!]
+  refrigerantInstallChecksCount(where: RefrigerantInstallCheckWhereInput! = {}): Int
+  refrigerantLogEntry(where: RefrigerantLogEntryWhereUniqueInput!): RefrigerantLogEntry
+  refrigerantLogEntries(where: RefrigerantLogEntryWhereInput! = {}, orderBy: [RefrigerantLogEntryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RefrigerantLogEntryWhereUniqueInput): [RefrigerantLogEntry!]
+  refrigerantLogEntriesCount(where: RefrigerantLogEntryWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   validateUserPasswordResetToken(email: String!, token: String!): ValidateUserPasswordResetTokenResult

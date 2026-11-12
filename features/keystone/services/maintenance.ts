@@ -3,6 +3,7 @@ import { expireHolds } from './booking'
 import { activateDuePriceBookVersions } from './pricebook'
 import { expireDueEstimates } from './estimates'
 import { expireCancellationNotices } from './cancellation'
+import { advanceWarrantyStates } from './warranty'
 
 /*
  * Time-based states: lapsed holds, due price-book versions, expired estimates and cancellation
@@ -17,7 +18,8 @@ export async function runMaintenancePass(db: Db, options: { now?: () => Date } =
   const priceBooks = await activateDuePriceBookVersions(db, clock())
   const estimates = await expireDueEstimates(db, clock())
   const notices = await expireCancellationNotices(db, clock())
-  return { holds, priceBooks, estimates, notices }
+  const warranty = await advanceWarrantyStates(db, clock())
+  return { holds, priceBooks, estimates, notices, warranty }
 }
 
 const MIN_GAP_MS = 5_000

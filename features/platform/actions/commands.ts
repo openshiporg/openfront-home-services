@@ -2,12 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
+import { PHASE5_OPS } from '@/features/keystone/domain/phase5Commands';
 
 /**
  * The only custom operations the dashboard screens can call. Each takes an idempotency key that the
  * client makes once per intent and reuses on retry, so a lost response never acts twice.
  */
 const OPS: Record<string, Record<string, string>> = {
+  ...PHASE5_OPS,
   decideApprovalRequest: { requestId: 'ID!', decision: 'String!', reason: 'String', expectedVersion: 'Int!' },
   cancelApprovalRequest: { requestId: 'ID!', expectedVersion: 'Int!', reason: 'String' },
   bindAgentApp: { agentId: 'ID!', oauthAppId: 'ID!', expectedVersion: 'Int!' },

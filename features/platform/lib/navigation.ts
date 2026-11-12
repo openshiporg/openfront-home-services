@@ -53,8 +53,18 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: 'Billing runs', href: '/platform/billing-runs', color: 'emerald', description: 'Charge the month\'s membership payments with one button.', icon: CreditCard, group: 'memberships', requires: 'canManageMemberships' },
   { title: 'Service agreements', href: '/platform/agreements', color: 'emerald', description: 'Planned maintenance for commercial customers.', icon: FileText, group: 'memberships', requires: 'canManageMemberships' },
 
-  { title: 'Equipment', href: '/platform/equipment', color: 'orange', description: 'Installed equipment, warranty registrations and claims.', icon: HardHat, group: 'operations' },
-  { title: 'Inventory', href: '/platform/inventory', color: 'orange', description: 'Warehouse and truck stock, replenishment and purchase orders.', icon: Boxes, group: 'operations' },
+  { title: 'Equipment', href: '/platform/equipment', color: 'orange', description: 'Installed equipment by location, with warranty cover.', icon: HardHat, group: 'operations', requires: 'canManageEquipment' },
+  { title: 'Inventory', href: '/platform/inventory', color: 'orange', description: 'Warehouse and truck stock.', icon: Boxes, group: 'operations', requires: 'canManageInventory' },
+  { title: 'Warranty registrations', href: '/platform/warranty/registrations', color: 'orange', description: 'Registrations due and overdue, with the portal packet.', icon: ClipboardCheck, group: 'operations', requires: 'canManageEquipment' },
+  { title: 'Warranty claims', href: '/platform/warranty/claims', color: 'orange', description: 'Claims to the manufacturer, appeals and write-offs.', icon: FileText, group: 'operations', requires: 'canSubmitWarrantyClaims' },
+  { title: 'Home warranty', href: '/platform/home-warranty', color: 'orange', description: 'Dispatches from home-warranty companies.', icon: Scale, group: 'operations', requires: 'canSubmitWarrantyClaims' },
+  { title: 'Replenishment', href: '/platform/replenishment', color: 'orange', description: 'Min/max proposals for trucks and the warehouse.', icon: Truck, group: 'operations', requires: 'canManageInventory' },
+  { title: 'Purchase orders', href: '/platform/purchase-orders', color: 'orange', description: 'Orders to suppliers, approval and three-way match.', icon: ClipboardList, group: 'operations', requires: 'canPurchase' },
+  { title: 'Receiving', href: '/platform/receiving', color: 'orange', description: 'Orders on their way, received into stock.', icon: Boxes, group: 'operations', requires: 'canReceive' },
+  { title: 'Cycle counts', href: '/platform/counts', color: 'orange', description: 'Count a location and post the difference.', icon: ClipboardCheck, group: 'operations', requires: 'canManageInventory' },
+  { title: 'Permits', href: '/platform/permits', color: 'orange', description: 'Permits and inspections that gate job completion.', icon: ClipboardCheck, group: 'operations', requires: 'canManagePermits' },
+  { title: 'Refrigerant log', href: '/platform/refrigerant', color: 'orange', description: 'EPA 608 log, cylinders and leak rates.', icon: Gauge, group: 'operations', requires: 'canManageRefrigerant' },
+  { title: 'Liens', href: '/platform/liens', color: 'orange', description: 'Texas lien dates by month for completed jobs.', icon: Landmark, group: 'operations', requires: 'canManageInvoices' },
   { title: 'Policies', href: '/platform/policies', color: 'orange', description: 'Jurisdiction policy packs, versions and sources.', icon: Scale, group: 'operations' },
 
   { title: 'Technicians', href: '/platform/team', color: 'pink', description: 'Technicians, credentials, skills, shifts and on-call.', icon: Users, group: 'team' },
@@ -80,6 +90,9 @@ export const SHIPPED_ROUTES = new Set<string>([
   '/platform/invoices', '/platform/payments', '/platform/financing', '/platform/accounting',
   // Phase 4: memberships, billing runs, renewals, service agreements
   '/platform/memberships', '/platform/membership-plans', '/platform/due-for-service', '/platform/renewals', '/platform/billing-runs', '/platform/agreements',
+  // Phase 5: equipment, warranty, inventory, purchasing, compliance
+  '/platform/equipment', '/platform/warranty/registrations', '/platform/warranty/claims', '/platform/home-warranty', '/platform/inventory', '/platform/replenishment',
+  '/platform/purchase-orders', '/platform/receiving', '/platform/counts', '/platform/permits', '/platform/refrigerant', '/platform/liens',
 ])
 
 const shipped = platformNavItems.filter(item => SHIPPED_ROUTES.has(item.href))

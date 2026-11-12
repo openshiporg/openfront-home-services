@@ -418,4 +418,32 @@ export const POLICY_PACKS: PackSeed[] = [
       ],
     },
   },
+  {
+    id: 'seed_pack_us_refrigerant',
+    code: 'us-refrigerant',
+    name: 'Refrigerant handling (Clean Air Act section 608)',
+    kind: 'refrigerant',
+    jurisdictionCode: 'US',
+    description: 'Technicians who handle refrigerant hold an EPA 608 certification; appliances with a charge of 15 lb or more are checked for leaks.',
+    binding: { id: 'seed_binding_us_refrigerant', scope: 'company', scopeValue: 'company', priority: 0 },
+    version: {
+      id: 'seed_policy_us_refrigerant_v1',
+      effectiveFrom: '2026-01-01',
+      rules: {
+        technicianCertificationRequired: true,
+        certificationTypes: ['type_i', 'type_ii', 'type_iii', 'universal'],
+        disposalRecords: { minChargeLb: '5', maxChargeLb: '50', includesHfc: true },
+        leakRepair: { minChargeLb: '15', repairDays: 30, effectiveFrom: '2026-01-01', excludedSubsectors: ['residential_ac', 'light_commercial_ac'] },
+        installRules: [
+          { refrigerant: 'R-22', equipmentClass: 'residential_ac', allowed: false, condition: 'R-22 new equipment has not been made or imported since 2020' },
+          { refrigerant: 'R-410A', equipmentClass: 'residential_ac', allowed: true, condition: 'Allowed until the AIM Act technology transition for the product class takes effect' },
+          { refrigerant: 'R-454B', equipmentClass: 'residential_ac', allowed: true, condition: 'Low-GWP replacement' },
+          { refrigerant: 'R-32', equipmentClass: 'residential_ac', allowed: true, condition: 'Low-GWP replacement' },
+        ],
+      },
+      sourceRefs: [
+        { ref: '40 CFR 82 Subpart F (section 608) and 40 CFR 84.106 (AIM Act leak repair)', url: 'https://www.ecfr.gov/current/title-40/chapter-I/subchapter-C/part-84', verified: false, checkedOn: '2026-11-12', note: 'Thresholds are conservative defaults the owner should confirm against the current rule. Install rules list common refrigerants only.' },
+      ],
+    },
+  },
 ]

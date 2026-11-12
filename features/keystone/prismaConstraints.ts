@@ -26,6 +26,12 @@ export const COMPOUND_UNIQUES: Record<string, string[]> = {
   PriceBookItem: ['@@unique([priceBookVersionId, itemKey], map: "PriceBookItem_version_key_key")'],
   PriceBookCategory: ['@@unique([priceBookVersionId, categoryKey], map: "PriceBookCategory_version_key_key")'],
   EstimateVersion: ['@@unique([estimateId, versionNumber], map: "EstimateVersion_estimate_number_key")'],
+  // Phase 5: stock, serial numbers, supplier catalogues
+  StockLevel: ['@@unique([locationId, itemId], map: "StockLevel_location_item_key")'],
+  SerializedUnit: ['@@unique([itemId, serialNumber], map: "SerializedUnit_item_serial_key")'],
+  SupplierItem: ['@@unique([supplierId, supplierSku], map: "SupplierItem_supplier_sku_key")'],
+  ItemUomConversion: ['@@unique([itemId, fromUomId, toUomId], map: "ItemUomConversion_item_from_to_key")'],
+  MinMaxRule: ['@@unique([locationId, itemId], map: "MinMaxRule_location_item_key")'],
 }
 
 export function addDatabaseConstraints(schema: string): string {
