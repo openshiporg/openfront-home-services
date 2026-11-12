@@ -344,7 +344,7 @@ export async function bookVisit(db: Db, actor: Actor, args: { eventId: string; j
     const { tx } = uow
     const event = await lockRow<{ id: string; status: string; version: number; membershipId: string | null; agreementId: string | null; grantId: string | null; code: string }>(tx, 'RecurringServiceEvent', args.eventId)
     if (event.status !== 'open') throw new DomainError(Codes.GUARD_FAILED, event.status === 'booked' ? 'This visit is already booked.' : 'This visit was skipped.', { reason: 'not_open' })
-    const job = await tx.job.findFirst({ where: { ref: args.jobRef.trim().toUpperCase() }, select: { id: true, customerId: true, status: true, ref: true } })
+    const job = await tx.job.findFirst({ where: { ref: args.jobRef.trim().toUpperCase() }, select: { id: true, customerId: true, status: true, ref: true, poNumber: true, nteMinor: true } })
     if (!job) throw new DomainError(Codes.NOT_FOUND, 'No job has that reference.', { field: 'jobRef' })
     if (job.status === 'cancelled') throw new DomainError(Codes.GUARD_FAILED, 'That job is cancelled.')
     let entryId: string | null = null
@@ -354,9 +354,13 @@ export async function bookVisit(db: Db, actor: Actor, args: { eventId: string; j
       const used = await debitEntitlement(uow, actor, { membershipId: event.membershipId, code: event.code, key: `visit:${event.id}`, jobId: job.id, reason: `Booked on ${job.ref}` })
       entryId = used.entryId
     } else if (event.agreementId) {
-      const a = await tx.serviceAgreement.findUniqueOrThrow({ where: { id: event.agreementId }, select: { customerId: true, status: true } })
+      const a = await tx.serviceAgreement.findUniqueOrThrow({ where: { id: event.agreementId }, select: { customerId: true, status: true, poNumber: true, nteMinor: true } })
       if (a.status !== 'active') throw new DomainError(Codes.GUARD_FAILED, 'The agreement is not active.')
       if (a.customerId !== job.customerId) throw new DomainError(Codes.GUARD_FAILED, 'That job belongs to a different customer.', { field: 'jobRef' })
+      // The agreement's PO and not-to-exceed go onto the job, so its invoice carries the PO and cannot bill past the cap.
+      if (a.poNumber && job.poNumber && job.poNumber !== a.poNumber) throw new DomainError(Codes.GUARD_FAILED, `That job is on PO ${job.poNumber}; the agreement's PO is ${a.poNumber}.`, { reason: 'po_mismatch' })
+      const nte = a.nteMinor > 0n ? (job.nteMinor && job.nteMinor > 0n && job.nteMinor < a.nteMinor ? job.nteMinor : a.nteMinor) : job.nteMinor
+      await tx.job.update({ where: { id: job.id }, data: { poNumber: a.poNumber || job.poNumber, nteMinor: nte, version: { increment: 1 } } })
     }
     await casUpdate(uow, { model: 'RecurringServiceEvent', id: event.id, version: event.version, from: ['open'], to: 'booked', actor, eventType: 'membership.visit_booked', data: { jobId: job.id } })
     return { eventId: event.id, jobId: job.id, entryId }
@@ -451,6 +455,29 @@ export async function cancelMembershipInTx(uow: UnitOfWork, actor: Actor, member
   await tx.membershipTerm.updateMany({ where: { membershipId: m.id, status: 'active', endsOn: { gte: asDate(today) } }, data: { status: 'cancelled' } })
   await tx.recurringServiceEvent.updateMany({ where: { membershipId: m.id, status: 'open' }, data: { status: 'skipped' } })
   return { membershipId: m.id, ref: m.ref, status: 'cancelled', refundOwedMinor: refund.toString(), already: false }
+}
+
+/**
+ * A membership payment was refunded. No plan here re-bills a refund, so the term it paid for is closed: what is left of its
+ * entitlements expires (append-only entries), its open visits are skipped, and a membership left with no term is cancelled.
+ */
+export async function closeTermForRefund(uow: UnitOfWork, actor: Actor, a: { membershipId: string; termId: string | null; reason: string }) {
+  const { tx } = uow
+  const m = await lockRow<{ id: string; status: string; version: number }>(tx, 'Membership', a.membershipId)
+  const grants = await tx.entitlementGrant.findMany({ where: { membershipId: m.id, ...(a.termId ? { termId: a.termId } : {}) }, select: { id: true } })
+  for (const g of grants) {
+    await lockRow(tx, 'EntitlementGrant', g.id)
+    const left = await grantBalance(tx, g.id)
+    if (left > 0) await tx.entitlementEntry.create({ data: { key: `refund:${g.id}`, grantId: g.id, kind: 'expire', quantity: -left, reason: `Payment refunded: ${a.reason}`.slice(0, 200), occurredAt: uow.now, createdById: actorUserId(actor) } })
+  }
+  if (grants.length) await tx.recurringServiceEvent.updateMany({ where: { grantId: { in: grants.map(g => g.id) }, status: 'open' }, data: { status: 'skipped' } })
+  if (a.termId) await tx.membershipTerm.updateMany({ where: { id: a.termId, status: 'active' }, data: { status: 'cancelled' } })
+  const liveTerms = await tx.membershipTerm.count({ where: { membershipId: m.id, status: 'active' } })
+  if (!liveTerms && !['cancelled', 'transferred', 'expired'].includes(m.status)) {
+    const loc = await tx.membership.findUniqueOrThrow({ where: { id: m.id }, select: { location: { select: { timeZone: true } } } })
+    await casUpdate(uow, { model: 'Membership', id: m.id, version: m.version, from: [m.status], to: 'cancelled', actor, eventType: 'membership.cancelled', reason: a.reason, data: { cancelledAt: uow.now, cancelReason: `Payment refunded: ${a.reason}`.slice(0, 300), cancelEffectiveOn: asDate(dayAt(loc.location?.timeZone ?? 'America/Chicago', uow.now)) }, audit: { via: 'refund' } })
+  }
+  auditCreate(uow, actor, 'Membership', m.id, 'membership.term_closed_by_refund', { termId: a.termId, grants: grants.length })
 }
 
 export async function cancelMembership(db: Db, actor: Actor, args: { membershipId: string; reason: string; idempotencyKey: string; now?: Date }) {

@@ -3,6 +3,7 @@ import { q, companyTimeZone, localToday, viewer } from '../../lib/server';
 import { money, dateText, label, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
+import { CardForm } from '../components/MembershipForms';
 import { stateOn } from '@/features/keystone/services/memberships';
 import { windowState } from '@/features/keystone/domain/membershipTime';
 
@@ -38,6 +39,8 @@ export default async function MembershipDetailPage({ params }: { params: Promise
   const live = !['cancelled', 'transferred'].includes(m.status);
   const paths = [`/dashboard/platform/memberships/${m.id}`, '/dashboard/platform/memberships'];
   const canManage = me.can('canManageMemberships') || me.can('canSellMemberships');
+  const billable = ['pending_payment', 'active', 'past_due'].includes(state);
+  const declined = d.membershipBillingAttempts.some(a => a.status === 'failed');
   return (
     <Page title={`${m.customer?.displayName ?? 'Member'} · ${m.plan?.name ?? 'Membership'}`} crumbs={[{ label: 'Memberships', href: '/dashboard/platform/memberships' }]}>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -47,7 +50,13 @@ export default async function MembershipDetailPage({ params }: { params: Promise
         <Stat name="Card on file" value={m.paymentMethodLabel || 'None'} />
       </div>
       <Meta>{m.ref} · {m.location ? `${m.location.address1}, ${m.location.city}` : ''} · {m.autoRenew ? 'renews automatically' : 'does not renew automatically'}. The customer can cancel online at /membership/{m.publicCode}</Meta>
-      {m.status === 'cancelled' ? <Meta>Cancelled{m.cancelEffectiveOn ? ` on ${dateText(m.cancelEffectiveOn)}` : ''}: {m.cancelReason}. {m.refundOwedMinor && m.refundOwedMinor !== '0' ? `Refund owed to the customer: ${money(m.refundOwedMinor)}. Pay it from the invoice.` : 'No refund owed.'}</Meta> : null}
+      {m.status === 'cancelled' ? <Meta>Cancelled{m.cancelEffectiveOn ? ` on ${dateText(m.cancelEffectiveOn)}` : ''}: {m.cancelReason}. {m.refundOwedMinor && m.refundOwedMinor !== '0' ? `Refund owed to the customer: ${money(m.refundOwedMinor)}. Refund it from the invoice; the invoice stays paid.` : 'No refund owed.'}</Meta> : null}
+      {declined && billable ? (
+        <Section title="Card declined: update card, then Retry">
+          <Meta>Running billing again does not charge a declined card. Put a new card on file, then press Retry on the payment below.</Meta>
+          {canManage ? <CardForm membershipId={m.id} /> : null}
+        </Section>
+      ) : null}
       {live && canManage ? (
         <div className="flex flex-wrap gap-2">
           {['active', 'past_due'].includes(m.status) ? <ActionButton op="renewMembership" vars={{ membershipId: m.id }} paths={paths} confirm="Start the next term now? The next payment is billed in the next billing run.">Renew for another term</ActionButton> : null}
@@ -89,7 +98,8 @@ export default async function MembershipDetailPage({ params }: { params: Promise
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-x-3"><span className="font-medium">Term {a.termNumber} · payment {a.slot + 1}</span><Status value={a.status} /><span className="ml-auto text-sm tabular-nums">{money(a.amountMinor ?? '0')}</span></div>
               <Meta>Due {dateText(a.dueOn)}{a.invoice ? ` · invoice ${a.invoice.ref}` : ''}{a.failureNote ? ` · ${a.failureNote}` : ''}</Meta>
-              {['unknown', 'failed'].includes(a.status) && me.can('canManageMemberships') ? <ActionButton op="retryMembershipCharge" vars={{ attemptId: a.id }} paths={paths} confirm="Ask the card processor what happened, and charge again only if it never saw the first try?">Check and retry</ActionButton> : null}
+              {a.status === 'unknown' && billable && me.can('canManageMemberships') ? <ActionButton op="retryMembershipCharge" vars={{ attemptId: a.id }} paths={paths} confirm="Ask the card processor what happened, and charge again only if it never saw the first try?">Check and retry</ActionButton> : null}
+              {a.status === 'failed' && billable && me.can('canManageMemberships') ? <ActionButton op="retryMembershipCharge" vars={{ attemptId: a.id }} paths={paths} ask="Retry the declined card. If the card was not updated, say why to try the same card again (leave empty if you updated it).">Retry</ActionButton> : null}
             </div>
           </Row>
         )) : <Empty>Nothing has been billed yet. Payments are made in the billing run.</Empty>}

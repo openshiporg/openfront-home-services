@@ -8,6 +8,8 @@ import type { Db } from '../lib/db'
 import { Codes, DomainError } from '../lib/errors'
 import { nextReference } from '../lib/sequence'
 import type { UnitOfWork } from '../lib/unitOfWork'
+import { creditForRefund } from './invoices'
+import { closeTermForRefund } from './memberships'
 import { allocatePayment, arPeriodFor, asDate, companyToday, lockInvoice, money, reverseAllocations, unappliedOf } from './billingShared'
 
 /*
@@ -168,12 +170,39 @@ export async function resolveAttemptFailed(db: Db, actor: Actor, args: { attempt
 
 // ── Refunds ───────────────────────────────────────────────────────────────────
 
+const REFUND_CREDIT = 'Membership payment refunded:'
+
+/**
+ * A membership invoice that an earlier refund reopened (before refunds credited the invoice): credit what that refund
+ * reopened and close the term, exactly as a refund does now. Running it again does nothing.
+ */
+export async function settleRefundedMembershipInvoice(db: Db, actor: Actor, args: { invoiceId: string; idempotencyKey: string; now?: Date }) {
+  await authorizeOperation(db, actor, 'refund.settle_membership_invoice', ['canIssueRefunds'], args)
+  const { idempotencyKey, now: _now, ...params } = args
+  const result = await command(db, { name: 'refund.settle_membership_invoice', actor, idempotencyKey, params, now: args.now }, async uow => {
+    const { tx } = uow
+    const invoice = await lockInvoice(tx, args.invoiceId)
+    const charge = await tx.membershipBillingAttempt.findFirst({ where: { invoiceId: invoice.id, paymentId: { not: null } }, select: { paymentId: true, membershipId: true, termId: true } })
+    if (!charge?.paymentId) throw new DomainError(Codes.GUARD_FAILED, 'This is not a membership invoice paid by card.', { reason: 'not_membership_invoice' })
+    const refunds = await tx.refund.findMany({ where: { paymentId: charge.paymentId }, select: { amountMinor: true, reason: true } })
+    const refunded = refunds.reduce((n, r) => n + r.amountMinor, 0n)
+    if (!refunded) throw new DomainError(Codes.GUARD_FAILED, 'Nothing has been refunded on this invoice.', { reason: 'no_refund' })
+    const credited = (await tx.creditMemo.aggregate({ where: { invoiceId: invoice.id, status: 'applied', note: { startsWith: REFUND_CREDIT } }, _sum: { totalMinor: true } }))._sum.totalMinor ?? 0n
+    const owed = refunded - credited < invoice.balanceMinor ? refunded - credited : invoice.balanceMinor
+    const memo = owed > 0n ? await creditForRefund(uow, actor, { invoiceId: invoice.id, amountMinor: owed, note: `${REFUND_CREDIT} ${refunds[0]?.reason ?? 'refund'}` }) : null
+    if (charge.membershipId) await closeTermForRefund(uow, actor, { membershipId: charge.membershipId, termId: charge.termId, reason: refunds[0]?.reason ?? 'Refunded' })
+    return { invoiceId: invoice.id, creditedMinor: owed > 0n ? owed.toString() : '0', memoRef: memo?.ref ?? null }
+  })
+  return { replay: result.replay, ...result.value }
+}
+
 async function writeRefund(uow: UnitOfWork, actor: Actor, a: { paymentId: string; amountMinor: bigint; method: string; reason: string; reference: string; approvalId: string | null }) {
   const { tx } = uow
   const u = await unappliedOf(tx, a.paymentId)
   if (a.amountMinor > u.amountMinor - u.refunded) throw new DomainError(Codes.GUARD_FAILED, `At most ${money(u.amountMinor - u.refunded)} is left to refund on this payment.`, { reason: 'refund_exceeds_payment' })
   // Money still applied to invoices is taken back from them first, newest application first.
   const needBack = a.amountMinor - u.unapplied
+  const membershipCharge = await tx.membershipBillingAttempt.findFirst({ where: { paymentId: a.paymentId }, select: { invoiceId: true, membershipId: true, termId: true } })
   const customerId = (await tx.payment.findUniqueOrThrow({ where: { id: a.paymentId }, select: { customerId: true } })).customerId
   if (needBack > 0n) {
     const credit = customerId ? (await tx.customerCreditEntry.aggregate({ where: { customerId, sourceType: 'Payment', sourceId: a.paymentId }, _sum: { amountMinor: true } }))._sum.amountMinor ?? 0n : 0n
@@ -186,8 +215,12 @@ async function writeRefund(uow: UnitOfWork, actor: Actor, a: { paymentId: string
     if (back > 0n) {
       const done = await reverseAllocations(uow, actor, a.paymentId, back, 'refund_reopen', `Refund: ${a.reason}`)
       if (done !== back) throw new DomainError(Codes.GUARD_FAILED, 'The refund is more than this payment has applied.')
+      // A membership charge refunded is not owed again (no plan re-bills a refund): the invoice is credited the same amount,
+      // so it stays paid, and the term the money paid for is closed below.
+      if (membershipCharge?.invoiceId) await creditForRefund(uow, actor, { invoiceId: membershipCharge.invoiceId, amountMinor: back, note: `${REFUND_CREDIT} ${a.reason}` })
     }
   }
+  if (membershipCharge?.membershipId) await closeTermForRefund(uow, actor, { membershipId: membershipCharge.membershipId, termId: membershipCharge.termId, reason: a.reason })
   await arPeriodFor(tx, await companyToday(tx, uow.now)) // the DB trigger Refund_period refuses a refund dated in a non-open AR month
   const ref = await nextReference(tx, 'RFD', uow.now)
   const refund = await tx.refund.create({ data: { ref, paymentId: a.paymentId, method: a.method, amountMinor: a.amountMinor, reason: a.reason, approvalId: a.approvalId, reference: a.reference, refundedAt: uow.now, recordedById: actorUserId(actor) }, select: { id: true } })

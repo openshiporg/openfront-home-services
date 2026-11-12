@@ -36,6 +36,7 @@ export const phase3TypeDefs = graphql`
     resolveAttemptFailed(attemptId: ID!, expectedVersion: Int!, evidence: String!, idempotencyKey: String!): JSON
     requestRefund(paymentId: ID!, amountMinor: String!, method: String!, reason: String!, reference: String!, idempotencyKey: String!): JSON
     recordApprovedRefund(approvalRequestId: ID!, idempotencyKey: String!): JSON
+    settleRefundedMembershipInvoice(invoiceId: ID!, idempotencyKey: String!): JSON
     closePaymentBatch(batchId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
     reconcilePaymentBatch(batchId: ID!, expectedVersion: Int!, depositedMinor: String!, depositReference: String!, idempotencyKey: String!): JSON
 
@@ -68,6 +69,7 @@ export const phase3Resolvers = {
     resolveAttemptFailed: bind(payments.resolveAttemptFailed),
     requestRefund: bind(payments.requestRefund),
     recordApprovedRefund: bind(payments.recordApprovedRefund),
+    settleRefundedMembershipInvoice: bind(payments.settleRefundedMembershipInvoice),
     closePaymentBatch: bind(payments.closePaymentBatch),
     reconcilePaymentBatch: bind(payments.reconcilePaymentBatch),
     saveFinancingProgram: bind(financing.saveFinancingProgram),

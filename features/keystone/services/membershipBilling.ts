@@ -2,7 +2,7 @@ import { authorizeOperation } from '../lib/agentGate'
 import { actorUserId, type Actor } from '../lib/actor'
 import { auditCreate, casUpdate, lockRow } from '../lib/cas'
 import { command } from '../lib/command'
-import { addDays } from '../lib/calendar'
+import { addDays, localDate } from '../lib/calendar'
 import type { Db } from '../lib/db'
 import { Codes, DomainError } from '../lib/errors'
 import { paymentAdapter, type ChargeResult, type PaymentAdapter } from '../lib/paymentAdapter'
@@ -24,11 +24,35 @@ import { createPayment } from './payments'
  * Pressing the button twice, at once or after a crash, finds the same rows and finishes the same work.
  */
 
-const BILLING: Permission[] = ['canManageMemberships', 'canManageInvoices']
+// Running billing and retrying a charge are membership-manager actions (an accountant reads the runs, but does not charge cards).
+const BILLING: Permission[] = ['canManageMemberships']
+/** A membership in one of these is charged; any other (cancelled, transferred, expired, suspended) never is. */
+const BILLABLE = ['pending_payment', 'active', 'past_due']
 const STALE_CHARGE_MS = 2 * 60_000
 const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/
 
-export type AttemptOutcome = 'charged' | 'declined' | 'unknown' | 'in_progress' | 'already_paid' | 'no_card'
+export type AttemptOutcome = 'charged' | 'declined' | 'unknown' | 'in_progress' | 'already_paid' | 'no_card' | 'not_billable'
+
+const ymd = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : '')
+
+/**
+ * After a home sale the buyer never pays for what the seller paid: a slot the seller's membership paid, or one that fell due before
+ * the transfer day (that stays on the seller's membership), carries over. Returns a test for `(membershipId, termNumber, slot, dueOn)`.
+ */
+export async function carriedOver(db: Pick<Db, 'membership' | 'membershipBillingAttempt'>, membershipIds: string[]) {
+  const paid = new Set<string>()
+  const from = new Map<string, string>()
+  if (membershipIds.length) {
+    const sellers = await db.membership.findMany({ where: { transferredToId: { in: membershipIds } }, select: { id: true, transferredToId: true, cancelEffectiveOn: true } })
+    for (const s of sellers) {
+      from.set(s.transferredToId!, ymd(s.cancelEffectiveOn))
+      const rows = await db.membershipBillingAttempt.findMany({ where: { membershipId: s.id, status: 'succeeded' }, select: { termNumber: true, slot: true } })
+      for (const r of rows) paid.add(`${s.transferredToId}:${r.termNumber}:${r.slot}`)
+    }
+  }
+  return (membershipId: string, termNumber: number, slot: number, dueOn: string) =>
+    paid.has(`${membershipId}:${termNumber}:${slot}`) || (from.has(membershipId) && dueOn < from.get(membershipId)!)
+}
 
 const lastDayOf = (period: string) => `${period}-${String(daysInMonth(Number(period.slice(0, 4)), Number(period.slice(5, 7)))).padStart(2, '0')}`
 
@@ -88,9 +112,12 @@ async function markStatus(db: Db, actor: Actor, attemptId: string, to: 'failed' 
 }
 
 /** Carry one attempt as far as it can go right now. Safe to call again at any moment. */
-export async function processAttempt(db: Db, actor: Actor, attemptId: string, now: Date, adapter: PaymentAdapter = paymentAdapter()): Promise<AttemptOutcome> {
-  const seen = await db.membershipBillingAttempt.findUniqueOrThrow({ where: { id: attemptId }, include: { membership: { select: { paymentMethodRef: true, customer: { select: { ref: true } } } } } })
+export async function processAttempt(db: Db, actor: Actor, attemptId: string, now: Date, adapter: PaymentAdapter = paymentAdapter(), opts: { newTry?: boolean } = {}): Promise<AttemptOutcome> {
+  const seen = await db.membershipBillingAttempt.findUniqueOrThrow({ where: { id: attemptId }, include: { membership: { select: { status: true, paymentMethodRef: true, customer: { select: { ref: true } } } } } })
   if (seen.status === 'succeeded') return 'already_paid'
+  // A cancelled, transferred or expired membership is never sent to the processor again, not even to ask.
+  if (!BILLABLE.includes(seen.membership?.status ?? '')) return 'not_billable'
+  if (seen.membershipId && (await carriedOver(db, [seen.membershipId]))(seen.membershipId, seen.termNumber, seen.slot, ymd(seen.dueOn))) return 'already_paid'
   let status = seen.status
   const stale = status === 'charging' && now.getTime() - seen.updatedAt.getTime() >= STALE_CHARGE_MS
   if (status === 'charging' && !stale) return 'in_progress'
@@ -104,19 +131,23 @@ export async function processAttempt(db: Db, actor: Actor, attemptId: string, no
       return 'unknown'
     }
     if (found.outcome === 'failed') {
+      // A decline is final for this key. Nothing charges the card again until a person updates it and presses Retry.
       await markStatus(db, actor, attemptId, 'failed', found.note, found.providerRef, now)
-      status = 'failed'
+      return 'declined'
     } else {
       // The processor never saw it. The same key can safely be sent again: if it did arrive late, it is still one charge.
       status = 'retry_same_key'
     }
   }
+  if (status === 'failed' && !opts.newTry) return 'declined'
   if (!seen.membership?.paymentMethodRef) return 'no_card'
 
   const claim = await runInTransaction(db, async uow => {
     const a = await lockRow<{ id: string; status: string; version: number; generation: number; invoiceId: string | null; membershipId: string | null; termNumber: number; slot: number; attemptKey: string; providerKey: string; updatedAt: Date }>(uow.tx, 'MembershipBillingAttempt', attemptId)
-    const reclaimable = a.status === 'queued' || a.status === 'failed' || (status === 'retry_same_key' && ['unknown', 'charging'].includes(a.status))
-    if (!reclaimable) return { skip: a.status === 'succeeded' ? ('already_paid' as const) : ('in_progress' as const) }
+    const m = a.membershipId ? await lockRow<{ id: string; status: string }>(uow.tx, 'Membership', a.membershipId) : null
+    if (!m || !BILLABLE.includes(m.status)) return { skip: 'not_billable' as const }
+    const reclaimable = a.status === 'queued' || (a.status === 'failed' && opts.newTry === true) || (status === 'retry_same_key' && ['unknown', 'charging'].includes(a.status))
+    if (!reclaimable) return { skip: a.status === 'succeeded' ? ('already_paid' as const) : a.status === 'failed' ? ('declined' as const) : ('in_progress' as const) }
     // A new generation (a new processor key) only follows a failure the processor itself confirmed.
     const generation = a.status === 'failed' ? a.generation + 1 : a.generation
     const providerKey = `${a.attemptKey}:g${generation}`
@@ -142,7 +173,7 @@ export async function processAttempt(db: Db, actor: Actor, attemptId: string, no
   return 'unknown'
 }
 
-export type BillingSummary = { runId: string; ref: string; period: string; queued: number; charged: number; declined: number; unknown: number; inProgress: number; noCard: number; remaining: number; chargedMinor: string; replay: boolean }
+export type BillingSummary = { runId: string; ref: string; period: string; status?: 'completed' | 'partial' | 'running'; queued: number; charged: number; declined: number; unknown: number; inProgress: number; noCard: number; remaining: number; chargedMinor: string; replay: boolean }
 
 /**
  * "Run billing for <period>": every payment due on or before the end of that month, for every membership that can be billed.
@@ -176,9 +207,10 @@ export async function runMembershipBilling(db: Db, actor: Actor, args: { period:
     }
 
     const members = await tx.membership.findMany({
-      where: { status: { in: ['pending_payment', 'active', 'past_due'] } },
+      where: { status: { in: BILLABLE } },
       select: { id: true, startsOn: true, terms: { where: { status: 'active' }, select: { id: true, termNumber: true, slots: true, billingFrequency: true, startsOn: true } }, planVersion: { select: { termMonths: true } } },
     })
+    const carried = await carriedOver(tx, members.map(m => m.id))
     const rows: { attemptKey: string; membershipId: string; termId: string; termNumber: number; slot: number; dueOn: Date; runId: string }[] = []
     for (const m of members) {
       const anchor = m.startsOn!.toISOString().slice(0, 10)
@@ -187,6 +219,8 @@ export async function runMembershipBilling(db: Db, actor: Actor, args: { period:
         for (let k = 0; k < t.slots; k += 1) {
           const due = t.billingFrequency === 'monthly' ? slotDueDay(anchor, months, t.termNumber, k) : t.startsOn!.toISOString().slice(0, 10)
           if (due > end) continue
+          // After a home sale the buyer pays only what falls due from the transfer day on, never what the seller paid.
+          if (carried(m.id, t.termNumber, k, due)) continue
           rows.push({ attemptKey: `${m.id}:${t.termNumber}:${k}`, membershipId: m.id, termId: t.id, termNumber: t.termNumber, slot: k, dueOn: asDate(due), runId: run.id })
         }
       }
@@ -197,35 +231,63 @@ export async function runMembershipBilling(db: Db, actor: Actor, args: { period:
     return { runId: run.id, ref: run.ref }
   })
 
-  const attempts = await db.membershipBillingAttempt.findMany({
-    where: { dueOn: { lte: asDate(lastDayOf(args.period)) }, status: { not: 'succeeded' }, membership: { status: { in: ['pending_payment', 'active', 'past_due'] } } },
-    orderBy: [{ dueOn: 'asc' }, { attemptKey: 'asc' }], select: { id: true },
+  // A declined attempt is not picked up again: it waits for a new card and a person's Retry (it still counts as left to collect).
+  const open = await db.membershipBillingAttempt.findMany({
+    where: { dueOn: { lte: asDate(lastDayOf(args.period)) }, status: { not: 'succeeded' }, membership: { status: { in: BILLABLE } } },
+    orderBy: [{ dueOn: 'asc' }, { attemptKey: 'asc' }], select: { id: true, status: true, membershipId: true, termNumber: true, slot: true, dueOn: true },
   })
-  const tally = { charged: 0, declined: 0, unknown: 0, inProgress: 0, noCard: 0, already: 0 }
+  const carriedNow = await carriedOver(db, [...new Set(open.map(a => a.membershipId ?? ''))].filter(Boolean))
+  const due = open.filter(a => !carriedNow(a.membershipId ?? '', a.termNumber, a.slot, ymd(a.dueOn)))
+  const attempts = due.filter(a => a.status !== 'failed')
+  const tally = { charged: 0, declined: due.length - attempts.length, unknown: 0, inProgress: 0, noCard: 0, already: 0 }
+  const chargedIds: string[] = []
   for (const a of attempts) {
     const outcome = await processAttempt(db, actor, a.id, now, adapter)
-    if (outcome === 'charged') tally.charged += 1
+    if (outcome === 'charged') { tally.charged += 1; chargedIds.push(a.id) }
     else if (outcome === 'declined') tally.declined += 1
     else if (outcome === 'unknown') tally.unknown += 1
     else if (outcome === 'in_progress') tally.inProgress += 1
     else if (outcome === 'no_card') tally.noCard += 1
     else tally.already += 1
   }
-  const paid = await db.membershipBillingAttempt.aggregate({ where: { runId: prepared.value.runId, status: 'succeeded' }, _sum: { amountMinor: true } })
-  const remaining = await db.membershipBillingAttempt.count({ where: { dueOn: { lte: asDate(lastDayOf(args.period)) }, status: { not: 'succeeded' }, membership: { status: { in: ['pending_payment', 'active', 'past_due'] } } } })
+  // The run's total is what this press charged, so the count and the money always agree.
+  const paid = await db.membershipBillingAttempt.aggregate({ where: { id: { in: chargedIds }, status: 'succeeded' }, _sum: { amountMinor: true } })
+  const left = await db.membershipBillingAttempt.findMany({ where: { id: { in: due.map(a => a.id) }, status: { not: 'succeeded' } }, select: { id: true } })
+  const remaining = left.length
+  // The run ends in this request: completed when nothing is left, partial when something waits (a decline, the processor, no card).
   await db.membershipBillingRun.update({
     where: { id: prepared.value.runId },
-    data: { status: remaining === 0 || !tally.inProgress ? 'completed' : 'running', queuedCount: attempts.length, chargedCount: tally.charged, failedCount: tally.declined, unknownCount: tally.unknown, remainingCount: remaining, chargedMinor: paid._sum.amountMinor ?? 0n, completedAt: now },
+    data: { status: remaining === 0 ? 'completed' : 'partial', queuedCount: attempts.length, chargedCount: tally.charged, failedCount: tally.declined, unknownCount: tally.unknown, remainingCount: remaining, chargedMinor: paid._sum.amountMinor ?? 0n, completedAt: now },
   })
-  return { runId: prepared.value.runId, ref: prepared.value.ref, period: args.period, queued: attempts.length, charged: tally.charged, declined: tally.declined, unknown: tally.unknown, inProgress: tally.inProgress, noCard: tally.noCard, remaining, chargedMinor: (paid._sum.amountMinor ?? 0n).toString(), replay: prepared.replay }
+  return { runId: prepared.value.runId, ref: prepared.value.ref, period: args.period, status: remaining === 0 ? 'completed' as const : 'partial' as const, queued: attempts.length, charged: tally.charged, declined: tally.declined, unknown: tally.unknown, inProgress: tally.inProgress, noCard: tally.noCard, remaining, chargedMinor: (paid._sum.amountMinor ?? 0n).toString(), replay: prepared.replay }
 }
 
-/** Settle one unknown attempt by asking the processor, and charge again only if the processor never saw the first. */
-export async function retryAttempt(db: Db, actor: Actor, args: { attemptId: string; idempotencyKey: string; now?: Date }, adapter: PaymentAdapter = paymentAdapter()) {
+/**
+ * Retry one payment. An unknown one is settled by asking the processor (and sent again with the same key only if it never saw it).
+ * A declined one is tried again, with a new key, only when a person asks and the card was changed since the decline, or they
+ * say why the same card should be tried again. A cancelled, transferred or expired membership is never charged.
+ */
+export async function retryAttempt(db: Db, actor: Actor, args: { attemptId: string; reason?: string | null; idempotencyKey: string; now?: Date }, adapter: PaymentAdapter = paymentAdapter()) {
   await authorizeOperation(db, actor, 'membership.attempt_retry', BILLING, args)
-  const outcome = await processAttempt(db, actor, args.attemptId, args.now ?? new Date(), adapter)
+  const now = args.now ?? new Date()
+  const a = await db.membershipBillingAttempt.findUnique({ where: { id: args.attemptId }, select: { id: true, status: true, updatedAt: true, membership: { select: { id: true, status: true, location: { select: { timeZone: true } }, terms: { where: { status: 'active' }, select: { endsOn: true } } } } } })
+  if (!a?.membership) throw new DomainError(Codes.NOT_FOUND, 'Payment not found.')
+  const m = a.membership
+  const today = localDate({ timeZone: m.location?.timeZone ?? 'America/Chicago' }, now)
+  const lastEnd = m.terms.map(t => ymd(t.endsOn)).sort().pop() ?? ''
+  const standing = !BILLABLE.includes(m.status) ? m.status : !lastEnd || lastEnd < today ? 'expired' : m.status
+  if (!BILLABLE.includes(standing)) throw new DomainError(Codes.GUARD_FAILED, `This membership is ${standing.replace(/_/g, ' ')}, so it is not charged.`, { reason: 'membership_not_billable' })
+  const reason = String(args.reason ?? '').trim()
+  let newTry = false
+  if (a.status === 'failed') {
+    const cardChanged = await db.auditEvent.findFirst({ where: { entityType: 'Membership', entityId: m.id, eventType: 'membership.payment_method_set', at: { gt: a.updatedAt } }, select: { id: true } })
+    if (!cardChanged && reason.length < 3) throw new DomainError(Codes.GUARD_FAILED, 'Card declined: update the card, then Retry. To try the same card again, say why.', { reason: 'card_not_updated' })
+    newTry = true
+  }
+  const outcome = await processAttempt(db, actor, args.attemptId, now, adapter, { newTry })
+  if (newTry) await runInTransaction(db, async uow => { auditCreate(uow, actor, 'MembershipBillingAttempt', a.id, 'membership.charge_retried', { outcome }, { reason: reason || 'Card updated' }) }, { now })
   return { attemptId: args.attemptId, outcome }
 }
 
-export const describeOutcome = (o: AttemptOutcome) => ({ charged: 'Charged', declined: 'Declined', unknown: 'Waiting on the card processor', in_progress: 'Already being charged', already_paid: 'Already paid', no_card: 'No card on file' })[o]
+export const describeOutcome = (o: AttemptOutcome) => ({ charged: 'Charged', declined: 'Declined', unknown: 'Waiting on the card processor', in_progress: 'Already being charged', already_paid: 'Already paid', no_card: 'No card on file', not_billable: 'Membership is not billed' })[o]
 export { money, termNumberOn }

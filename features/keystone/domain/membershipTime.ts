@@ -50,22 +50,26 @@ const monthDay = (md: string, year: number) => {
 }
 
 /**
- * The days an entitlement may be used in a term: the whole term, or the season's first occurrence inside it
- * (cut to the term). A season that crosses New Year (Nov 1 to Feb 28) runs into the next year. Feb 29 in a
- * non-leap year is Feb 28.
+ * The days an entitlement may be used in a term: the whole term, or the season's occurrence inside it that leaves
+ * the most days (cut to the term; on a tie, the earlier one). Someone who joins on Dec 14 of an Oct 1 to Dec 15
+ * season gets next fall, not two days. A season that crosses New Year (Nov 1 to Feb 28) runs into the next year.
+ * Feb 29 in a non-leap year is Feb 28.
  */
 export function windowFor(start: string, end: string, season: Season) {
   if (!season) return { startDay: start, endDay: end }
   const first = parts(start).y - 1
   const last = parts(end).y
+  const days = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000) + 1
+  let best: { startDay: string; endDay: string } | null = null
   for (let y = first; y <= last; y += 1) {
     const s = monthDay(season.startMonthDay, y)
     const wraps = season.endMonthDay < season.startMonthDay
     const e = monthDay(season.endMonthDay, wraps ? y + 1 : y)
     if (e < start || s > end) continue
-    return { startDay: s < start ? start : s, endDay: e > end ? end : e }
+    const w = { startDay: s < start ? start : s, endDay: e > end ? end : e }
+    if (!best || days(w.startDay, w.endDay) > days(best.startDay, best.endDay)) best = w
   }
-  return { startDay: start, endDay: end }
+  return best ?? { startDay: start, endDay: end }
 }
 
 /** Where a window stands on a local day. */

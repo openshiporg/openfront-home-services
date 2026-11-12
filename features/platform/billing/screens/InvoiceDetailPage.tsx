@@ -10,8 +10,8 @@ type Inv = {
   id: string; ref: string; status: string; version: number; payerKind: string; propertyClass: string; contractTaxMode: string; invoiceDate: string | null; dueDate: string | null; collectionsStatus: string; poNumber: string; progressReason: string;
   subtotalMinor: string; discountMinor: string; taxMinor: string; totalMinor: string; balanceMinor: string;
   customer: { id: string; displayName: string } | null; payer: { name: string } | null; job: { id: string; ref: string } | null;
-  lines: { id: string; description: string; quantity: string; amountMinor: string; taxMinor: string; taxable: boolean }[];
-  allocations: { id: string; kind: string; amountMinor: string; createdAt: string; payment: { id: string; ref: string; method: string; amountMinor: string; reference: string; feeMinor: string } | null }[];
+  lines: { id: string; description: string; quantity: string; amountMinor: string; taxMinor: string; taxable: boolean; taxCategory: string }[];
+  allocations: { id: string; kind: string; amountMinor: string; createdAt: string; payment: { id: string; ref: string; method: string; amountMinor: string; reference: string; feeMinor: string; refunds: { ref: string; amountMinor: string }[] | null } | null }[];
   creditMemos: { id: string; ref: string; status: string; reason: string; totalMinor: string }[];
 };
 
@@ -25,8 +25,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         invoice(where: { id: $id }) {
           id ref status version payerKind propertyClass contractTaxMode invoiceDate dueDate collectionsStatus poNumber progressReason subtotalMinor discountMinor taxMinor totalMinor balanceMinor
           customer { id displayName } payer { name } job { id ref }
-          lines(orderBy: [{ sortOrder: asc }]) { id description quantity amountMinor taxMinor taxable }
-          allocations(orderBy: [{ createdAt: asc }]) { id kind amountMinor createdAt payment { id ref method amountMinor reference feeMinor } }
+          lines(orderBy: [{ sortOrder: asc }]) { id description quantity amountMinor taxMinor taxable taxCategory }
+          allocations(orderBy: [{ createdAt: asc }]) { id kind amountMinor createdAt payment { id ref method amountMinor reference feeMinor refunds { ref amountMinor } } }
           creditMemos(orderBy: [{ createdAt: asc }]) { id ref status reason totalMinor }
         }
         auditEvents(where: { entityId: { equals: $entity } }, orderBy: [{ seq: asc }], take: 40) { eventType at actorUser { name } }
@@ -40,10 +40,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const takes = me.can('canManagePayments') || me.can('canTakePayments');
   const live = ['posted', 'partially_paid'].includes(i.status);
   const applied = i.allocations.filter(a => a.kind === 'apply' && a.payment);
+  // Membership invoices: a refund credits the invoice (paid, then refunded); it is never owed again.
+  const membership = i.lines.some(l => l.taxCategory === 'membership');
+  const refundedMinor = [...new Map(applied.map(a => [a.payment!.id, a.payment!])).values()].reduce((n, p) => n + (p.refunds ?? []).reduce((m, r) => m + BigInt(r.amountMinor), 0n), 0n);
+  const reopenedByRefund = membership && refundedMinor > 0n && BigInt(i.balanceMinor) > 0n;
   return (
     <Page title={`${i.ref} · ${i.payer?.name ?? i.customer?.displayName ?? 'Invoice'}`} crumbs={[{ label: 'Invoices', href: '/dashboard/platform/invoices' }]}>
       <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-4 sm:grid-cols-[repeat(4,minmax(0,1fr))]">
-        <Stat name="Status" value={<Status value={i.status} />} />
+        <Stat name="Status" value={membership && refundedMinor > 0n && !reopenedByRefund ? 'Paid, then refunded' : <Status value={i.status} />} />
         <Stat name="Total" value={money(i.totalMinor)} />
         <Stat name="Balance" value={money(i.balanceMinor)} />
         <Stat name="Due" value={i.dueDate ? dateText(i.dueDate.slice(0, 10)) : '—'} />
@@ -70,7 +74,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         )) : <Empty>No lines.</Empty>}
         <p className="text-right text-xs text-muted-foreground">Subtotal {money(i.subtotalMinor)}{BigInt(i.discountMinor) ? ` · discount −${money(i.discountMinor)}` : ''} · tax {money(i.taxMinor)} · <span className="font-medium text-foreground">total {money(i.totalMinor)}</span></p>
       </Section>
-      {live && takes ? <Section title="Record a payment"><PaymentForm invoiceId={i.id} balanceMinor={i.balanceMinor} /></Section> : null}
+      {membership && refundedMinor > 0n ? (
+        <Section title="Refunded">
+          <Meta>{money(refundedMinor.toString())} of this membership payment was refunded. A refunded membership payment is not billed again: the invoice is credited the same amount and the term it paid for is closed.</Meta>
+          {reopenedByRefund && me.can('canIssueRefunds') ? <ActionButton op="settleRefundedMembershipInvoice" vars={{ invoiceId: i.id }} paths={paths} confirm="This refund reopened the invoice. Credit the refunded amount so it is not owed, and close the membership term it paid for?">Credit the refund</ActionButton> : null}
+        </Section>
+      ) : null}
+      {live && takes && !reopenedByRefund ? <Section title="Record a payment"><PaymentForm invoiceId={i.id} balanceMinor={i.balanceMinor} /></Section> : null}
       <Section title={`Payments and credits · ${i.allocations.length}`}>
         {i.allocations.length ? i.allocations.map(a => (
           <Row key={a.id}>

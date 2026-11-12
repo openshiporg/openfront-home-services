@@ -189,7 +189,7 @@ export const MembershipBillingRun = list({
     ref: systemText({ indexed: 'unique', required: true }),
     period: systemText({ required: true }),
     idempotencyKey: text({ ...hidden, isIndexed: 'unique' }),
-    status: lifecycle(['running', 'completed']),
+    status: lifecycle(['running', 'completed', 'partial']),
     queuedCount: integer({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
     chargedCount: integer({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
     failedCount: integer({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),

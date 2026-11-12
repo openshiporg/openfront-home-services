@@ -83,6 +83,20 @@ export function BillingRunForm({ periods }: { periods: { value: string; label: s
   );
 }
 
+/** Put a new card on file (after a decline). The charge is retried only when a person presses Retry. */
+export function CardForm({ membershipId }: { membershipId: string }) {
+  return (
+    <CommandForm
+      op="updateMembershipPaymentMethod" submit="Update card" paths={[`/dashboard/platform/memberships/${membershipId}`, '/dashboard/platform/billing-runs']}
+      fixed={{ membershipId }}
+      fields={[
+        { name: 'paymentMethodLabel', label: 'Card (for example Visa ending 4242)', required: true, width: 'md' },
+        { name: 'paymentMethodRef', label: 'Card reference from the processor', required: true, width: 'md', placeholder: 'pm_...' },
+      ]}
+    />
+  );
+}
+
 export function AgreementForm({ places }: { places: SellOption[] }) {
   const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
   return (

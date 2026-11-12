@@ -34,7 +34,7 @@ export const phase4TypeDefs = graphql`
     releaseMembershipVisit(eventId: ID!, reason: String!, idempotencyKey: String!): JSON
 
     runMembershipBilling(period: String!, idempotencyKey: String!): JSON
-    retryMembershipCharge(attemptId: ID!, idempotencyKey: String!): JSON
+    retryMembershipCharge(attemptId: ID!, reason: String, idempotencyKey: String!): JSON
     recordRenewalNotice(membershipId: ID!, status: String!, idempotencyKey: String!): JSON
 
     saveServiceAgreement(agreementId: ID, name: String!, customerId: ID!, locationId: ID!, payerId: ID, startsOn: String!, endsOn: String!, scope: String!, visitMonths: JSON!, poNumber: String, nteMinor: String, idempotencyKey: String!): JSON
@@ -58,7 +58,7 @@ export const phase4Resolvers = {
     bookMembershipVisit: bind(memberships.bookVisit),
     releaseMembershipVisit: bind(memberships.releaseVisit),
     runMembershipBilling: bind((db: Db, actor: Actor, a: { period: string; idempotencyKey: string }) => billing.runMembershipBilling(db, actor, a)),
-    retryMembershipCharge: bind((db: Db, actor: Actor, a: { attemptId: string; idempotencyKey: string }) => billing.retryAttempt(db, actor, a)),
+    retryMembershipCharge: bind((db: Db, actor: Actor, a: { attemptId: string; reason?: string | null; idempotencyKey: string }) => billing.retryAttempt(db, actor, a)),
     recordRenewalNotice: bind(agreements.recordRenewalNotice),
     saveServiceAgreement: bind(agreements.saveAgreement),
     activateServiceAgreement: bind(agreements.activateAgreement),

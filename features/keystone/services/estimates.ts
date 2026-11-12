@@ -324,7 +324,9 @@ export async function repriceEstimateVersion(db: Db, actor: Actor, args: { versi
 /** Copy (and re-price) the options of `sourceVersionId` into the draft `target`. */
 async function requoteOptionsInto(uow: UnitOfWork, est: EstimateCtx, sourceVersionId: string, target: VersionRow) {
   const { tx } = uow
-  const options = await tx.estimateOption.findMany({ where: { estimateVersionId: sourceVersionId }, orderBy: { sortOrder: 'asc' }, select: { id: true, tier: true, name: true, description: true, sortOrder: true, lines: { orderBy: { sortOrder: 'asc' }, select: { itemKey: true, quantity: true, cancellationClass: true, description: true } } } })
+  const options = await tx.estimateOption.findMany({ where: { estimateVersionId: sourceVersionId }, orderBy: { sortOrder: 'asc' }, select: { id: true, tier: true, name: true, description: true, sortOrder: true, lines: { orderBy: { sortOrder: 'asc' }, select: { itemKey: true, quantity: true, cancellationClass: true, description: true, memberPriced: true } } } })
+  // I-MB3: member prices are kept on a re-price only while the customer is a member today; otherwise list prices apply.
+  const member = options.some(o => o.lines.some(l => l.memberPriced)) && est.customerId ? !!(await activePlanCode(tx, est.customerId, est.location?.id ?? null, uow.now)) : false
   if (sourceVersionId === target.id) {
     await tx.estimateLine.deleteMany({ where: { option: { estimateVersionId: target.id } } })
     await tx.estimateOption.deleteMany({ where: { estimateVersionId: target.id } })
@@ -334,7 +336,7 @@ async function requoteOptionsInto(uow: UnitOfWork, est: EstimateCtx, sourceVersi
   const out: { optionId: string; totalMinor: string }[] = []
   for (const o of options) {
     const r = await writeOption(uow, est, { ...target, priceBookVersion: null }, {
-      tier: o.tier, name: o.name, description: o.description,
+      tier: o.tier, name: o.name, description: o.description, memberPricing: member && o.lines.some(l => l.memberPriced),
       lines: o.lines.map(l => ({ itemKey: l.itemKey, quantity: l.quantity.toString(), cancellationClass: l.cancellationClass, description: l.description })),
     }, tax, o.sortOrder)
     out.push({ optionId: r.optionId, totalMinor: r.totalMinor.toString() })
@@ -420,12 +422,19 @@ export async function presentEstimate(db: Db, actor: Actor, args: { versionId: s
     requireStatus(row, ['draft'], 'presented')
     const est = await loadEstimate(tx, row.estimate)
     await assertEstimateAccess(tx, actor, est)
-    const options = await tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, orderBy: { sortOrder: 'asc' }, include: { lines: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } } })
+    const optionsOf = () => tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, orderBy: { sortOrder: 'asc' }, include: { lines: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } } })
+    let options = await optionsOf()
     if (!options.length || options.some(o => !o.lines.length)) throw new DomainError(Codes.GUARD_FAILED, 'Every option needs at least one line, and the estimate needs an option.', { reason: 'empty_option' })
     // I-E2: priced from the price book active right now.
     const active = await activeVersionFor(tx, est.businessUnitId ?? est.job?.businessUnitId ?? null)
     const stale = row.priceBookVersion !== active.versionId || options.some(o => o.lines.some(l => (l.snapshot as LineSnapshot).priceBookVersionId !== active.versionId))
     if (stale) throw new DomainError(Codes.GUARD_FAILED, 'A new price book is active since this estimate was priced. Re-price it, then present.', { reason: 'pricebook_changed' })
+    // I-MB3: member prices are decided now, not when the draft was written. A membership that ended since means list prices
+    // (same price book, re-quoted without the member column).
+    if (options.some(o => o.lines.some(l => l.memberPriced)) && !(est.customerId && (await activePlanCode(tx, est.customerId, est.location?.id ?? null, uow.now)))) {
+      await requoteOptionsInto(uow, est, row.id, row)
+      options = await optionsOf()
+    }
     // I-E5: discount within the presenter's limit, or approved by a second person.
     const limit = await discountLimitBps(tx, actor)
     if (row.discountBps > limit) {

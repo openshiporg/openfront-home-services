@@ -10,7 +10,9 @@ export const hasTestDatabase = /^postgres(ql)?:\/\//.test(TEST_DATABASE_URL) && 
 
 export function testPrisma(connectionLimit = 12) {
   const url = new URL(TEST_DATABASE_URL)
-  url.searchParams.set('connection_limit', String(connectionLimit))
+  // A limit in the URL (the shared scratch Postgres takes 100 connections in all) caps what a suite asks for.
+  const cap = Number(url.searchParams.get('connection_limit') ?? '')
+  url.searchParams.set('connection_limit', String(cap > 0 ? Math.min(cap, connectionLimit) : connectionLimit))
   url.searchParams.set('pool_timeout', '30')
   return new PrismaClient({ datasourceUrl: url.toString(), log: [] })
 }

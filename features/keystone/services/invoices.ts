@@ -194,6 +194,13 @@ export async function postInvoiceInTx(uow: UnitOfWork, actor: Actor, args: { inv
       if ((billed._sum.totalMinor ?? 0n) + total > auth.authorizedAmountMinor) throw new DomainError(Codes.GUARD_FAILED, `That would bill ${money((billed._sum.totalMinor ?? 0n) + total)}; the payer authorized ${money(auth.authorizedAmountMinor)}.`, { reason: 'over_authorized_amount' })
     }
 
+    // A not-to-exceed on the job (from a commercial agreement, or the payer) caps everything billed on it.
+    const job = invoice.jobId ? await tx.job.findUnique({ where: { id: invoice.jobId }, select: { nteMinor: true } }) : null
+    if (job?.nteMinor && job.nteMinor > 0n) {
+      const billed = await tx.invoice.aggregate({ where: { jobId: invoice.jobId, id: { not: invoice.id }, status: { in: ['posted', 'partially_paid', 'paid', 'written_off'] } }, _sum: { totalMinor: true } })
+      if ((billed._sum.totalMinor ?? 0n) + total > job.nteMinor) throw new DomainError(Codes.GUARD_FAILED, `That would bill ${money((billed._sum.totalMinor ?? 0n) + total)} on this job; the not-to-exceed is ${money(job.nteMinor)}.`, { reason: 'over_nte' })
+    }
+
     const terms = TERMS_DAYS[invoice.payer?.terms ?? 'due_on_receipt'] ?? 0
     const dueDate = addDays(invoiceDate, terms)
     const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString(), exemptCertificateId, ...(exemptRefused ? { exemptRefused } : {}) }
@@ -258,6 +265,17 @@ async function postMemo(uow: UnitOfWork, actor: Actor, memoId: string, voidInvoi
   const posted = await casUpdate(uow, { model: 'CreditMemo', id: memo.id, version: memo.version, from: ['draft', 'pending_approval'], to: 'posted', actor, eventType: 'credit_memo.posted', data: { postedAt: uow.now } })
   await casUpdate(uow, { model: 'CreditMemo', id: memo.id, version: posted, from: ['posted'], to: 'applied', actor, eventType: 'credit_memo.applied', data: { appliedToInvoiceMinor: appliedInvoice, appliedToCreditMinor: appliedCredit } })
   return { memoId: memo.id, appliedToInvoiceMinor: appliedInvoice.toString(), appliedToCreditMinor: appliedCredit.toString() }
+}
+
+/**
+ * A refund of money that paid for something now ended (a membership term): the invoice is credited by the same amount, so the
+ * refund never reopens it. It runs inside the refund, which already passed its own approval threshold.
+ */
+export async function creditForRefund(uow: UnitOfWork, actor: Actor, a: { invoiceId: string; amountMinor: bigint; note: string }) {
+  const ref = await nextReference(uow.tx, 'CRM', uow.now)
+  const memo = await uow.tx.creditMemo.create({ data: { ref, invoiceId: a.invoiceId, reason: 'other', note: a.note.slice(0, 300), status: 'draft', totalMinor: a.amountMinor, appliesTo: 'invoice_balance', createdById: actorUserId(actor) }, select: { id: true } })
+  auditCreate(uow, actor, 'CreditMemo', memo.id, 'credit_memo.created', { ref, invoiceId: a.invoiceId, amountMinor: a.amountMinor.toString(), forRefund: true })
+  return { ...(await postMemo(uow, actor, memo.id, false)), ref }
 }
 
 async function memoThreshold(tx: Tx) {

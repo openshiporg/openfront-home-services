@@ -77,6 +77,10 @@ describe('season windows (golden)', () => {
     // season ends after the term: cut to the term
     ['2026-03-15', '2027-03-14', ['03-01', '06-30'], '2026-03-15', '2026-06-30'],
     ['2026-03-15', '2026-09-14', ['08-01', '10-31'], '2026-08-01', '2026-09-14'],
+    // a late joiner: Dec 14 on an Oct 1 to Dec 15 heating season gets next fall (in the term), not two days (review r1)
+    ['2026-12-14', '2027-12-13', ['10-01', '12-15'], '2027-10-01', '2027-12-13'],
+    ['2026-12-15', '2027-12-14', ['10-01', '12-15'], '2027-10-01', '2027-12-14'],
+    ['2026-10-01', '2027-09-30', ['10-01', '12-15'], '2026-10-01', '2026-12-15'],
   ]
   it.each(rows)('term %s..%s season %j', (start, end, season, from, to) => {
     const w = windowFor(start, end, season ? { startMonthDay: season[0], endMonthDay: season[1] } : null)

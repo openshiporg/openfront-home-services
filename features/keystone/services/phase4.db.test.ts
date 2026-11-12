@@ -156,16 +156,34 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
     expect([...adapter.charges.values()].reduce((n, c) => n + c.calls, 0)).toBe(1)
   })
 
-  it('a decline is recorded, the membership is past due, and a later retry uses a new key only after the failure is confirmed', { timeout: 120_000 }, async () => {
+  it('a decline is final for its key: Run billing again does not charge, Retry needs a new card or a reason, the run is partial', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
     const adapter = new FakeAdapter()
     adapter.script = ['decline']
     const r = await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     expect(r.declined).toBeGreaterThanOrEqual(1)
+    expect(r.status).toBe('partial')
+    expect((await prisma.membershipBillingRun.findUniqueOrThrow({ where: { id: r.runId } })).status).toBe('partial')
     let [row] = await attemptsOf(m.membershipId)
     expect(row.status).toBe('failed')
     expect((await prisma.membership.findUniqueOrThrow({ where: { id: m.membershipId } })).status).toBe('pending_payment')
+    // r1 #1: pressing Run billing again (a new key) does not charge the declined card again.
+    const calls = adapter.charges.size
+    const again = await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
+    expect(again.status).toBe('partial')
+    expect(adapter.charges.size).toBe(calls)
+    ;[row] = await attemptsOf(m.membershipId)
+    expect(row.status).toBe('failed')
+    expect(row.generation).toBe(1)
+    // Nor does a plain processAttempt (the "Check and retry" path) without the explicit staff retry.
+    expect(await processAttempt(prisma, owner, row.id, new Date(), adapter)).toBe('declined')
+    expect(adapter.charges.size).toBe(calls)
+    // Retry without a new card and without a reason is refused.
+    expect(await reason(retryAttempt(prisma, owner, { attemptId: row.id, idempotencyKey: k() }, adapter))).toBe('card_not_updated')
+    // The card is updated, then Retry charges once on a new key.
+    const { updatePaymentMethod } = await import('./memberships')
+    await updatePaymentMethod(prisma, owner, { membershipId: m.membershipId, paymentMethodRef: 'pm_card_mastercard', paymentMethodLabel: 'Mastercard ending 4444', idempotencyKey: k() } as never)
     const out = await retryAttempt(prisma, owner, { attemptId: row.id, idempotencyKey: k() }, adapter)
     expect(out.outcome).toBe('charged')
     ;[row] = await attemptsOf(m.membershipId)
@@ -173,6 +191,51 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
     expect(row.providerKey.endsWith(':g2')).toBe(true)
     expect(adapter.succeededCount).toBe(1)
     expect((await prisma.membership.findUniqueOrThrow({ where: { id: m.membershipId } })).status).toBe('active')
+  })
+
+  it('a declined card can be retried as-is only with a stated reason', { timeout: 120_000 }, async () => {
+    const { planId } = await planOf()
+    const m = await sell(planId)
+    const adapter = new FakeAdapter()
+    adapter.script = ['decline']
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
+    const [row] = await attemptsOf(m.membershipId)
+    expect((await retryAttempt(prisma, owner, { attemptId: row.id, reason: 'Customer called, bank lifted the hold', idempotencyKey: k() } as never, adapter)).outcome).toBe('charged')
+    expect(await prisma.auditEvent.count({ where: { entityId: row.id, eventType: 'membership.charge_retried' } })).toBe(1)
+  })
+
+  it('Check and retry refuses a cancelled, transferred or expired membership', { timeout: 120_000 }, async () => {
+    const { planId } = await planOf()
+    for (const end of ['cancelled', 'transferred', 'expired']) {
+      const m = await sell(planId)
+      const adapter = new FakeAdapter()
+      adapter.script = ['lost']
+      await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
+      const [row] = await attemptsOf(m.membershipId)
+      expect(row.status).toBe('unknown')
+      await prisma.membership.update({ where: { id: m.membershipId }, data: { status: 'active' } })
+      await prisma.membership.update({ where: { id: m.membershipId }, data: { status: end, ...(end === 'cancelled' ? { cancelledAt: new Date(), cancelReason: 'Test' } : {}) } as never })
+      expect(await reason(retryAttempt(prisma, owner, { attemptId: row.id, idempotencyKey: k() }, adapter))).toBe('membership_not_billable')
+      expect(await processAttempt(prisma, owner, row.id, new Date(), adapter)).toBe('not_billable')
+      expect(adapter.lookups).toBe(0)
+    }
+  })
+
+  it('an accountant reads billing runs but cannot charge cards', { timeout: 60_000 }, async () => {
+    const accountant: Actor = { kind: 'user', userId: owner.kind === 'user' ? owner.userId : '', name: 'acct', permissions: new Set(['canAccessDashboard', 'canManageInvoices', 'canManageAccounting', 'canReadAudit']) as never }
+    expect(await reason(runMembershipBilling(prisma, accountant, { period: thisMonth(), idempotencyKey: k('run') }, new FakeAdapter()))).toBe('NOT_AUTHORIZED')
+  })
+
+  it('a technician can neither sell nor cancel a membership', { timeout: 60_000 }, async () => {
+    const { ROLES } = await import('../seed/company')
+    const techPerms = ROLES.find(r => r.id === 'seed_role_technician')!.permissions
+    expect(techPerms).not.toContain('canSellMemberships')
+    expect((await prisma.role.findUniqueOrThrow({ where: { id: 'seed_role_technician' } })).canSellMemberships).toBe(false)
+    const tech: Actor = { kind: 'user', userId: 'seed_user_patel', name: 'tech', permissions: new Set(techPerms) as never }
+    const { planId } = await planOf()
+    const m = await sell(planId)
+    expect(await reason(cancelMembership(prisma, tech, { membershipId: m.membershipId, reason: 'Not mine', idempotencyKey: k() }))).toBe('NOT_AUTHORIZED')
+    expect(await reason(sellMembership(prisma, tech, { customerId, locationId, planId, paymentMethodRef: 'pm_card_visa', paymentMethodLabel: 'Visa', idempotencyKey: k() } as never))).toBe('NOT_AUTHORIZED')
   })
 
   it('the database itself refuses a second attempt for the same membership, term and slot, and a change to a charged attempt', { timeout: 60_000 }, async () => {
@@ -270,6 +333,9 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
     expect(await grantBalance(prisma as never, inspect2.id)).toBe(1) // no rollover on this one
     expect(await grantBalance(prisma as never, tune.id)).toBe(0) // the old term's leftover expired
     expect(await grantBalance(prisma as never, first.find(g => g.code === 'inspect')!.id)).toBe(0)
+    // r1: raw SQL cannot add a rollover beyond what the term before granted, or a second one on the same grant.
+    await expect(prisma.$executeRawUnsafe(`INSERT INTO "EntitlementEntry" (id, key, "grant", kind, quantity, "occurredAt") VALUES ($1, $2, $3, 'rollover', 5, now())`, k('id'), k('ro'), inspect2.id)).rejects.toThrow(/rollover/)
+    await expect(prisma.$executeRawUnsafe(`INSERT INTO "EntitlementEntry" (id, key, "grant", kind, quantity, "occurredAt") VALUES ($1, $2, $3, 'rollover', 1, now())`, k('id'), k('ro'), tune2.id)).rejects.toThrow(/one rollover/)
     // Renewing twice for the same term is refused.
     expect(await reason(renewMembership(prisma, owner, { membershipId: m.membershipId, idempotencyKey: k() }))).toBeTruthy()
     // The first term is frozen.
@@ -303,6 +369,9 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
     expect(row.autoRenewConsent?.policyVersionId).toBeTruthy()
     await expect(prisma.consentRecord.update({ where: { id: row.autoRenewConsentId! }, data: { action: 'revoke' } })).rejects.toThrow()
     await expect(prisma.membership.update({ where: { id: row.id }, data: { autoRenewConsentId: null } })).rejects.toThrow(/consent/)
+    // r1: raw SQL cannot swap the consent link for another record either.
+    const other = await prisma.consentRecord.create({ data: { purpose: 'auto_renewal', action: 'grant', channel: 'in_person', recordedAt: new Date(), actorKind: 'user' } })
+    await expect(prisma.$executeRawUnsafe(`UPDATE "Membership" SET "autoRenewConsent" = $1 WHERE id = $2`, other.id, row.id)).rejects.toThrow(/never removed or replaced/)
   })
 
   it('an active plan version is frozen; a change makes a new version and the old one is retired', { timeout: 60_000 }, async () => {
@@ -349,6 +418,136 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
     expect((await prisma.membership.findUniqueOrThrow({ where: { id: m.membershipId } })).status).toBe('transferred')
     const grants = await prisma.entitlementGrant.findMany({ where: { membershipId: t.membershipId } })
     expect(grants.reduce((a, g) => a + g.quantity, 0)).toBe(2)
+  })
+
+  it('the buyer of a home is never billed for the term the seller paid; the paid term carries over', { timeout: 120_000 }, async () => {
+    const { planId } = await planOf()
+    const m = await sell(planId)
+    const adapter = new FakeAdapter()
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
+    expect(adapter.succeededCount).toBe(1)
+    expect((await prisma.membership.findUniqueOrThrow({ where: { id: m.membershipId } })).status).toBe('active')
+    const buyer = await prisma.customer.create({ data: { ref: `CUS-P4B-${Date.now()}`, kind: 'residential', displayName: 'Dana Ruiz' } as never })
+    const loc = await prisma.serviceLocation.findUniqueOrThrow({ where: { id: locationId } })
+    const { id: _id, customerId: _c, createdAt: _a, updatedAt: _u, ref: _r, ...rest } = loc as never as Record<string, unknown>
+    const newLoc = await prisma.serviceLocation.create({ data: { ...(rest as object), customerId: buyer.id, ref: `LOC-P4B-${Date.now()}` } as never })
+    const t = await transferMembership(prisma, owner, { membershipId: m.membershipId, newCustomerId: buyer.id, newLocationId: newLoc.id, idempotencyKey: k() })
+    const before = adapter.charges.size
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
+    expect(adapter.charges.size).toBe(before)
+    expect(await prisma.membershipBillingAttempt.count({ where: { membershipId: t.membershipId, status: { not: 'succeeded' } } })).toBe(0)
+    expect(await prisma.invoice.count({ where: { customerId: buyer.id } })).toBe(0)
+  })
+
+  // ── r1: a refund never reopens the invoice; it closes the term ───────────────────────────────────────────────────
+
+  it('refunding a membership payment keeps the invoice paid (paid, then refunded), closes the term and ends the visits', { timeout: 120_000 }, async () => {
+    const { planId } = await planOf()
+    const m = await sell(planId)
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, new FakeAdapter())
+    const [row] = await attemptsOf(m.membershipId)
+    expect(row.status).toBe('succeeded')
+    const before = await prisma.invoice.findUniqueOrThrow({ where: { id: row.invoiceId! } })
+    expect(before.status).toBe('paid')
+    const { requestRefund } = await import('./payments')
+    const out = await requestRefund(prisma, owner, { paymentId: row.paymentId!, amountMinor: '19900', method: 'processor_refund', reason: 'Customer moved before any visit', reference: 're_test_1', idempotencyKey: k() })
+    expect(out.status).toBe('recorded')
+    const after = await prisma.invoice.findUniqueOrThrow({ where: { id: row.invoiceId! } })
+    expect(after.status).toBe('paid')
+    expect(after.balanceMinor).toBe(0n)
+    expect(await prisma.creditMemo.count({ where: { invoiceId: row.invoiceId!, status: 'applied' } })).toBe(1)
+    const mem = await prisma.membership.findUniqueOrThrow({ where: { id: m.membershipId } })
+    expect(mem.status).toBe('cancelled')
+    expect((await prisma.membershipTerm.findFirstOrThrow({ where: { membershipId: m.membershipId } })).status).toBe('cancelled')
+    const grants = await prisma.entitlementGrant.findMany({ where: { membershipId: m.membershipId } })
+    for (const g of grants) expect(await grantBalance(prisma, g.id)).toBe(0)
+    expect(await prisma.recurringServiceEvent.count({ where: { membershipId: m.membershipId, status: 'open' } })).toBe(0)
+    // And billing does not charge it again.
+    const adapter = new FakeAdapter()
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
+    expect(adapter.charges.size).toBe(0)
+  })
+
+  it('an invoice an earlier refund reopened (as live INV-2026-000004…11) is credited back to not owing, once', { timeout: 120_000 }, async () => {
+    const { planId } = await planOf()
+    const m = await sell(planId)
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, new FakeAdapter())
+    const [row] = await attemptsOf(m.membershipId)
+    // The old refund: allocations reversed, the invoice back to posted with its full balance.
+    const { reverseAllocations } = await import('./billingShared')
+    await runInTransaction(prisma, async uow => {
+      await reverseAllocations(uow, owner, row.paymentId!, 19900n, 'refund_reopen', 'Refund: old path')
+      await uow.tx.refund.create({ data: { ref: `RFD-OLD-${Date.now()}`, paymentId: row.paymentId!, method: 'processor_refund', amountMinor: 19900n, reason: 'Stripe TEST cleanup', reference: 're_old', refundedAt: uow.now } })
+    })
+    expect((await prisma.invoice.findUniqueOrThrow({ where: { id: row.invoiceId! } })).balanceMinor).toBe(19900n)
+    const { settleRefundedMembershipInvoice } = await import('./payments')
+    const out = await settleRefundedMembershipInvoice(prisma, owner, { invoiceId: row.invoiceId!, idempotencyKey: k() })
+    expect(out.creditedMinor).toBe('19900')
+    const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: row.invoiceId! } })
+    expect(inv.balanceMinor).toBe(0n)
+    expect(inv.status).toBe('paid')
+    expect((await prisma.membership.findUniqueOrThrow({ where: { id: m.membershipId } })).status).toBe('cancelled')
+    expect((await settleRefundedMembershipInvoice(prisma, owner, { invoiceId: row.invoiceId!, idempotencyKey: k() })).creditedMinor).toBe('0')
+  })
+
+  // ── r1: the NTE on an agreement job caps what is invoiced; member prices are decided now ─────────────────────────
+
+  it('an invoice past the job not-to-exceed is refused; one inside it posts', { timeout: 120_000 }, async () => {
+    const { createInvoiceDraft, postInvoice } = await import('./invoices')
+    const mkJob = async (nte: bigint, amount: number) => {
+      const j = await prisma.job.create({ data: { ref: `JOB-NTE-${(seq += 1)}-${Date.now()}`, publicCode: `J-NTE${seq}${Date.now()}`, customerId, locationId, status: 'work_complete', priority: 'standard', source: 'phone', poNumber: 'PO-1', nteMinor: nte } })
+      await prisma.workLine.create({ data: { jobId: j.id, source: 'manual', description: 'Labor', quantity: '1', uom: 'job', unitPriceMinor: BigInt(amount), amountMinor: BigInt(amount), taxCategory: 'labor', trade: 'general', cancellationClass: 'requested_repair', status: 'completed', snapshot: { costMinor: '0' } } })
+      const d = await createInvoiceDraft(prisma, owner, { jobId: j.id, idempotencyKey: k() })
+      const v = (await prisma.invoice.findUniqueOrThrow({ where: { id: d.invoiceId } })).version
+      return postInvoice(prisma, owner, { invoiceId: d.invoiceId, expectedVersion: v, idempotencyKey: k() })
+    }
+    expect(await reason(mkJob(10000n, 50000))).toBe('over_nte')
+    expect(await reason(mkJob(500000n, 50000))).toBe('OK')
+  })
+
+  it('I-MB3: a member price drafted while a member becomes the list price at present once the membership ends', { timeout: 300_000 }, async () => {
+    const { createEstimate, presentEstimate } = await import('./estimates')
+    const { activeVersionFor, discardPriceBookVersion, startPriceBookDraft, saveDraftItems, submitPriceBookVersion } = await import('./pricebook')
+    const { decideApprovalAs } = await import('../mutations/approvals')
+    const { seedPriceBook } = await import('../seed/pricebook')
+    const { CATALOG } = await import('../seed/pricebookData')
+    const checker = user((await prisma.user.create({ data: { name: 'checker', email: `${k('ck')}@test.local`, password: 'x'.repeat(60) } })).id)
+    if (!(await prisma.priceBook.count())) await seedPriceBook(prisma, { maker: owner, checker, prefix: k('pb') })
+    const book = await prisma.priceBook.findFirstOrThrow()
+    for (const open of await prisma.priceBookVersion.findMany({ where: { priceBookId: book.id, status: 'draft' } })) await discardPriceBookVersion(prisma, owner, { versionId: open.id, expectedVersion: open.version, reason: 'Test', idempotencyKey: k() })
+    // A member price on one item, published through the price book's maker-checker.
+    const draft = await startPriceBookDraft(prisma, owner, { priceBookId: book.id, label: 'Member prices', idempotencyKey: k() })
+    const item = CATALOG.find(i => i.itemKey === 'HVAC-CAP-DUAL')!
+    const { since: _s, v3UnitPriceMinor: _v, ...input } = item as never as Record<string, unknown>
+    const dv = (await prisma.priceBookVersion.findUniqueOrThrow({ where: { id: draft.versionId } })).version
+    const saved = await saveDraftItems(prisma, owner, { versionId: draft.versionId, items: [{ ...(input as object), unitPriceMinor: '25000', memberUnitPriceMinor: '20000' } as never], expectedVersion: dv, idempotencyKey: k() })
+    const sub = await submitPriceBookVersion(prisma, owner, { versionId: draft.versionId, expectedVersion: saved.version, idempotencyKey: k() })
+    const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: sub.approvalRequestId } })
+    await decideApprovalAs(prisma, checker, { requestId: req.id, decision: 'approve', expectedVersion: req.version, idempotencyKey: k() })
+    expect((await activeVersionFor(prisma, 'seed_bu_hvac_service')).versionId).toBe(draft.versionId)
+
+    const h = HOUSEHOLDS[7]
+    const { planId } = await planOf()
+    const m = await sellMembership(prisma, owner, { customerId: h.id, locationId: h.location.id, planId, paymentMethodRef: 'pm_card_visa', paymentMethodLabel: 'Visa ending 4242', idempotencyKey: k() } as never)
+    await prisma.membership.update({ where: { id: m.membershipId }, data: { status: 'active' } })
+    const draftEst = () => createEstimate(prisma, owner, { customerId: h.id, locationId: h.location.id, businessUnitId: 'seed_bu_hvac_service', title: 'Capacitor', options: [{ tier: 'single', name: 'Fix', memberPricing: true, lines: [{ itemKey: 'HVAC-CAP-DUAL', quantity: '1' }] }], idempotencyKey: k() })
+    const lineOf = async (versionId: string) => prisma.estimateLine.findFirstOrThrow({ where: { option: { estimateVersionId: versionId } } })
+    const ev = async (id: string) => (await prisma.estimateVersion.findUniqueOrThrow({ where: { id } })).version
+
+    // A current member keeps the member price when the estimate is presented.
+    const kept = await draftEst()
+    expect((await lineOf(kept.versionId)).unitPriceMinor).toBe(20000n)
+    await presentEstimate(prisma, owner, { versionId: kept.versionId, expectedVersion: await ev(kept.versionId), idempotencyKey: k() })
+    expect((await lineOf(kept.versionId)).unitPriceMinor).toBe(20000n)
+
+    // Drafted as a member, cancelled before it is presented: it presents at the list price.
+    const later = await draftEst()
+    expect((await lineOf(later.versionId)).unitPriceMinor).toBe(20000n)
+    await cancelMembership(prisma, owner, { membershipId: m.membershipId, reason: 'Moving away', idempotencyKey: k() })
+    await presentEstimate(prisma, owner, { versionId: later.versionId, expectedVersion: await ev(later.versionId), idempotencyKey: k() })
+    const line = await lineOf(later.versionId)
+    expect(line.unitPriceMinor).toBe(25000n)
+    expect(line.memberPriced).toBe(false)
   })
 
   // ── Renewal notices and the call list ─────────────────────────────────────────────────────────────────────────────

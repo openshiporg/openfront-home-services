@@ -3694,7 +3694,7 @@ var MembershipBillingRun = (0, import_core19.list)({
     ref: systemText({ indexed: "unique", required: true }),
     period: systemText({ required: true }),
     idempotencyKey: (0, import_fields19.text)({ ...hidden, isIndexed: "unique" }),
-    status: lifecycle(["running", "completed"]),
+    status: lifecycle(["running", "completed", "partial"]),
     queuedCount: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
     chargedCount: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
     failedCount: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
@@ -4430,7 +4430,7 @@ var ROLES = [
   { id: "seed_role_gm", name: "General Manager", description: "Runs the shop day to day and approves money and policy changes.", permissions: all(["canBreakGlass", "canManageRoles", "canRunPayroll"]) },
   { id: "seed_role_csr", name: "CSR", description: "Answers calls, books jobs, takes payments and sells memberships.", permissions: [...BASE, "canManageCustomers", "canReadCustomerPII", "canManageLeads", "canBook", "canViewBoard", "canTakePayments", "canSellMemberships", "canOfferFinancing", "canSendMessages"] },
   { id: "seed_role_dispatcher", name: "Dispatcher", description: "Owns the board: assigns, reassigns and overbooks within limits.", permissions: [...BASE, "canManageCustomers", "canReadCustomerPII", "canRevealAccessSecret", "canBook", "canOverbook", "canDispatch", "canViewBoard", "canSendMessages"] },
-  { id: "seed_role_technician", name: "Technician", description: "Works assigned visits in the field app: estimates, payments, equipment and refrigerant entries.", permissions: ["canAccessDashboard", "canWorkVisits", "canRevealAccessSecret", "canPresentEstimates", "canSellEstimates", "canTakePayments", "canOfferFinancing", "canSellMemberships", "canManageEquipment", "canManageRefrigerant"] },
+  { id: "seed_role_technician", name: "Technician", description: "Works assigned visits in the field app: estimates, payments, equipment and refrigerant entries.", permissions: ["canAccessDashboard", "canWorkVisits", "canRevealAccessSecret", "canPresentEstimates", "canSellEstimates", "canTakePayments", "canOfferFinancing", "canManageEquipment", "canManageRefrigerant"] },
   { id: "seed_role_comfort_advisor", name: "Comfort Advisor", description: "Replacement sales: presents good/better/best options and financing.", permissions: [...BASE, "canManageCustomers", "canReadCustomerPII", "canViewBoard", "canPresentEstimates", "canSellEstimates", "canTakePayments", "canOfferFinancing", "canSellMemberships"] },
   { id: "seed_role_service_manager", name: "Service Manager", description: "Runs the service department: discounts, overbooks, timesheets, warranty and the price book draft.", permissions: [...BASE, "canManageCustomers", "canReadCustomerPII", "canBook", "canDispatch", "canViewBoard", "canApproveOverbook", "canApproveDiscounts", "canManagePriceBook", "canManageEquipment", "canSubmitWarrantyClaims", "canManagePermits", "canApproveTimesheets", "canReadAudit"] },
   { id: "seed_role_install_manager", name: "Install Manager", description: "Runs installs: permits, purchasing and install crews.", permissions: [...BASE, "canManageCustomers", "canReadCustomerPII", "canViewBoard", "canDispatch", "canApproveDiscounts", "canManageEquipment", "canSubmitWarrantyClaims", "canManagePermits", "canManageRefrigerant", "canPurchase", "canApproveTimesheets"] },
@@ -7262,14 +7262,17 @@ function windowFor(start, end, season) {
   if (!season) return { startDay: start, endDay: end };
   const first = parts(start).y - 1;
   const last = parts(end).y;
+  const days = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 864e5) + 1;
+  let best = null;
   for (let y = first; y <= last; y += 1) {
     const s = monthDay(season.startMonthDay, y);
     const wraps = season.endMonthDay < season.startMonthDay;
     const e = monthDay(season.endMonthDay, wraps ? y + 1 : y);
     if (e < start || s > end) continue;
-    return { startDay: s < start ? start : s, endDay: e > end ? end : e };
+    const w = { startDay: s < start ? start : s, endDay: e > end ? end : e };
+    if (!best || days(w.startDay, w.endDay) > days(best.startDay, best.endDay)) best = w;
   }
-  return { startDay: start, endDay: end };
+  return best ?? { startDay: start, endDay: end };
 }
 var dayAt = (timeZone, at) => localDate({ timeZone }, at);
 function termDaysLeft(start, end, day3) {
@@ -7707,7 +7710,7 @@ async function bookVisit(db, actor, args) {
     const { tx } = uow;
     const event = await lockRow(tx, "RecurringServiceEvent", args.eventId);
     if (event.status !== "open") throw new DomainError(Codes.GUARD_FAILED, event.status === "booked" ? "This visit is already booked." : "This visit was skipped.", { reason: "not_open" });
-    const job = await tx.job.findFirst({ where: { ref: args.jobRef.trim().toUpperCase() }, select: { id: true, customerId: true, status: true, ref: true } });
+    const job = await tx.job.findFirst({ where: { ref: args.jobRef.trim().toUpperCase() }, select: { id: true, customerId: true, status: true, ref: true, poNumber: true, nteMinor: true } });
     if (!job) throw new DomainError(Codes.NOT_FOUND, "No job has that reference.", { field: "jobRef" });
     if (job.status === "cancelled") throw new DomainError(Codes.GUARD_FAILED, "That job is cancelled.");
     let entryId = null;
@@ -7717,9 +7720,12 @@ async function bookVisit(db, actor, args) {
       const used = await debitEntitlement(uow, actor, { membershipId: event.membershipId, code: event.code, key: `visit:${event.id}`, jobId: job.id, reason: `Booked on ${job.ref}` });
       entryId = used.entryId;
     } else if (event.agreementId) {
-      const a = await tx.serviceAgreement.findUniqueOrThrow({ where: { id: event.agreementId }, select: { customerId: true, status: true } });
+      const a = await tx.serviceAgreement.findUniqueOrThrow({ where: { id: event.agreementId }, select: { customerId: true, status: true, poNumber: true, nteMinor: true } });
       if (a.status !== "active") throw new DomainError(Codes.GUARD_FAILED, "The agreement is not active.");
       if (a.customerId !== job.customerId) throw new DomainError(Codes.GUARD_FAILED, "That job belongs to a different customer.", { field: "jobRef" });
+      if (a.poNumber && job.poNumber && job.poNumber !== a.poNumber) throw new DomainError(Codes.GUARD_FAILED, `That job is on PO ${job.poNumber}; the agreement's PO is ${a.poNumber}.`, { reason: "po_mismatch" });
+      const nte = a.nteMinor > 0n ? job.nteMinor && job.nteMinor > 0n && job.nteMinor < a.nteMinor ? job.nteMinor : a.nteMinor : job.nteMinor;
+      await tx.job.update({ where: { id: job.id }, data: { poNumber: a.poNumber || job.poNumber, nteMinor: nte, version: { increment: 1 } } });
     }
     await casUpdate(uow, { model: "RecurringServiceEvent", id: event.id, version: event.version, from: ["open"], to: "booked", actor, eventType: "membership.visit_booked", data: { jobId: job.id } });
     return { eventId: event.id, jobId: job.id, entryId };
@@ -7801,6 +7807,24 @@ async function cancelMembershipInTx(uow, actor, membershipId, reason, via) {
   await tx.membershipTerm.updateMany({ where: { membershipId: m.id, status: "active", endsOn: { gte: asDate(today) } }, data: { status: "cancelled" } });
   await tx.recurringServiceEvent.updateMany({ where: { membershipId: m.id, status: "open" }, data: { status: "skipped" } });
   return { membershipId: m.id, ref: m.ref, status: "cancelled", refundOwedMinor: refund.toString(), already: false };
+}
+async function closeTermForRefund(uow, actor, a) {
+  const { tx } = uow;
+  const m = await lockRow(tx, "Membership", a.membershipId);
+  const grants = await tx.entitlementGrant.findMany({ where: { membershipId: m.id, ...a.termId ? { termId: a.termId } : {} }, select: { id: true } });
+  for (const g of grants) {
+    await lockRow(tx, "EntitlementGrant", g.id);
+    const left = await grantBalance(tx, g.id);
+    if (left > 0) await tx.entitlementEntry.create({ data: { key: `refund:${g.id}`, grantId: g.id, kind: "expire", quantity: -left, reason: `Payment refunded: ${a.reason}`.slice(0, 200), occurredAt: uow.now, createdById: actorUserId(actor) } });
+  }
+  if (grants.length) await tx.recurringServiceEvent.updateMany({ where: { grantId: { in: grants.map((g) => g.id) }, status: "open" }, data: { status: "skipped" } });
+  if (a.termId) await tx.membershipTerm.updateMany({ where: { id: a.termId, status: "active" }, data: { status: "cancelled" } });
+  const liveTerms = await tx.membershipTerm.count({ where: { membershipId: m.id, status: "active" } });
+  if (!liveTerms && !["cancelled", "transferred", "expired"].includes(m.status)) {
+    const loc = await tx.membership.findUniqueOrThrow({ where: { id: m.id }, select: { location: { select: { timeZone: true } } } });
+    await casUpdate(uow, { model: "Membership", id: m.id, version: m.version, from: [m.status], to: "cancelled", actor, eventType: "membership.cancelled", reason: a.reason, data: { cancelledAt: uow.now, cancelReason: `Payment refunded: ${a.reason}`.slice(0, 300), cancelEffectiveOn: asDate(dayAt(loc.location?.timeZone ?? "America/Chicago", uow.now)) }, audit: { via: "refund" } });
+  }
+  auditCreate(uow, actor, "Membership", m.id, "membership.term_closed_by_refund", { termId: a.termId, grants: grants.length });
 }
 async function cancelMembership(db, actor, args) {
   await authorizeOperation(db, actor, "membership.cancel", SELL2, args);
@@ -8629,7 +8653,8 @@ async function repriceEstimateVersion(db, actor, args) {
 }
 async function requoteOptionsInto(uow, est, sourceVersionId, target) {
   const { tx } = uow;
-  const options = await tx.estimateOption.findMany({ where: { estimateVersionId: sourceVersionId }, orderBy: { sortOrder: "asc" }, select: { id: true, tier: true, name: true, description: true, sortOrder: true, lines: { orderBy: { sortOrder: "asc" }, select: { itemKey: true, quantity: true, cancellationClass: true, description: true } } } });
+  const options = await tx.estimateOption.findMany({ where: { estimateVersionId: sourceVersionId }, orderBy: { sortOrder: "asc" }, select: { id: true, tier: true, name: true, description: true, sortOrder: true, lines: { orderBy: { sortOrder: "asc" }, select: { itemKey: true, quantity: true, cancellationClass: true, description: true, memberPriced: true } } } });
+  const member = options.some((o) => o.lines.some((l) => l.memberPriced)) && est.customerId ? !!await activePlanCode(tx, est.customerId, est.location?.id ?? null, uow.now) : false;
   if (sourceVersionId === target.id) {
     await tx.estimateLine.deleteMany({ where: { option: { estimateVersionId: target.id } } });
     await tx.estimateOption.deleteMany({ where: { estimateVersionId: target.id } });
@@ -8642,6 +8667,7 @@ async function requoteOptionsInto(uow, est, sourceVersionId, target) {
       tier: o.tier,
       name: o.name,
       description: o.description,
+      memberPricing: member && o.lines.some((l) => l.memberPriced),
       lines: o.lines.map((l) => ({ itemKey: l.itemKey, quantity: l.quantity.toString(), cancellationClass: l.cancellationClass, description: l.description }))
     }, tax, o.sortOrder);
     out.push({ optionId: r.optionId, totalMinor: r.totalMinor.toString() });
@@ -8720,11 +8746,16 @@ async function presentEstimate(db, actor, args) {
     requireStatus(row, ["draft"], "presented");
     const est = await loadEstimate(tx, row.estimate);
     await assertEstimateAccess(tx, actor, est);
-    const options = await tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, orderBy: { sortOrder: "asc" }, include: { lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } } });
+    const optionsOf = () => tx.estimateOption.findMany({ where: { estimateVersionId: row.id }, orderBy: { sortOrder: "asc" }, include: { lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } } });
+    let options = await optionsOf();
     if (!options.length || options.some((o) => !o.lines.length)) throw new DomainError(Codes.GUARD_FAILED, "Every option needs at least one line, and the estimate needs an option.", { reason: "empty_option" });
     const active = await activeVersionFor(tx, est.businessUnitId ?? est.job?.businessUnitId ?? null);
     const stale = row.priceBookVersion !== active.versionId || options.some((o) => o.lines.some((l) => l.snapshot.priceBookVersionId !== active.versionId));
     if (stale) throw new DomainError(Codes.GUARD_FAILED, "A new price book is active since this estimate was priced. Re-price it, then present.", { reason: "pricebook_changed" });
+    if (options.some((o) => o.lines.some((l) => l.memberPriced)) && !(est.customerId && await activePlanCode(tx, est.customerId, est.location?.id ?? null, uow.now))) {
+      await requoteOptionsInto(uow, est, row.id, row);
+      options = await optionsOf();
+    }
     const limit = await discountLimitBps(tx, actor);
     if (row.discountBps > limit) {
       const approval = row.discountApproval ? await tx.approvalRequest.findUnique({ where: { id: row.discountApproval }, select: { status: true, payload: true } }) : null;
@@ -11125,6 +11156,11 @@ async function postInvoiceInTx(uow, actor, args) {
       const billed = await tx.invoice.aggregate({ where: { authorizationId: invoice.authorizationId, status: { in: ["posted", "partially_paid", "paid", "written_off"] } }, _sum: { totalMinor: true } });
       if ((billed._sum.totalMinor ?? 0n) + total > auth.authorizedAmountMinor) throw new DomainError(Codes.GUARD_FAILED, `That would bill ${money((billed._sum.totalMinor ?? 0n) + total)}; the payer authorized ${money(auth.authorizedAmountMinor)}.`, { reason: "over_authorized_amount" });
     }
+    const job = invoice.jobId ? await tx.job.findUnique({ where: { id: invoice.jobId }, select: { nteMinor: true } }) : null;
+    if (job?.nteMinor && job.nteMinor > 0n) {
+      const billed = await tx.invoice.aggregate({ where: { jobId: invoice.jobId, id: { not: invoice.id }, status: { in: ["posted", "partially_paid", "paid", "written_off"] } }, _sum: { totalMinor: true } });
+      if ((billed._sum.totalMinor ?? 0n) + total > job.nteMinor) throw new DomainError(Codes.GUARD_FAILED, `That would bill ${money((billed._sum.totalMinor ?? 0n) + total)} on this job; the not-to-exceed is ${money(job.nteMinor)}.`, { reason: "over_nte" });
+    }
     const terms = TERMS_DAYS[invoice.payer?.terms ?? "due_on_receipt"] ?? 0;
     const dueDate = addDays(invoiceDate, terms);
     const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString(), exemptCertificateId, ...exemptRefused ? { exemptRefused } : {} };
@@ -11181,6 +11217,12 @@ async function postMemo(uow, actor, memoId, voidInvoice2) {
   const posted = await casUpdate(uow, { model: "CreditMemo", id: memo.id, version: memo.version, from: ["draft", "pending_approval"], to: "posted", actor, eventType: "credit_memo.posted", data: { postedAt: uow.now } });
   await casUpdate(uow, { model: "CreditMemo", id: memo.id, version: posted, from: ["posted"], to: "applied", actor, eventType: "credit_memo.applied", data: { appliedToInvoiceMinor: appliedInvoice, appliedToCreditMinor: appliedCredit } });
   return { memoId: memo.id, appliedToInvoiceMinor: appliedInvoice.toString(), appliedToCreditMinor: appliedCredit.toString() };
+}
+async function creditForRefund(uow, actor, a) {
+  const ref = await nextReference(uow.tx, "CRM", uow.now);
+  const memo = await uow.tx.creditMemo.create({ data: { ref, invoiceId: a.invoiceId, reason: "other", note: a.note.slice(0, 300), status: "draft", totalMinor: a.amountMinor, appliesTo: "invoice_balance", createdById: actorUserId(actor) }, select: { id: true } });
+  auditCreate(uow, actor, "CreditMemo", memo.id, "credit_memo.created", { ref, invoiceId: a.invoiceId, amountMinor: a.amountMinor.toString(), forRefund: true });
+  return { ...await postMemo(uow, actor, memo.id, false), ref };
 }
 async function memoThreshold(tx) {
   const c = await tx.companySettings.findFirst({ select: { refundApprovalThresholdMinor: true } });
@@ -11396,11 +11438,32 @@ async function resolveAttemptFailed(db, actor, args) {
   });
   return { replay: result.replay, ...result.value };
 }
+var REFUND_CREDIT = "Membership payment refunded:";
+async function settleRefundedMembershipInvoice(db, actor, args) {
+  await authorizeOperation(db, actor, "refund.settle_membership_invoice", ["canIssueRefunds"], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "refund.settle_membership_invoice", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const invoice = await lockInvoice(tx, args.invoiceId);
+    const charge = await tx.membershipBillingAttempt.findFirst({ where: { invoiceId: invoice.id, paymentId: { not: null } }, select: { paymentId: true, membershipId: true, termId: true } });
+    if (!charge?.paymentId) throw new DomainError(Codes.GUARD_FAILED, "This is not a membership invoice paid by card.", { reason: "not_membership_invoice" });
+    const refunds = await tx.refund.findMany({ where: { paymentId: charge.paymentId }, select: { amountMinor: true, reason: true } });
+    const refunded = refunds.reduce((n, r) => n + r.amountMinor, 0n);
+    if (!refunded) throw new DomainError(Codes.GUARD_FAILED, "Nothing has been refunded on this invoice.", { reason: "no_refund" });
+    const credited = (await tx.creditMemo.aggregate({ where: { invoiceId: invoice.id, status: "applied", note: { startsWith: REFUND_CREDIT } }, _sum: { totalMinor: true } }))._sum.totalMinor ?? 0n;
+    const owed = refunded - credited < invoice.balanceMinor ? refunded - credited : invoice.balanceMinor;
+    const memo = owed > 0n ? await creditForRefund(uow, actor, { invoiceId: invoice.id, amountMinor: owed, note: `${REFUND_CREDIT} ${refunds[0]?.reason ?? "refund"}` }) : null;
+    if (charge.membershipId) await closeTermForRefund(uow, actor, { membershipId: charge.membershipId, termId: charge.termId, reason: refunds[0]?.reason ?? "Refunded" });
+    return { invoiceId: invoice.id, creditedMinor: owed > 0n ? owed.toString() : "0", memoRef: memo?.ref ?? null };
+  });
+  return { replay: result.replay, ...result.value };
+}
 async function writeRefund(uow, actor, a) {
   const { tx } = uow;
   const u = await unappliedOf(tx, a.paymentId);
   if (a.amountMinor > u.amountMinor - u.refunded) throw new DomainError(Codes.GUARD_FAILED, `At most ${money(u.amountMinor - u.refunded)} is left to refund on this payment.`, { reason: "refund_exceeds_payment" });
   const needBack = a.amountMinor - u.unapplied;
+  const membershipCharge = await tx.membershipBillingAttempt.findFirst({ where: { paymentId: a.paymentId }, select: { invoiceId: true, membershipId: true, termId: true } });
   const customerId = (await tx.payment.findUniqueOrThrow({ where: { id: a.paymentId }, select: { customerId: true } })).customerId;
   if (needBack > 0n) {
     const credit = customerId ? (await tx.customerCreditEntry.aggregate({ where: { customerId, sourceType: "Payment", sourceId: a.paymentId }, _sum: { amountMinor: true } }))._sum.amountMinor ?? 0n : 0n;
@@ -11413,8 +11476,10 @@ async function writeRefund(uow, actor, a) {
     if (back > 0n) {
       const done = await reverseAllocations(uow, actor, a.paymentId, back, "refund_reopen", `Refund: ${a.reason}`);
       if (done !== back) throw new DomainError(Codes.GUARD_FAILED, "The refund is more than this payment has applied.");
+      if (membershipCharge?.invoiceId) await creditForRefund(uow, actor, { invoiceId: membershipCharge.invoiceId, amountMinor: back, note: `${REFUND_CREDIT} ${a.reason}` });
     }
   }
+  if (membershipCharge?.membershipId) await closeTermForRefund(uow, actor, { membershipId: membershipCharge.membershipId, termId: membershipCharge.termId, reason: a.reason });
   await arPeriodFor(tx, await companyToday(tx, uow.now));
   const ref = await nextReference(tx, "RFD", uow.now);
   const refund = await tx.refund.create({ data: { ref, paymentId: a.paymentId, method: a.method, amountMinor: a.amountMinor, reason: a.reason, approvalId: a.approvalId, reference: a.reference, refundedAt: uow.now, recordedById: actorUserId(actor) }, select: { id: true } });
@@ -11869,6 +11934,7 @@ var phase3TypeDefs = graphql4`
     resolveAttemptFailed(attemptId: ID!, expectedVersion: Int!, evidence: String!, idempotencyKey: String!): JSON
     requestRefund(paymentId: ID!, amountMinor: String!, method: String!, reason: String!, reference: String!, idempotencyKey: String!): JSON
     recordApprovedRefund(approvalRequestId: ID!, idempotencyKey: String!): JSON
+    settleRefundedMembershipInvoice(invoiceId: ID!, idempotencyKey: String!): JSON
     closePaymentBatch(batchId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
     reconcilePaymentBatch(batchId: ID!, expectedVersion: Int!, depositedMinor: String!, depositReference: String!, idempotencyKey: String!): JSON
 
@@ -11900,6 +11966,7 @@ var phase3Resolvers = {
     resolveAttemptFailed: bind3(resolveAttemptFailed),
     requestRefund: bind3(requestRefund),
     recordApprovedRefund: bind3(recordApprovedRefund),
+    settleRefundedMembershipInvoice: bind3(settleRefundedMembershipInvoice),
     closePaymentBatch: bind3(closePaymentBatch),
     reconcilePaymentBatch: bind3(reconcilePaymentBatch),
     saveFinancingProgram: bind3(saveFinancingProgram),
@@ -12010,9 +12077,24 @@ function paymentAdapter() {
 }
 
 // features/keystone/services/membershipBilling.ts
-var BILLING2 = ["canManageMemberships", "canManageInvoices"];
+var BILLING2 = ["canManageMemberships"];
+var BILLABLE = ["pending_payment", "active", "past_due"];
 var STALE_CHARGE_MS = 2 * 6e4;
 var PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/;
+var ymd2 = (d) => d ? d.toISOString().slice(0, 10) : "";
+async function carriedOver(db, membershipIds) {
+  const paid = /* @__PURE__ */ new Set();
+  const from = /* @__PURE__ */ new Map();
+  if (membershipIds.length) {
+    const sellers = await db.membership.findMany({ where: { transferredToId: { in: membershipIds } }, select: { id: true, transferredToId: true, cancelEffectiveOn: true } });
+    for (const s of sellers) {
+      from.set(s.transferredToId, ymd2(s.cancelEffectiveOn));
+      const rows = await db.membershipBillingAttempt.findMany({ where: { membershipId: s.id, status: "succeeded" }, select: { termNumber: true, slot: true } });
+      for (const r of rows) paid.add(`${s.transferredToId}:${r.termNumber}:${r.slot}`);
+    }
+  }
+  return (membershipId, termNumber, slot, dueOn) => paid.has(`${membershipId}:${termNumber}:${slot}`) || from.has(membershipId) && dueOn < from.get(membershipId);
+}
 var lastDayOf = (period) => `${period}-${String(daysInMonth(Number(period.slice(0, 4)), Number(period.slice(5, 7)))).padStart(2, "0")}`;
 async function invoiceForAttempt(uow, actor, attempt) {
   const { tx } = uow;
@@ -12074,9 +12156,11 @@ async function markStatus(db, actor, attemptId, to, note, providerRef, now) {
     if (attempt.membershipId) await settleMembershipStatus(uow, actor, attempt.membershipId);
   }, { now });
 }
-async function processAttempt(db, actor, attemptId, now, adapter = paymentAdapter()) {
-  const seen = await db.membershipBillingAttempt.findUniqueOrThrow({ where: { id: attemptId }, include: { membership: { select: { paymentMethodRef: true, customer: { select: { ref: true } } } } } });
+async function processAttempt(db, actor, attemptId, now, adapter = paymentAdapter(), opts = {}) {
+  const seen = await db.membershipBillingAttempt.findUniqueOrThrow({ where: { id: attemptId }, include: { membership: { select: { status: true, paymentMethodRef: true, customer: { select: { ref: true } } } } } });
   if (seen.status === "succeeded") return "already_paid";
+  if (!BILLABLE.includes(seen.membership?.status ?? "")) return "not_billable";
+  if (seen.membershipId && (await carriedOver(db, [seen.membershipId]))(seen.membershipId, seen.termNumber, seen.slot, ymd2(seen.dueOn))) return "already_paid";
   let status = seen.status;
   const stale = status === "charging" && now.getTime() - seen.updatedAt.getTime() >= STALE_CHARGE_MS;
   if (status === "charging" && !stale) return "in_progress";
@@ -12089,16 +12173,19 @@ async function processAttempt(db, actor, attemptId, now, adapter = paymentAdapte
     }
     if (found.outcome === "failed") {
       await markStatus(db, actor, attemptId, "failed", found.note, found.providerRef, now);
-      status = "failed";
+      return "declined";
     } else {
       status = "retry_same_key";
     }
   }
+  if (status === "failed" && !opts.newTry) return "declined";
   if (!seen.membership?.paymentMethodRef) return "no_card";
   const claim = await runInTransaction(db, async (uow) => {
     const a = await lockRow(uow.tx, "MembershipBillingAttempt", attemptId);
-    const reclaimable = a.status === "queued" || a.status === "failed" || status === "retry_same_key" && ["unknown", "charging"].includes(a.status);
-    if (!reclaimable) return { skip: a.status === "succeeded" ? "already_paid" : "in_progress" };
+    const m = a.membershipId ? await lockRow(uow.tx, "Membership", a.membershipId) : null;
+    if (!m || !BILLABLE.includes(m.status)) return { skip: "not_billable" };
+    const reclaimable = a.status === "queued" || a.status === "failed" && opts.newTry === true || status === "retry_same_key" && ["unknown", "charging"].includes(a.status);
+    if (!reclaimable) return { skip: a.status === "succeeded" ? "already_paid" : a.status === "failed" ? "declined" : "in_progress" };
     const generation = a.status === "failed" ? a.generation + 1 : a.generation;
     const providerKey = `${a.attemptKey}:g${generation}`;
     const invoice = a.invoiceId ? { invoiceId: a.invoiceId, totalMinor: (await lockInvoice(uow.tx, a.invoiceId)).balanceMinor } : await invoiceForAttempt(uow, actor, a);
@@ -12158,18 +12245,20 @@ async function runMembershipBilling(db, actor, args, adapter = paymentAdapter())
       await renewInTx(uow, actor, m.id, today);
     }
     const members = await tx.membership.findMany({
-      where: { status: { in: ["pending_payment", "active", "past_due"] } },
+      where: { status: { in: BILLABLE } },
       select: { id: true, startsOn: true, terms: { where: { status: "active" }, select: { id: true, termNumber: true, slots: true, billingFrequency: true, startsOn: true } }, planVersion: { select: { termMonths: true } } }
     });
+    const carried = await carriedOver(tx, members.map((m) => m.id));
     const rows = [];
     for (const m of members) {
       const anchor = m.startsOn.toISOString().slice(0, 10);
       for (const t of m.terms) {
         const months = m.planVersion?.termMonths ?? 12;
         for (let k = 0; k < t.slots; k += 1) {
-          const due = t.billingFrequency === "monthly" ? slotDueDay(anchor, months, t.termNumber, k) : t.startsOn.toISOString().slice(0, 10);
-          if (due > end) continue;
-          rows.push({ attemptKey: `${m.id}:${t.termNumber}:${k}`, membershipId: m.id, termId: t.id, termNumber: t.termNumber, slot: k, dueOn: asDate(due), runId: run.id });
+          const due2 = t.billingFrequency === "monthly" ? slotDueDay(anchor, months, t.termNumber, k) : t.startsOn.toISOString().slice(0, 10);
+          if (due2 > end) continue;
+          if (carried(m.id, t.termNumber, k, due2)) continue;
+          rows.push({ attemptKey: `${m.id}:${t.termNumber}:${k}`, membershipId: m.id, termId: t.id, termNumber: t.termNumber, slot: k, dueOn: asDate(due2), runId: run.id });
         }
       }
     }
@@ -12177,32 +12266,57 @@ async function runMembershipBilling(db, actor, args, adapter = paymentAdapter())
     auditCreate(uow, actor, "MembershipBillingRun", run.id, "membership.billing_run_started", { period: args.period, candidates: rows.length, skippedRenewals });
     return { runId: run.id, ref: run.ref };
   });
-  const attempts = await db.membershipBillingAttempt.findMany({
-    where: { dueOn: { lte: asDate(lastDayOf(args.period)) }, status: { not: "succeeded" }, membership: { status: { in: ["pending_payment", "active", "past_due"] } } },
+  const open = await db.membershipBillingAttempt.findMany({
+    where: { dueOn: { lte: asDate(lastDayOf(args.period)) }, status: { not: "succeeded" }, membership: { status: { in: BILLABLE } } },
     orderBy: [{ dueOn: "asc" }, { attemptKey: "asc" }],
-    select: { id: true }
+    select: { id: true, status: true, membershipId: true, termNumber: true, slot: true, dueOn: true }
   });
-  const tally = { charged: 0, declined: 0, unknown: 0, inProgress: 0, noCard: 0, already: 0 };
+  const carriedNow = await carriedOver(db, [...new Set(open.map((a) => a.membershipId ?? ""))].filter(Boolean));
+  const due = open.filter((a) => !carriedNow(a.membershipId ?? "", a.termNumber, a.slot, ymd2(a.dueOn)));
+  const attempts = due.filter((a) => a.status !== "failed");
+  const tally = { charged: 0, declined: due.length - attempts.length, unknown: 0, inProgress: 0, noCard: 0, already: 0 };
+  const chargedIds = [];
   for (const a of attempts) {
     const outcome = await processAttempt(db, actor, a.id, now, adapter);
-    if (outcome === "charged") tally.charged += 1;
-    else if (outcome === "declined") tally.declined += 1;
+    if (outcome === "charged") {
+      tally.charged += 1;
+      chargedIds.push(a.id);
+    } else if (outcome === "declined") tally.declined += 1;
     else if (outcome === "unknown") tally.unknown += 1;
     else if (outcome === "in_progress") tally.inProgress += 1;
     else if (outcome === "no_card") tally.noCard += 1;
     else tally.already += 1;
   }
-  const paid = await db.membershipBillingAttempt.aggregate({ where: { runId: prepared.value.runId, status: "succeeded" }, _sum: { amountMinor: true } });
-  const remaining = await db.membershipBillingAttempt.count({ where: { dueOn: { lte: asDate(lastDayOf(args.period)) }, status: { not: "succeeded" }, membership: { status: { in: ["pending_payment", "active", "past_due"] } } } });
+  const paid = await db.membershipBillingAttempt.aggregate({ where: { id: { in: chargedIds }, status: "succeeded" }, _sum: { amountMinor: true } });
+  const left = await db.membershipBillingAttempt.findMany({ where: { id: { in: due.map((a) => a.id) }, status: { not: "succeeded" } }, select: { id: true } });
+  const remaining = left.length;
   await db.membershipBillingRun.update({
     where: { id: prepared.value.runId },
-    data: { status: remaining === 0 || !tally.inProgress ? "completed" : "running", queuedCount: attempts.length, chargedCount: tally.charged, failedCount: tally.declined, unknownCount: tally.unknown, remainingCount: remaining, chargedMinor: paid._sum.amountMinor ?? 0n, completedAt: now }
+    data: { status: remaining === 0 ? "completed" : "partial", queuedCount: attempts.length, chargedCount: tally.charged, failedCount: tally.declined, unknownCount: tally.unknown, remainingCount: remaining, chargedMinor: paid._sum.amountMinor ?? 0n, completedAt: now }
   });
-  return { runId: prepared.value.runId, ref: prepared.value.ref, period: args.period, queued: attempts.length, charged: tally.charged, declined: tally.declined, unknown: tally.unknown, inProgress: tally.inProgress, noCard: tally.noCard, remaining, chargedMinor: (paid._sum.amountMinor ?? 0n).toString(), replay: prepared.replay };
+  return { runId: prepared.value.runId, ref: prepared.value.ref, period: args.period, status: remaining === 0 ? "completed" : "partial", queued: attempts.length, charged: tally.charged, declined: tally.declined, unknown: tally.unknown, inProgress: tally.inProgress, noCard: tally.noCard, remaining, chargedMinor: (paid._sum.amountMinor ?? 0n).toString(), replay: prepared.replay };
 }
 async function retryAttempt(db, actor, args, adapter = paymentAdapter()) {
   await authorizeOperation(db, actor, "membership.attempt_retry", BILLING2, args);
-  const outcome = await processAttempt(db, actor, args.attemptId, args.now ?? /* @__PURE__ */ new Date(), adapter);
+  const now = args.now ?? /* @__PURE__ */ new Date();
+  const a = await db.membershipBillingAttempt.findUnique({ where: { id: args.attemptId }, select: { id: true, status: true, updatedAt: true, membership: { select: { id: true, status: true, location: { select: { timeZone: true } }, terms: { where: { status: "active" }, select: { endsOn: true } } } } } });
+  if (!a?.membership) throw new DomainError(Codes.NOT_FOUND, "Payment not found.");
+  const m = a.membership;
+  const today = localDate({ timeZone: m.location?.timeZone ?? "America/Chicago" }, now);
+  const lastEnd = m.terms.map((t) => ymd2(t.endsOn)).sort().pop() ?? "";
+  const standing = !BILLABLE.includes(m.status) ? m.status : !lastEnd || lastEnd < today ? "expired" : m.status;
+  if (!BILLABLE.includes(standing)) throw new DomainError(Codes.GUARD_FAILED, `This membership is ${standing.replace(/_/g, " ")}, so it is not charged.`, { reason: "membership_not_billable" });
+  const reason = String(args.reason ?? "").trim();
+  let newTry = false;
+  if (a.status === "failed") {
+    const cardChanged = await db.auditEvent.findFirst({ where: { entityType: "Membership", entityId: m.id, eventType: "membership.payment_method_set", at: { gt: a.updatedAt } }, select: { id: true } });
+    if (!cardChanged && reason.length < 3) throw new DomainError(Codes.GUARD_FAILED, "Card declined: update the card, then Retry. To try the same card again, say why.", { reason: "card_not_updated" });
+    newTry = true;
+  }
+  const outcome = await processAttempt(db, actor, args.attemptId, now, adapter, { newTry });
+  if (newTry) await runInTransaction(db, async (uow) => {
+    auditCreate(uow, actor, "MembershipBillingAttempt", a.id, "membership.charge_retried", { outcome }, { reason: reason || "Card updated" });
+  }, { now });
   return { attemptId: args.attemptId, outcome };
 }
 
@@ -12212,7 +12326,7 @@ init_cas();
 init_errors();
 var MANAGE2 = ["canManageMemberships"];
 var SELL4 = ["canSellMemberships", "canManageMemberships"];
-var ymd2 = (d) => d ? d.toISOString().slice(0, 10) : "";
+var ymd3 = (d) => d ? d.toISOString().slice(0, 10) : "";
 var clean = (v, field, min, max) => {
   const s = String(v ?? "").trim();
   if (s.length < min || s.length > max) throw new DomainError(Codes.INVALID_INPUT, min ? "This is needed." : "Too long.", { field });
@@ -12277,7 +12391,7 @@ async function activateAgreement(db, actor, args) {
     const { tx } = uow;
     const a = await lockRow(tx, "ServiceAgreement", args.agreementId);
     if (a.status !== "draft") throw new DomainError(Codes.INVALID_TRANSITION, "Only a draft agreement is started.");
-    const start = ymd2(a.startsOn), end = ymd2(a.endsOn);
+    const start = ymd3(a.startsOn), end = ymd3(a.endsOn);
     let made = 0;
     for (let y = Number(start.slice(0, 4)); y <= Number(end.slice(0, 4)); y += 1) {
       for (const m of a.visitMonths) {
@@ -12316,7 +12430,7 @@ async function setDocumentExpiry(db, actor, args) {
     const today = await companyToday(uow.tx, uow.now);
     if (args.expiresOn && args.expiresOn < addDays(today, -365)) throw new DomainError(Codes.INVALID_INPUT, "That expiry is more than a year ago.", { field: "expiresOn" });
     await uow.tx.document.update({ where: { id: doc.id }, data: { expiresAt: args.expiresOn ? asDate(args.expiresOn) : null } });
-    uow.audit({ eventType: "document.expiry_set", entityType: "Document", entityId: doc.id, actorUserId: actorUserId(actor), reason, before: { expiresAt: ymd2(doc.expiresAt) || null }, after: { expiresAt: args.expiresOn } });
+    uow.audit({ eventType: "document.expiry_set", entityType: "Document", entityId: doc.id, actorUserId: actorUserId(actor), reason, before: { expiresAt: ymd3(doc.expiresAt) || null }, after: { expiresAt: args.expiresOn } });
     return { documentId: doc.id, expiresOn: args.expiresOn };
   });
   return { replay: result.replay, ...result.value };
@@ -12346,7 +12460,7 @@ var phase4TypeDefs = graphql5`
     releaseMembershipVisit(eventId: ID!, reason: String!, idempotencyKey: String!): JSON
 
     runMembershipBilling(period: String!, idempotencyKey: String!): JSON
-    retryMembershipCharge(attemptId: ID!, idempotencyKey: String!): JSON
+    retryMembershipCharge(attemptId: ID!, reason: String, idempotencyKey: String!): JSON
     recordRenewalNotice(membershipId: ID!, status: String!, idempotencyKey: String!): JSON
 
     saveServiceAgreement(agreementId: ID, name: String!, customerId: ID!, locationId: ID!, payerId: ID, startsOn: String!, endsOn: String!, scope: String!, visitMonths: JSON!, poNumber: String, nteMinor: String, idempotencyKey: String!): JSON
