@@ -2390,6 +2390,7 @@ type Document {
   versions(where: DocumentVersionWhereInput! = {}, orderBy: [DocumentVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: DocumentVersionWhereUniqueInput): [DocumentVersion!]
   versionsCount(where: DocumentVersionWhereInput! = {}): Int
   retentionUntil: CalendarDay
+  expiresAt: CalendarDay
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2410,6 +2411,7 @@ input DocumentWhereInput {
   subjectId: StringFilter
   versions: DocumentVersionManyRelationFilter
   retentionUntil: CalendarDayNullableFilter
+  expiresAt: CalendarDayNullableFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
 }
@@ -2428,6 +2430,7 @@ input DocumentOrderByInput {
   subjectType: OrderDirection
   subjectId: OrderDirection
   retentionUntil: OrderDirection
+  expiresAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -2440,6 +2443,7 @@ input DocumentUpdateInput {
   subjectId: String
   versions: DocumentVersionRelateToManyForUpdateInput
   retentionUntil: CalendarDay
+  expiresAt: CalendarDay
   createdAt: DateTime
   updatedAt: DateTime
 }
@@ -2464,6 +2468,7 @@ input DocumentCreateInput {
   subjectId: String
   versions: DocumentVersionRelateToManyForCreateInput
   retentionUntil: CalendarDay
+  expiresAt: CalendarDay
   createdAt: DateTime
   updatedAt: DateTime
 }

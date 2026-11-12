@@ -254,6 +254,8 @@ export const Document = list({
     subjectId: systemText({ indexed: true }),
     versions: relationship({ ref: 'DocumentVersion.document', many: true, ...readOnly }),
     retentionUntil: calendarDay({ ...readOnly }),
+    /** When a certificate (e.g. a sales-tax exemption) expires: it is good only for dates before this day. Empty = no expiry. */
+    expiresAt: calendarDay({ ...readOnly }),
     ...trackingFields,
   },
 })

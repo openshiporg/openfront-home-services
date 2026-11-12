@@ -7,13 +7,13 @@ import { Codes, DomainError } from '../lib/errors'
 /** The payment row for a partner payout, filed in that day's financing batch. The partner's fee is kept on the payment, not netted out of the invoice. */
 export async function createPaymentForFunding(uow: UnitOfWork, actor: Actor, a: { invoice: InvoiceRow; gross: bigint; fee: bigint; reference: string; receivedAt: Date }) {
   const { tx } = uow
+  const day = await companyToday(tx, a.receivedAt)
+  await arPeriodFor(tx, day) // no payout is filed in a closed AR month (I-M9); DB triggers Payment_period and FinancingFunding_period back this
   const ref = await nextReference(tx, 'PMT', uow.now)
   const payment = await tx.payment.create({
     data: { ref, jobId: a.invoice.jobId, customerId: a.invoice.customerId, payerId: a.invoice.payerId, kind: 'payment', method: 'financing', amountMinor: a.gross, feeMinor: a.fee, reference: a.reference, receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
     select: { id: true },
   })
-  const day = await companyToday(tx, a.receivedAt)
-  await arPeriodFor(tx, day) // no payout is filed in a closed AR month (I-M9)
   const date = asDate(day)
   let batch = await tx.paymentBatch.findFirst({ where: { businessDate: date, tenderGroup: 'financing' }, select: { id: true, status: true } })
   if (!batch) batch = await tx.paymentBatch.create({ data: { ref: await nextReference(tx, 'PBT', uow.now), businessDate: date, tenderGroup: 'financing', status: 'open' }, select: { id: true, status: true } })

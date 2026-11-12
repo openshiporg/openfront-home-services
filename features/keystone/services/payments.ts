@@ -41,13 +41,13 @@ async function batchFor(uow: UnitOfWork, method: string, day: string) {
 
 /** Create the Payment row and file it in the day's batch. */
 async function createPayment(uow: UnitOfWork, actor: Actor, a: { customerId: string | null; jobId: string | null; payerId?: string | null; method: string; amountMinor: bigint; feeMinor?: bigint; reference?: string; checkNumber?: string; receivedAt: Date; kind?: string }) {
+  const day = await companyToday(uow.tx, a.receivedAt)
+  await arPeriodFor(uow.tx, day) // money dated in a closed (or closing) AR month is refused (I-M9); the DB trigger Payment_period backs this
   const ref = await nextReference(uow.tx, 'PMT', uow.now)
   const payment = await uow.tx.payment.create({
     data: { ref, jobId: a.jobId, customerId: a.customerId, payerId: a.payerId ?? null, kind: a.kind ?? 'payment', method: a.method, amountMinor: a.amountMinor, feeMinor: a.feeMinor ?? 0n, reference: a.reference ?? '', checkNumber: a.checkNumber ?? '', receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
     select: { id: true, ref: true },
   })
-  const day = await companyToday(uow.tx, a.receivedAt)
-  await arPeriodFor(uow.tx, day) // money dated in a closed (or closing) AR month is refused (I-M9)
   const batch = await batchFor(uow, a.method, day)
   if (batch.status !== 'open') throw new DomainError(Codes.GUARD_FAILED, `The ${tenderGroup(a.method).replace('_', '/')} batch for ${day} is ${batch.status}. Record it on today's date, or reopen nothing: closed batches are final.`, { reason: 'batch_closed' })
   await uow.tx.paymentBatch.update({ where: { id: batch.id }, data: { expectedMinor: { increment: a.amountMinor - (a.feeMinor ?? 0n) }, feesMinor: { increment: a.feeMinor ?? 0n } } })
@@ -188,6 +188,7 @@ async function writeRefund(uow: UnitOfWork, actor: Actor, a: { paymentId: string
       if (done !== back) throw new DomainError(Codes.GUARD_FAILED, 'The refund is more than this payment has applied.')
     }
   }
+  await arPeriodFor(tx, await companyToday(tx, uow.now)) // the DB trigger Refund_period refuses a refund dated in a non-open AR month
   const ref = await nextReference(tx, 'RFD', uow.now)
   const refund = await tx.refund.create({ data: { ref, paymentId: a.paymentId, method: a.method, amountMinor: a.amountMinor, reason: a.reason, approvalId: a.approvalId, reference: a.reference, refundedAt: uow.now, recordedById: actorUserId(actor) }, select: { id: true } })
   auditCreate(uow, actor, 'Refund', refund.id, 'refund.recorded', { ref, paymentId: a.paymentId, amountMinor: a.amountMinor.toString(), method: a.method, approvalId: a.approvalId })

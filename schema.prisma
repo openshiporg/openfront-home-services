@@ -518,6 +518,7 @@ model Document {
   subjectId                                String                    @default("")
   versions                                 DocumentVersion[]         @relation("DocumentVersion_document")
   retentionUntil                           DateTime?                 @postgresql.Date
+  expiresAt                                DateTime?                 @postgresql.Date
   createdAt                                DateTime                  @default(now())
   updatedAt                                DateTime                  @default(now()) @updatedAt
   from_Brand_logo                          Brand[]                   @relation("Brand_logo")

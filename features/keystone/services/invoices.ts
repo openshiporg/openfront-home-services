@@ -164,10 +164,14 @@ export async function postInvoice(db: Db, actor: Actor, args: { invoiceId: strin
       if (error instanceof PricingError) throw new DomainError(Codes.GUARD_FAILED, error.message, { reason: 'tax_unresolved' })
       throw error
     }
-    // A nonresidential customer with an exemption certificate on file (SCHEMA Customer.taxExemptCertificate) pays no sales tax.
-    const exemptCertificateId = ctx.propertyClass !== 'residential' && invoice.customerId
-      ? (await tx.customer.findUnique({ where: { id: invoice.customerId }, select: { taxExemptCertificateId: true } }))?.taxExemptCertificateId ?? null
+    // A nonresidential customer with an exemption certificate on file (SCHEMA Customer.taxExemptCertificate) pays no sales tax,
+    // unless the certificate has expired by the invoice date (Document.expiresAt, read now; never cached on the customer).
+    const cert = ctx.propertyClass !== 'residential' && invoice.customerId
+      ? (await tx.customer.findUnique({ where: { id: invoice.customerId }, select: { taxExemptCertificate: { select: { id: true, expiresAt: true } } } }))?.taxExemptCertificate ?? null
       : null
+    const certExpired = !!cert?.expiresAt && cert.expiresAt.toISOString().slice(0, 10) <= invoiceDate
+    const exemptCertificateId = cert && !certExpired ? cert.id : null
+    const exemptRefused = cert && certExpired ? { certificateId: cert.id, reason: 'certificate_expired', expiresAt: cert.expiresAt!.toISOString().slice(0, 10) } : null
     if (exemptCertificateId) taxed = { ...taxed, taxMinor: 0n, rows: taxed.rows.map(() => ({ taxable: false, baseMinor: 0n })) }
     // Tax per line: the total is rounded once; lines take pro-rata shares of it so they add up exactly.
     const baseWeights = taxed.rows.map(r => r.baseMinor.toString())
@@ -186,7 +190,7 @@ export async function postInvoice(db: Db, actor: Actor, args: { invoiceId: strin
 
     const terms = TERMS_DAYS[invoice.payer?.terms ?? 'due_on_receipt'] ?? 0
     const dueDate = addDays(invoiceDate, terms)
-    const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString(), exemptCertificateId }
+    const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString(), exemptCertificateId, ...(exemptRefused ? { exemptRefused } : {}) }
     const snapshot = { ref: invoice.ref, lines: invoice.lines.map((l, i) => ({ id: l.id, description: l.description, quantity: l.quantity.toFixed(), uom: l.uom, unitPriceMinor: l.unitPriceMinor.toString(), amountMinor: l.amountMinor.toString(), discountMinor: l.discountMinor.toString(), taxMinor: shares[i].toString() })) }
     const posted = await tx.invoice.updateMany({
       where: { id: row.id, version: row.version, status: 'draft' },

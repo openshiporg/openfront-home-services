@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { q, companyTimeZone } from '../../lib/server';
-import { label, phoneText, when } from '../../lib/format';
+import { dateText, label, phoneText, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
 import { CommandForm } from '../../components/CommandForm';
@@ -10,6 +10,7 @@ type Point = { id: string; kind: string; value: string | null; isPrimary: boolea
 type Detail = {
   id: string; ref: string; kind: string; displayName: string; organizationName: string; doNotService: boolean; doNotServiceReason: string; createdAt: string;
   source: { name: string } | null;
+  taxExemptCertificate: { id: string; title: string; expiresAt: string | null } | null;
   contacts: { id: string; firstName: string; lastName: string; role: string; points: Point[] }[];
   locations: { id: string; ref: string; address1: string; address2: string; city: string; postalCode: string; propertyType: string; serviceArea: { name: string } | null; accessSecrets: { id: string; kind: string; label: string; status: string; revealsCount: number }[] }[];
   jobs: { id: string; ref: string; status: string; createdAt: string; jobType: { name: string } | null }[];
@@ -31,7 +32,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     q<{ customer: Detail | null }>(`
       query Customer($id: ID!) {
         customer(where: { id: $id }) {
-          id ref kind displayName organizationName doNotService doNotServiceReason createdAt source { name }
+          id ref kind displayName organizationName doNotService doNotServiceReason createdAt source { name } taxExemptCertificate { id title expiresAt }
           contacts { id firstName lastName role points { id kind value isPrimary consents(orderBy: [{ recordedAt: asc }]) { purpose action channel recordedAt actorKind } } }
           locations(where: { mergedInto: null }) { id ref address1 address2 city postalCode propertyType serviceArea { name } accessSecrets { id kind label status revealsCount } }
           jobs(orderBy: [{ createdAt: desc }], take: 20) { id ref status createdAt jobType { name } }
@@ -42,6 +43,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const c = d.customer;
   if (!c) notFound();
   const path = `/dashboard/platform/customers/${c.id}`;
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const cert = c.taxExemptCertificate;
+  const certExpired = !!cert?.expiresAt && cert.expiresAt <= today;
   return (
     <Page title={c.displayName} crumbs={[{ label: 'Customers', href: '/dashboard/platform/customers' }]}>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -51,6 +55,15 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <Stat name="Jobs" value={c.jobs.length} />
       </div>
       {c.doNotService ? <p className="rounded-md border border-red-300 p-3 text-sm text-red-700">Do not service{c.doNotServiceReason ? `: ${c.doNotServiceReason}` : ''}. Only a manager can book this customer.</p> : null}
+
+      {cert ? (
+        <Section title="Tax exemption certificate">
+          <Row>
+            <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{cert.title}</span>{certExpired ? <span className="rounded border border-red-300 px-1.5 text-xs font-medium text-red-700">Expired</span> : <span className="rounded border border-emerald-300 px-1.5 text-xs font-medium text-emerald-700">Valid</span>}</span>
+            <Meta>{cert.expiresAt ? `${certExpired ? 'Expired' : 'Expires'} ${dateText(cert.expiresAt)}` : 'No expiry date'}{certExpired ? ' · invoices are taxed' : ' · nonresidential work is not taxed'}</Meta>
+          </Row>
+        </Section>
+      ) : null}
 
       <Section title="Contacts and consent">
         {c.contacts.map(ct => (

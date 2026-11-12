@@ -231,7 +231,9 @@ describe.skipIf(!hasTestDatabase)('Phase 3: invoices, payments, financing, AR an
   })
 
   it('the export balances, repeats nothing, and is formula-safe CSV', { timeout: 90_000 }, async () => {
-    const day = new Date().toISOString().slice(0, 10)
+    // Self-contained (runs alone): its own posted invoice, on the company's local day (not the UTC date, which is tomorrow after 6 PM in Texas).
+    await posted(4000, 0)
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: (await prisma.companySettings.findFirst())?.homeTimeZone || 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
     const a = await createExportBatch(prisma, biller, { from: day, to: day, idempotencyKey: k() })
     const batch = await prisma.accountingExportBatch.findUniqueOrThrow({ where: { id: a.batchId } })
     expect(batch.debitMinor).toBe(batch.creditMinor)
@@ -296,6 +298,80 @@ describe.skipIf(!hasTestDatabase)('Phase 3: invoices, payments, financing, AR an
     expect(await reason(recordInvoicePayment(prisma, biller, { invoiceId: back.invoiceId, amountMinor: '1000', method: 'check', checkNumber: '2001', receivedAt: backDay, idempotencyKey: k() }))).toBe('ar_period_closed')
     expect(await prisma.paymentBatch.count()).toBe(batchesBefore)
     await expect(prisma.paymentBatch.create({ data: { ref: `PBT-T-${Date.now()}`, businessDate: new Date(lastMonth.getTime() + 14 * 86_400_000), tenderGroup: 'check_cash', status: 'open' } })).rejects.toThrow(/takes no new payment batch/)
+  })
+
+  it('r2 fixes: an expired exemption certificate does not exempt; raw Payment, Refund and FinancingFunding rows refuse a closed AR month', { timeout: 180_000 }, async () => {
+    // Finding A: the certificate's expiry is read when tax is computed. Expired (or expiring on the invoice day) = taxed.
+    const h = HOUSEHOLDS[1]
+    await prisma.serviceLocation.update({ where: { id: h.location.id }, data: { propertyClass: 'nonresidential' } })
+    const postFor = async () => {
+      const d = await createInvoiceDraft(prisma, biller, { jobId: await job(10000, 10000, 'work_complete', { customerId: h.id, locationId: h.location.id }), idempotencyKey: k() })
+      await postInvoice(prisma, biller, { invoiceId: d.invoiceId, expectedVersion: (await inv(d.invoiceId)).version, idempotencyKey: k() })
+      return inv(d.invoiceId)
+    }
+    const expired = await prisma.document.create({ data: { title: 'Texas exemption certificate (expired)', kind: 'other', expiresAt: new Date('2025-12-31') } })
+    await prisma.customer.update({ where: { id: h.id }, data: { taxExemptCertificateId: expired.id } })
+    const taxedRow = await postFor()
+    expect(taxedRow.taxMinor).toBeGreaterThan(0n)
+    expect((taxedRow.taxResult as { exemptCertificateId: string | null }).exemptCertificateId).toBeNull()
+    expect((taxedRow.taxResult as { exemptRefused?: { reason: string; certificateId: string } }).exemptRefused).toMatchObject({ reason: 'certificate_expired', certificateId: expired.id })
+    const valid = await prisma.document.create({ data: { title: 'Texas exemption certificate (valid)', kind: 'other', expiresAt: new Date('2099-12-31') } })
+    await prisma.customer.update({ where: { id: h.id }, data: { taxExemptCertificateId: valid.id } })
+    const exemptRow = await postFor()
+    expect(exemptRow.taxMinor).toBe(0n)
+    expect((exemptRow.taxResult as { exemptCertificateId: string | null }).exemptCertificateId).toBe(valid.id)
+    // Renewal is read at calculation time: moving the same certificate's expiry into the past makes the next invoice taxed.
+    await prisma.document.update({ where: { id: valid.id }, data: { expiresAt: new Date('2026-01-01') } })
+    expect((await postFor()).taxMinor).toBeGreaterThan(0n)
+
+    // Finding B: close last month (unless the r1 case already did), then raw inserts as the app role are refused by the DB.
+    const now = new Date()
+    const lastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1))
+    let period = await prisma.arPeriod.upsert({ where: { month: lastMonth }, create: { month: lastMonth, status: 'open' }, update: {} })
+    if (period.status === 'open') {
+      for (const b of await prisma.paymentBatch.findMany({ where: { status: 'open', businessDate: { gte: lastMonth, lt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)) } } })) await closePaymentBatch(prisma, biller, { batchId: b.id, expectedVersion: b.version, idempotencyKey: k() })
+      const close = await requestArPeriodClose(prisma, biller, { periodId: period.id, expectedVersion: period.version, idempotencyKey: k() })
+      const creq = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: close.approvalRequestId } })
+      await decideApprovalAs(prisma, approver, { requestId: creq.id, decision: 'approve', expectedVersion: creq.version, idempotencyKey: k() })
+      period = await prisma.arPeriod.findUniqueOrThrow({ where: { id: period.id } })
+    }
+    expect(period.status).toBe('closed')
+    // Each statement runs as the app role (HS_TEST_APP_ROLE: not the table owner, not a superuser) and is always rolled back.
+    const appRole = process.env.HS_TEST_APP_ROLE ?? ''
+    const ROLLBACK = new Error('rollback')
+    const asApp = async (...sql: string[]) => {
+      let who = ''
+      try {
+        await prisma.$transaction(async tx => {
+          if (appRole) await tx.$executeRawUnsafe(`SET LOCAL ROLE "${appRole.replaceAll('"', '')}"`)
+          who = (await tx.$queryRawUnsafe<{ u: string }[]>('select current_user::text as u'))[0].u
+          for (const s of sql) await tx.$executeRawUnsafe(s)
+          throw ROLLBACK
+        })
+      } catch (e) {
+        if (e === ROLLBACK) return { who, result: 'OK' }
+        return { who, result: String((e as Error).message) }
+      }
+      return { who, result: 'OK' }
+    }
+    const back = new Date(lastMonth.getTime() + 14 * 86_400_000 + 18 * 3_600_000).toISOString()
+    const today = now.toISOString()
+    const pay = (id: string, at: string) => `INSERT INTO "Payment"(id, ref, kind, method, "amountMinor", "receivedAt", "updatedAt") VALUES ('${id}', '${id}', 'payment', 'cash', 1000, '${at}', now())`
+    const control = await asApp(pay('r2p_today', today), `INSERT INTO "Refund"(id, ref, payment, method, "amountMinor", "refundedAt", "updatedAt") VALUES ('r2r_today', 'r2r_today', 'r2p_today', 'check', 500, '${today}', now())`, `INSERT INTO "FinancingFunding"(id, "grossMinor", "fundedAt", "updatedAt") VALUES ('r2f_today', 1000, '${today}', now())`)
+    if (appRole) {
+      expect(control.who).toBe(appRole)
+      const [r] = await prisma.$queryRawUnsafe<{ su: boolean; owner: string }[]>(`select (select rolsuper from pg_roles where rolname = '${appRole}') as su, (select tableowner::text from pg_tables where schemaname = current_schema() and tablename = 'Payment') as owner`)
+      expect(r.su).toBe(false)
+      expect(r.owner).not.toBe(appRole)
+    }
+    expect(control.result).toBe('OK')
+    expect((await asApp(pay('r2p_back', back))).result).toMatch(/AR period for \d{4}-\d{2} is closed and takes no Payment/)
+    expect((await asApp(pay('r2p_today', today), `INSERT INTO "Refund"(id, ref, payment, method, "amountMinor", "refundedAt", "updatedAt") VALUES ('r2r_back', 'r2r_back', 'r2p_today', 'check', 500, '${back}', now())`)).result).toMatch(/takes no Refund/)
+    expect((await asApp(`INSERT INTO "FinancingFunding"(id, "grossMinor", "fundedAt", "updatedAt") VALUES ('r2f_back', 1000, '${back}', now())`)).result).toMatch(/takes no FinancingFunding/)
+    expect(await prisma.payment.count({ where: { id: { startsWith: 'r2p_' } } })).toBe(0)
+    // The service still refuses first, with its own reason, and writes nothing.
+    const p = await posted(5000, 0)
+    expect(await reason(recordInvoicePayment(prisma, biller, { invoiceId: p.invoiceId, amountMinor: '1000', method: 'check', checkNumber: '2002', receivedAt: back, idempotencyKey: k() }))).toBe('ar_period_closed')
   })
 
   it('an AR period closes only with a second person, and takes no entries after', { timeout: 90_000 }, async () => {

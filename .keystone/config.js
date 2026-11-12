@@ -1514,6 +1514,8 @@ var Document = (0, import_core9.list)({
     subjectId: systemText({ indexed: true }),
     versions: (0, import_fields9.relationship)({ ref: "DocumentVersion.document", many: true, ...readOnly }),
     retentionUntil: (0, import_fields9.calendarDay)({ ...readOnly }),
+    /** When a certificate (e.g. a sales-tax exemption) expires: it is good only for dates before this day. Empty = no expiry. */
+    expiresAt: (0, import_fields9.calendarDay)({ ...readOnly }),
     ...trackingFields
   }
 });
@@ -2693,6 +2695,38 @@ __export(sales_exports, {
 var import_core17 = require("@keystone-6/core");
 var import_fields17 = require("@keystone-6/core/fields");
 init_access();
+
+// features/keystone/models/billingAccess.ts
+init_access();
+var has2 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
+var BILLING_OFFICE = [
+  "canManageInvoices",
+  "canPostInvoices",
+  "canManagePayments",
+  "canIssueRefunds",
+  "canApproveWriteOff",
+  "canApproveCredits",
+  "canApproveRefunds",
+  "canManageAccounting",
+  "canCloseAr",
+  "canApproveArClose"
+];
+var COUNTER = ["canTakePayments", "canOfferFinancing"];
+var billingQuery = ({ session }) => isSignedIn({ session }) && (has2(session, BILLING_OFFICE) || has2(session, COUNTER));
+var officeOnlyQuery = ({ session }) => isSignedIn({ session }) && has2(session, BILLING_OFFICE);
+var jobScoped = (path) => ({
+  operation: { query: billingQuery, create: sys, update: sys, delete: sys },
+  filter: {
+    query: ({ session }) => {
+      if (!isSignedIn({ session })) return false;
+      if (has2(session, BILLING_OFFICE)) return true;
+      if (has2(session, ["canWorkVisits"])) return path(jobFilter(session.itemId));
+      return has2(session, COUNTER) ? true : false;
+    }
+  }
+});
+
+// features/keystone/models/sales.ts
 var TRADE_OR_GENERAL = ["hvac", "plumbing", "electrical", "general"];
 var TAX_CATEGORIES = ["labor", "material", "equipment", "fee", "disposal", "permit_passthrough", "warranty_reimbursed", "membership", "maintenance"];
 var CANCELLATION_CLASSES = ["requested_repair", "necessary_replacement_parts", "additional_goods_services"];
@@ -2702,16 +2736,16 @@ var ESTIMATE_STATUSES = ["draft", "pending_approval", "presented", "sold", "decl
 var NOTICE_STATUSES = ["issued", "delivered", "waived", "cancelled_by_buyer", "expired_uncancelled", "refunded"];
 var DECLINE_REASONS = ["price", "timing", "chose_competitor", "will_call_back", "financing_declined", "no_longer_needed", "other"];
 var SALE_LOCATIONS = ["buyer_residence", "other_non_merchant", "merchant_place", "remote"];
-var has2 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
+var has3 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
 var costRead = ({ session }) => canReadCost(session);
 var PRICEBOOK_READ = [...OFFICE_READ, "canManagePriceBook", "canApprovePriceBook", "canPresentEstimates", "canSellEstimates", "canWorkVisits"];
 var SALES_OFFICE = [...OFFICE_READ, "canManagePriceBook", "canApproveDiscounts", "canApprovePolicies"];
-var salesQuery = ({ session }) => isSignedIn({ session }) && (has2(session, SALES_OFFICE) || has2(session, ["canWorkVisits", "canPresentEstimates"]));
+var salesQuery = ({ session }) => isSignedIn({ session }) && (has3(session, SALES_OFFICE) || has3(session, ["canWorkVisits", "canPresentEstimates"]));
 var ownEstimates = (userId) => ({ OR: [{ job: jobFilter(userId) }, { presentedBy: { user: { id: { equals: userId } } } }] });
 var salesFilter = (path) => ({ session }) => {
   if (!isSignedIn({ session })) return false;
-  if (has2(session, SALES_OFFICE)) return true;
-  if (has2(session, ["canWorkVisits", "canPresentEstimates"])) return path(ownEstimates(session.itemId));
+  if (has3(session, SALES_OFFICE)) return true;
+  if (has3(session, ["canWorkVisits", "canPresentEstimates"])) return path(ownEstimates(session.itemId));
   return false;
 };
 var salesAccess = (path) => ({
@@ -2723,8 +2757,8 @@ var jobRows = {
   filter: {
     query: ({ session }) => {
       if (!isSignedIn({ session })) return false;
-      if (has2(session, SALES_OFFICE)) return true;
-      if (has2(session, ["canWorkVisits", "canPresentEstimates"])) return { job: jobFilter(session.itemId) };
+      if (has3(session, SALES_OFFICE)) return true;
+      if (has3(session, ["canWorkVisits", "canPresentEstimates"])) return { job: jobFilter(session.itemId) };
       return false;
     }
   }
@@ -3012,7 +3046,8 @@ var Authorization = (0, import_core17.list)({
 });
 var PAYMENT_METHODS = ["card", "ach", "cash", "check", "other", "financing", "third_party", "customer_credit"];
 var Payment = (0, import_core17.list)({
-  access: jobRows,
+  // Money: billing permissions read it (a technician only on assigned jobs), not everyone who can see sales rows.
+  access: jobScoped((own) => ({ job: own })),
   ui: { labelField: "ref", listView: { initialColumns: ["ref", "job", "kind", "method", "amountMinor", "receivedAt"] } },
   fields: {
     ref: systemText({ indexed: "unique", required: true }),
@@ -3033,7 +3068,7 @@ var Payment = (0, import_core17.list)({
   }
 });
 var Refund = (0, import_core17.list)({
-  access: jobRows,
+  access: jobScoped((own) => ({ payment: { job: own } })),
   ui: { labelField: "ref", listView: { initialColumns: ["ref", "payment", "method", "amountMinor", "refundedAt"] } },
   fields: {
     ref: systemText({ indexed: "unique", required: true }),
@@ -3163,33 +3198,6 @@ var PAYER_KINDS = ["customer", "home_warranty_company", "property_manager", "com
 var TERMS = ["due_on_receipt", "net_15", "net_30", "net_45", "net_60"];
 var AR_KINDS = ["invoice_posted", "payment_applied", "payment_reversed", "credit_memo", "write_off", "write_off_reversal", "refund_reopen", "dispute_withdrawal", "dispute_reinstatement"];
 var FINANCING_STATUSES = ["started", "submitted", "approved", "declined", "needs_info", "docs_signed", "awaiting_funding", "funded", "cancelled", "expired"];
-var has3 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
-var BILLING_OFFICE = [
-  "canManageInvoices",
-  "canPostInvoices",
-  "canManagePayments",
-  "canIssueRefunds",
-  "canApproveWriteOff",
-  "canApproveCredits",
-  "canApproveRefunds",
-  "canManageAccounting",
-  "canCloseAr",
-  "canApproveArClose"
-];
-var COUNTER = ["canTakePayments", "canOfferFinancing"];
-var billingQuery = ({ session }) => isSignedIn({ session }) && (has3(session, BILLING_OFFICE) || has3(session, COUNTER));
-var officeOnlyQuery = ({ session }) => isSignedIn({ session }) && has3(session, BILLING_OFFICE);
-var jobScoped = (path) => ({
-  operation: { query: billingQuery, create: sys, update: sys, delete: sys },
-  filter: {
-    query: ({ session }) => {
-      if (!isSignedIn({ session })) return false;
-      if (has3(session, BILLING_OFFICE)) return true;
-      if (has3(session, ["canWorkVisits"])) return path(jobFilter(session.itemId));
-      return has3(session, COUNTER) ? true : false;
-    }
-  }
-});
 var invoiceRows = jobScoped((own) => ({ job: own }));
 var officeRows = { operation: { query: officeOnlyQuery, create: sys, update: sys, delete: sys } };
 var PayerProfile = (0, import_core18.list)({
@@ -10305,6 +10313,11 @@ async function postInvoice(db, actor, args) {
       if (error instanceof PricingError) throw new DomainError(Codes.GUARD_FAILED, error.message, { reason: "tax_unresolved" });
       throw error;
     }
+    const cert = ctx.propertyClass !== "residential" && invoice.customerId ? (await tx.customer.findUnique({ where: { id: invoice.customerId }, select: { taxExemptCertificate: { select: { id: true, expiresAt: true } } } }))?.taxExemptCertificate ?? null : null;
+    const certExpired = !!cert?.expiresAt && cert.expiresAt.toISOString().slice(0, 10) <= invoiceDate;
+    const exemptCertificateId = cert && !certExpired ? cert.id : null;
+    const exemptRefused = cert && certExpired ? { certificateId: cert.id, reason: "certificate_expired", expiresAt: cert.expiresAt.toISOString().slice(0, 10) } : null;
+    if (exemptCertificateId) taxed = { ...taxed, taxMinor: 0n, rows: taxed.rows.map(() => ({ taxable: false, baseMinor: 0n })) };
     const baseWeights = taxed.rows.map((r) => r.baseMinor.toString());
     const shares = taxed.taxMinor > 0n && taxed.rows.some((r) => r.baseMinor > 0n) ? allocateMinor(taxed.taxMinor, baseWeights) : taxed.rows.map(() => 0n);
     for (const [i, l] of invoice.lines.entries()) {
@@ -10319,7 +10332,7 @@ async function postInvoice(db, actor, args) {
     }
     const terms = TERMS_DAYS[invoice.payer?.terms ?? "due_on_receipt"] ?? 0;
     const dueDate = addDays(invoiceDate, terms);
-    const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString() };
+    const taxResult = { rate: taxed.rate, localRateCode: taxed.localRateCode, propertyClass: ctx.propertyClass, contractTaxMode: ctx.contractTaxMode, taxMinor: taxed.taxMinor.toString(), exemptCertificateId, ...exemptRefused ? { exemptRefused } : {} };
     const snapshot = { ref: invoice.ref, lines: invoice.lines.map((l, i) => ({ id: l.id, description: l.description, quantity: l.quantity.toFixed(), uom: l.uom, unitPriceMinor: l.unitPriceMinor.toString(), amountMinor: l.amountMinor.toString(), discountMinor: l.discountMinor.toString(), taxMinor: shares[i].toString() })) };
     const posted = await tx.invoice.updateMany({
       where: { id: row.id, version: row.version, status: "draft" },
@@ -10384,9 +10397,10 @@ async function createMemo(uow, actor, a) {
   const invoice = await lockInvoice(tx, a.invoiceId);
   if (!["posted", "partially_paid", "paid"].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no credit memo.`);
   if (a.amountMinor <= 0n) throw new DomainError(Codes.INVALID_INPUT, "The memo is for more than zero.", { field: "amountMinor" });
-  if (await postedMemoTotal(tx, invoice.id) + a.amountMinor > invoice.totalMinor) throw new DomainError(Codes.GUARD_FAILED, "Credit memos cannot add up to more than the invoice.", { reason: "memo_exceeds_invoice" });
+  const credited = await postedMemoTotal(tx, invoice.id);
+  if (credited + a.amountMinor > invoice.totalMinor) throw new DomainError(Codes.GUARD_FAILED, "Credit memos cannot add up to more than the invoice.", { reason: "memo_exceeds_invoice" });
   const ref = await nextReference(tx, "CRM", uow.now);
-  const needsApproval = a.amountMinor > await memoThreshold(tx) || a.voidInvoice === true && invoice.status !== "posted";
+  const needsApproval = credited + a.amountMinor > await memoThreshold(tx) || a.voidInvoice === true && invoice.status !== "posted";
   const memo = await tx.creditMemo.create({ data: { ref, invoiceId: invoice.id, reason: a.reason, note: a.note, status: needsApproval ? "pending_approval" : "draft", totalMinor: a.amountMinor, appliesTo: a.appliesTo, createdById: actorUserId(actor) }, select: { id: true } });
   auditCreate(uow, actor, "CreditMemo", memo.id, "credit_memo.created", { ref, invoiceId: invoice.id, amountMinor: a.amountMinor.toString(), void: a.voidInvoice });
   if (!needsApproval) return { ...await postMemo(uow, actor, memo.id, a.voidInvoice), ref, status: "applied", approvalRequestId: null };
@@ -10485,6 +10499,7 @@ async function createPayment(uow, actor, a) {
     select: { id: true, ref: true }
   });
   const day3 = await companyToday(uow.tx, a.receivedAt);
+  await arPeriodFor(uow.tx, day3);
   const batch = await batchFor(uow, a.method, day3);
   if (batch.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The ${tenderGroup(a.method).replace("_", "/")} batch for ${day3} is ${batch.status}. Record it on today's date, or reopen nothing: closed batches are final.`, { reason: "batch_closed" });
   await uow.tx.paymentBatch.update({ where: { id: batch.id }, data: { expectedMinor: { increment: a.amountMinor - (a.feeMinor ?? 0n) }, feesMinor: { increment: a.feeMinor ?? 0n } } });
@@ -10626,7 +10641,7 @@ async function requestRefund(db, actor, args) {
     const u = await unappliedOf(tx, args.paymentId);
     if (amount > u.amountMinor - u.refunded) throw new DomainError(Codes.GUARD_FAILED, `At most ${money(u.amountMinor - u.refunded)} is left to refund on this payment.`, { reason: "refund_exceeds_payment" });
     const settings = await tx.companySettings.findFirst({ select: { refundApprovalThresholdMinor: true } });
-    if (amount <= (settings?.refundApprovalThresholdMinor ?? 50000n)) {
+    if (u.refunded + amount <= (settings?.refundApprovalThresholdMinor ?? 50000n)) {
       return { status: "recorded", approvalRequestId: null, ...await writeRefund(uow, actor, { paymentId: args.paymentId, amountMinor: amount, method: args.method, reason, reference, approvalId: null }) };
     }
     const approval = await requestApproval(uow, actor, {
@@ -10700,6 +10715,7 @@ async function createPaymentForFunding(uow, actor, a) {
     select: { id: true }
   });
   const day3 = await companyToday(tx, a.receivedAt);
+  await arPeriodFor(tx, day3);
   const date = asDate(day3);
   let batch = await tx.paymentBatch.findFirst({ where: { businessDate: date, tenderGroup: "financing" }, select: { id: true, status: true } });
   if (!batch) batch = await tx.paymentBatch.create({ data: { ref: await nextReference(tx, "PBT", uow.now), businessDate: date, tenderGroup: "financing", status: "open" }, select: { id: true, status: true } });
