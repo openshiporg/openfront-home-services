@@ -72,6 +72,11 @@ model User {
   from_PaymentAllocation_createdBy        PaymentAllocation[]      @relation("PaymentAllocation_createdBy")
   from_PaymentAttempt_createdBy           PaymentAttempt[]         @relation("PaymentAttempt_createdBy")
   from_PaymentBatch_closedBy              PaymentBatch[]           @relation("PaymentBatch_closedBy")
+  from_EntitlementEntry_createdBy         EntitlementEntry[]       @relation("EntitlementEntry_createdBy")
+  from_Membership_soldBy                  Membership[]             @relation("Membership_soldBy")
+  from_MembershipBillingRun_startedBy     MembershipBillingRun[]   @relation("MembershipBillingRun_startedBy")
+  from_MembershipPlanVersion_createdBy    MembershipPlanVersion[]  @relation("MembershipPlanVersion_createdBy")
+  from_RenewalNotice_preparedBy           RenewalNotice[]          @relation("RenewalNotice_preparedBy")
 
   @@index([roleId])
 }
@@ -1107,21 +1112,22 @@ model AccessSecretReveal {
 }
 
 model ConsentRecord {
-  id              String         @id @default(cuid())
-  contactPoint    ContactPoint?  @relation("ConsentRecord_contactPoint", fields: [contactPointId], references: [id])
-  contactPointId  String?        @map("contactPoint")
-  purpose         String
-  action          String
-  channel         String
-  evidence        Json?
-  wordingVersion  String         @default("")
-  policyVersion   PolicyVersion? @relation("ConsentRecord_policyVersion", fields: [policyVersionId], references: [id])
-  policyVersionId String?        @map("policyVersion")
-  recordedAt      DateTime
-  actorKind       String
-  actorId         String         @default("")
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @default(now()) @updatedAt
+  id                               String         @id @default(cuid())
+  contactPoint                     ContactPoint?  @relation("ConsentRecord_contactPoint", fields: [contactPointId], references: [id])
+  contactPointId                   String?        @map("contactPoint")
+  purpose                          String
+  action                           String
+  channel                          String
+  evidence                         Json?
+  wordingVersion                   String         @default("")
+  policyVersion                    PolicyVersion? @relation("ConsentRecord_policyVersion", fields: [policyVersionId], references: [id])
+  policyVersionId                  String?        @map("policyVersion")
+  recordedAt                       DateTime
+  actorKind                        String
+  actorId                          String         @default("")
+  createdAt                        DateTime       @default(now())
+  updatedAt                        DateTime       @default(now()) @updatedAt
+  from_Membership_autoRenewConsent Membership[]   @relation("Membership_autoRenewConsent")
 
   @@index([contactPointId])
   @@index([policyVersionId])
@@ -1208,6 +1214,8 @@ model Customer {
   from_FinancingApplication_customer FinancingApplication[] @relation("FinancingApplication_customer")
   from_Invoice_customer              Invoice[]              @relation("Invoice_customer")
   from_PaymentAttempt_customer       PaymentAttempt[]       @relation("PaymentAttempt_customer")
+  from_Membership_customer           Membership[]           @relation("Membership_customer")
+  from_ServiceAgreement_customer     ServiceAgreement[]     @relation("ServiceAgreement_customer")
 
   @@index([primaryContactId])
   @@index([taxExemptCertificateId])
@@ -1295,6 +1303,8 @@ model ServiceLocation {
   from_Opportunity_location       Opportunity[]       @relation("Opportunity_location")
   from_Estimate_location          Estimate[]          @relation("Estimate_location")
   from_Invoice_location           Invoice[]           @relation("Invoice_location")
+  from_Membership_location        Membership[]        @relation("Membership_location")
+  from_ServiceAgreement_location  ServiceAgreement[]  @relation("ServiceAgreement_location")
 
   @@index([customerId])
   @@index([serviceAreaId])
@@ -1788,6 +1798,8 @@ model Job {
   from_FinancingApplication_job    FinancingApplication[]    @relation("FinancingApplication_job")
   from_Invoice_job                 Invoice[]                 @relation("Invoice_job")
   from_ThirdPartyAuthorization_job ThirdPartyAuthorization[] @relation("ThirdPartyAuthorization_job")
+  from_EntitlementEntry_job        EntitlementEntry[]        @relation("EntitlementEntry_job")
+  from_RecurringServiceEvent_job   RecurringServiceEvent[]   @relation("RecurringServiceEvent_job")
 
   @@index([customerId])
   @@index([locationId])
@@ -2304,32 +2316,33 @@ model MemberPricingRule {
 }
 
 model Payment {
-  id                             String              @id @default(cuid())
-  ref                            String              @unique @default("")
-  job                            Job?                @relation("Payment_job", fields: [jobId], references: [id])
-  jobId                          String?             @map("job")
-  customer                       Customer?           @relation("Payment_customer", fields: [customerId], references: [id])
-  customerId                     String?             @map("customer")
-  authorization                  Authorization?      @relation("Payment_authorization", fields: [authorizationId], references: [id])
-  authorizationId                String?             @map("authorization")
-  kind                           String              @default("deposit")
-  method                         String              @default("card")
-  amountMinor                    BigInt
-  feeMinor                       BigInt              @default(0)
-  payer                          PayerProfile?       @relation("Payment_payer", fields: [payerId], references: [id])
-  payerId                        String?             @map("payer")
-  checkNumber                    String              @default("")
-  reference                      String              @default("")
-  receivedAt                     DateTime
-  recordedBy                     User?               @relation("Payment_recordedBy", fields: [recordedById], references: [id])
-  recordedById                   String?             @map("recordedBy")
-  refunds                        Refund[]            @relation("Refund_payment")
-  createdAt                      DateTime            @default(now())
-  updatedAt                      DateTime            @default(now()) @updatedAt
-  from_Dispute_payment           Dispute[]           @relation("Dispute_payment")
-  from_FinancingFunding_payment  FinancingFunding[]  @relation("FinancingFunding_payment")
-  from_PaymentAllocation_payment PaymentAllocation[] @relation("PaymentAllocation_payment")
-  from_PaymentAttempt_payment    PaymentAttempt[]    @relation("PaymentAttempt_payment")
+  id                                    String                     @id @default(cuid())
+  ref                                   String                     @unique @default("")
+  job                                   Job?                       @relation("Payment_job", fields: [jobId], references: [id])
+  jobId                                 String?                    @map("job")
+  customer                              Customer?                  @relation("Payment_customer", fields: [customerId], references: [id])
+  customerId                            String?                    @map("customer")
+  authorization                         Authorization?             @relation("Payment_authorization", fields: [authorizationId], references: [id])
+  authorizationId                       String?                    @map("authorization")
+  kind                                  String                     @default("deposit")
+  method                                String                     @default("card")
+  amountMinor                           BigInt
+  feeMinor                              BigInt                     @default(0)
+  payer                                 PayerProfile?              @relation("Payment_payer", fields: [payerId], references: [id])
+  payerId                               String?                    @map("payer")
+  checkNumber                           String                     @default("")
+  reference                             String                     @default("")
+  receivedAt                            DateTime
+  recordedBy                            User?                      @relation("Payment_recordedBy", fields: [recordedById], references: [id])
+  recordedById                          String?                    @map("recordedBy")
+  refunds                               Refund[]                   @relation("Refund_payment")
+  createdAt                             DateTime                   @default(now())
+  updatedAt                             DateTime                   @default(now()) @updatedAt
+  from_Dispute_payment                  Dispute[]                  @relation("Dispute_payment")
+  from_FinancingFunding_payment         FinancingFunding[]         @relation("FinancingFunding_payment")
+  from_PaymentAllocation_payment        PaymentAllocation[]        @relation("PaymentAllocation_payment")
+  from_PaymentAttempt_payment           PaymentAttempt[]           @relation("PaymentAttempt_payment")
+  from_MembershipBillingAttempt_payment MembershipBillingAttempt[] @relation("MembershipBillingAttempt_payment")
 
   @@index([jobId])
   @@index([customerId])
@@ -2705,51 +2718,52 @@ model FinancingProgram {
 }
 
 model Invoice {
-  id                                String                   @id @default(cuid())
-  ref                               String                   @unique @default("")
-  publicCode                        String                   @unique @default("")
-  job                               Job?                     @relation("Invoice_job", fields: [jobId], references: [id])
-  jobId                             String?                  @map("job")
-  customer                          Customer?                @relation("Invoice_customer", fields: [customerId], references: [id])
-  customerId                        String?                  @map("customer")
-  payer                             PayerProfile?            @relation("Invoice_payer", fields: [payerId], references: [id])
-  payerId                           String?                  @map("payer")
-  payerKind                         String                   @default("customer")
-  location                          ServiceLocation?         @relation("Invoice_location", fields: [locationId], references: [id])
-  locationId                        String?                  @map("location")
-  propertyClass                     String                   @default("residential")
-  contractTaxMode                   String                   @default("lump_sum")
-  taxResult                         Json?
-  status                            String                   @default("draft")
-  invoiceDate                       DateTime?                @postgresql.Date
-  dueDate                           DateTime?                @postgresql.Date
-  arPeriod                          ArPeriod?                @relation("Invoice_arPeriod", fields: [arPeriodId], references: [id])
-  arPeriodId                        String?                  @map("arPeriod")
-  subtotalMinor                     BigInt                   @default(0)
-  discountMinor                     BigInt                   @default(0)
-  taxMinor                          BigInt                   @default(0)
-  totalMinor                        BigInt                   @default(0)
-  balanceMinor                      BigInt                   @default(0)
-  poNumber                          String                   @default("")
-  authorization                     ThirdPartyAuthorization? @relation("Invoice_authorization", fields: [authorizationId], references: [id])
-  authorizationId                   String?                  @map("authorization")
-  progressReason                    String                   @default("")
-  collectionsStatus                 String                   @default("current")
-  snapshot                          Json?
-  pdf                               Document?                @relation("Invoice_pdf", fields: [pdfId], references: [id])
-  pdfId                             String?                  @map("pdf")
-  lines                             InvoiceLine[]            @relation("InvoiceLine_invoice")
-  allocations                       PaymentAllocation[]      @relation("PaymentAllocation_invoice")
-  arEntries                         ArEntry[]                @relation("ArEntry_invoice")
-  creditMemos                       CreditMemo[]             @relation("CreditMemo_invoice")
-  postedAt                          DateTime?
-  postedBy                          User?                    @relation("Invoice_postedBy", fields: [postedById], references: [id])
-  postedById                        String?                  @map("postedBy")
-  version                           Int                      @default(0)
-  createdAt                         DateTime                 @default(now())
-  updatedAt                         DateTime                 @default(now()) @updatedAt
-  from_FinancingApplication_invoice FinancingApplication[]   @relation("FinancingApplication_invoice")
-  from_PaymentAttempt_invoice       PaymentAttempt[]         @relation("PaymentAttempt_invoice")
+  id                                    String                     @id @default(cuid())
+  ref                                   String                     @unique @default("")
+  publicCode                            String                     @unique @default("")
+  job                                   Job?                       @relation("Invoice_job", fields: [jobId], references: [id])
+  jobId                                 String?                    @map("job")
+  customer                              Customer?                  @relation("Invoice_customer", fields: [customerId], references: [id])
+  customerId                            String?                    @map("customer")
+  payer                                 PayerProfile?              @relation("Invoice_payer", fields: [payerId], references: [id])
+  payerId                               String?                    @map("payer")
+  payerKind                             String                     @default("customer")
+  location                              ServiceLocation?           @relation("Invoice_location", fields: [locationId], references: [id])
+  locationId                            String?                    @map("location")
+  propertyClass                         String                     @default("residential")
+  contractTaxMode                       String                     @default("lump_sum")
+  taxResult                             Json?
+  status                                String                     @default("draft")
+  invoiceDate                           DateTime?                  @postgresql.Date
+  dueDate                               DateTime?                  @postgresql.Date
+  arPeriod                              ArPeriod?                  @relation("Invoice_arPeriod", fields: [arPeriodId], references: [id])
+  arPeriodId                            String?                    @map("arPeriod")
+  subtotalMinor                         BigInt                     @default(0)
+  discountMinor                         BigInt                     @default(0)
+  taxMinor                              BigInt                     @default(0)
+  totalMinor                            BigInt                     @default(0)
+  balanceMinor                          BigInt                     @default(0)
+  poNumber                              String                     @default("")
+  authorization                         ThirdPartyAuthorization?   @relation("Invoice_authorization", fields: [authorizationId], references: [id])
+  authorizationId                       String?                    @map("authorization")
+  progressReason                        String                     @default("")
+  collectionsStatus                     String                     @default("current")
+  snapshot                              Json?
+  pdf                                   Document?                  @relation("Invoice_pdf", fields: [pdfId], references: [id])
+  pdfId                                 String?                    @map("pdf")
+  lines                                 InvoiceLine[]              @relation("InvoiceLine_invoice")
+  allocations                           PaymentAllocation[]        @relation("PaymentAllocation_invoice")
+  arEntries                             ArEntry[]                  @relation("ArEntry_invoice")
+  creditMemos                           CreditMemo[]               @relation("CreditMemo_invoice")
+  postedAt                              DateTime?
+  postedBy                              User?                      @relation("Invoice_postedBy", fields: [postedById], references: [id])
+  postedById                            String?                    @map("postedBy")
+  version                               Int                        @default(0)
+  createdAt                             DateTime                   @default(now())
+  updatedAt                             DateTime                   @default(now()) @updatedAt
+  from_FinancingApplication_invoice     FinancingApplication[]     @relation("FinancingApplication_invoice")
+  from_PaymentAttempt_invoice           PaymentAttempt[]           @relation("PaymentAttempt_invoice")
+  from_MembershipBillingAttempt_invoice MembershipBillingAttempt[] @relation("MembershipBillingAttempt_invoice")
 
   @@index([jobId])
   @@index([customerId])
@@ -2806,6 +2820,7 @@ model PayerProfile {
   from_ArEntry_payer                 ArEntry[]                 @relation("ArEntry_payer")
   from_Invoice_payer                 Invoice[]                 @relation("Invoice_payer")
   from_ThirdPartyAuthorization_payer ThirdPartyAuthorization[] @relation("ThirdPartyAuthorization_payer")
+  from_ServiceAgreement_payer        ServiceAgreement[]        @relation("ServiceAgreement_payer")
 }
 
 model PaymentAllocation {
@@ -2903,6 +2918,295 @@ model ThirdPartyAuthorization {
   @@index([payerId])
   @@index([revisionOfId])
   @@index([evidenceId])
+}
+
+model EntitlementEntry {
+  id          String            @id @default(cuid())
+  key         String            @unique @default("")
+  grant       EntitlementGrant? @relation("EntitlementEntry_grant", fields: [grantId], references: [id])
+  grantId     String?           @map("grant")
+  kind        String            @default("debit")
+  quantity    Int
+  job         Job?              @relation("EntitlementEntry_job", fields: [jobId], references: [id])
+  jobId       String?           @map("job")
+  reason      String            @default("")
+  occurredAt  DateTime
+  createdBy   User?             @relation("EntitlementEntry_createdBy", fields: [createdById], references: [id])
+  createdById String?           @map("createdBy")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @default(now()) @updatedAt
+
+  @@index([grantId])
+  @@index([jobId])
+  @@index([createdById])
+}
+
+model EntitlementGrant {
+  id                               String                  @id @default(cuid())
+  grantKey                         String                  @unique @default("")
+  membership                       Membership?             @relation("EntitlementGrant_membership", fields: [membershipId], references: [id])
+  membershipId                     String?                 @map("membership")
+  term                             MembershipTerm?         @relation("EntitlementGrant_term", fields: [termId], references: [id])
+  termId                           String?                 @map("term")
+  code                             String                  @default("")
+  name                             String                  @default("")
+  quantity                         Int
+  windowStart                      DateTime?               @postgresql.Date
+  windowEnd                        DateTime?               @postgresql.Date
+  rolloverPolicy                   String                  @default("none")
+  entries                          EntitlementEntry[]      @relation("EntitlementEntry_grant")
+  createdAt                        DateTime                @default(now())
+  updatedAt                        DateTime                @default(now()) @updatedAt
+  from_RecurringServiceEvent_grant RecurringServiceEvent[] @relation("RecurringServiceEvent_grant")
+
+  @@index([membershipId])
+  @@index([termId])
+}
+
+model Membership {
+  id                                       String                     @id @default(cuid())
+  ref                                      String                     @unique @default("")
+  publicCode                               String                     @unique @default("")
+  customer                                 Customer?                  @relation("Membership_customer", fields: [customerId], references: [id])
+  customerId                               String?                    @map("customer")
+  location                                 ServiceLocation?           @relation("Membership_location", fields: [locationId], references: [id])
+  locationId                               String?                    @map("location")
+  plan                                     MembershipPlan?            @relation("Membership_plan", fields: [planId], references: [id])
+  planId                                   String?                    @map("plan")
+  planVersion                              MembershipPlanVersion?     @relation("Membership_planVersion", fields: [planVersionId], references: [id])
+  planVersionId                            String?                    @map("planVersion")
+  status                                   String                     @default("pending_payment")
+  startsOn                                 DateTime?                  @postgresql.Date
+  terms                                    MembershipTerm[]           @relation("MembershipTerm_membership")
+  paymentMethodRef                         String                     @default("")
+  paymentMethodLabel                       String                     @default("")
+  autoRenew                                Boolean                    @default(false)
+  autoRenewConsent                         ConsentRecord?             @relation("Membership_autoRenewConsent", fields: [autoRenewConsentId], references: [id])
+  autoRenewConsentId                       String?                    @map("autoRenewConsent")
+  signupChannel                            String                     @default("office")
+  soldBy                                   User?                      @relation("Membership_soldBy", fields: [soldById], references: [id])
+  soldById                                 String?                    @map("soldBy")
+  transferredTo                            Membership?                @relation("Membership_transferredTo", fields: [transferredToId], references: [id])
+  transferredToId                          String?                    @map("transferredTo")
+  cancelledAt                              DateTime?
+  cancelReason                             String                     @default("")
+  cancelEffectiveOn                        DateTime?                  @postgresql.Date
+  refundOwedMinor                          BigInt                     @default(0)
+  version                                  Int                        @default(0)
+  createdAt                                DateTime                   @default(now())
+  updatedAt                                DateTime                   @default(now()) @updatedAt
+  from_EntitlementGrant_membership         EntitlementGrant[]         @relation("EntitlementGrant_membership")
+  from_Membership_transferredTo            Membership[]               @relation("Membership_transferredTo")
+  from_MembershipBillingAttempt_membership MembershipBillingAttempt[] @relation("MembershipBillingAttempt_membership")
+  from_RecurringServiceEvent_membership    RecurringServiceEvent[]    @relation("RecurringServiceEvent_membership")
+  from_RenewalNotice_membership            RenewalNotice[]            @relation("RenewalNotice_membership")
+
+  @@index([customerId])
+  @@index([locationId])
+  @@index([planId])
+  @@index([planVersionId])
+  @@index([autoRenewConsentId])
+  @@index([soldById])
+  @@index([transferredToId])
+}
+
+model MembershipBillingAttempt {
+  id           String                @id @default(cuid())
+  attemptKey   String                @unique @default("")
+  membership   Membership?           @relation("MembershipBillingAttempt_membership", fields: [membershipId], references: [id])
+  membershipId String?               @map("membership")
+  term         MembershipTerm?       @relation("MembershipBillingAttempt_term", fields: [termId], references: [id])
+  termId       String?               @map("term")
+  termNumber   Int
+  slot         Int
+  dueOn        DateTime?             @postgresql.Date
+  amountMinor  BigInt                @default(0)
+  status       String                @default("queued")
+  generation   Int                   @default(1)
+  providerKey  String                @default("")
+  providerRef  String                @default("")
+  failureNote  String                @default("")
+  run          MembershipBillingRun? @relation("MembershipBillingAttempt_run", fields: [runId], references: [id])
+  runId        String?               @map("run")
+  invoice      Invoice?              @relation("MembershipBillingAttempt_invoice", fields: [invoiceId], references: [id])
+  invoiceId    String?               @map("invoice")
+  payment      Payment?              @relation("MembershipBillingAttempt_payment", fields: [paymentId], references: [id])
+  paymentId    String?               @map("payment")
+  version      Int                   @default(0)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @default(now()) @updatedAt
+
+  @@index([membershipId])
+  @@index([termId])
+  @@index([runId])
+  @@index([invoiceId])
+  @@index([paymentId])
+}
+
+model MembershipBillingRun {
+  id                                String                     @id @default(cuid())
+  ref                               String                     @unique @default("")
+  period                            String                     @default("")
+  idempotencyKey                    String                     @unique @default("")
+  status                            String                     @default("running")
+  queuedCount                       Int                        @default(0)
+  chargedCount                      Int                        @default(0)
+  failedCount                       Int                        @default(0)
+  unknownCount                      Int                        @default(0)
+  remainingCount                    Int                        @default(0)
+  chargedMinor                      BigInt                     @default(0)
+  startedBy                         User?                      @relation("MembershipBillingRun_startedBy", fields: [startedById], references: [id])
+  startedById                       String?                    @map("startedBy")
+  startedAt                         DateTime?
+  completedAt                       DateTime?
+  createdAt                         DateTime                   @default(now())
+  updatedAt                         DateTime                   @default(now()) @updatedAt
+  from_MembershipBillingAttempt_run MembershipBillingAttempt[] @relation("MembershipBillingAttempt_run")
+
+  @@index([startedById])
+}
+
+model MembershipPlan {
+  id                   String                  @id @default(cuid())
+  name                 String                  @default("")
+  code                 String                  @unique @default("")
+  description          String                  @default("")
+  status               String                  @default("active")
+  versions             MembershipPlanVersion[] @relation("MembershipPlanVersion_plan")
+  version              Int                     @default(0)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @default(now()) @updatedAt
+  from_Membership_plan Membership[]            @relation("Membership_plan")
+}
+
+model MembershipPlanVersion {
+  id                              String           @id @default(cuid())
+  plan                            MembershipPlan?  @relation("MembershipPlanVersion_plan", fields: [planId], references: [id])
+  planId                          String?          @map("plan")
+  versionNumber                   Int
+  label                           String           @default("")
+  status                          String           @default("draft")
+  priceMinor                      BigInt           @default(0)
+  billingFrequency                String           @default("annual")
+  termMonths                      Int              @default(12)
+  autoRenew                       Boolean          @default(false)
+  renewalNoticeDays               Int              @default(30)
+  entitlements                    Json?
+  benefits                        Json?
+  cancellationRefundMethod        String           @default("none")
+  cancellationRefundDays          Int              @default(0)
+  autoRenewalPolicyVersion        String           @default("")
+  consentWordingVersion           String           @default("")
+  consentWording                  String           @default("")
+  activatedAt                     DateTime?
+  createdBy                       User?            @relation("MembershipPlanVersion_createdBy", fields: [createdById], references: [id])
+  createdById                     String?          @map("createdBy")
+  createdAt                       DateTime         @default(now())
+  updatedAt                       DateTime         @default(now()) @updatedAt
+  from_Membership_planVersion     Membership[]     @relation("Membership_planVersion")
+  from_MembershipTerm_planVersion MembershipTerm[] @relation("MembershipTerm_planVersion")
+
+  @@index([planId])
+  @@index([createdById])
+}
+
+model MembershipTerm {
+  id                                 String                     @id @default(cuid())
+  termKey                            String                     @unique @default("")
+  membership                         Membership?                @relation("MembershipTerm_membership", fields: [membershipId], references: [id])
+  membershipId                       String?                    @map("membership")
+  termNumber                         Int
+  planVersion                        MembershipPlanVersion?     @relation("MembershipTerm_planVersion", fields: [planVersionId], references: [id])
+  planVersionId                      String?                    @map("planVersion")
+  startsOn                           DateTime?                  @postgresql.Date
+  endsOn                             DateTime?                  @postgresql.Date
+  billingFrequency                   String                     @default("annual")
+  priceMinor                         BigInt                     @default(0)
+  slots                              Int                        @default(1)
+  status                             String                     @default("active")
+  grants                             EntitlementGrant[]         @relation("EntitlementGrant_term")
+  createdAt                          DateTime                   @default(now())
+  updatedAt                          DateTime                   @default(now()) @updatedAt
+  from_MembershipBillingAttempt_term MembershipBillingAttempt[] @relation("MembershipBillingAttempt_term")
+  from_RenewalNotice_term            RenewalNotice[]            @relation("RenewalNotice_term")
+
+  @@index([membershipId])
+  @@index([planVersionId])
+}
+
+model RecurringServiceEvent {
+  id           String            @id @default(cuid())
+  eventKey     String            @unique @default("")
+  membership   Membership?       @relation("RecurringServiceEvent_membership", fields: [membershipId], references: [id])
+  membershipId String?           @map("membership")
+  agreement    ServiceAgreement? @relation("RecurringServiceEvent_agreement", fields: [agreementId], references: [id])
+  agreementId  String?           @map("agreement")
+  grant        EntitlementGrant? @relation("RecurringServiceEvent_grant", fields: [grantId], references: [id])
+  grantId      String?           @map("grant")
+  code         String            @default("")
+  name         String            @default("")
+  dueFrom      DateTime?         @postgresql.Date
+  dueBy        DateTime?         @postgresql.Date
+  status       String            @default("open")
+  job          Job?              @relation("RecurringServiceEvent_job", fields: [jobId], references: [id])
+  jobId        String?           @map("job")
+  version      Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @default(now()) @updatedAt
+
+  @@index([membershipId])
+  @@index([agreementId])
+  @@index([grantId])
+  @@index([jobId])
+}
+
+model RenewalNotice {
+  id           String          @id @default(cuid())
+  noticeKey    String          @unique @default("")
+  membership   Membership?     @relation("RenewalNotice_membership", fields: [membershipId], references: [id])
+  membershipId String?         @map("membership")
+  term         MembershipTerm? @relation("RenewalNotice_term", fields: [termId], references: [id])
+  termId       String?         @map("term")
+  kind         String          @default("renewal_coming")
+  dueOn        DateTime?       @postgresql.Date
+  message      String          @default("")
+  status       String          @default("drafted")
+  preparedBy   User?           @relation("RenewalNotice_preparedBy", fields: [preparedById], references: [id])
+  preparedById String?         @map("preparedBy")
+  version      Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @default(now()) @updatedAt
+
+  @@index([membershipId])
+  @@index([termId])
+  @@index([preparedById])
+}
+
+model ServiceAgreement {
+  id          String                  @id @default(cuid())
+  ref         String                  @unique @default("")
+  name        String                  @default("")
+  customer    Customer?               @relation("ServiceAgreement_customer", fields: [customerId], references: [id])
+  customerId  String?                 @map("customer")
+  location    ServiceLocation?        @relation("ServiceAgreement_location", fields: [locationId], references: [id])
+  locationId  String?                 @map("location")
+  payer       PayerProfile?           @relation("ServiceAgreement_payer", fields: [payerId], references: [id])
+  payerId     String?                 @map("payer")
+  status      String                  @default("draft")
+  startsOn    DateTime?               @postgresql.Date
+  endsOn      DateTime?               @postgresql.Date
+  scope       String                  @default("")
+  visitMonths Json?
+  poNumber    String                  @default("")
+  nteMinor    BigInt                  @default(0)
+  events      RecurringServiceEvent[] @relation("RecurringServiceEvent_agreement")
+  version     Int                     @default(0)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @default(now()) @updatedAt
+
+  @@index([customerId])
+  @@index([locationId])
+  @@index([payerId])
 }
 
 enum UserKindType {

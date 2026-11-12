@@ -40,7 +40,7 @@ export const requestTime = () => Date.now()
 /** The signed-in person and their role flags, for deciding which controls (and which internal fields) a screen asks for. */
 export async function viewer(): Promise<{ id: string; name: string; can: (permission: string) => boolean }> {
   try {
-    const d: any = await q(`{ authenticatedItem { ... on User { id name role { canManagePriceBook canApprovePriceBook canApproveDiscounts canPresentEstimates canSellEstimates canManageCustomers canBook canDispatch canManageInvoices canApprovePolicies canPostInvoices canTakePayments canManagePayments canIssueRefunds canOfferFinancing canManageAccounting canCloseAr canApproveWriteOff canApproveCredits canApproveRefunds canReadAudit } } } }`)
+    const d: any = await q(`{ authenticatedItem { ... on User { id name role { canManagePriceBook canApprovePriceBook canApproveDiscounts canPresentEstimates canSellEstimates canManageCustomers canBook canDispatch canManageInvoices canApprovePolicies canPostInvoices canTakePayments canManagePayments canIssueRefunds canOfferFinancing canManageAccounting canCloseAr canApproveWriteOff canApproveCredits canApproveRefunds canReadAudit canManageMemberships canSellMemberships canManageCustomers } } } }`)
     const u = d.authenticatedItem
     const role: Record<string, boolean> = u?.role ?? {}
     return { id: u?.id ?? '', name: u?.name ?? '', can: (permission: string) => role[permission] === true }

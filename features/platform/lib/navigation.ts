@@ -46,7 +46,12 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: 'Payments', href: '/platform/payments', color: 'emerald', description: 'Daily batches by tender, deposits and unknown results.', icon: Wallet, group: 'billing' },
   { title: 'Financing', href: '/platform/financing', color: 'emerald', description: 'Records of lender offers, status and payouts.', icon: Landmark, group: 'billing' },
   { title: 'Accounting', href: '/platform/accounting', color: 'emerald', description: 'AR periods and the accounting export.', icon: Calculator, group: 'billing' },
-  { title: 'Memberships', href: '/platform/memberships', color: 'emerald', description: 'Plans, memberships and visits due.', icon: Repeat, group: 'billing' },
+  { title: 'Memberships', href: '/platform/memberships', color: 'emerald', description: 'Members, what is left on each plan, and standing today.', icon: Repeat, group: 'memberships', requires: 'canSellMemberships' },
+  { title: 'Membership plans', href: '/platform/membership-plans', color: 'emerald', description: 'Plans, prices, what each includes, and publishing.', icon: Tags, group: 'memberships', requires: 'canManageMemberships' },
+  { title: 'Due for service', href: '/platform/due-for-service', color: 'emerald', description: 'Call list of visits members and agreements are owed.', icon: CalendarClock, group: 'memberships', requires: 'canSellMemberships' },
+  { title: 'Renewals', href: '/platform/renewals', color: 'emerald', description: 'Memberships ending soon, with the message to send and a CSV.', icon: ClipboardList, group: 'memberships', requires: 'canSellMemberships' },
+  { title: 'Billing runs', href: '/platform/billing-runs', color: 'emerald', description: 'Charge the month\'s membership payments with one button.', icon: CreditCard, group: 'memberships', requires: 'canManageMemberships' },
+  { title: 'Service agreements', href: '/platform/agreements', color: 'emerald', description: 'Planned maintenance for commercial customers.', icon: FileText, group: 'memberships', requires: 'canManageMemberships' },
 
   { title: 'Equipment', href: '/platform/equipment', color: 'orange', description: 'Installed equipment, warranty registrations and claims.', icon: HardHat, group: 'operations' },
   { title: 'Inventory', href: '/platform/inventory', color: 'orange', description: 'Warehouse and truck stock, replenishment and purchase orders.', icon: Boxes, group: 'operations' },
@@ -73,6 +78,8 @@ export const SHIPPED_ROUTES = new Set<string>([
   '/platform/estimates', '/platform/cancellations', '/platform/pricebook',
   // Phase 3: invoices, payments, financing, accounting
   '/platform/invoices', '/platform/payments', '/platform/financing', '/platform/accounting',
+  // Phase 4: memberships, billing runs, renewals, service agreements
+  '/platform/memberships', '/platform/membership-plans', '/platform/due-for-service', '/platform/renewals', '/platform/billing-runs', '/platform/agreements',
 ])
 
 const shipped = platformNavItems.filter(item => SHIPPED_ROUTES.has(item.href))
@@ -85,6 +92,7 @@ const GROUPS: { id: string; title: string; icon: LucideIcon }[] = [
   { id: 'customers', title: 'Customers', icon: Contact },
   { id: 'sales', title: 'Sales', icon: FileText },
   { id: 'billing', title: 'Billing', icon: CreditCard },
+  { id: 'memberships', title: 'Memberships', icon: Repeat },
   { id: 'operations', title: 'Operations', icon: HardHat },
   { id: 'team', title: 'Team', icon: Users },
   { id: 'admin', title: 'Admin', icon: Settings },

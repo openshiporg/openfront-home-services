@@ -401,4 +401,21 @@ export const POLICY_PACKS: PackSeed[] = [
       ],
     },
   },
+  {
+    id: 'seed_pack_us_auto_renewal',
+    code: 'us-auto-renewal',
+    name: 'Automatic renewal of memberships',
+    kind: 'auto_renewal',
+    jurisdictionCode: 'US',
+    description: 'A membership renews itself only with the customer\'s affirmative, recorded consent; they are told before each renewal and can cancel online.',
+    binding: { id: 'seed_binding_us_auto_renewal', scope: 'company', scopeValue: 'company', priority: 0 },
+    version: {
+      id: 'seed_policy_us_auto_renewal_v1',
+      effectiveFrom: '2026-01-01',
+      rules: { affirmativeConsentRequired: true, noticeLeadDays: 30, annualReminder: true, onlineCancelRequired: true },
+      sourceRefs: [
+        { ref: 'FTC Negative Option Rule, 16 CFR Part 425 and the Restore Online Shoppers\' Confidence Act, 15 U.S.C. 8403', url: 'https://www.ecfr.gov/current/title-16/part-425', verified: false, checkedOn: '2026-11-11', note: 'Conservative company default: consent in writing, a reminder before each renewal, simple online cancellation. State rules (Texas Bus. & Com. Code ch. 17) have not been read against it; a lawyer confirms before launch.' },
+      ],
+    },
+  },
 ]

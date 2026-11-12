@@ -17,6 +17,7 @@ import { PricingError, depositCap, estimateSalesTax, optionHash, optionTotals, t
 import { TX_HOMESTEAD_WARNING, TX_LIEN_DISCLOSURE } from '../domain/noticeTexts'
 import { presentedLabel, renderEstimatePdf, type EstimateSnapshot } from '../../../lib/salesPdf'
 import { activeVersionFor, quoteFromVersion, type QuoteRequestLine } from './pricebook'
+import { activePlanCode } from './memberships'
 import { evaluateSaleRights, type EmergencyWaiverInput } from './cancellation'
 import { addressLine, placeOfLocation, sellerBlock, storeRenderedPdf } from './salesShared'
 
@@ -155,14 +156,17 @@ async function writeOption(uow: UnitOfWork, est: EstimateCtx, version: VersionRo
   if (!TIERS.includes(input.tier)) throw new DomainError(Codes.INVALID_INPUT, `Tier must be one of ${TIERS.join(', ')}.`, { field: 'tier' })
   const name = input.name?.trim()
   if (!name) throw new DomainError(Codes.INVALID_INPUT, 'Name the option.', { field: 'name' })
-  // Member prices need an active membership on the customer; until a membership is on file, list prices apply.
-  if (input.memberPricing) throw new DomainError(Codes.GUARD_FAILED, 'This customer has no active membership, so member prices do not apply.', { reason: 'no_active_membership' })
+  // Member prices need a current membership at this address; without one, list prices apply.
+  if (input.memberPricing) {
+    const plan = est.customerId ? await activePlanCode(tx, est.customerId, est.location?.id ?? null, uow.now) : null
+    if (!plan) throw new DomainError(Codes.GUARD_FAILED, 'This customer has no active membership, so member prices do not apply.', { reason: 'no_active_membership' })
+  }
   const active = await activeVersionFor(tx, est.businessUnitId ?? est.job?.businessUnitId ?? null)
   if (version.priceBookVersion && version.priceBookVersion !== active.versionId) {
     throw new DomainError(Codes.GUARD_FAILED, 'A new price book is active since this estimate was started. Re-price it first.', { reason: 'pricebook_changed' })
   }
   if (!version.priceBookVersion) await tx.estimateVersion.update({ where: { id: version.id }, data: { priceBookVersionId: active.versionId } })
-  const quoted = await quoteFromVersion(tx, active.versionId, input.lines, false)
+  const quoted = await quoteFromVersion(tx, active.versionId, input.lines, !!input.memberPricing)
   let optionId = input.optionId ?? null
   if (optionId) {
     const existing = await tx.estimateOption.findFirst({ where: { id: optionId, estimateVersionId: version.id }, select: { id: true } })

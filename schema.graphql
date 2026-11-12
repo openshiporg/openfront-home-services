@@ -12387,6 +12387,1283 @@ input ThirdPartyAuthorizationCreateInput {
   updatedAt: DateTime
 }
 
+type EntitlementEntry {
+  id: ID!
+  key: String
+  grant: EntitlementGrant
+  kind: String
+  quantity: Int
+  job: Job
+  reason: String
+  occurredAt: DateTime
+  createdBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EntitlementEntryWhereUniqueInput {
+  id: ID
+  key: String
+}
+
+input EntitlementEntryWhereInput {
+  AND: [EntitlementEntryWhereInput!]
+  OR: [EntitlementEntryWhereInput!]
+  NOT: [EntitlementEntryWhereInput!]
+  id: IDFilter
+  key: StringFilter
+  grant: EntitlementGrantWhereInput
+  kind: StringFilter
+  quantity: IntFilter
+  job: JobWhereInput
+  reason: StringFilter
+  occurredAt: DateTimeFilter
+  createdBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EntitlementEntryOrderByInput {
+  id: OrderDirection
+  key: OrderDirection
+  kind: OrderDirection
+  quantity: OrderDirection
+  reason: OrderDirection
+  occurredAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EntitlementEntryUpdateInput {
+  key: String
+  grant: EntitlementGrantRelateToOneForUpdateInput
+  kind: String
+  quantity: Int
+  job: JobRelateToOneForUpdateInput
+  reason: String
+  occurredAt: DateTime
+  createdBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EntitlementGrantRelateToOneForUpdateInput {
+  create: EntitlementGrantCreateInput
+  connect: EntitlementGrantWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EntitlementEntryUpdateArgs {
+  where: EntitlementEntryWhereUniqueInput!
+  data: EntitlementEntryUpdateInput!
+}
+
+input EntitlementEntryCreateInput {
+  key: String
+  grant: EntitlementGrantRelateToOneForCreateInput
+  kind: String
+  quantity: Int
+  job: JobRelateToOneForCreateInput
+  reason: String
+  occurredAt: DateTime
+  createdBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EntitlementGrantRelateToOneForCreateInput {
+  create: EntitlementGrantCreateInput
+  connect: EntitlementGrantWhereUniqueInput
+}
+
+type EntitlementGrant {
+  id: ID!
+  grantKey: String
+  membership: Membership
+  term: MembershipTerm
+  code: String
+  name: String
+  quantity: Int
+  windowStart: CalendarDay
+  windowEnd: CalendarDay
+  rolloverPolicy: String
+  entries(where: EntitlementEntryWhereInput! = {}, orderBy: [EntitlementEntryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EntitlementEntryWhereUniqueInput): [EntitlementEntry!]
+  entriesCount(where: EntitlementEntryWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EntitlementGrantWhereUniqueInput {
+  id: ID
+  grantKey: String
+}
+
+input EntitlementGrantWhereInput {
+  AND: [EntitlementGrantWhereInput!]
+  OR: [EntitlementGrantWhereInput!]
+  NOT: [EntitlementGrantWhereInput!]
+  id: IDFilter
+  grantKey: StringFilter
+  membership: MembershipWhereInput
+  term: MembershipTermWhereInput
+  code: StringFilter
+  name: StringFilter
+  quantity: IntFilter
+  windowStart: CalendarDayNullableFilter
+  windowEnd: CalendarDayNullableFilter
+  rolloverPolicy: StringFilter
+  entries: EntitlementEntryManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EntitlementEntryManyRelationFilter {
+  every: EntitlementEntryWhereInput
+  some: EntitlementEntryWhereInput
+  none: EntitlementEntryWhereInput
+}
+
+input EntitlementGrantOrderByInput {
+  id: OrderDirection
+  grantKey: OrderDirection
+  code: OrderDirection
+  name: OrderDirection
+  quantity: OrderDirection
+  windowStart: OrderDirection
+  windowEnd: OrderDirection
+  rolloverPolicy: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EntitlementGrantUpdateInput {
+  grantKey: String
+  membership: MembershipRelateToOneForUpdateInput
+  term: MembershipTermRelateToOneForUpdateInput
+  code: String
+  name: String
+  quantity: Int
+  windowStart: CalendarDay
+  windowEnd: CalendarDay
+  rolloverPolicy: String
+  entries: EntitlementEntryRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipRelateToOneForUpdateInput {
+  create: MembershipCreateInput
+  connect: MembershipWhereUniqueInput
+  disconnect: Boolean
+}
+
+input MembershipTermRelateToOneForUpdateInput {
+  create: MembershipTermCreateInput
+  connect: MembershipTermWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EntitlementEntryRelateToManyForUpdateInput {
+  disconnect: [EntitlementEntryWhereUniqueInput!]
+  set: [EntitlementEntryWhereUniqueInput!]
+  create: [EntitlementEntryCreateInput!]
+  connect: [EntitlementEntryWhereUniqueInput!]
+}
+
+input EntitlementGrantUpdateArgs {
+  where: EntitlementGrantWhereUniqueInput!
+  data: EntitlementGrantUpdateInput!
+}
+
+input EntitlementGrantCreateInput {
+  grantKey: String
+  membership: MembershipRelateToOneForCreateInput
+  term: MembershipTermRelateToOneForCreateInput
+  code: String
+  name: String
+  quantity: Int
+  windowStart: CalendarDay
+  windowEnd: CalendarDay
+  rolloverPolicy: String
+  entries: EntitlementEntryRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipRelateToOneForCreateInput {
+  create: MembershipCreateInput
+  connect: MembershipWhereUniqueInput
+}
+
+input MembershipTermRelateToOneForCreateInput {
+  create: MembershipTermCreateInput
+  connect: MembershipTermWhereUniqueInput
+}
+
+input EntitlementEntryRelateToManyForCreateInput {
+  create: [EntitlementEntryCreateInput!]
+  connect: [EntitlementEntryWhereUniqueInput!]
+}
+
+type Membership {
+  id: ID!
+  ref: String
+  publicCode: String
+  customer: Customer
+  location: ServiceLocation
+  plan: MembershipPlan
+  planVersion: MembershipPlanVersion
+  status: String
+  startsOn: CalendarDay
+  terms(where: MembershipTermWhereInput! = {}, orderBy: [MembershipTermOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MembershipTermWhereUniqueInput): [MembershipTerm!]
+  termsCount(where: MembershipTermWhereInput! = {}): Int
+  paymentMethodRef: String
+  paymentMethodLabel: String
+  autoRenew: Boolean
+  autoRenewConsent: ConsentRecord
+  signupChannel: String
+  soldBy: User
+  transferredTo: Membership
+  cancelledAt: DateTime
+  cancelReason: String
+  cancelEffectiveOn: CalendarDay
+  refundOwedMinor: BigInt
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipWhereUniqueInput {
+  id: ID
+  ref: String
+  publicCode: String
+}
+
+input MembershipWhereInput {
+  AND: [MembershipWhereInput!]
+  OR: [MembershipWhereInput!]
+  NOT: [MembershipWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  publicCode: StringFilter
+  customer: CustomerWhereInput
+  location: ServiceLocationWhereInput
+  plan: MembershipPlanWhereInput
+  planVersion: MembershipPlanVersionWhereInput
+  status: StringFilter
+  startsOn: CalendarDayNullableFilter
+  terms: MembershipTermManyRelationFilter
+  paymentMethodRef: StringFilter
+  paymentMethodLabel: StringFilter
+  autoRenew: BooleanFilter
+  autoRenewConsent: ConsentRecordWhereInput
+  signupChannel: StringFilter
+  soldBy: UserWhereInput
+  transferredTo: MembershipWhereInput
+  cancelledAt: DateTimeNullableFilter
+  cancelReason: StringFilter
+  cancelEffectiveOn: CalendarDayNullableFilter
+  refundOwedMinor: BigIntFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MembershipTermManyRelationFilter {
+  every: MembershipTermWhereInput
+  some: MembershipTermWhereInput
+  none: MembershipTermWhereInput
+}
+
+input MembershipOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  publicCode: OrderDirection
+  status: OrderDirection
+  startsOn: OrderDirection
+  paymentMethodRef: OrderDirection
+  paymentMethodLabel: OrderDirection
+  autoRenew: OrderDirection
+  signupChannel: OrderDirection
+  cancelledAt: OrderDirection
+  cancelReason: OrderDirection
+  cancelEffectiveOn: OrderDirection
+  refundOwedMinor: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MembershipUpdateInput {
+  ref: String
+  publicCode: String
+  customer: CustomerRelateToOneForUpdateInput
+  location: ServiceLocationRelateToOneForUpdateInput
+  plan: MembershipPlanRelateToOneForUpdateInput
+  planVersion: MembershipPlanVersionRelateToOneForUpdateInput
+  status: String
+  startsOn: CalendarDay
+  terms: MembershipTermRelateToManyForUpdateInput
+  paymentMethodRef: String
+  paymentMethodLabel: String
+  autoRenew: Boolean
+  autoRenewConsent: ConsentRecordRelateToOneForUpdateInput
+  signupChannel: String
+  soldBy: UserRelateToOneForUpdateInput
+  transferredTo: MembershipRelateToOneForUpdateInput
+  cancelledAt: DateTime
+  cancelReason: String
+  cancelEffectiveOn: CalendarDay
+  refundOwedMinor: BigInt
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipPlanRelateToOneForUpdateInput {
+  create: MembershipPlanCreateInput
+  connect: MembershipPlanWhereUniqueInput
+  disconnect: Boolean
+}
+
+input MembershipPlanVersionRelateToOneForUpdateInput {
+  create: MembershipPlanVersionCreateInput
+  connect: MembershipPlanVersionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input MembershipTermRelateToManyForUpdateInput {
+  disconnect: [MembershipTermWhereUniqueInput!]
+  set: [MembershipTermWhereUniqueInput!]
+  create: [MembershipTermCreateInput!]
+  connect: [MembershipTermWhereUniqueInput!]
+}
+
+input ConsentRecordRelateToOneForUpdateInput {
+  create: ConsentRecordCreateInput
+  connect: ConsentRecordWhereUniqueInput
+  disconnect: Boolean
+}
+
+input MembershipUpdateArgs {
+  where: MembershipWhereUniqueInput!
+  data: MembershipUpdateInput!
+}
+
+input MembershipCreateInput {
+  ref: String
+  publicCode: String
+  customer: CustomerRelateToOneForCreateInput
+  location: ServiceLocationRelateToOneForCreateInput
+  plan: MembershipPlanRelateToOneForCreateInput
+  planVersion: MembershipPlanVersionRelateToOneForCreateInput
+  status: String
+  startsOn: CalendarDay
+  terms: MembershipTermRelateToManyForCreateInput
+  paymentMethodRef: String
+  paymentMethodLabel: String
+  autoRenew: Boolean
+  autoRenewConsent: ConsentRecordRelateToOneForCreateInput
+  signupChannel: String
+  soldBy: UserRelateToOneForCreateInput
+  transferredTo: MembershipRelateToOneForCreateInput
+  cancelledAt: DateTime
+  cancelReason: String
+  cancelEffectiveOn: CalendarDay
+  refundOwedMinor: BigInt
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipPlanRelateToOneForCreateInput {
+  create: MembershipPlanCreateInput
+  connect: MembershipPlanWhereUniqueInput
+}
+
+input MembershipPlanVersionRelateToOneForCreateInput {
+  create: MembershipPlanVersionCreateInput
+  connect: MembershipPlanVersionWhereUniqueInput
+}
+
+input MembershipTermRelateToManyForCreateInput {
+  create: [MembershipTermCreateInput!]
+  connect: [MembershipTermWhereUniqueInput!]
+}
+
+input ConsentRecordRelateToOneForCreateInput {
+  create: ConsentRecordCreateInput
+  connect: ConsentRecordWhereUniqueInput
+}
+
+type MembershipBillingAttempt {
+  id: ID!
+  attemptKey: String
+  membership: Membership
+  term: MembershipTerm
+  termNumber: Int
+  slot: Int
+  dueOn: CalendarDay
+  amountMinor: BigInt
+  status: String
+  generation: Int
+  providerKey: String
+  providerRef: String
+  failureNote: String
+  run: MembershipBillingRun
+  invoice: Invoice
+  payment: Payment
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipBillingAttemptWhereUniqueInput {
+  id: ID
+  attemptKey: String
+}
+
+input MembershipBillingAttemptWhereInput {
+  AND: [MembershipBillingAttemptWhereInput!]
+  OR: [MembershipBillingAttemptWhereInput!]
+  NOT: [MembershipBillingAttemptWhereInput!]
+  id: IDFilter
+  attemptKey: StringFilter
+  membership: MembershipWhereInput
+  term: MembershipTermWhereInput
+  termNumber: IntFilter
+  slot: IntFilter
+  dueOn: CalendarDayNullableFilter
+  amountMinor: BigIntFilter
+  status: StringFilter
+  generation: IntFilter
+  providerKey: StringFilter
+  providerRef: StringFilter
+  failureNote: StringFilter
+  run: MembershipBillingRunWhereInput
+  invoice: InvoiceWhereInput
+  payment: PaymentWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MembershipBillingAttemptOrderByInput {
+  id: OrderDirection
+  attemptKey: OrderDirection
+  termNumber: OrderDirection
+  slot: OrderDirection
+  dueOn: OrderDirection
+  amountMinor: OrderDirection
+  status: OrderDirection
+  generation: OrderDirection
+  providerKey: OrderDirection
+  providerRef: OrderDirection
+  failureNote: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MembershipBillingAttemptUpdateInput {
+  attemptKey: String
+  membership: MembershipRelateToOneForUpdateInput
+  term: MembershipTermRelateToOneForUpdateInput
+  termNumber: Int
+  slot: Int
+  dueOn: CalendarDay
+  amountMinor: BigInt
+  status: String
+  generation: Int
+  providerKey: String
+  providerRef: String
+  failureNote: String
+  run: MembershipBillingRunRelateToOneForUpdateInput
+  invoice: InvoiceRelateToOneForUpdateInput
+  payment: PaymentRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipBillingRunRelateToOneForUpdateInput {
+  create: MembershipBillingRunCreateInput
+  connect: MembershipBillingRunWhereUniqueInput
+  disconnect: Boolean
+}
+
+input MembershipBillingAttemptUpdateArgs {
+  where: MembershipBillingAttemptWhereUniqueInput!
+  data: MembershipBillingAttemptUpdateInput!
+}
+
+input MembershipBillingAttemptCreateInput {
+  attemptKey: String
+  membership: MembershipRelateToOneForCreateInput
+  term: MembershipTermRelateToOneForCreateInput
+  termNumber: Int
+  slot: Int
+  dueOn: CalendarDay
+  amountMinor: BigInt
+  status: String
+  generation: Int
+  providerKey: String
+  providerRef: String
+  failureNote: String
+  run: MembershipBillingRunRelateToOneForCreateInput
+  invoice: InvoiceRelateToOneForCreateInput
+  payment: PaymentRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipBillingRunRelateToOneForCreateInput {
+  create: MembershipBillingRunCreateInput
+  connect: MembershipBillingRunWhereUniqueInput
+}
+
+type MembershipBillingRun {
+  id: ID!
+  ref: String
+  period: String
+  idempotencyKey: String
+  status: String
+  queuedCount: Int
+  chargedCount: Int
+  failedCount: Int
+  unknownCount: Int
+  remainingCount: Int
+  chargedMinor: BigInt
+  startedBy: User
+  startedAt: DateTime
+  completedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipBillingRunWhereUniqueInput {
+  id: ID
+  ref: String
+  idempotencyKey: String
+}
+
+input MembershipBillingRunWhereInput {
+  AND: [MembershipBillingRunWhereInput!]
+  OR: [MembershipBillingRunWhereInput!]
+  NOT: [MembershipBillingRunWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  period: StringFilter
+  idempotencyKey: StringFilter
+  status: StringFilter
+  queuedCount: IntFilter
+  chargedCount: IntFilter
+  failedCount: IntFilter
+  unknownCount: IntFilter
+  remainingCount: IntFilter
+  chargedMinor: BigIntFilter
+  startedBy: UserWhereInput
+  startedAt: DateTimeNullableFilter
+  completedAt: DateTimeNullableFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MembershipBillingRunOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  period: OrderDirection
+  idempotencyKey: OrderDirection
+  status: OrderDirection
+  queuedCount: OrderDirection
+  chargedCount: OrderDirection
+  failedCount: OrderDirection
+  unknownCount: OrderDirection
+  remainingCount: OrderDirection
+  chargedMinor: OrderDirection
+  startedAt: OrderDirection
+  completedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MembershipBillingRunUpdateInput {
+  ref: String
+  period: String
+  idempotencyKey: String
+  status: String
+  queuedCount: Int
+  chargedCount: Int
+  failedCount: Int
+  unknownCount: Int
+  remainingCount: Int
+  chargedMinor: BigInt
+  startedBy: UserRelateToOneForUpdateInput
+  startedAt: DateTime
+  completedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipBillingRunUpdateArgs {
+  where: MembershipBillingRunWhereUniqueInput!
+  data: MembershipBillingRunUpdateInput!
+}
+
+input MembershipBillingRunCreateInput {
+  ref: String
+  period: String
+  idempotencyKey: String
+  status: String
+  queuedCount: Int
+  chargedCount: Int
+  failedCount: Int
+  unknownCount: Int
+  remainingCount: Int
+  chargedMinor: BigInt
+  startedBy: UserRelateToOneForCreateInput
+  startedAt: DateTime
+  completedAt: DateTime
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type MembershipPlan {
+  id: ID!
+  name: String
+  code: String
+  description: String
+  status: String
+  versions(where: MembershipPlanVersionWhereInput! = {}, orderBy: [MembershipPlanVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MembershipPlanVersionWhereUniqueInput): [MembershipPlanVersion!]
+  versionsCount(where: MembershipPlanVersionWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipPlanWhereUniqueInput {
+  id: ID
+  code: String
+}
+
+input MembershipPlanWhereInput {
+  AND: [MembershipPlanWhereInput!]
+  OR: [MembershipPlanWhereInput!]
+  NOT: [MembershipPlanWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  code: StringFilter
+  description: StringFilter
+  status: StringFilter
+  versions: MembershipPlanVersionManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MembershipPlanVersionManyRelationFilter {
+  every: MembershipPlanVersionWhereInput
+  some: MembershipPlanVersionWhereInput
+  none: MembershipPlanVersionWhereInput
+}
+
+input MembershipPlanOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  code: OrderDirection
+  description: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MembershipPlanUpdateInput {
+  name: String
+  code: String
+  description: String
+  status: String
+  versions: MembershipPlanVersionRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipPlanVersionRelateToManyForUpdateInput {
+  disconnect: [MembershipPlanVersionWhereUniqueInput!]
+  set: [MembershipPlanVersionWhereUniqueInput!]
+  create: [MembershipPlanVersionCreateInput!]
+  connect: [MembershipPlanVersionWhereUniqueInput!]
+}
+
+input MembershipPlanUpdateArgs {
+  where: MembershipPlanWhereUniqueInput!
+  data: MembershipPlanUpdateInput!
+}
+
+input MembershipPlanCreateInput {
+  name: String
+  code: String
+  description: String
+  status: String
+  versions: MembershipPlanVersionRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipPlanVersionRelateToManyForCreateInput {
+  create: [MembershipPlanVersionCreateInput!]
+  connect: [MembershipPlanVersionWhereUniqueInput!]
+}
+
+type MembershipPlanVersion {
+  id: ID!
+  plan: MembershipPlan
+  versionNumber: Int
+  label: String
+  status: String
+  priceMinor: BigInt
+  billingFrequency: String
+  termMonths: Int
+  autoRenew: Boolean
+  renewalNoticeDays: Int
+  entitlements: JSON
+  benefits: JSON
+  cancellationRefundMethod: String
+  cancellationRefundDays: Int
+  autoRenewalPolicyVersion: String
+  consentWordingVersion: String
+  consentWording: String
+  activatedAt: DateTime
+  createdBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipPlanVersionWhereUniqueInput {
+  id: ID
+}
+
+input MembershipPlanVersionWhereInput {
+  AND: [MembershipPlanVersionWhereInput!]
+  OR: [MembershipPlanVersionWhereInput!]
+  NOT: [MembershipPlanVersionWhereInput!]
+  id: IDFilter
+  plan: MembershipPlanWhereInput
+  versionNumber: IntFilter
+  label: StringFilter
+  status: StringFilter
+  priceMinor: BigIntFilter
+  billingFrequency: StringFilter
+  termMonths: IntFilter
+  autoRenew: BooleanFilter
+  renewalNoticeDays: IntFilter
+  cancellationRefundMethod: StringFilter
+  cancellationRefundDays: IntFilter
+  autoRenewalPolicyVersion: StringFilter
+  consentWordingVersion: StringFilter
+  consentWording: StringFilter
+  activatedAt: DateTimeNullableFilter
+  createdBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input MembershipPlanVersionOrderByInput {
+  id: OrderDirection
+  versionNumber: OrderDirection
+  label: OrderDirection
+  status: OrderDirection
+  priceMinor: OrderDirection
+  billingFrequency: OrderDirection
+  termMonths: OrderDirection
+  autoRenew: OrderDirection
+  renewalNoticeDays: OrderDirection
+  cancellationRefundMethod: OrderDirection
+  cancellationRefundDays: OrderDirection
+  autoRenewalPolicyVersion: OrderDirection
+  consentWordingVersion: OrderDirection
+  consentWording: OrderDirection
+  activatedAt: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MembershipPlanVersionUpdateInput {
+  plan: MembershipPlanRelateToOneForUpdateInput
+  versionNumber: Int
+  label: String
+  status: String
+  priceMinor: BigInt
+  billingFrequency: String
+  termMonths: Int
+  autoRenew: Boolean
+  renewalNoticeDays: Int
+  entitlements: JSON
+  benefits: JSON
+  cancellationRefundMethod: String
+  cancellationRefundDays: Int
+  autoRenewalPolicyVersion: String
+  consentWordingVersion: String
+  consentWording: String
+  activatedAt: DateTime
+  createdBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipPlanVersionUpdateArgs {
+  where: MembershipPlanVersionWhereUniqueInput!
+  data: MembershipPlanVersionUpdateInput!
+}
+
+input MembershipPlanVersionCreateInput {
+  plan: MembershipPlanRelateToOneForCreateInput
+  versionNumber: Int
+  label: String
+  status: String
+  priceMinor: BigInt
+  billingFrequency: String
+  termMonths: Int
+  autoRenew: Boolean
+  renewalNoticeDays: Int
+  entitlements: JSON
+  benefits: JSON
+  cancellationRefundMethod: String
+  cancellationRefundDays: Int
+  autoRenewalPolicyVersion: String
+  consentWordingVersion: String
+  consentWording: String
+  activatedAt: DateTime
+  createdBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type MembershipTerm {
+  id: ID!
+  termKey: String
+  membership: Membership
+  termNumber: Int
+  planVersion: MembershipPlanVersion
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  billingFrequency: String
+  priceMinor: BigInt
+  slots: Int
+  status: String
+  grants(where: EntitlementGrantWhereInput! = {}, orderBy: [EntitlementGrantOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EntitlementGrantWhereUniqueInput): [EntitlementGrant!]
+  grantsCount(where: EntitlementGrantWhereInput! = {}): Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input MembershipTermWhereUniqueInput {
+  id: ID
+  termKey: String
+}
+
+input MembershipTermWhereInput {
+  AND: [MembershipTermWhereInput!]
+  OR: [MembershipTermWhereInput!]
+  NOT: [MembershipTermWhereInput!]
+  id: IDFilter
+  termKey: StringFilter
+  membership: MembershipWhereInput
+  termNumber: IntFilter
+  planVersion: MembershipPlanVersionWhereInput
+  startsOn: CalendarDayNullableFilter
+  endsOn: CalendarDayNullableFilter
+  billingFrequency: StringFilter
+  priceMinor: BigIntFilter
+  slots: IntFilter
+  status: StringFilter
+  grants: EntitlementGrantManyRelationFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EntitlementGrantManyRelationFilter {
+  every: EntitlementGrantWhereInput
+  some: EntitlementGrantWhereInput
+  none: EntitlementGrantWhereInput
+}
+
+input MembershipTermOrderByInput {
+  id: OrderDirection
+  termKey: OrderDirection
+  termNumber: OrderDirection
+  startsOn: OrderDirection
+  endsOn: OrderDirection
+  billingFrequency: OrderDirection
+  priceMinor: OrderDirection
+  slots: OrderDirection
+  status: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input MembershipTermUpdateInput {
+  termKey: String
+  membership: MembershipRelateToOneForUpdateInput
+  termNumber: Int
+  planVersion: MembershipPlanVersionRelateToOneForUpdateInput
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  billingFrequency: String
+  priceMinor: BigInt
+  slots: Int
+  status: String
+  grants: EntitlementGrantRelateToManyForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EntitlementGrantRelateToManyForUpdateInput {
+  disconnect: [EntitlementGrantWhereUniqueInput!]
+  set: [EntitlementGrantWhereUniqueInput!]
+  create: [EntitlementGrantCreateInput!]
+  connect: [EntitlementGrantWhereUniqueInput!]
+}
+
+input MembershipTermUpdateArgs {
+  where: MembershipTermWhereUniqueInput!
+  data: MembershipTermUpdateInput!
+}
+
+input MembershipTermCreateInput {
+  termKey: String
+  membership: MembershipRelateToOneForCreateInput
+  termNumber: Int
+  planVersion: MembershipPlanVersionRelateToOneForCreateInput
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  billingFrequency: String
+  priceMinor: BigInt
+  slots: Int
+  status: String
+  grants: EntitlementGrantRelateToManyForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EntitlementGrantRelateToManyForCreateInput {
+  create: [EntitlementGrantCreateInput!]
+  connect: [EntitlementGrantWhereUniqueInput!]
+}
+
+type RecurringServiceEvent {
+  id: ID!
+  eventKey: String
+  membership: Membership
+  agreement: ServiceAgreement
+  grant: EntitlementGrant
+  code: String
+  name: String
+  dueFrom: CalendarDay
+  dueBy: CalendarDay
+  status: String
+  job: Job
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RecurringServiceEventWhereUniqueInput {
+  id: ID
+  eventKey: String
+}
+
+input RecurringServiceEventWhereInput {
+  AND: [RecurringServiceEventWhereInput!]
+  OR: [RecurringServiceEventWhereInput!]
+  NOT: [RecurringServiceEventWhereInput!]
+  id: IDFilter
+  eventKey: StringFilter
+  membership: MembershipWhereInput
+  agreement: ServiceAgreementWhereInput
+  grant: EntitlementGrantWhereInput
+  code: StringFilter
+  name: StringFilter
+  dueFrom: CalendarDayNullableFilter
+  dueBy: CalendarDayNullableFilter
+  status: StringFilter
+  job: JobWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input RecurringServiceEventOrderByInput {
+  id: OrderDirection
+  eventKey: OrderDirection
+  code: OrderDirection
+  name: OrderDirection
+  dueFrom: OrderDirection
+  dueBy: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input RecurringServiceEventUpdateInput {
+  eventKey: String
+  membership: MembershipRelateToOneForUpdateInput
+  agreement: ServiceAgreementRelateToOneForUpdateInput
+  grant: EntitlementGrantRelateToOneForUpdateInput
+  code: String
+  name: String
+  dueFrom: CalendarDay
+  dueBy: CalendarDay
+  status: String
+  job: JobRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ServiceAgreementRelateToOneForUpdateInput {
+  create: ServiceAgreementCreateInput
+  connect: ServiceAgreementWhereUniqueInput
+  disconnect: Boolean
+}
+
+input RecurringServiceEventUpdateArgs {
+  where: RecurringServiceEventWhereUniqueInput!
+  data: RecurringServiceEventUpdateInput!
+}
+
+input RecurringServiceEventCreateInput {
+  eventKey: String
+  membership: MembershipRelateToOneForCreateInput
+  agreement: ServiceAgreementRelateToOneForCreateInput
+  grant: EntitlementGrantRelateToOneForCreateInput
+  code: String
+  name: String
+  dueFrom: CalendarDay
+  dueBy: CalendarDay
+  status: String
+  job: JobRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ServiceAgreementRelateToOneForCreateInput {
+  create: ServiceAgreementCreateInput
+  connect: ServiceAgreementWhereUniqueInput
+}
+
+type RenewalNotice {
+  id: ID!
+  noticeKey: String
+  membership: Membership
+  term: MembershipTerm
+  kind: String
+  dueOn: CalendarDay
+  message: String
+  status: String
+  preparedBy: User
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RenewalNoticeWhereUniqueInput {
+  id: ID
+  noticeKey: String
+}
+
+input RenewalNoticeWhereInput {
+  AND: [RenewalNoticeWhereInput!]
+  OR: [RenewalNoticeWhereInput!]
+  NOT: [RenewalNoticeWhereInput!]
+  id: IDFilter
+  noticeKey: StringFilter
+  membership: MembershipWhereInput
+  term: MembershipTermWhereInput
+  kind: StringFilter
+  dueOn: CalendarDayNullableFilter
+  message: StringFilter
+  status: StringFilter
+  preparedBy: UserWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input RenewalNoticeOrderByInput {
+  id: OrderDirection
+  noticeKey: OrderDirection
+  kind: OrderDirection
+  dueOn: OrderDirection
+  message: OrderDirection
+  status: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input RenewalNoticeUpdateInput {
+  noticeKey: String
+  membership: MembershipRelateToOneForUpdateInput
+  term: MembershipTermRelateToOneForUpdateInput
+  kind: String
+  dueOn: CalendarDay
+  message: String
+  status: String
+  preparedBy: UserRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RenewalNoticeUpdateArgs {
+  where: RenewalNoticeWhereUniqueInput!
+  data: RenewalNoticeUpdateInput!
+}
+
+input RenewalNoticeCreateInput {
+  noticeKey: String
+  membership: MembershipRelateToOneForCreateInput
+  term: MembershipTermRelateToOneForCreateInput
+  kind: String
+  dueOn: CalendarDay
+  message: String
+  status: String
+  preparedBy: UserRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type ServiceAgreement {
+  id: ID!
+  ref: String
+  name: String
+  customer: Customer
+  location: ServiceLocation
+  payer: PayerProfile
+  status: String
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  scope: String
+  visitMonths: JSON
+  poNumber: String
+  nteMinor: BigInt
+  events(where: RecurringServiceEventWhereInput! = {}, orderBy: [RecurringServiceEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RecurringServiceEventWhereUniqueInput): [RecurringServiceEvent!]
+  eventsCount(where: RecurringServiceEventWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input ServiceAgreementWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input ServiceAgreementWhereInput {
+  AND: [ServiceAgreementWhereInput!]
+  OR: [ServiceAgreementWhereInput!]
+  NOT: [ServiceAgreementWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  name: StringFilter
+  customer: CustomerWhereInput
+  location: ServiceLocationWhereInput
+  payer: PayerProfileWhereInput
+  status: StringFilter
+  startsOn: CalendarDayNullableFilter
+  endsOn: CalendarDayNullableFilter
+  scope: StringFilter
+  poNumber: StringFilter
+  nteMinor: BigIntFilter
+  events: RecurringServiceEventManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input RecurringServiceEventManyRelationFilter {
+  every: RecurringServiceEventWhereInput
+  some: RecurringServiceEventWhereInput
+  none: RecurringServiceEventWhereInput
+}
+
+input ServiceAgreementOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  name: OrderDirection
+  status: OrderDirection
+  startsOn: OrderDirection
+  endsOn: OrderDirection
+  scope: OrderDirection
+  poNumber: OrderDirection
+  nteMinor: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input ServiceAgreementUpdateInput {
+  ref: String
+  name: String
+  customer: CustomerRelateToOneForUpdateInput
+  location: ServiceLocationRelateToOneForUpdateInput
+  payer: PayerProfileRelateToOneForUpdateInput
+  status: String
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  scope: String
+  visitMonths: JSON
+  poNumber: String
+  nteMinor: BigInt
+  events: RecurringServiceEventRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RecurringServiceEventRelateToManyForUpdateInput {
+  disconnect: [RecurringServiceEventWhereUniqueInput!]
+  set: [RecurringServiceEventWhereUniqueInput!]
+  create: [RecurringServiceEventCreateInput!]
+  connect: [RecurringServiceEventWhereUniqueInput!]
+}
+
+input ServiceAgreementUpdateArgs {
+  where: ServiceAgreementWhereUniqueInput!
+  data: ServiceAgreementUpdateInput!
+}
+
+input ServiceAgreementCreateInput {
+  ref: String
+  name: String
+  customer: CustomerRelateToOneForCreateInput
+  location: ServiceLocationRelateToOneForCreateInput
+  payer: PayerProfileRelateToOneForCreateInput
+  status: String
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  scope: String
+  visitMonths: JSON
+  poNumber: String
+  nteMinor: BigInt
+  events: RecurringServiceEventRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input RecurringServiceEventRelateToManyForCreateInput {
+  create: [RecurringServiceEventCreateInput!]
+  connect: [RecurringServiceEventWhereUniqueInput!]
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -13071,6 +14348,72 @@ type Mutation {
   updateThirdPartyAuthorizations(data: [ThirdPartyAuthorizationUpdateArgs!]!): [ThirdPartyAuthorization]
   deleteThirdPartyAuthorization(where: ThirdPartyAuthorizationWhereUniqueInput!): ThirdPartyAuthorization
   deleteThirdPartyAuthorizations(where: [ThirdPartyAuthorizationWhereUniqueInput!]!): [ThirdPartyAuthorization]
+  createEntitlementEntry(data: EntitlementEntryCreateInput!): EntitlementEntry
+  createEntitlementEntries(data: [EntitlementEntryCreateInput!]!): [EntitlementEntry]
+  updateEntitlementEntry(where: EntitlementEntryWhereUniqueInput!, data: EntitlementEntryUpdateInput!): EntitlementEntry
+  updateEntitlementEntries(data: [EntitlementEntryUpdateArgs!]!): [EntitlementEntry]
+  deleteEntitlementEntry(where: EntitlementEntryWhereUniqueInput!): EntitlementEntry
+  deleteEntitlementEntries(where: [EntitlementEntryWhereUniqueInput!]!): [EntitlementEntry]
+  createEntitlementGrant(data: EntitlementGrantCreateInput!): EntitlementGrant
+  createEntitlementGrants(data: [EntitlementGrantCreateInput!]!): [EntitlementGrant]
+  updateEntitlementGrant(where: EntitlementGrantWhereUniqueInput!, data: EntitlementGrantUpdateInput!): EntitlementGrant
+  updateEntitlementGrants(data: [EntitlementGrantUpdateArgs!]!): [EntitlementGrant]
+  deleteEntitlementGrant(where: EntitlementGrantWhereUniqueInput!): EntitlementGrant
+  deleteEntitlementGrants(where: [EntitlementGrantWhereUniqueInput!]!): [EntitlementGrant]
+  createMembership(data: MembershipCreateInput!): Membership
+  createMemberships(data: [MembershipCreateInput!]!): [Membership]
+  updateMembership(where: MembershipWhereUniqueInput!, data: MembershipUpdateInput!): Membership
+  updateMemberships(data: [MembershipUpdateArgs!]!): [Membership]
+  deleteMembership(where: MembershipWhereUniqueInput!): Membership
+  deleteMemberships(where: [MembershipWhereUniqueInput!]!): [Membership]
+  createMembershipBillingAttempt(data: MembershipBillingAttemptCreateInput!): MembershipBillingAttempt
+  createMembershipBillingAttempts(data: [MembershipBillingAttemptCreateInput!]!): [MembershipBillingAttempt]
+  updateMembershipBillingAttempt(where: MembershipBillingAttemptWhereUniqueInput!, data: MembershipBillingAttemptUpdateInput!): MembershipBillingAttempt
+  updateMembershipBillingAttempts(data: [MembershipBillingAttemptUpdateArgs!]!): [MembershipBillingAttempt]
+  deleteMembershipBillingAttempt(where: MembershipBillingAttemptWhereUniqueInput!): MembershipBillingAttempt
+  deleteMembershipBillingAttempts(where: [MembershipBillingAttemptWhereUniqueInput!]!): [MembershipBillingAttempt]
+  createMembershipBillingRun(data: MembershipBillingRunCreateInput!): MembershipBillingRun
+  createMembershipBillingRuns(data: [MembershipBillingRunCreateInput!]!): [MembershipBillingRun]
+  updateMembershipBillingRun(where: MembershipBillingRunWhereUniqueInput!, data: MembershipBillingRunUpdateInput!): MembershipBillingRun
+  updateMembershipBillingRuns(data: [MembershipBillingRunUpdateArgs!]!): [MembershipBillingRun]
+  deleteMembershipBillingRun(where: MembershipBillingRunWhereUniqueInput!): MembershipBillingRun
+  deleteMembershipBillingRuns(where: [MembershipBillingRunWhereUniqueInput!]!): [MembershipBillingRun]
+  createMembershipPlan(data: MembershipPlanCreateInput!): MembershipPlan
+  createMembershipPlans(data: [MembershipPlanCreateInput!]!): [MembershipPlan]
+  updateMembershipPlan(where: MembershipPlanWhereUniqueInput!, data: MembershipPlanUpdateInput!): MembershipPlan
+  updateMembershipPlans(data: [MembershipPlanUpdateArgs!]!): [MembershipPlan]
+  deleteMembershipPlan(where: MembershipPlanWhereUniqueInput!): MembershipPlan
+  deleteMembershipPlans(where: [MembershipPlanWhereUniqueInput!]!): [MembershipPlan]
+  createMembershipPlanVersion(data: MembershipPlanVersionCreateInput!): MembershipPlanVersion
+  createMembershipPlanVersions(data: [MembershipPlanVersionCreateInput!]!): [MembershipPlanVersion]
+  updateMembershipPlanVersion(where: MembershipPlanVersionWhereUniqueInput!, data: MembershipPlanVersionUpdateInput!): MembershipPlanVersion
+  updateMembershipPlanVersions(data: [MembershipPlanVersionUpdateArgs!]!): [MembershipPlanVersion]
+  deleteMembershipPlanVersion(where: MembershipPlanVersionWhereUniqueInput!): MembershipPlanVersion
+  deleteMembershipPlanVersions(where: [MembershipPlanVersionWhereUniqueInput!]!): [MembershipPlanVersion]
+  createMembershipTerm(data: MembershipTermCreateInput!): MembershipTerm
+  createMembershipTerms(data: [MembershipTermCreateInput!]!): [MembershipTerm]
+  updateMembershipTerm(where: MembershipTermWhereUniqueInput!, data: MembershipTermUpdateInput!): MembershipTerm
+  updateMembershipTerms(data: [MembershipTermUpdateArgs!]!): [MembershipTerm]
+  deleteMembershipTerm(where: MembershipTermWhereUniqueInput!): MembershipTerm
+  deleteMembershipTerms(where: [MembershipTermWhereUniqueInput!]!): [MembershipTerm]
+  createRecurringServiceEvent(data: RecurringServiceEventCreateInput!): RecurringServiceEvent
+  createRecurringServiceEvents(data: [RecurringServiceEventCreateInput!]!): [RecurringServiceEvent]
+  updateRecurringServiceEvent(where: RecurringServiceEventWhereUniqueInput!, data: RecurringServiceEventUpdateInput!): RecurringServiceEvent
+  updateRecurringServiceEvents(data: [RecurringServiceEventUpdateArgs!]!): [RecurringServiceEvent]
+  deleteRecurringServiceEvent(where: RecurringServiceEventWhereUniqueInput!): RecurringServiceEvent
+  deleteRecurringServiceEvents(where: [RecurringServiceEventWhereUniqueInput!]!): [RecurringServiceEvent]
+  createRenewalNotice(data: RenewalNoticeCreateInput!): RenewalNotice
+  createRenewalNotices(data: [RenewalNoticeCreateInput!]!): [RenewalNotice]
+  updateRenewalNotice(where: RenewalNoticeWhereUniqueInput!, data: RenewalNoticeUpdateInput!): RenewalNotice
+  updateRenewalNotices(data: [RenewalNoticeUpdateArgs!]!): [RenewalNotice]
+  deleteRenewalNotice(where: RenewalNoticeWhereUniqueInput!): RenewalNotice
+  deleteRenewalNotices(where: [RenewalNoticeWhereUniqueInput!]!): [RenewalNotice]
+  createServiceAgreement(data: ServiceAgreementCreateInput!): ServiceAgreement
+  createServiceAgreements(data: [ServiceAgreementCreateInput!]!): [ServiceAgreement]
+  updateServiceAgreement(where: ServiceAgreementWhereUniqueInput!, data: ServiceAgreementUpdateInput!): ServiceAgreement
+  updateServiceAgreements(data: [ServiceAgreementUpdateArgs!]!): [ServiceAgreement]
+  deleteServiceAgreement(where: ServiceAgreementWhereUniqueInput!): ServiceAgreement
+  deleteServiceAgreements(where: [ServiceAgreementWhereUniqueInput!]!): [ServiceAgreement]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -13170,6 +14513,24 @@ type Mutation {
   requestArPeriodClose(periodId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   reopenArPeriod(periodId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   createExportBatch(from: String!, to: String!, idempotencyKey: String!): JSON
+  openMembershipPlan(name: String!, code: String!, description: String, draft: JSON, idempotencyKey: String!): JSON
+  saveMembershipPlanDraft(planId: ID!, draft: JSON!, idempotencyKey: String!): JSON
+  activateMembershipPlanVersion(versionId: ID!, idempotencyKey: String!): JSON
+  retireMembershipPlan(planId: ID!, reason: String, idempotencyKey: String!): JSON
+  sellMembership(customerId: ID!, locationId: ID!, planId: ID!, startsOn: String, channel: String, paymentMethodRef: String, paymentMethodLabel: String, autoRenew: Boolean, consent: JSON, idempotencyKey: String!): JSON
+  updateMembershipPaymentMethod(membershipId: ID!, paymentMethodRef: String!, paymentMethodLabel: String!, idempotencyKey: String!): JSON
+  renewMembership(membershipId: ID!, idempotencyKey: String!): JSON
+  cancelMembership(membershipId: ID!, reason: String!, idempotencyKey: String!): JSON
+  transferMembership(membershipId: ID!, newCustomerId: ID!, newLocationId: ID, idempotencyKey: String!): JSON
+  bookMembershipVisit(eventId: ID!, jobRef: String!, idempotencyKey: String!): JSON
+  releaseMembershipVisit(eventId: ID!, reason: String!, idempotencyKey: String!): JSON
+  runMembershipBilling(period: String!, idempotencyKey: String!): JSON
+  retryMembershipCharge(attemptId: ID!, idempotencyKey: String!): JSON
+  recordRenewalNotice(membershipId: ID!, status: String!, idempotencyKey: String!): JSON
+  saveServiceAgreement(agreementId: ID, name: String!, customerId: ID!, locationId: ID!, payerId: ID, startsOn: String!, endsOn: String!, scope: String!, visitMonths: JSON!, poNumber: String, nteMinor: String, idempotencyKey: String!): JSON
+  activateServiceAgreement(agreementId: ID!, idempotencyKey: String!): JSON
+  endServiceAgreement(agreementId: ID!, reason: String!, idempotencyKey: String!): JSON
+  setDocumentExpiry(documentId: ID!, expiresOn: String, reason: String!, idempotencyKey: String!): JSON
   bindAgentApp(agentId: ID!, oauthAppId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   unbindAgentApp(agentId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
 }
@@ -13542,6 +14903,39 @@ type Query {
   thirdPartyAuthorization(where: ThirdPartyAuthorizationWhereUniqueInput!): ThirdPartyAuthorization
   thirdPartyAuthorizations(where: ThirdPartyAuthorizationWhereInput! = {}, orderBy: [ThirdPartyAuthorizationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ThirdPartyAuthorizationWhereUniqueInput): [ThirdPartyAuthorization!]
   thirdPartyAuthorizationsCount(where: ThirdPartyAuthorizationWhereInput! = {}): Int
+  entitlementEntry(where: EntitlementEntryWhereUniqueInput!): EntitlementEntry
+  entitlementEntries(where: EntitlementEntryWhereInput! = {}, orderBy: [EntitlementEntryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EntitlementEntryWhereUniqueInput): [EntitlementEntry!]
+  entitlementEntriesCount(where: EntitlementEntryWhereInput! = {}): Int
+  entitlementGrant(where: EntitlementGrantWhereUniqueInput!): EntitlementGrant
+  entitlementGrants(where: EntitlementGrantWhereInput! = {}, orderBy: [EntitlementGrantOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EntitlementGrantWhereUniqueInput): [EntitlementGrant!]
+  entitlementGrantsCount(where: EntitlementGrantWhereInput! = {}): Int
+  membership(where: MembershipWhereUniqueInput!): Membership
+  memberships(where: MembershipWhereInput! = {}, orderBy: [MembershipOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MembershipWhereUniqueInput): [Membership!]
+  membershipsCount(where: MembershipWhereInput! = {}): Int
+  membershipBillingAttempt(where: MembershipBillingAttemptWhereUniqueInput!): MembershipBillingAttempt
+  membershipBillingAttempts(where: MembershipBillingAttemptWhereInput! = {}, orderBy: [MembershipBillingAttemptOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MembershipBillingAttemptWhereUniqueInput): [MembershipBillingAttempt!]
+  membershipBillingAttemptsCount(where: MembershipBillingAttemptWhereInput! = {}): Int
+  membershipBillingRun(where: MembershipBillingRunWhereUniqueInput!): MembershipBillingRun
+  membershipBillingRuns(where: MembershipBillingRunWhereInput! = {}, orderBy: [MembershipBillingRunOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MembershipBillingRunWhereUniqueInput): [MembershipBillingRun!]
+  membershipBillingRunsCount(where: MembershipBillingRunWhereInput! = {}): Int
+  membershipPlan(where: MembershipPlanWhereUniqueInput!): MembershipPlan
+  membershipPlans(where: MembershipPlanWhereInput! = {}, orderBy: [MembershipPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MembershipPlanWhereUniqueInput): [MembershipPlan!]
+  membershipPlansCount(where: MembershipPlanWhereInput! = {}): Int
+  membershipPlanVersion(where: MembershipPlanVersionWhereUniqueInput!): MembershipPlanVersion
+  membershipPlanVersions(where: MembershipPlanVersionWhereInput! = {}, orderBy: [MembershipPlanVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MembershipPlanVersionWhereUniqueInput): [MembershipPlanVersion!]
+  membershipPlanVersionsCount(where: MembershipPlanVersionWhereInput! = {}): Int
+  membershipTerm(where: MembershipTermWhereUniqueInput!): MembershipTerm
+  membershipTerms(where: MembershipTermWhereInput! = {}, orderBy: [MembershipTermOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MembershipTermWhereUniqueInput): [MembershipTerm!]
+  membershipTermsCount(where: MembershipTermWhereInput! = {}): Int
+  recurringServiceEvent(where: RecurringServiceEventWhereUniqueInput!): RecurringServiceEvent
+  recurringServiceEvents(where: RecurringServiceEventWhereInput! = {}, orderBy: [RecurringServiceEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RecurringServiceEventWhereUniqueInput): [RecurringServiceEvent!]
+  recurringServiceEventsCount(where: RecurringServiceEventWhereInput! = {}): Int
+  renewalNotice(where: RenewalNoticeWhereUniqueInput!): RenewalNotice
+  renewalNotices(where: RenewalNoticeWhereInput! = {}, orderBy: [RenewalNoticeOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RenewalNoticeWhereUniqueInput): [RenewalNotice!]
+  renewalNoticesCount(where: RenewalNoticeWhereInput! = {}): Int
+  serviceAgreement(where: ServiceAgreementWhereUniqueInput!): ServiceAgreement
+  serviceAgreements(where: ServiceAgreementWhereInput! = {}, orderBy: [ServiceAgreementOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ServiceAgreementWhereUniqueInput): [ServiceAgreement!]
+  serviceAgreementsCount(where: ServiceAgreementWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   validateUserPasswordResetToken(email: String!, token: String!): ValidateUserPasswordResetTokenResult

@@ -221,9 +221,9 @@ function dec(value) {
     if (!Number.isSafeInteger(value)) throw new Error(`Refusing float ${value}: pass the exact decimal as a string`);
     return new Decimal(value);
   }
-  const text18 = String(value).trim();
-  if (!DECIMAL_TEXT.test(text18)) throw new Error(`Not a decimal number: ${JSON.stringify(text18).slice(0, 40)}`);
-  return new Decimal(text18);
+  const text20 = String(value).trim();
+  if (!DECIMAL_TEXT.test(text20)) throw new Error(`Not a decimal number: ${JSON.stringify(text20).slice(0, 40)}`);
+  return new Decimal(text20);
 }
 function toScale(value, scale, rounding = Decimal.ROUND_HALF_UP) {
   const places = typeof scale === "number" ? scale : Scale[scale];
@@ -283,7 +283,7 @@ var init_canonical = __esm({
     import_node_crypto2 = require("node:crypto");
     init_decimal();
     canonicalJson = (value) => JSON.stringify(canonicalize(value));
-    sha256 = (text18) => (0, import_node_crypto2.createHash)("sha256").update(text18).digest("hex");
+    sha256 = (text20) => (0, import_node_crypto2.createHash)("sha256").update(text20).digest("hex");
     payloadHash = (value) => sha256(canonicalJson(value));
     toJsonValue = (value) => canonicalize(value);
     DEVELOPMENT_SECRET2 = "this secret should only be used in testing";
@@ -513,7 +513,7 @@ module.exports = __toCommonJS(keystone_exports);
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core20 = require("@keystone-6/core");
+var import_core21 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 
 // features/keystone/models/User.ts
@@ -3512,6 +3512,265 @@ var AccountingExportLine = (0, import_core18.list)({
   }
 });
 
+// features/keystone/models/memberships.ts
+var memberships_exports = {};
+__export(memberships_exports, {
+  ATTEMPT_STATUSES: () => ATTEMPT_STATUSES,
+  BILLING_FREQUENCIES: () => BILLING_FREQUENCIES,
+  ENTRY_KINDS: () => ENTRY_KINDS,
+  EntitlementEntry: () => EntitlementEntry,
+  EntitlementGrant: () => EntitlementGrant,
+  MEMBERSHIP_STATUSES: () => MEMBERSHIP_STATUSES,
+  Membership: () => Membership,
+  MembershipBillingAttempt: () => MembershipBillingAttempt,
+  MembershipBillingRun: () => MembershipBillingRun,
+  MembershipPlan: () => MembershipPlan,
+  MembershipPlanVersion: () => MembershipPlanVersion,
+  MembershipTerm: () => MembershipTerm,
+  PLAN_VERSION_STATUSES: () => PLAN_VERSION_STATUSES,
+  RecurringServiceEvent: () => RecurringServiceEvent,
+  RenewalNotice: () => RenewalNotice,
+  SIGNUP_CHANNELS: () => SIGNUP_CHANNELS,
+  ServiceAgreement: () => ServiceAgreement
+});
+var import_core19 = require("@keystone-6/core");
+var import_fields19 = require("@keystone-6/core/fields");
+init_access();
+var PLAN_VERSION_STATUSES = ["draft", "active", "retired"];
+var MEMBERSHIP_STATUSES = ["pending_payment", "active", "past_due", "suspended", "renewal_due", "expired", "cancelled", "transferred"];
+var BILLING_FREQUENCIES = ["annual", "monthly"];
+var ATTEMPT_STATUSES = ["queued", "charging", "succeeded", "failed", "unknown"];
+var ENTRY_KINDS = ["debit", "restore", "expire", "rollover"];
+var SIGNUP_CHANNELS = ["office", "field", "phone", "online"];
+var SELL = ["canSellMemberships", "canManageMemberships"];
+var BILLING = ["canManageMemberships", "canManageInvoices", "canManageAccounting"];
+var customerRows = (path) => ({
+  operation: { query: officeOrTech([...SELL]), create: sys, update: sys, delete: sys },
+  filter: { query: scoped((userId) => path({ jobs: { some: jobFilter(userId, true) } }), [...SELL]) }
+});
+var billingOnly = anyOf(...BILLING);
+var hidden = { access: { read: billingOnly, create: () => false, update: () => false }, isFilterable: billingOnly, isOrderable: billingOnly, ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } } };
+var MembershipPlan = (0, import_core19.list)({
+  access: governed([...SELL, "canManagePriceBook"]),
+  ui: { labelField: "name", listView: { initialColumns: ["name", "code", "status"] } },
+  fields: {
+    name: systemText({ required: true }),
+    code: systemText({ indexed: "unique", required: true }),
+    description: systemText(),
+    status: lifecycle(["active", "retired"]),
+    versions: (0, import_fields19.relationship)({ ref: "MembershipPlanVersion.plan", many: true, ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var MembershipPlanVersion = (0, import_core19.list)({
+  access: governed([...SELL, "canManagePriceBook"]),
+  ui: { labelField: "label", listView: { initialColumns: ["plan", "versionNumber", "status", "priceMinor", "billingFrequency"] } },
+  fields: {
+    plan: (0, import_fields19.relationship)({ ref: "MembershipPlan.versions", ...readOnly }),
+    versionNumber: (0, import_fields19.integer)({ validation: { isRequired: true }, ...readOnly }),
+    label: systemText(),
+    status: lifecycle(PLAN_VERSION_STATUSES),
+    /** Price of one payment: the whole term when billed annually, one month when billed monthly. */
+    priceMinor: minor({ defaultValue: 0n, access: { read: () => true } }),
+    billingFrequency: fixedChoice(BILLING_FREQUENCIES, "annual"),
+    termMonths: (0, import_fields19.integer)({ defaultValue: 12, validation: { isRequired: true }, ...readOnly }),
+    autoRenew: (0, import_fields19.checkbox)({ defaultValue: false, ...readOnly }),
+    renewalNoticeDays: (0, import_fields19.integer)({ defaultValue: 30, validation: { isRequired: true }, ...readOnly }),
+    /** [{ code, name, quantity, seasonStart: 'MM-DD'?, seasonEnd: 'MM-DD'?, rollover: 'none' | 'one_term' }] */
+    entitlements: (0, import_fields19.json)({ ...readOnly }),
+    /** [{ title, text }] the customer is promised besides visits (member prices, no trip fee, priority booking). */
+    benefits: (0, import_fields19.json)({ ...readOnly }),
+    cancellationRefundMethod: fixedChoice(["none", "prorata", "full_within_days"], "none"),
+    cancellationRefundDays: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    autoRenewalPolicyVersion: systemText(),
+    consentWordingVersion: systemText(),
+    consentWording: systemText(),
+    activatedAt: (0, import_fields19.timestamp)({ ...readOnly }),
+    createdBy: (0, import_fields19.relationship)({ ref: "User", ...readOnly }),
+    ...trackingFields
+  }
+});
+var Membership = (0, import_core19.list)({
+  access: customerRows((own) => ({ customer: own })),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "customer", "plan", "status", "startsOn"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    publicCode: systemText({ indexed: "unique", required: true }),
+    customer: (0, import_fields19.relationship)({ ref: "Customer", ...readOnly }),
+    location: (0, import_fields19.relationship)({ ref: "ServiceLocation", ...readOnly }),
+    plan: (0, import_fields19.relationship)({ ref: "MembershipPlan", ...readOnly }),
+    planVersion: (0, import_fields19.relationship)({ ref: "MembershipPlanVersion", ...readOnly }),
+    status: lifecycle(MEMBERSHIP_STATUSES, "pending_payment"),
+    startsOn: (0, import_fields19.calendarDay)({ ...readOnly }),
+    terms: (0, import_fields19.relationship)({ ref: "MembershipTerm.membership", many: true, ...readOnly }),
+    paymentMethodRef: (0, import_fields19.text)({ ...hidden }),
+    paymentMethodLabel: systemText(),
+    autoRenew: (0, import_fields19.checkbox)({ defaultValue: false, ...readOnly }),
+    autoRenewConsent: (0, import_fields19.relationship)({ ref: "ConsentRecord", ...readOnly }),
+    signupChannel: fixedChoice(SIGNUP_CHANNELS, "office"),
+    soldBy: (0, import_fields19.relationship)({ ref: "User", ...readOnly }),
+    transferredTo: (0, import_fields19.relationship)({ ref: "Membership", ...readOnly }),
+    cancelledAt: (0, import_fields19.timestamp)({ ...readOnly }),
+    cancelReason: systemText(),
+    cancelEffectiveOn: (0, import_fields19.calendarDay)({ ...readOnly }),
+    refundOwedMinor: minor({ defaultValue: 0n, access: { read: billingOnly } }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var MembershipTerm = (0, import_core19.list)({
+  access: customerRows((own) => ({ membership: { customer: own } })),
+  ui: { labelField: "termKey", listView: { initialColumns: ["membership", "termNumber", "startsOn", "endsOn", "status"] } },
+  fields: {
+    termKey: systemText({ indexed: "unique", required: true }),
+    membership: (0, import_fields19.relationship)({ ref: "Membership.terms", ...readOnly }),
+    termNumber: (0, import_fields19.integer)({ validation: { isRequired: true }, ...readOnly }),
+    planVersion: (0, import_fields19.relationship)({ ref: "MembershipPlanVersion", ...readOnly }),
+    startsOn: (0, import_fields19.calendarDay)({ ...readOnly }),
+    endsOn: (0, import_fields19.calendarDay)({ ...readOnly }),
+    billingFrequency: fixedChoice(BILLING_FREQUENCIES, "annual"),
+    priceMinor: minor({ defaultValue: 0n, access: { read: () => true } }),
+    slots: (0, import_fields19.integer)({ defaultValue: 1, validation: { isRequired: true }, ...readOnly }),
+    status: lifecycle(["active", "cancelled"]),
+    grants: (0, import_fields19.relationship)({ ref: "EntitlementGrant.term", many: true, ...readOnly }),
+    ...trackingFields
+  }
+});
+var EntitlementGrant = (0, import_core19.list)({
+  access: customerRows((own) => ({ membership: { customer: own } })),
+  ui: { labelField: "grantKey", listView: { initialColumns: ["membership", "name", "quantity", "windowStart", "windowEnd"] } },
+  fields: {
+    grantKey: systemText({ indexed: "unique", required: true }),
+    membership: (0, import_fields19.relationship)({ ref: "Membership", ...readOnly }),
+    term: (0, import_fields19.relationship)({ ref: "MembershipTerm.grants", ...readOnly }),
+    code: systemText({ required: true }),
+    name: systemText({ required: true }),
+    quantity: (0, import_fields19.integer)({ validation: { isRequired: true }, ...readOnly }),
+    windowStart: (0, import_fields19.calendarDay)({ ...readOnly }),
+    windowEnd: (0, import_fields19.calendarDay)({ ...readOnly }),
+    rolloverPolicy: fixedChoice(["none", "one_term"], "none"),
+    entries: (0, import_fields19.relationship)({ ref: "EntitlementEntry.grant", many: true, ...readOnly }),
+    ...trackingFields
+  }
+});
+var EntitlementEntry = (0, import_core19.list)({
+  access: customerRows((own) => ({ grant: { membership: { customer: own } } })),
+  ui: { labelField: "kind", listView: { initialColumns: ["grant", "kind", "quantity", "occurredAt"] } },
+  fields: {
+    key: systemText({ indexed: "unique", required: true }),
+    grant: (0, import_fields19.relationship)({ ref: "EntitlementGrant.entries", ...readOnly }),
+    kind: fixedChoice(ENTRY_KINDS, "debit"),
+    quantity: (0, import_fields19.integer)({ validation: { isRequired: true }, ...readOnly }),
+    job: (0, import_fields19.relationship)({ ref: "Job", ...readOnly }),
+    reason: systemText(),
+    occurredAt: (0, import_fields19.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    createdBy: (0, import_fields19.relationship)({ ref: "User", ...readOnly }),
+    ...trackingFields
+  }
+});
+var RecurringServiceEvent = (0, import_core19.list)({
+  access: customerRows((own) => ({ OR: [{ membership: { customer: own } }, { agreement: { customer: own } }] })),
+  ui: { labelField: "name", listView: { initialColumns: ["name", "membership", "agreement", "dueFrom", "dueBy", "status"] } },
+  fields: {
+    eventKey: systemText({ indexed: "unique", required: true }),
+    membership: (0, import_fields19.relationship)({ ref: "Membership", ...readOnly }),
+    agreement: (0, import_fields19.relationship)({ ref: "ServiceAgreement.events", ...readOnly }),
+    grant: (0, import_fields19.relationship)({ ref: "EntitlementGrant", ...readOnly }),
+    code: systemText(),
+    name: systemText({ required: true }),
+    dueFrom: (0, import_fields19.calendarDay)({ ...readOnly }),
+    dueBy: (0, import_fields19.calendarDay)({ ...readOnly }),
+    status: lifecycle(["open", "booked", "skipped"]),
+    job: (0, import_fields19.relationship)({ ref: "Job", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var MembershipBillingRun = (0, import_core19.list)({
+  access: governed([...BILLING]),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "period", "status", "chargedCount", "failedCount", "unknownCount"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    period: systemText({ required: true }),
+    idempotencyKey: (0, import_fields19.text)({ ...hidden, isIndexed: "unique" }),
+    status: lifecycle(["running", "completed"]),
+    queuedCount: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    chargedCount: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    failedCount: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    unknownCount: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    remainingCount: (0, import_fields19.integer)({ defaultValue: 0, validation: { isRequired: true }, ...readOnly }),
+    chargedMinor: minor({ defaultValue: 0n }),
+    startedBy: (0, import_fields19.relationship)({ ref: "User", ...readOnly }),
+    startedAt: (0, import_fields19.timestamp)({ ...readOnly }),
+    completedAt: (0, import_fields19.timestamp)({ ...readOnly }),
+    ...trackingFields
+  }
+});
+var MembershipBillingAttempt = (0, import_core19.list)({
+  access: governed([...BILLING]),
+  ui: { labelField: "attemptKey", listView: { initialColumns: ["membership", "termNumber", "slot", "dueOn", "amountMinor", "status"] } },
+  fields: {
+    attemptKey: systemText({ indexed: "unique", required: true }),
+    membership: (0, import_fields19.relationship)({ ref: "Membership", ...readOnly }),
+    term: (0, import_fields19.relationship)({ ref: "MembershipTerm", ...readOnly }),
+    termNumber: (0, import_fields19.integer)({ validation: { isRequired: true }, ...readOnly }),
+    slot: (0, import_fields19.integer)({ validation: { isRequired: true }, ...readOnly }),
+    dueOn: (0, import_fields19.calendarDay)({ ...readOnly }),
+    amountMinor: minor({ defaultValue: 0n }),
+    status: lifecycle(ATTEMPT_STATUSES),
+    /** Goes up by one only after the processor confirmed the last try failed; each generation has its own processor key. */
+    generation: (0, import_fields19.integer)({ defaultValue: 1, validation: { isRequired: true }, ...readOnly }),
+    providerKey: (0, import_fields19.text)({ ...hidden }),
+    providerRef: (0, import_fields19.text)({ ...hidden }),
+    failureNote: systemText(),
+    run: (0, import_fields19.relationship)({ ref: "MembershipBillingRun", ...readOnly }),
+    invoice: (0, import_fields19.relationship)({ ref: "Invoice", ...readOnly }),
+    payment: (0, import_fields19.relationship)({ ref: "Payment", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var RenewalNotice = (0, import_core19.list)({
+  access: governed([...SELL]),
+  ui: { labelField: "noticeKey", listView: { initialColumns: ["membership", "kind", "dueOn", "status"] } },
+  fields: {
+    noticeKey: systemText({ indexed: "unique", required: true }),
+    membership: (0, import_fields19.relationship)({ ref: "Membership", ...readOnly }),
+    term: (0, import_fields19.relationship)({ ref: "MembershipTerm", ...readOnly }),
+    kind: fixedChoice(["renewal_coming", "auto_renew_reminder"], "renewal_coming"),
+    dueOn: (0, import_fields19.calendarDay)({ ...readOnly }),
+    message: systemText(),
+    status: lifecycle(["drafted", "contacted", "dismissed"]),
+    preparedBy: (0, import_fields19.relationship)({ ref: "User", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var AGREEMENT_PERMISSIONS = ["canManageMemberships", "canManageInvoices", "canManageAccounting", "canBook", "canDispatch"];
+var ServiceAgreement = (0, import_core19.list)({
+  access: governed([...AGREEMENT_PERMISSIONS]),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "name", "customer", "status", "startsOn", "endsOn"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    name: systemText({ required: true }),
+    customer: (0, import_fields19.relationship)({ ref: "Customer", ...readOnly }),
+    location: (0, import_fields19.relationship)({ ref: "ServiceLocation", ...readOnly }),
+    payer: (0, import_fields19.relationship)({ ref: "PayerProfile", ...readOnly }),
+    status: lifecycle(["draft", "active", "ended"]),
+    startsOn: (0, import_fields19.calendarDay)({ ...readOnly }),
+    endsOn: (0, import_fields19.calendarDay)({ ...readOnly }),
+    scope: systemText(),
+    /** Months of the year (01-12) a planned-maintenance visit is due. */
+    visitMonths: (0, import_fields19.json)({ ...readOnly }),
+    poNumber: (0, import_fields19.text)({ ...hidden }),
+    nteMinor: minor({ defaultValue: 0n, access: { read: billingOnly } }),
+    events: (0, import_fields19.relationship)({ ref: "RecurringServiceEvent.agreement", many: true, ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+
 // features/keystone/models/index.ts
 var listsOf = (module2) => Object.fromEntries(Object.entries(module2).filter(([name, value]) => /^[A-Z]/.test(name) && typeof value === "object" && value !== null && "fields" in value));
 var models = {
@@ -3529,7 +3788,8 @@ var models = {
   ...listsOf(booking_exports),
   ...listsOf(jobs_exports),
   ...listsOf(sales_exports),
-  ...listsOf(billing_exports)
+  ...listsOf(billing_exports),
+  ...listsOf(memberships_exports)
 };
 
 // features/keystone/index.ts
@@ -4620,6 +4880,23 @@ var POLICY_PACKS = [
         { ref: "29 CFR 778.111, 778.117 (piece-rate and commission in the regular rate)", url: "https://www.ecfr.gov/current/title-29/part-778", verified: true, checkedOn: "2026-11-07", note: "v1 flags weeks with commission and overtime for review (regularRateReview)." }
       ]
     }
+  },
+  {
+    id: "seed_pack_us_auto_renewal",
+    code: "us-auto-renewal",
+    name: "Automatic renewal of memberships",
+    kind: "auto_renewal",
+    jurisdictionCode: "US",
+    description: "A membership renews itself only with the customer's affirmative, recorded consent; they are told before each renewal and can cancel online.",
+    binding: { id: "seed_binding_us_auto_renewal", scope: "company", scopeValue: "company", priority: 0 },
+    version: {
+      id: "seed_policy_us_auto_renewal_v1",
+      effectiveFrom: "2026-01-01",
+      rules: { affirmativeConsentRequired: true, noticeLeadDays: 30, annualReminder: true, onlineCancelRequired: true },
+      sourceRefs: [
+        { ref: "FTC Negative Option Rule, 16 CFR Part 425 and the Restore Online Shoppers' Confidence Act, 15 U.S.C. 8403", url: "https://www.ecfr.gov/current/title-16/part-425", verified: false, checkedOn: "2026-11-11", note: "Conservative company default: consent in writing, a reminder before each renewal, simple online cancellation. State rules (Texas Bus. & Com. Code ch. 17) have not been read against it; a lawyer confirms before launch." }
+      ]
+    }
   }
 ];
 
@@ -5196,8 +5473,8 @@ var CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 function publicCode(prefix, groups = 2) {
   const bytes = (0, import_node_crypto6.randomBytes)(groups * 4);
   const chars = Array.from(bytes, (byte) => CROCKFORD[byte % 32]);
-  const parts = Array.from({ length: groups }, (_, i) => chars.slice(i * 4, i * 4 + 4).join(""));
-  return `${prefix}-${parts.join("-")}`;
+  const parts2 = Array.from({ length: groups }, (_, i) => chars.slice(i * 4, i * 4 + 4).join(""));
+  return `${prefix}-${parts2.join("-")}`;
 }
 
 // features/keystone/domain/capacity.ts
@@ -6667,10 +6944,10 @@ var PAGE_H = 792;
 var MARGIN = 54;
 var W = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
 var WB = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
-function ansi(text18) {
+function ansi(text20) {
   const map = { "\u20AC": 128, "\u201A": 130, "\u201E": 132, "\u2026": 133, "\u2018": 145, "\u2019": 146, "\u201C": 147, "\u201D": 148, "\u2022": 149, "\u2013": 150, "\u2014": 151, "\u2122": 153, "\u2212": 45, "\xB7": 183, "\xA7": 167 };
   let out = "";
-  for (const ch of text18) {
+  for (const ch of text20) {
     const c = ch.codePointAt(0);
     const b = map[ch] ?? (c >= 32 && c <= 255 && !(c >= 127 && c < 160) ? c : 63);
     out += String.fromCharCode(b);
@@ -6678,19 +6955,19 @@ function ansi(text18) {
   return out;
 }
 var esc = (s) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-function textWidth(text18, size, font = "regular") {
-  if (font === "mono") return ansi(text18).length * 600 * size / 1e3;
+function textWidth(text20, size, font = "regular") {
+  if (font === "mono") return ansi(text20).length * 600 * size / 1e3;
   const table = font === "bold" ? WB : W;
   let w = 0;
-  for (const ch of ansi(text18)) {
+  for (const ch of ansi(text20)) {
     const c = ch.charCodeAt(0);
     w += c >= 32 && c <= 126 ? table[c - 32] : 556;
   }
   return w * size / 1e3;
 }
-function wrap(text18, width, size, font = "regular") {
+function wrap(text20, width, size, font = "regular") {
   const lines = [];
-  for (const para of text18.split("\n")) {
+  for (const para of text20.split("\n")) {
     let line = "";
     for (const word of para.split(/\s+/).filter(Boolean)) {
       const next = line ? `${line} ${word}` : word;
@@ -6857,8 +7134,8 @@ function renderEstimatePdf(s, subtitle) {
       }
     }
     pdf.y += 2;
-    const parts = [`Subtotal ${usd(o.subtotalMinor)}`, o.discountMinor !== "0" ? `Discount -${usd(o.discountMinor)}` : "", `Estimated tax ${usd(o.estimatedTaxMinor)}`].filter(Boolean);
-    pdf.text(parts.join(" \xB7 "), right, 8.5, "regular", "right", 0.35);
+    const parts2 = [`Subtotal ${usd(o.subtotalMinor)}`, o.discountMinor !== "0" ? `Discount -${usd(o.discountMinor)}` : "", `Estimated tax ${usd(o.estimatedTaxMinor)}`].filter(Boolean);
+    pdf.text(parts2.join(" \xB7 "), right, 8.5, "regular", "right", 0.35);
     pdf.y += 12;
     if (o.monthlyPaymentDisplay) {
       pdf.text(o.monthlyPaymentDisplay, right, 8.5, "regular", "right", 0.35);
@@ -6946,6 +7223,642 @@ function renderNoticePdf(s) {
     }
   }
   return pdf.toBytes({ title: `Notice of cancellation ${s.ref}`, author: s.seller.name });
+}
+
+// features/keystone/services/memberships.ts
+var import_zod2 = require("zod");
+init_actor();
+init_cas();
+init_errors();
+
+// features/keystone/domain/membershipTime.ts
+var pad = (n) => String(n).padStart(2, "0");
+var parts = (date) => {
+  assertDate(date);
+  return { y: Number(date.slice(0, 4)), m: Number(date.slice(5, 7)), d: Number(date.slice(8, 10)) };
+};
+var isLeapYear = (y) => y % 4 === 0 && y % 100 !== 0 || y % 400 === 0;
+var daysInMonth = (y, m) => [31, isLeapYear(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+function addMonthsClamped(date, months) {
+  const { y, m, d } = parts(date);
+  const index = y * 12 + (m - 1) + months;
+  const ny = Math.floor(index / 12);
+  const nm = index % 12 + 1;
+  return `${ny}-${pad(nm)}-${pad(Math.min(d, daysInMonth(ny, nm)))}`;
+}
+var termStart = (anchor, termMonths, n) => addMonthsClamped(anchor, termMonths * (n - 1));
+var termEnd = (anchor, termMonths, n) => addDays(termStart(anchor, termMonths, n + 1), -1);
+var slotDueDay = (anchor, termMonths, n, k) => addMonthsClamped(anchor, termMonths * (n - 1) + k);
+function slotCount(billingFrequency, termMonths) {
+  return billingFrequency === "monthly" ? termMonths : 1;
+}
+var monthDay = (md, year) => {
+  const m = Number(md.slice(0, 2));
+  const d = Number(md.slice(3, 5));
+  if (!/^\d\d-\d\d$/.test(md) || m < 1 || m > 12 || d < 1 || d > 31) throw new Error(`Invalid season day ${md}`);
+  return `${year}-${pad(m)}-${pad(Math.min(d, daysInMonth(year, m)))}`;
+};
+function windowFor(start, end, season) {
+  if (!season) return { startDay: start, endDay: end };
+  const first = parts(start).y - 1;
+  const last = parts(end).y;
+  for (let y = first; y <= last; y += 1) {
+    const s = monthDay(season.startMonthDay, y);
+    const wraps = season.endMonthDay < season.startMonthDay;
+    const e = monthDay(season.endMonthDay, wraps ? y + 1 : y);
+    if (e < start || s > end) continue;
+    return { startDay: s < start ? start : s, endDay: e > end ? end : e };
+  }
+  return { startDay: start, endDay: end };
+}
+var dayAt = (timeZone, at) => localDate({ timeZone }, at);
+function termDaysLeft(start, end, day3) {
+  const ms = (d) => Date.parse(`${d}T00:00:00Z`);
+  const total = Math.round((ms(end) - ms(start)) / 864e5) + 1;
+  const left = day3 > end ? 0 : day3 < start ? total : Math.round((ms(end) - ms(day3)) / 864e5) + 1;
+  return { left, total };
+}
+var prorate = (amountMinor, left, total) => total <= 0 ? 0n : amountMinor * BigInt(left) / BigInt(total);
+
+// features/keystone/services/billingShared.ts
+init_actor();
+init_cas();
+init_errors();
+var TERMS_DAYS = { due_on_receipt: 0, net_15: 15, net_30: 30, net_45: 45, net_60: 60 };
+var asDate = (day3) => /* @__PURE__ */ new Date(`${day3}T00:00:00Z`);
+async function companyToday(tx, at) {
+  const company = await tx.companySettings.findFirst({ select: { homeTimeZone: true } });
+  return localDate({ timeZone: company?.homeTimeZone || "America/Chicago" }, at);
+}
+async function arPeriodFor(tx, day3, { requireOpen = true } = {}) {
+  const month = asDate(`${day3.slice(0, 7)}-01`);
+  const period = await tx.arPeriod.upsert({ where: { month }, create: { month, status: "open" }, update: {}, select: { id: true, status: true } });
+  if (requireOpen && period.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The AR period for ${day3.slice(0, 7)} is ${period.status}. Choose a date in an open period.`, { reason: "ar_period_closed", month: day3.slice(0, 7) });
+  return period;
+}
+async function lockInvoice(tx, id) {
+  return lockRow(tx, "Invoice", id);
+}
+function statusForBalance(total, balance) {
+  return balance === 0n ? "paid" : balance < total ? "partially_paid" : "posted";
+}
+async function postArEntry(uow, input) {
+  const day3 = await companyToday(uow.tx, uow.now);
+  const period = await arPeriodFor(uow.tx, day3);
+  return uow.tx.arEntry.create({
+    data: { invoiceId: input.invoice.id, customerId: input.invoice.customerId, payerId: input.invoice.payerId, kind: input.kind, amountMinor: input.amountMinor, sourceType: input.sourceType, sourceId: input.sourceId, arPeriodId: period.id, postedAt: uow.now, note: input.note ?? "" },
+    select: { id: true }
+  });
+}
+async function settleInvoice(uow, actor, invoice, delta, eventType, extra = {}) {
+  const balance = invoice.balanceMinor + delta;
+  if (balance < 0n) throw new DomainError(Codes.GUARD_FAILED, "That is more than the invoice balance.", { balanceMinor: invoice.balanceMinor.toString() });
+  const to = extra.to ?? statusForBalance(invoice.totalMinor, balance);
+  const version = await casUpdate(uow, { model: "Invoice", id: invoice.id, version: invoice.version, from: ["posted", "partially_paid", "paid"], to, actor, eventType, reason: extra.reason ?? null, data: { balanceMinor: balance }, audit: { balanceMinor: balance.toString() } });
+  return { ...invoice, status: to, version, balanceMinor: balance };
+}
+async function allocatePayment(uow, actor, invoice, paymentId, amount) {
+  if (!["posted", "partially_paid"].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no payment.`, { status: invoice.status });
+  if (amount <= 0n || amount > invoice.balanceMinor) throw new DomainError(Codes.GUARD_FAILED, `Apply between $0.01 and the $${(Number(invoice.balanceMinor) / 100).toFixed(2)} balance.`);
+  const allocation = await uow.tx.paymentAllocation.create({ data: { paymentId, invoiceId: invoice.id, kind: "apply", amountMinor: amount, createdById: actorUserId(actor) }, select: { id: true } });
+  await postArEntry(uow, { invoice, kind: "payment_applied", amountMinor: -amount, sourceType: "Payment", sourceId: paymentId });
+  const next = await settleInvoice(uow, actor, invoice, -amount, "invoice.payment_applied");
+  auditCreate(uow, actor, "PaymentAllocation", allocation.id, "payment.allocated", { paymentId, invoiceId: invoice.id, amountMinor: amount.toString() });
+  return next;
+}
+async function reverseAllocations(uow, actor, paymentId, amount, kind, reason) {
+  const rows = await uow.tx.paymentAllocation.findMany({ where: { paymentId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+  const reversedOf = /* @__PURE__ */ new Map();
+  for (const r of rows) if (r.kind === "reverse" && r.reversesId) reversedOf.set(r.reversesId, (reversedOf.get(r.reversesId) ?? 0n) + r.amountMinor);
+  let left = amount;
+  for (const row of rows) {
+    if (left === 0n) break;
+    if (row.kind !== "apply" || !row.invoiceId) continue;
+    const open = row.amountMinor - (reversedOf.get(row.id) ?? 0n);
+    if (open <= 0n) continue;
+    const take = open < left ? open : left;
+    await uow.tx.paymentAllocation.create({ data: { paymentId, invoiceId: row.invoiceId, kind: "reverse", reversesId: row.id, amountMinor: take, reason, createdById: actorUserId(actor) } });
+    const invoice = await lockInvoice(uow.tx, row.invoiceId);
+    await postArEntry(uow, { invoice, kind, amountMinor: take, sourceType: "Payment", sourceId: paymentId, note: reason });
+    await settleInvoice(uow, actor, invoice, take, `invoice.${kind}`, { reason });
+    left -= take;
+  }
+  return amount - left;
+}
+async function unappliedOf(tx, paymentId) {
+  const [payment, allocations, refunds] = await Promise.all([
+    tx.payment.findUniqueOrThrow({ where: { id: paymentId }, select: { amountMinor: true } }),
+    tx.paymentAllocation.findMany({ where: { paymentId }, select: { kind: true, amountMinor: true } }),
+    tx.refund.aggregate({ where: { paymentId }, _sum: { amountMinor: true } })
+  ]);
+  const applied = allocations.reduce((a, r) => a + (r.kind === "apply" ? r.amountMinor : -r.amountMinor), 0n);
+  const refunded = refunds._sum.amountMinor ?? 0n;
+  return { amountMinor: payment.amountMinor, applied, refunded, unapplied: payment.amountMinor - applied - refunded };
+}
+var money = (minor2) => `$${(Number(minor2) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// features/keystone/services/salesShared.ts
+var import_node_crypto7 = require("node:crypto");
+init_actor();
+init_cas();
+var placeOfLocation = (loc) => {
+  const state2 = loc?.state ? `US-${loc.state}` : "US-TX";
+  return { state: state2, zip: loc?.postalCode || null, city: loc?.city ? `${state2}-${loc.city.toUpperCase().replace(/\s+/g, "-")}` : null };
+};
+var addressLine = (loc) => loc ? [loc.address1, loc.address2, `${loc.city}, ${loc.state} ${loc.postalCode}`].filter(Boolean).join(", ") : "";
+async function sellerBlock(tx, businessUnitId, jurisdiction, trades) {
+  const [company, brand, bu] = await Promise.all([
+    tx.companySettings.findFirst({ select: { legalName: true, displayName: true, homeTimeZone: true, estimateValidityDays: true } }),
+    tx.brand.findFirst({ orderBy: { createdAt: "asc" }, select: { name: true, phone: true, email: true } }),
+    businessUnitId ? tx.businessUnit.findUnique({ where: { id: businessUnitId }, select: { branch: { select: { line1: true, line2: true, city: true, region: true, postalCode: true } } } }) : null
+  ]);
+  if (!company) throw new Error("Company settings are not set up.");
+  const branch = bu?.branch ?? await tx.branch.findFirst({ orderBy: { createdAt: "asc" }, select: { line1: true, line2: true, city: true, region: true, postalCode: true } });
+  const licenses = await tx.contractorLicense.findMany({ where: { displayOnDocuments: true, jurisdictionCode: jurisdiction, trade: { in: [...new Set(trades)] } }, orderBy: { trade: "asc" }, select: { issuer: true, licenseNumber: true } });
+  return {
+    company,
+    block: {
+      name: brand?.name || company.displayName,
+      legalName: company.legalName,
+      phone: brand?.phone || "",
+      email: brand?.email || "",
+      address: branch ? [branch.line1, branch.line2, `${branch.city}, ${branch.region} ${branch.postalCode}`].filter(Boolean).join(", ") : "",
+      licenses: licenses.map((l) => ({ label: l.issuer, number: l.licenseNumber }))
+    }
+  };
+}
+var sha256Bytes = (bytes) => (0, import_node_crypto7.createHash)("sha256").update(bytes).digest("hex");
+async function storeRenderedPdf(uow, actor, spec) {
+  const digest = sha256Bytes(spec.bytes);
+  const doc = await uow.tx.document.create({ data: { title: spec.title, kind: spec.kind, visibility: "customer", subjectType: spec.subjectType, subjectId: spec.subjectId }, select: { id: true } });
+  await uow.tx.documentVersion.create({ data: { documentId: doc.id, versionNumber: 1, storageKey: spec.storageKey, sha256: digest, mimeType: "application/pdf", sizeBytes: spec.bytes.length, createdById: actorUserId(actor) } });
+  auditCreate(uow, actor, "Document", doc.id, "document.rendered", { kind: spec.kind, subjectType: spec.subjectType, subjectId: spec.subjectId, sha256: digest, sizeBytes: spec.bytes.length });
+  return { documentId: doc.id, sha256: digest };
+}
+async function storeRecordedDocument(uow, actor, spec) {
+  const digest = (0, import_node_crypto7.createHash)("sha256").update(spec.content).digest("hex");
+  const doc = await uow.tx.document.create({ data: { title: spec.title, kind: spec.kind, visibility: "internal", subjectType: spec.subjectType, subjectId: spec.subjectId }, select: { id: true } });
+  await uow.tx.documentVersion.create({ data: { documentId: doc.id, versionNumber: 1, storageKey: spec.storageKey, sha256: digest, mimeType: spec.mimeType, sizeBytes: Buffer.byteLength(spec.content), createdById: actorUserId(actor) } });
+  auditCreate(uow, actor, "Document", doc.id, "document.recorded", { kind: spec.kind, subjectType: spec.subjectType, subjectId: spec.subjectId, sha256: digest });
+  return { documentId: doc.id, sha256: digest };
+}
+
+// features/keystone/services/memberships.ts
+var MANAGE = ["canManageMemberships"];
+var SELL2 = ["canSellMemberships", "canManageMemberships"];
+var ymd = (d) => d ? d.toISOString().slice(0, 10) : "";
+var text19 = (v, field, min = 1, max = 400) => {
+  const s = String(v ?? "").trim();
+  if (s.length < min || s.length > max) throw new DomainError(Codes.INVALID_INPUT, min > 0 ? `${field.replace(/([A-Z])/g, " $1").toLowerCase()} is needed.` : "Too long.", { field });
+  return s;
+};
+var monthDay2 = import_zod2.z.string().regex(/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, "MM-DD");
+var entitlementSpec = import_zod2.z.object({
+  code: import_zod2.z.string().regex(/^[a-z0-9_]{2,40}$/),
+  name: import_zod2.z.string().min(2).max(80),
+  quantity: import_zod2.z.number().int().min(1).max(12),
+  /** A visit is something the crew comes out to do; the others are credits (a waived trip fee, a discount call). */
+  visit: import_zod2.z.boolean().default(true),
+  seasonStart: monthDay2.nullish(),
+  seasonEnd: monthDay2.nullish(),
+  rollover: import_zod2.z.enum(["none", "one_term"]).default("none")
+}).refine((e) => e.seasonStart == null === (e.seasonEnd == null), "A season needs both a start and an end.");
+var benefitSpec = import_zod2.z.object({ title: import_zod2.z.string().min(2).max(80), text: import_zod2.z.string().min(2).max(240) });
+function draftData(input) {
+  const data = {};
+  if (input.priceMinor !== void 0) {
+    if (!/^\d{1,9}$/.test(String(input.priceMinor)) || BigInt(input.priceMinor) <= 0n) throw new DomainError(Codes.INVALID_INPUT, "The price is whole cents, more than zero.", { field: "priceMinor" });
+    data.priceMinor = BigInt(input.priceMinor);
+  }
+  if (input.billingFrequency !== void 0) {
+    if (!["annual", "monthly"].includes(input.billingFrequency)) throw new DomainError(Codes.INVALID_INPUT, "Billed annually or monthly.", { field: "billingFrequency" });
+    data.billingFrequency = input.billingFrequency;
+  }
+  if (input.termMonths !== void 0) {
+    if (!Number.isInteger(input.termMonths) || input.termMonths < 1 || input.termMonths > 60) throw new DomainError(Codes.INVALID_INPUT, "A term is 1 to 60 months.", { field: "termMonths" });
+    data.termMonths = input.termMonths;
+  }
+  if (input.autoRenew !== void 0) data.autoRenew = !!input.autoRenew;
+  if (input.renewalNoticeDays !== void 0) {
+    if (!Number.isInteger(input.renewalNoticeDays) || input.renewalNoticeDays < 0 || input.renewalNoticeDays > 120) throw new DomainError(Codes.INVALID_INPUT, "Tell customers 0 to 120 days ahead.", { field: "renewalNoticeDays" });
+    data.renewalNoticeDays = input.renewalNoticeDays;
+  }
+  if (input.entitlements !== void 0) {
+    const parsed2 = import_zod2.z.array(entitlementSpec).max(20).safeParse(input.entitlements);
+    if (!parsed2.success) throw new DomainError(Codes.INVALID_INPUT, `What the plan includes is not valid: ${parsed2.error.issues[0]?.message ?? "check each line"}.`, { field: "entitlements" });
+    if (new Set(parsed2.data.map((e) => e.code)).size !== parsed2.data.length) throw new DomainError(Codes.INVALID_INPUT, "Each included item needs its own code.", { field: "entitlements" });
+    data.entitlements = parsed2.data;
+  }
+  if (input.benefits !== void 0) {
+    const parsed2 = import_zod2.z.array(benefitSpec).max(12).safeParse(input.benefits);
+    if (!parsed2.success) throw new DomainError(Codes.INVALID_INPUT, "Each benefit needs a title and a sentence.", { field: "benefits" });
+    data.benefits = parsed2.data;
+  }
+  if (input.cancellationRefundMethod !== void 0) {
+    if (!["none", "prorata", "full_within_days"].includes(input.cancellationRefundMethod)) throw new DomainError(Codes.INVALID_INPUT, "Choose how a cancellation is refunded.", { field: "cancellationRefundMethod" });
+    data.cancellationRefundMethod = input.cancellationRefundMethod;
+  }
+  if (input.cancellationRefundDays !== void 0) {
+    if (!Number.isInteger(input.cancellationRefundDays) || input.cancellationRefundDays < 0 || input.cancellationRefundDays > 365) throw new DomainError(Codes.INVALID_INPUT, "The full-refund window is 0 to 365 days.", { field: "cancellationRefundDays" });
+    data.cancellationRefundDays = input.cancellationRefundDays;
+  }
+  if (input.consentWording !== void 0) data.consentWording = String(input.consentWording).trim().slice(0, 1200);
+  return data;
+}
+async function createPlan(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.plan_create", MANAGE, args);
+  const name = text19(args.name, "name", 3, 80);
+  const code = String(args.code ?? "").trim().toLowerCase();
+  if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(code)) throw new DomainError(Codes.INVALID_INPUT, "The code is lower-case letters, digits and dashes.", { field: "code" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.plan_create", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    if (await uow.tx.membershipPlan.findUnique({ where: { code }, select: { id: true } })) throw new DomainError(Codes.GUARD_FAILED, "A plan already uses that code.", { field: "code" });
+    const plan = await uow.tx.membershipPlan.create({ data: { name, code, description: args.description?.trim() ?? "" }, select: { id: true } });
+    const version = await uow.tx.membershipPlanVersion.create({ data: { planId: plan.id, versionNumber: 1, label: `${name} v1`, status: "draft", createdById: actorUserId(actor), ...draftData(args.draft ?? {}) }, select: { id: true } });
+    auditCreate(uow, actor, "MembershipPlan", plan.id, "membership.plan_created", { name, code });
+    return { planId: plan.id, versionId: version.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function saveDraftVersion(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.plan_draft", MANAGE, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.plan_draft", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const plan = await lockRow(tx, "MembershipPlan", args.planId);
+    if (plan.status !== "active") throw new DomainError(Codes.GUARD_FAILED, "This plan is retired.");
+    const data = draftData(args.draft);
+    const draft = await tx.membershipPlanVersion.findFirst({ where: { planId: plan.id, status: "draft" }, select: { id: true } });
+    if (draft) {
+      await tx.membershipPlanVersion.update({ where: { id: draft.id }, data });
+      auditCreate(uow, actor, "MembershipPlanVersion", draft.id, "membership.plan_draft_saved", { fields: Object.keys(data) });
+      return { versionId: draft.id };
+    }
+    const last = await tx.membershipPlanVersion.findFirstOrThrow({ where: { planId: plan.id }, orderBy: { versionNumber: "desc" } });
+    const created = await tx.membershipPlanVersion.create({
+      data: {
+        planId: plan.id,
+        versionNumber: last.versionNumber + 1,
+        label: `${plan.name} v${last.versionNumber + 1}`,
+        status: "draft",
+        createdById: actorUserId(actor),
+        priceMinor: last.priceMinor,
+        billingFrequency: last.billingFrequency,
+        termMonths: last.termMonths,
+        autoRenew: last.autoRenew,
+        renewalNoticeDays: last.renewalNoticeDays,
+        entitlements: last.entitlements,
+        benefits: last.benefits,
+        cancellationRefundMethod: last.cancellationRefundMethod,
+        cancellationRefundDays: last.cancellationRefundDays,
+        consentWording: last.consentWording,
+        ...data
+      },
+      select: { id: true }
+    });
+    auditCreate(uow, actor, "MembershipPlanVersion", created.id, "membership.plan_draft_started", { from: last.versionNumber });
+    return { versionId: created.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function activatePlanVersion(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.plan_activate", MANAGE, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.plan_activate", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const v = await lockRow(tx, "MembershipPlanVersion", args.versionId);
+    if (v.status !== "draft") throw new DomainError(Codes.INVALID_TRANSITION, "Only a draft is published.");
+    if (v.priceMinor <= 0n) throw new DomainError(Codes.GUARD_FAILED, "Set a price first.", { reason: "price_missing" });
+    if (!Array.isArray(v.entitlements) || !v.entitlements.length) throw new DomainError(Codes.GUARD_FAILED, "List what the plan includes first.", { reason: "entitlements_missing" });
+    let policyVersion = "";
+    if (v.autoRenew) {
+      if (v.consentWording.trim().length < 30) throw new DomainError(Codes.GUARD_FAILED, "Automatic renewal needs the wording the customer agrees to (what renews, for how much, how to cancel).", { reason: "consent_wording_missing" });
+      const company = await tx.companySettings.findFirst({ select: { homeTimeZone: true } });
+      const today = await companyToday(tx, uow.now);
+      const location = await tx.serviceLocation.findFirst({ select: { state: true, postalCode: true, city: true, timeZone: true, propertyClass: true } });
+      const policy = await resolvePolicyFromDb(tx, "auto_renewal", placeOfLocation(location ?? { state: "TX", postalCode: "", city: "", timeZone: company?.homeTimeZone ?? "America/Chicago", propertyClass: "residential" }), today);
+      policyVersion = policy.versionId;
+    }
+    await tx.membershipPlanVersion.updateMany({ where: { planId: v.planId, status: "active" }, data: { status: "retired" } });
+    await tx.membershipPlanVersion.update({ where: { id: v.id }, data: { status: "active", activatedAt: uow.now, autoRenewalPolicyVersion: policyVersion, consentWordingVersion: v.autoRenew ? `v${v.versionNumber}` : "" } });
+    auditCreate(uow, actor, "MembershipPlanVersion", v.id, "membership.plan_activated", { planId: v.planId, versionNumber: v.versionNumber });
+    return { versionId: v.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function retirePlan(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.plan_retire", MANAGE, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.plan_retire", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const plan = await lockRow(uow.tx, "MembershipPlan", args.planId);
+    await casUpdate(uow, { model: "MembershipPlan", id: plan.id, version: plan.version, from: ["active"], to: "retired", actor, eventType: "membership.plan_retired", reason: args.reason ?? null });
+    await uow.tx.membershipPlanVersion.updateMany({ where: { planId: plan.id, status: "active" }, data: { status: "retired" } });
+    return { planId: plan.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function writeTerm(uow, membership, version, n) {
+  const { tx } = uow;
+  const start = termStart(membership.startsOn, version.termMonths, n);
+  const end = termEnd(membership.startsOn, version.termMonths, n);
+  const term = await tx.membershipTerm.create({
+    data: { termKey: `${membership.id}:${n}`, membershipId: membership.id, termNumber: n, planVersionId: version.id, startsOn: asDate(start), endsOn: asDate(end), billingFrequency: version.billingFrequency, priceMinor: version.priceMinor, slots: slotCount(version.billingFrequency, version.termMonths), status: "active" },
+    select: { id: true }
+  });
+  const specs = version.entitlements ?? [];
+  const grants = [];
+  for (const spec of specs) {
+    const season = spec.seasonStart && spec.seasonEnd ? { startMonthDay: spec.seasonStart, endMonthDay: spec.seasonEnd } : null;
+    const w = windowFor(start, end, season);
+    const grant = await tx.entitlementGrant.create({
+      data: { grantKey: `${term.id}:${spec.code}`, membershipId: membership.id, termId: term.id, code: spec.code, name: spec.name, quantity: spec.quantity, windowStart: asDate(w.startDay), windowEnd: asDate(w.endDay), rolloverPolicy: spec.rollover },
+      select: { id: true }
+    });
+    grants.push({ id: grant.id, code: spec.code, quantity: spec.quantity, rolloverPolicy: spec.rollover });
+    if (spec.visit) {
+      for (let i = 0; i < spec.quantity; i += 1) {
+        await tx.recurringServiceEvent.create({ data: { eventKey: `${grant.id}:${i}`, membershipId: membership.id, grantId: grant.id, code: spec.code, name: spec.name, dueFrom: asDate(w.startDay), dueBy: asDate(w.endDay), status: "open" } });
+      }
+    }
+  }
+  return { termId: term.id, start, end, grants };
+}
+async function grantBalance(tx, grantId) {
+  const grant = await tx.entitlementGrant.findUniqueOrThrow({ where: { id: grantId }, select: { quantity: true } });
+  const used = await tx.entitlementEntry.aggregate({ where: { grantId }, _sum: { quantity: true } });
+  return grant.quantity + (used._sum.quantity ?? 0);
+}
+async function sellMembership(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.sell", SELL2, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.sell", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const location = await tx.serviceLocation.findUnique({ where: { id: args.locationId }, select: { id: true, customerId: true, state: true, postalCode: true, city: true, timeZone: true, propertyClass: true } });
+    if (!location || location.customerId !== args.customerId) throw new DomainError(Codes.NOT_FOUND, "That address is not on this customer.", { field: "locationId" });
+    const plan = await tx.membershipPlan.findUnique({ where: { id: args.planId }, select: { id: true, name: true, status: true } });
+    if (!plan || plan.status !== "active") throw new DomainError(Codes.GUARD_FAILED, "That plan is not for sale.", { reason: "plan_not_active" });
+    const version = await tx.membershipPlanVersion.findFirst({ where: { planId: plan.id, status: "active" } });
+    if (!version) throw new DomainError(Codes.GUARD_FAILED, "That plan has no published version.", { reason: "no_active_version" });
+    const today = dayAt(location.timeZone, uow.now);
+    const startsOn = args.startsOn ?? today;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startsOn)) throw new DomainError(Codes.INVALID_INPUT, "The start date is a day.", { field: "startsOn" });
+    if (startsOn < addDays(today, -7) || startsOn > addDays(today, 90)) throw new DomainError(Codes.INVALID_INPUT, "A membership starts within a week back or three months ahead.", { field: "startsOn" });
+    const live = await tx.membership.findFirst({ where: { customerId: args.customerId, locationId: location.id, planId: plan.id, status: { in: ["pending_payment", "active", "past_due", "suspended", "renewal_due"] } }, select: { ref: true } });
+    if (live) throw new DomainError(Codes.GUARD_FAILED, `${live.ref} already covers this address on the same plan.`, { reason: "already_member" });
+    const wantsAuto = args.autoRenew ?? version.autoRenew;
+    if (wantsAuto && !version.autoRenew) throw new DomainError(Codes.GUARD_FAILED, "This plan does not renew automatically.", { reason: "auto_renew_not_offered" });
+    let consentId = null;
+    if (wantsAuto) {
+      const policy = await resolvePolicyFromDb(tx, "auto_renewal", placeOfLocation(location), today);
+      const c = args.consent;
+      if (policy.rules.affirmativeConsentRequired && (!c?.confirmed || c.wording?.trim() !== version.consentWording.trim())) {
+        throw new DomainError(Codes.GUARD_FAILED, "Automatic renewal needs the customer to agree to the exact wording on the plan, and you to confirm they did.", { reason: "consent_required" });
+      }
+      if (!args.paymentMethodRef?.trim()) throw new DomainError(Codes.GUARD_FAILED, "Automatic renewal needs a card on file.", { reason: "payment_method_required" });
+      const customer = await tx.customer.findUniqueOrThrow({ where: { id: args.customerId }, select: { displayName: true } });
+      const consent = await tx.consentRecord.create({
+        data: {
+          purpose: "auto_renewal",
+          action: "grant",
+          channel: c?.how ?? "in_person",
+          policyVersionId: policy.versionId,
+          wordingVersion: version.consentWordingVersion,
+          recordedAt: uow.now,
+          evidence: { wording: version.consentWording, planVersionId: version.id, customer: customer.displayName, how: c?.how ?? "in_person", note: c?.note?.trim() ?? "", price: money(version.priceMinor), billing: version.billingFrequency, termMonths: version.termMonths },
+          actorKind: actor.kind === "agent" ? "agent" : actor.kind === "user" ? "user" : "system",
+          actorId: actorAgentId(actor) ?? actorUserId(actor) ?? ""
+        },
+        select: { id: true }
+      });
+      consentId = consent.id;
+    }
+    const ref = await nextReference(tx, "MBR", uow.now);
+    const membership = await tx.membership.create({
+      data: {
+        ref,
+        publicCode: publicCode("MBR"),
+        customerId: args.customerId,
+        locationId: location.id,
+        planId: plan.id,
+        planVersionId: version.id,
+        status: "pending_payment",
+        startsOn: asDate(startsOn),
+        paymentMethodRef: args.paymentMethodRef?.trim() ?? "",
+        paymentMethodLabel: args.paymentMethodLabel?.trim().slice(0, 60) ?? "",
+        autoRenew: wantsAuto,
+        autoRenewConsentId: consentId,
+        signupChannel: args.channel ?? "office",
+        soldById: actorUserId(actor)
+      },
+      select: { id: true, ref: true }
+    });
+    const term = await writeTerm(uow, { id: membership.id, startsOn }, version, 1);
+    auditCreate(uow, actor, "Membership", membership.id, "membership.sold", { ref, plan: plan.name, startsOn, autoRenew: wantsAuto, consentId });
+    return { membershipId: membership.id, ref, termId: term.termId, firstChargeDue: startsOn };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function updatePaymentMethod(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.payment_method", SELL2, { ...args, paymentMethodRef: "[redacted]" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.payment_method", actor, idempotencyKey, params: { ...params, paymentMethodRef: "[redacted]" }, now: args.now }, async (uow) => {
+    const m = await lockRow(uow.tx, "Membership", args.membershipId);
+    if (["cancelled", "transferred", "expired"].includes(m.status)) throw new DomainError(Codes.GUARD_FAILED, `This membership is ${m.status}.`);
+    if (!/^pm_[A-Za-z0-9_]{6,100}$/.test(args.paymentMethodRef.trim())) throw new DomainError(Codes.INVALID_INPUT, "That is not a saved card reference.", { field: "paymentMethodRef" });
+    await uow.tx.membership.update({ where: { id: m.id }, data: { paymentMethodRef: args.paymentMethodRef.trim(), paymentMethodLabel: text19(args.paymentMethodLabel, "paymentMethodLabel", 2, 60) } });
+    auditCreate(uow, actor, "Membership", m.id, "membership.payment_method_set", { label: args.paymentMethodLabel });
+    return { membershipId: m.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function debitEntitlement(uow, actor, args) {
+  const { tx } = uow;
+  const membership = await tx.membership.findUnique({ where: { id: args.membershipId }, select: { id: true, status: true, location: { select: { timeZone: true } } } });
+  if (!membership) throw new DomainError(Codes.NOT_FOUND, "Membership not found.");
+  if (!["active", "past_due"].includes(membership.status)) throw new DomainError(Codes.GUARD_FAILED, `This membership is ${membership.status.replace(/_/g, " ")}, so its visits cannot be used.`, { reason: "membership_not_usable" });
+  const existing = await tx.entitlementEntry.findUnique({ where: { key: args.key }, select: { id: true, grantId: true } });
+  if (existing) return { entryId: existing.id, grantId: existing.grantId, replay: true };
+  const today = dayAt(membership.location?.timeZone ?? "America/Chicago", uow.now);
+  const grants = await tx.entitlementGrant.findMany({ where: { membershipId: membership.id, code: args.code, windowStart: { lte: asDate(today) }, windowEnd: { gte: asDate(today) } }, orderBy: { windowEnd: "asc" }, select: { id: true } });
+  if (!grants.length) throw new DomainError(Codes.GUARD_FAILED, "That is not included right now (out of season, or not on this plan).", { reason: "not_in_window" });
+  for (const g of grants) {
+    await lockRow(tx, "EntitlementGrant", g.id);
+    if (await grantBalance(tx, g.id) > 0) {
+      const entry = await tx.entitlementEntry.create({ data: { key: args.key, grantId: g.id, kind: "debit", quantity: -1, jobId: args.jobId ?? null, reason: args.reason ?? "", occurredAt: uow.now, createdById: actorUserId(actor) }, select: { id: true } });
+      return { entryId: entry.id, grantId: g.id, replay: false };
+    }
+  }
+  throw new DomainError(Codes.GUARD_FAILED, "None left on this membership for this period.", { reason: "none_left" });
+}
+async function restoreEntitlement(uow, actor, args) {
+  const { tx } = uow;
+  const debit = await tx.entitlementEntry.findUnique({ where: { id: args.debitEntryId }, select: { id: true, grantId: true, kind: true, jobId: true } });
+  if (!debit || debit.kind !== "debit" || !debit.grantId) throw new DomainError(Codes.NOT_FOUND, "That use was not found.");
+  const key2 = `restore:${debit.id}`;
+  if (await tx.entitlementEntry.findUnique({ where: { key: key2 }, select: { id: true } })) return { restored: false };
+  await lockRow(tx, "EntitlementGrant", debit.grantId);
+  await tx.entitlementEntry.create({ data: { key: key2, grantId: debit.grantId, kind: "restore", quantity: 1, jobId: debit.jobId, reason: args.reason, occurredAt: uow.now, createdById: actorUserId(actor) } });
+  return { restored: true };
+}
+async function bookVisit(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.visit_book", [...SELL2, "canBook"], args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.visit_book", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const event = await lockRow(tx, "RecurringServiceEvent", args.eventId);
+    if (event.status !== "open") throw new DomainError(Codes.GUARD_FAILED, event.status === "booked" ? "This visit is already booked." : "This visit was skipped.", { reason: "not_open" });
+    const job = await tx.job.findFirst({ where: { ref: args.jobRef.trim().toUpperCase() }, select: { id: true, customerId: true, status: true, ref: true } });
+    if (!job) throw new DomainError(Codes.NOT_FOUND, "No job has that reference.", { field: "jobRef" });
+    if (job.status === "cancelled") throw new DomainError(Codes.GUARD_FAILED, "That job is cancelled.");
+    let entryId = null;
+    if (event.membershipId) {
+      const m = await tx.membership.findUniqueOrThrow({ where: { id: event.membershipId }, select: { customerId: true } });
+      if (m.customerId !== job.customerId) throw new DomainError(Codes.GUARD_FAILED, "That job belongs to a different customer.", { field: "jobRef" });
+      const used = await debitEntitlement(uow, actor, { membershipId: event.membershipId, code: event.code, key: `visit:${event.id}`, jobId: job.id, reason: `Booked on ${job.ref}` });
+      entryId = used.entryId;
+    } else if (event.agreementId) {
+      const a = await tx.serviceAgreement.findUniqueOrThrow({ where: { id: event.agreementId }, select: { customerId: true, status: true } });
+      if (a.status !== "active") throw new DomainError(Codes.GUARD_FAILED, "The agreement is not active.");
+      if (a.customerId !== job.customerId) throw new DomainError(Codes.GUARD_FAILED, "That job belongs to a different customer.", { field: "jobRef" });
+    }
+    await casUpdate(uow, { model: "RecurringServiceEvent", id: event.id, version: event.version, from: ["open"], to: "booked", actor, eventType: "membership.visit_booked", data: { jobId: job.id } });
+    return { eventId: event.id, jobId: job.id, entryId };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function releaseVisit(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.visit_release", [...SELL2, "canBook"], args);
+  const reason = text19(args.reason, "reason", 3, 200);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.visit_release", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const event = await lockRow(uow.tx, "RecurringServiceEvent", args.eventId);
+    if (event.status !== "booked") throw new DomainError(Codes.GUARD_FAILED, "This visit is not booked.");
+    const debit = await uow.tx.entitlementEntry.findUnique({ where: { key: `visit:${event.id}` }, select: { id: true } });
+    if (debit) await restoreEntitlement(uow, actor, { debitEntryId: debit.id, reason });
+    await casUpdate(uow, { model: "RecurringServiceEvent", id: event.id, version: event.version, from: ["booked"], to: "open", actor, eventType: "membership.visit_released", reason, data: { jobId: null } });
+    return { eventId: event.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function renewInTx(uow, actor, membershipId, today) {
+  const { tx } = uow;
+  const m = await lockRow(tx, "Membership", membershipId);
+  if (!["active", "past_due"].includes(m.status)) throw new DomainError(Codes.GUARD_FAILED, `A ${m.status.replace(/_/g, " ")} membership is not renewed.`, { reason: "not_renewable" });
+  const last = await tx.membershipTerm.findFirstOrThrow({ where: { membershipId: m.id, status: "active" }, orderBy: { termNumber: "desc" }, include: { grants: true } });
+  const version = await tx.membershipPlanVersion.findFirstOrThrow({ where: { planId: m.planId, status: "active" } });
+  const n = last.termNumber + 1;
+  const anchor = ymd(m.startsOn);
+  if (termEnd(anchor, version.termMonths, n) < today) throw new DomainError(Codes.GUARD_FAILED, "This membership lapsed too long ago to renew. Sell a new one.", { reason: "lapsed" });
+  const pending = await tx.membershipTerm.findFirst({ where: { membershipId: m.id, termNumber: n }, select: { id: true } });
+  if (pending) throw new DomainError(Codes.GUARD_FAILED, "The next term already exists.", { reason: "already_renewed" });
+  const term = await writeTerm(uow, { id: m.id, startsOn: anchor }, version, n);
+  for (const prev of last.grants) {
+    await lockRow(tx, "EntitlementGrant", prev.id);
+    const left = await grantBalance(tx, prev.id);
+    if (left <= 0) continue;
+    await tx.entitlementEntry.create({ data: { key: `expire:${prev.id}`, grantId: prev.id, kind: "expire", quantity: -left, reason: "Term ended", occurredAt: uow.now, createdById: actorUserId(actor) } });
+    if (prev.rolloverPolicy === "one_term") {
+      const next = term.grants.find((g) => g.code === prev.code);
+      const carry = next ? Math.min(left, prev.quantity) : 0;
+      if (next && carry > 0) await tx.entitlementEntry.create({ data: { key: `rollover:${next.id}`, grantId: next.id, kind: "rollover", quantity: carry, reason: "Carried over from the last term", occurredAt: uow.now, createdById: actorUserId(actor) } });
+    }
+  }
+  auditCreate(uow, actor, "Membership", m.id, "membership.renewed", { termNumber: n, start: term.start, end: term.end, planVersionId: version.id });
+  return { termId: term.termId, termNumber: n, start: term.start, end: term.end };
+}
+async function renewMembership(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.renew", SELL2, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.renew", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const m = await uow.tx.membership.findUnique({ where: { id: args.membershipId }, select: { location: { select: { timeZone: true } } } });
+    if (!m) throw new DomainError(Codes.NOT_FOUND, "Membership not found.");
+    return renewInTx(uow, actor, args.membershipId, dayAt(m.location?.timeZone ?? "America/Chicago", uow.now));
+  });
+  return { replay: result.replay, ...result.value };
+}
+function refundFor(rule2, paidMinor, term, day3) {
+  if (paidMinor <= 0n || rule2.method === "none") return 0n;
+  if (rule2.method === "prorata") {
+    const { left, total } = termDaysLeft(term.start, term.end, day3);
+    return prorate(paidMinor, left, total);
+  }
+  return day3 <= addDays(term.start, rule2.days) ? paidMinor : 0n;
+}
+async function cancelMembershipInTx(uow, actor, membershipId, reason, via) {
+  const { tx } = uow;
+  const m = await lockRow(tx, "Membership", membershipId);
+  if (["cancelled", "transferred", "expired"].includes(m.status)) return { membershipId: m.id, ref: m.ref, status: m.status, refundOwedMinor: "0", already: true };
+  const loc = await tx.membership.findUniqueOrThrow({ where: { id: m.id }, select: { location: { select: { timeZone: true } } } });
+  const today = dayAt(loc.location?.timeZone ?? "America/Chicago", uow.now);
+  const term = await tx.membershipTerm.findFirst({ where: { membershipId: m.id, status: "active", startsOn: { lte: asDate(today) }, endsOn: { gte: asDate(today) } }, orderBy: { termNumber: "desc" } });
+  const version = term?.planVersionId ? await tx.membershipPlanVersion.findUnique({ where: { id: term.planVersionId } }) : null;
+  let refund = 0n;
+  if (term && version) {
+    const paid = await tx.membershipBillingAttempt.aggregate({ where: { membershipId: m.id, termId: term.id, status: "succeeded" }, _sum: { amountMinor: true } });
+    refund = refundFor({ method: version.cancellationRefundMethod, days: version.cancellationRefundDays }, paid._sum.amountMinor ?? 0n, { start: ymd(term.startsOn), end: ymd(term.endsOn) }, today);
+  }
+  await casUpdate(uow, { model: "Membership", id: m.id, version: m.version, from: [m.status], to: "cancelled", actor, eventType: "membership.cancelled", reason, data: { cancelledAt: uow.now, cancelReason: reason, cancelEffectiveOn: asDate(today), refundOwedMinor: refund }, audit: { via, refundOwedMinor: refund.toString() } });
+  await tx.membershipTerm.updateMany({ where: { membershipId: m.id, status: "active", endsOn: { gte: asDate(today) } }, data: { status: "cancelled" } });
+  await tx.recurringServiceEvent.updateMany({ where: { membershipId: m.id, status: "open" }, data: { status: "skipped" } });
+  return { membershipId: m.id, ref: m.ref, status: "cancelled", refundOwedMinor: refund.toString(), already: false };
+}
+async function cancelMembership(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.cancel", SELL2, args);
+  const reason = text19(args.reason, "reason", 3, 300);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.cancel", actor, idempotencyKey, params, now: args.now }, (uow) => cancelMembershipInTx(uow, actor, args.membershipId, reason, "staff"));
+  return { replay: result.replay, ...result.value };
+}
+async function transferMembership(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.transfer", MANAGE, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.transfer", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const old = await lockRow(tx, "Membership", args.membershipId);
+    if (!["active", "past_due"].includes(old.status)) throw new DomainError(Codes.GUARD_FAILED, `A ${old.status.replace(/_/g, " ")} membership is not transferred.`);
+    if (old.customerId === args.newCustomerId) throw new DomainError(Codes.INVALID_INPUT, "Choose the new owner, a different customer.", { field: "newCustomerId" });
+    const locationId = args.newLocationId ?? old.locationId;
+    const location = await tx.serviceLocation.findUnique({ where: { id: locationId ?? "" }, select: { id: true, customerId: true, timeZone: true } });
+    if (!location || location.customerId !== args.newCustomerId) throw new DomainError(Codes.GUARD_FAILED, "Add the new owner at that address first.", { reason: "new_owner_not_at_address" });
+    const today = dayAt(location.timeZone, uow.now);
+    const term = await tx.membershipTerm.findFirst({ where: { membershipId: old.id, status: "active", startsOn: { lte: asDate(today) }, endsOn: { gte: asDate(today) } }, include: { grants: true } });
+    if (!term) throw new DomainError(Codes.GUARD_FAILED, "There is no current term to hand over.", { reason: "no_current_term" });
+    const ref = await nextReference(tx, "MBR", uow.now);
+    const created = await tx.membership.create({
+      data: { ref, publicCode: publicCode("MBR"), customerId: args.newCustomerId, locationId: location.id, planId: old.planId, planVersionId: term.planVersionId, status: "active", startsOn: old.startsOn, signupChannel: "office", soldById: actorUserId(actor) },
+      select: { id: true }
+    });
+    const nextTerm = await tx.membershipTerm.create({
+      data: { termKey: `${created.id}:${term.termNumber}`, membershipId: created.id, termNumber: term.termNumber, planVersionId: term.planVersionId, startsOn: term.startsOn, endsOn: term.endsOn, billingFrequency: term.billingFrequency, priceMinor: term.priceMinor, slots: term.slots, status: "active" },
+      select: { id: true }
+    });
+    for (const g of term.grants) {
+      await lockRow(tx, "EntitlementGrant", g.id);
+      const left = await grantBalance(tx, g.id);
+      if (left <= 0) continue;
+      const grant = await tx.entitlementGrant.create({ data: { grantKey: `${nextTerm.id}:${g.code}`, membershipId: created.id, termId: nextTerm.id, code: g.code, name: g.name, quantity: left, windowStart: g.windowStart, windowEnd: g.windowEnd, rolloverPolicy: g.rolloverPolicy }, select: { id: true } });
+      await tx.entitlementEntry.create({ data: { key: `transfer:${g.id}`, grantId: g.id, kind: "expire", quantity: -left, reason: `Handed over to ${ref}`, occurredAt: uow.now, createdById: actorUserId(actor) } });
+      const open = await tx.recurringServiceEvent.findMany({ where: { grantId: g.id, status: "open" }, orderBy: { dueBy: "asc" }, take: left });
+      for (const [i, e] of open.entries()) await tx.recurringServiceEvent.create({ data: { eventKey: `${grant.id}:${i}`, membershipId: created.id, grantId: grant.id, code: e.code, name: e.name, dueFrom: e.dueFrom, dueBy: e.dueBy, status: "open" } });
+    }
+    await tx.recurringServiceEvent.updateMany({ where: { membershipId: old.id, status: "open" }, data: { status: "skipped" } });
+    await tx.membershipTerm.updateMany({ where: { membershipId: old.id, status: "active" }, data: { status: "cancelled" } });
+    await casUpdate(uow, { model: "Membership", id: old.id, version: old.version, from: [old.status], to: "transferred", actor, eventType: "membership.transferred", data: { transferredToId: created.id, cancelledAt: uow.now, cancelReason: "Home sold", cancelEffectiveOn: asDate(today) } });
+    auditCreate(uow, actor, "Membership", created.id, "membership.received_transfer", { from: old.ref, ref });
+    return { oldMembershipId: old.id, membershipId: created.id, ref };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function activePlanCode(tx, customerId, locationId, on) {
+  const rows = await tx.membership.findMany({
+    where: { customerId, status: { in: ["active", "past_due"] }, ...locationId ? { locationId } : {} },
+    select: { plan: { select: { code: true } }, location: { select: { timeZone: true } }, terms: { where: { status: "active" }, select: { startsOn: true, endsOn: true } } }
+  });
+  for (const r of rows) {
+    const today = dayAt(r.location?.timeZone ?? "America/Chicago", on);
+    if (r.terms.some((t) => ymd(t.startsOn) <= today && ymd(t.endsOn) >= today) && r.plan) return r.plan.code;
+  }
+  return null;
 }
 
 // features/keystone/services/cancellation.ts
@@ -7075,52 +7988,6 @@ function evaluateCancellationRights(rules2, facts, calendars) {
   };
 }
 var noticeRuleOf = (code) => code === "ftc_cooling_off" ? "ftc_16cfr429" : code === "tx_601" ? "tx_bcc_601" : "other";
-
-// features/keystone/services/salesShared.ts
-var import_node_crypto7 = require("node:crypto");
-init_actor();
-init_cas();
-var placeOfLocation = (loc) => {
-  const state2 = loc?.state ? `US-${loc.state}` : "US-TX";
-  return { state: state2, zip: loc?.postalCode || null, city: loc?.city ? `${state2}-${loc.city.toUpperCase().replace(/\s+/g, "-")}` : null };
-};
-var addressLine = (loc) => loc ? [loc.address1, loc.address2, `${loc.city}, ${loc.state} ${loc.postalCode}`].filter(Boolean).join(", ") : "";
-async function sellerBlock(tx, businessUnitId, jurisdiction, trades) {
-  const [company, brand, bu] = await Promise.all([
-    tx.companySettings.findFirst({ select: { legalName: true, displayName: true, homeTimeZone: true, estimateValidityDays: true } }),
-    tx.brand.findFirst({ orderBy: { createdAt: "asc" }, select: { name: true, phone: true, email: true } }),
-    businessUnitId ? tx.businessUnit.findUnique({ where: { id: businessUnitId }, select: { branch: { select: { line1: true, line2: true, city: true, region: true, postalCode: true } } } }) : null
-  ]);
-  if (!company) throw new Error("Company settings are not set up.");
-  const branch = bu?.branch ?? await tx.branch.findFirst({ orderBy: { createdAt: "asc" }, select: { line1: true, line2: true, city: true, region: true, postalCode: true } });
-  const licenses = await tx.contractorLicense.findMany({ where: { displayOnDocuments: true, jurisdictionCode: jurisdiction, trade: { in: [...new Set(trades)] } }, orderBy: { trade: "asc" }, select: { issuer: true, licenseNumber: true } });
-  return {
-    company,
-    block: {
-      name: brand?.name || company.displayName,
-      legalName: company.legalName,
-      phone: brand?.phone || "",
-      email: brand?.email || "",
-      address: branch ? [branch.line1, branch.line2, `${branch.city}, ${branch.region} ${branch.postalCode}`].filter(Boolean).join(", ") : "",
-      licenses: licenses.map((l) => ({ label: l.issuer, number: l.licenseNumber }))
-    }
-  };
-}
-var sha256Bytes = (bytes) => (0, import_node_crypto7.createHash)("sha256").update(bytes).digest("hex");
-async function storeRenderedPdf(uow, actor, spec) {
-  const digest = sha256Bytes(spec.bytes);
-  const doc = await uow.tx.document.create({ data: { title: spec.title, kind: spec.kind, visibility: "customer", subjectType: spec.subjectType, subjectId: spec.subjectId }, select: { id: true } });
-  await uow.tx.documentVersion.create({ data: { documentId: doc.id, versionNumber: 1, storageKey: spec.storageKey, sha256: digest, mimeType: "application/pdf", sizeBytes: spec.bytes.length, createdById: actorUserId(actor) } });
-  auditCreate(uow, actor, "Document", doc.id, "document.rendered", { kind: spec.kind, subjectType: spec.subjectType, subjectId: spec.subjectId, sha256: digest, sizeBytes: spec.bytes.length });
-  return { documentId: doc.id, sha256: digest };
-}
-async function storeRecordedDocument(uow, actor, spec) {
-  const digest = (0, import_node_crypto7.createHash)("sha256").update(spec.content).digest("hex");
-  const doc = await uow.tx.document.create({ data: { title: spec.title, kind: spec.kind, visibility: "internal", subjectType: spec.subjectType, subjectId: spec.subjectId }, select: { id: true } });
-  await uow.tx.documentVersion.create({ data: { documentId: doc.id, versionNumber: 1, storageKey: spec.storageKey, sha256: digest, mimeType: spec.mimeType, sizeBytes: Buffer.byteLength(spec.content), createdById: actorUserId(actor) } });
-  auditCreate(uow, actor, "Document", doc.id, "document.recorded", { kind: spec.kind, subjectType: spec.subjectType, subjectId: spec.subjectId, sha256: digest });
-  return { documentId: doc.id, sha256: digest };
-}
 
 // features/keystone/services/cancellation.ts
 var CALENDARS = { "US-FEDERAL": US_FEDERAL };
@@ -7477,7 +8344,7 @@ registerApplier("cancellation.start_override", async (uow, actor, request) => {
 
 // features/keystone/services/estimates.ts
 var PRESENT = ["canPresentEstimates"];
-var SELL = ["canSellEstimates"];
+var SELL3 = ["canSellEstimates"];
 var OFFICE2 = [...OFFICE_READ, "canManagePriceBook"];
 var fail2 = (error) => {
   if (error instanceof PricingError) throw new DomainError(error.code === "GUARD_FAILED" ? Codes.GUARD_FAILED : Codes.INVALID_INPUT, error.message, error.details);
@@ -7584,13 +8451,16 @@ async function writeOption(uow, est, version, input, tax, sortOrder) {
   if (!TIERS.includes(input.tier)) throw new DomainError(Codes.INVALID_INPUT, `Tier must be one of ${TIERS.join(", ")}.`, { field: "tier" });
   const name = input.name?.trim();
   if (!name) throw new DomainError(Codes.INVALID_INPUT, "Name the option.", { field: "name" });
-  if (input.memberPricing) throw new DomainError(Codes.GUARD_FAILED, "This customer has no active membership, so member prices do not apply.", { reason: "no_active_membership" });
+  if (input.memberPricing) {
+    const plan = est.customerId ? await activePlanCode(tx, est.customerId, est.location?.id ?? null, uow.now) : null;
+    if (!plan) throw new DomainError(Codes.GUARD_FAILED, "This customer has no active membership, so member prices do not apply.", { reason: "no_active_membership" });
+  }
   const active = await activeVersionFor(tx, est.businessUnitId ?? est.job?.businessUnitId ?? null);
   if (version.priceBookVersion && version.priceBookVersion !== active.versionId) {
     throw new DomainError(Codes.GUARD_FAILED, "A new price book is active since this estimate was started. Re-price it first.", { reason: "pricebook_changed" });
   }
   if (!version.priceBookVersion) await tx.estimateVersion.update({ where: { id: version.id }, data: { priceBookVersionId: active.versionId } });
-  const quoted = await quoteFromVersion(tx, active.versionId, input.lines, false);
+  const quoted = await quoteFromVersion(tx, active.versionId, input.lines, !!input.memberPricing);
   let optionId = input.optionId ?? null;
   if (optionId) {
     const existing = await tx.estimateOption.findFirst({ where: { id: optionId, estimateVersionId: version.id }, select: { id: true } });
@@ -7959,7 +8829,7 @@ function validateAuthorization(a, location) {
   return role;
 }
 async function sellEstimate(db, actor, args) {
-  await authorizeOperation(db, actor, "estimate.sell", SELL, args);
+  await authorizeOperation(db, actor, "estimate.sell", SELL3, args);
   if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person records a sale.");
   if (!SALE_LOCATIONS.includes(args.saleLocation)) throw new DomainError(Codes.INVALID_INPUT, `Sale location must be one of ${SALE_LOCATIONS.join(", ")}.`, { field: "saleLocation" });
   if (!["customer_request", "solicited"].includes(args.initiatedBy)) throw new DomainError(Codes.INVALID_INPUT, "Say whether the customer asked for this visit or it was solicited.", { field: "initiatedBy" });
@@ -8215,7 +9085,7 @@ async function presentChangeOrder(db, actor, args) {
   return { replay: result.replay, ...result.value };
 }
 async function acceptChangeOrder(db, actor, args) {
-  await authorizeOperation(db, actor, "change_order.accept", SELL, args);
+  await authorizeOperation(db, actor, "change_order.accept", SELL3, args);
   if (actor.kind === "agent") throw new DomainError(Codes.NOT_AUTHORIZED, "A person records a customer's approval.");
   const signerRole = validateAuthorization(args.authorization, args.saleLocation);
   const { idempotencyKey, now: _now, ...params } = args;
@@ -9812,14 +10682,14 @@ async function mergeLead(db, actor, args) {
 }
 async function matchJobType(db, actor, args) {
   await authorizeOperation(db, actor, "jobtype.match", ["canBook"], args);
-  const text18 = args.description.toLowerCase();
+  const text20 = args.description.toLowerCase();
   const types = await db.jobType.findMany({ where: { active: true }, select: { id: true, code: true, name: true, trade: true, priority: true, keywords: true, emergencyPolicy: true, bookableByAi: true, bookingQuestions: true, businessUnitId: true } });
-  const words = new Set(text18.split(/[^a-z0-9]+/).filter(Boolean));
+  const words = new Set(text20.split(/[^a-z0-9]+/).filter(Boolean));
   const scored = types.map((t) => {
     const keys = (t.keywords ?? []).map((k) => k.toLowerCase());
-    const hits = keys.filter((k) => k.includes(" ") ? text18.includes(k) : words.has(k));
+    const hits = keys.filter((k) => k.includes(" ") ? text20.includes(k) : words.has(k));
     const emergency = t.emergencyPolicy;
-    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text18.includes(k.toLowerCase()));
+    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text20.includes(k.toLowerCase()));
     return { jobTypeId: t.id, code: t.code, name: t.name, trade: t.trade, priority: t.priority, bookableByAi: t.bookableByAi, score: hits.length * 10 + emergencyHits.length * 25, matched: hits, emergency: emergencyHits.length ? { matched: emergencyHits, script: emergency?.script ?? "", page: !!emergency?.page } : null, questions: t.bookingQuestions ?? [], businessUnitId: t.businessUnitId };
   }).filter((t) => t.score > 0).sort((a, b) => b.score - a.score || a.code.localeCompare(b.code)).slice(0, 3);
   let inArea = null;
@@ -9898,10 +10768,10 @@ async function revokeCredential(db, actor, args) {
 // features/keystone/mutations/phase1.ts
 var graphql2 = String.raw;
 var bind = (fn) => op(async (_root, args, context) => {
-  const { now: _ignored, ...clean } = args;
+  const { now: _ignored, ...clean2 } = args;
   const actor = await actorFor(context);
   await advanceTimedStates(context.prisma);
-  return fn(context.prisma, actor, clean);
+  return fn(context.prisma, actor, clean2);
 });
 var phase1TypeDefs = graphql2`
   type Query {
@@ -9987,10 +10857,10 @@ var phase1Resolvers = {
 // features/keystone/mutations/phase2.ts
 var graphql3 = String.raw;
 var bind2 = (fn) => op(async (_root, args, context) => {
-  const { now: _ignored, ...clean } = args;
+  const { now: _ignored, ...clean2 } = args;
   const actor = await actorFor(context);
   await advanceTimedStates(context.prisma);
-  return fn(context.prisma, actor, clean);
+  return fn(context.prisma, actor, clean2);
 });
 var phase2TypeDefs = graphql3`
   type Query {
@@ -10089,90 +10959,11 @@ init_actor();
 init_approval();
 init_cas();
 init_errors();
-
-// features/keystone/services/billingShared.ts
-init_actor();
-init_cas();
-init_errors();
-var TERMS_DAYS = { due_on_receipt: 0, net_15: 15, net_30: 30, net_45: 45, net_60: 60 };
-var asDate = (day3) => /* @__PURE__ */ new Date(`${day3}T00:00:00Z`);
-async function companyToday(tx, at) {
-  const company = await tx.companySettings.findFirst({ select: { homeTimeZone: true } });
-  return localDate({ timeZone: company?.homeTimeZone || "America/Chicago" }, at);
-}
-async function arPeriodFor(tx, day3, { requireOpen = true } = {}) {
-  const month = asDate(`${day3.slice(0, 7)}-01`);
-  const period = await tx.arPeriod.upsert({ where: { month }, create: { month, status: "open" }, update: {}, select: { id: true, status: true } });
-  if (requireOpen && period.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The AR period for ${day3.slice(0, 7)} is ${period.status}. Choose a date in an open period.`, { reason: "ar_period_closed", month: day3.slice(0, 7) });
-  return period;
-}
-async function lockInvoice(tx, id) {
-  return lockRow(tx, "Invoice", id);
-}
-function statusForBalance(total, balance) {
-  return balance === 0n ? "paid" : balance < total ? "partially_paid" : "posted";
-}
-async function postArEntry(uow, input) {
-  const day3 = await companyToday(uow.tx, uow.now);
-  const period = await arPeriodFor(uow.tx, day3);
-  return uow.tx.arEntry.create({
-    data: { invoiceId: input.invoice.id, customerId: input.invoice.customerId, payerId: input.invoice.payerId, kind: input.kind, amountMinor: input.amountMinor, sourceType: input.sourceType, sourceId: input.sourceId, arPeriodId: period.id, postedAt: uow.now, note: input.note ?? "" },
-    select: { id: true }
-  });
-}
-async function settleInvoice(uow, actor, invoice, delta, eventType, extra = {}) {
-  const balance = invoice.balanceMinor + delta;
-  if (balance < 0n) throw new DomainError(Codes.GUARD_FAILED, "That is more than the invoice balance.", { balanceMinor: invoice.balanceMinor.toString() });
-  const to = extra.to ?? statusForBalance(invoice.totalMinor, balance);
-  const version = await casUpdate(uow, { model: "Invoice", id: invoice.id, version: invoice.version, from: ["posted", "partially_paid", "paid"], to, actor, eventType, reason: extra.reason ?? null, data: { balanceMinor: balance }, audit: { balanceMinor: balance.toString() } });
-  return { ...invoice, status: to, version, balanceMinor: balance };
-}
-async function allocatePayment(uow, actor, invoice, paymentId, amount) {
-  if (!["posted", "partially_paid"].includes(invoice.status)) throw new DomainError(Codes.GUARD_FAILED, `Invoice ${invoice.ref} is ${invoice.status}; it takes no payment.`, { status: invoice.status });
-  if (amount <= 0n || amount > invoice.balanceMinor) throw new DomainError(Codes.GUARD_FAILED, `Apply between $0.01 and the $${(Number(invoice.balanceMinor) / 100).toFixed(2)} balance.`);
-  const allocation = await uow.tx.paymentAllocation.create({ data: { paymentId, invoiceId: invoice.id, kind: "apply", amountMinor: amount, createdById: actorUserId(actor) }, select: { id: true } });
-  await postArEntry(uow, { invoice, kind: "payment_applied", amountMinor: -amount, sourceType: "Payment", sourceId: paymentId });
-  const next = await settleInvoice(uow, actor, invoice, -amount, "invoice.payment_applied");
-  auditCreate(uow, actor, "PaymentAllocation", allocation.id, "payment.allocated", { paymentId, invoiceId: invoice.id, amountMinor: amount.toString() });
-  return next;
-}
-async function reverseAllocations(uow, actor, paymentId, amount, kind, reason) {
-  const rows = await uow.tx.paymentAllocation.findMany({ where: { paymentId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
-  const reversedOf = /* @__PURE__ */ new Map();
-  for (const r of rows) if (r.kind === "reverse" && r.reversesId) reversedOf.set(r.reversesId, (reversedOf.get(r.reversesId) ?? 0n) + r.amountMinor);
-  let left = amount;
-  for (const row of rows) {
-    if (left === 0n) break;
-    if (row.kind !== "apply" || !row.invoiceId) continue;
-    const open = row.amountMinor - (reversedOf.get(row.id) ?? 0n);
-    if (open <= 0n) continue;
-    const take = open < left ? open : left;
-    await uow.tx.paymentAllocation.create({ data: { paymentId, invoiceId: row.invoiceId, kind: "reverse", reversesId: row.id, amountMinor: take, reason, createdById: actorUserId(actor) } });
-    const invoice = await lockInvoice(uow.tx, row.invoiceId);
-    await postArEntry(uow, { invoice, kind, amountMinor: take, sourceType: "Payment", sourceId: paymentId, note: reason });
-    await settleInvoice(uow, actor, invoice, take, `invoice.${kind}`, { reason });
-    left -= take;
-  }
-  return amount - left;
-}
-async function unappliedOf(tx, paymentId) {
-  const [payment, allocations, refunds] = await Promise.all([
-    tx.payment.findUniqueOrThrow({ where: { id: paymentId }, select: { amountMinor: true } }),
-    tx.paymentAllocation.findMany({ where: { paymentId }, select: { kind: true, amountMinor: true } }),
-    tx.refund.aggregate({ where: { paymentId }, _sum: { amountMinor: true } })
-  ]);
-  const applied = allocations.reduce((a, r) => a + (r.kind === "apply" ? r.amountMinor : -r.amountMinor), 0n);
-  const refunded = refunds._sum.amountMinor ?? 0n;
-  return { amountMinor: payment.amountMinor, applied, refunded, unapplied: payment.amountMinor - applied - refunded };
-}
-var money = (minor2) => `$${(Number(minor2) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-// features/keystone/services/invoices.ts
 var BILL = ["canManageInvoices", "canPostInvoices"];
 var REVENUE_ACCOUNT = { labor: "4000", material: "4100", equipment: "4100", fee: "4300", disposal: "4300", permit_passthrough: "2300", warranty_reimbursed: "4200", membership: "4400", maintenance: "4400" };
 var BILLABLE_JOB = ["work_complete", "awaiting_inspection", "completed", "closed"];
-var mustReason = (text18, field = "reason") => {
-  const v = String(text18 ?? "").trim();
+var mustReason = (text20, field = "reason") => {
+  const v = String(text20 ?? "").trim();
   if (v.length < 3) throw new DomainError(Codes.INVALID_INPUT, "Say why, in a few words.", { field });
   return v;
 };
@@ -10290,7 +11081,11 @@ async function discardInvoiceDraft(db, actor, args) {
 async function postInvoice(db, actor, args) {
   await authorizeOperation(db, actor, "invoice.post", ["canPostInvoices"], args);
   const { idempotencyKey, now: _now, ...params } = args;
-  const result = await command(db, { name: "invoice.post", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+  const result = await command(db, { name: "invoice.post", actor, idempotencyKey, params, now: args.now }, (uow) => postInvoiceInTx(uow, actor, args));
+  return { replay: result.replay, ...result.value };
+}
+async function postInvoiceInTx(uow, actor, args) {
+  {
     const { tx } = uow;
     const row = await lockInvoice(tx, args.invoiceId);
     if (row.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, "This invoice changed since you loaded it. Reload and try again.", { currentStatus: row.status, currentVersion: row.version });
@@ -10343,8 +11138,7 @@ async function postInvoice(db, actor, args) {
     else await tx.invoice.update({ where: { id: row.id }, data: { status: "paid" } });
     uow.audit({ eventType: "invoice.posted", entityType: "Invoice", entityId: row.id, actorUserId: actorUserId(actor), after: { ref: invoice.ref, totalMinor: total.toString(), taxMinor: taxed.taxMinor.toString(), invoiceDate, dueDate } });
     return { invoiceId: row.id, ref: invoice.ref, totalMinor: total.toString(), taxMinor: taxed.taxMinor.toString(), dueDate };
-  });
-  return { replay: result.replay, ...result.value };
+  }
 }
 async function setCollectionsStatus(db, actor, args) {
   await authorizeOperation(db, actor, "invoice.collections", ["canManageInvoices", "canManageAccounting"], args);
@@ -10493,13 +11287,13 @@ async function batchFor(uow, method, day3) {
   return uow.tx.paymentBatch.create({ data: { ref, businessDate: date, tenderGroup: group, status: "open" }, select: { id: true, status: true, expectedMinor: true, version: true } });
 }
 async function createPayment(uow, actor, a) {
+  const day3 = await companyToday(uow.tx, a.receivedAt);
+  await arPeriodFor(uow.tx, day3);
   const ref = await nextReference(uow.tx, "PMT", uow.now);
   const payment = await uow.tx.payment.create({
     data: { ref, jobId: a.jobId, customerId: a.customerId, payerId: a.payerId ?? null, kind: a.kind ?? "payment", method: a.method, amountMinor: a.amountMinor, feeMinor: a.feeMinor ?? 0n, reference: a.reference ?? "", checkNumber: a.checkNumber ?? "", receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
     select: { id: true, ref: true }
   });
-  const day3 = await companyToday(uow.tx, a.receivedAt);
-  await arPeriodFor(uow.tx, day3);
   const batch = await batchFor(uow, a.method, day3);
   if (batch.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The ${tenderGroup(a.method).replace("_", "/")} batch for ${day3} is ${batch.status}. Record it on today's date, or reopen nothing: closed batches are final.`, { reason: "batch_closed" });
   await uow.tx.paymentBatch.update({ where: { id: batch.id }, data: { expectedMinor: { increment: a.amountMinor - (a.feeMinor ?? 0n) }, feesMinor: { increment: a.feeMinor ?? 0n } } });
@@ -10621,6 +11415,7 @@ async function writeRefund(uow, actor, a) {
       if (done !== back) throw new DomainError(Codes.GUARD_FAILED, "The refund is more than this payment has applied.");
     }
   }
+  await arPeriodFor(tx, await companyToday(tx, uow.now));
   const ref = await nextReference(tx, "RFD", uow.now);
   const refund = await tx.refund.create({ data: { ref, paymentId: a.paymentId, method: a.method, amountMinor: a.amountMinor, reason: a.reason, approvalId: a.approvalId, reference: a.reference, refundedAt: uow.now, recordedById: actorUserId(actor) }, select: { id: true } });
   auditCreate(uow, actor, "Refund", refund.id, "refund.recorded", { ref, paymentId: a.paymentId, amountMinor: a.amountMinor.toString(), method: a.method, approvalId: a.approvalId });
@@ -10709,13 +11504,13 @@ init_actor();
 init_errors();
 async function createPaymentForFunding(uow, actor, a) {
   const { tx } = uow;
+  const day3 = await companyToday(tx, a.receivedAt);
+  await arPeriodFor(tx, day3);
   const ref = await nextReference(tx, "PMT", uow.now);
   const payment = await tx.payment.create({
     data: { ref, jobId: a.invoice.jobId, customerId: a.invoice.customerId, payerId: a.invoice.payerId, kind: "payment", method: "financing", amountMinor: a.gross, feeMinor: a.fee, reference: a.reference, receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
     select: { id: true }
   });
-  const day3 = await companyToday(tx, a.receivedAt);
-  await arPeriodFor(tx, day3);
   const date = asDate(day3);
   let batch = await tx.paymentBatch.findFirst({ where: { businessDate: date, tenderGroup: "financing" }, select: { id: true, status: true } });
   if (!batch) batch = await tx.paymentBatch.create({ data: { ref: await nextReference(tx, "PBT", uow.now), businessDate: date, tenderGroup: "financing", status: "open" }, select: { id: true, status: true } });
@@ -11052,10 +11847,10 @@ async function createExportBatch(db, actor, args) {
 // features/keystone/mutations/phase3.ts
 var graphql4 = String.raw;
 var bind3 = (fn) => op(async (_root, args, context) => {
-  const { now: _ignored, ...clean } = args;
+  const { now: _ignored, ...clean2 } = args;
   const actor = await actorFor(context);
   await advanceTimedStates(context.prisma);
-  return fn(context.prisma, actor, clean);
+  return fn(context.prisma, actor, clean2);
 });
 var phase3TypeDefs = graphql4`
   type Mutation {
@@ -11119,13 +11914,477 @@ var phase3Resolvers = {
   }
 };
 
+// features/keystone/services/membershipBilling.ts
+init_actor();
+init_cas();
+init_errors();
+
+// features/keystone/lib/paymentAdapter.ts
+var import_node_crypto11 = require("node:crypto");
+var STRIPE = "https://api.stripe.com/v1";
+var form = (values) => {
+  const body = new URLSearchParams();
+  for (const [k, v] of Object.entries(values)) if (v !== void 0 && v !== "") body.set(k, v);
+  return body;
+};
+var toResult = (intent) => {
+  if (intent.status === "succeeded") return { outcome: "succeeded", providerRef: intent.id };
+  if (intent.status === "processing") return { outcome: "unknown", providerRef: intent.id, note: "The processor is still working on this charge." };
+  return { outcome: "failed", providerRef: intent.id, note: intent.last_payment_error?.message?.slice(0, 200) || `Charge ${intent.status.replace(/_/g, " ")}.` };
+};
+var StripeTestAdapter = class {
+  constructor(secretKey, fetcher = fetch, timeoutMs = 2e4) {
+    this.secretKey = secretKey;
+    this.fetcher = fetcher;
+    this.timeoutMs = timeoutMs;
+    this.name = "stripe-test";
+    if (!/^sk_test_/.test(secretKey) && !/^rk_test_/.test(secretKey)) throw new Error("Only a Stripe TEST key is accepted here.");
+  }
+  async call(path, init) {
+    const headers = { Authorization: `Bearer ${this.secretKey}` };
+    if (init.idempotencyKey) headers["Idempotency-Key"] = init.idempotencyKey;
+    if (init.method === "POST") headers["Content-Type"] = "application/x-www-form-urlencoded";
+    return this.fetcher(`${STRIPE}${path}`, { ...init, headers, signal: AbortSignal.timeout(this.timeoutMs) });
+  }
+  async charge(input) {
+    const key2 = (0, import_node_crypto11.createHash)("sha256").update(input.providerKey).digest("hex").slice(0, 40);
+    let response;
+    try {
+      response = await this.call("/payment_intents", {
+        method: "POST",
+        idempotencyKey: input.providerKey.slice(0, 255),
+        body: form({
+          amount: input.amountMinor.toString(),
+          currency: (input.currency ?? "usd").toLowerCase(),
+          payment_method: input.paymentMethodRef,
+          customer: input.customerRef,
+          confirm: "true",
+          off_session: "true",
+          description: input.description.slice(0, 250),
+          "metadata[providerKey]": key2,
+          ...Object.fromEntries(Object.entries(input.metadata ?? {}).map(([k, v]) => [`metadata[${k}]`, v]))
+        })
+      });
+    } catch {
+      return { outcome: "unknown", providerRef: "", note: "No answer from the processor. The card may or may not have been charged." };
+    }
+    const json16 = await response.json().catch(() => null);
+    if (response.status >= 500 || !json16) return { outcome: "unknown", providerRef: "", note: "The processor answered with an error. The card may or may not have been charged." };
+    if (json16.error) {
+      const intent = json16.error.payment_intent;
+      if (intent?.id) return { outcome: "failed", providerRef: intent.id, note: json16.error.message?.slice(0, 200) || "The card was declined." };
+      if (response.status === 429 || json16.error.type === "api_connection_error") return { outcome: "unknown", providerRef: "", note: "The processor was busy. Nothing is known about this charge yet." };
+      return { outcome: "failed", providerRef: "", note: json16.error.message?.slice(0, 200) || "The card was declined." };
+    }
+    return toResult(json16);
+  }
+  async lookup(providerKey) {
+    const key2 = (0, import_node_crypto11.createHash)("sha256").update(providerKey).digest("hex").slice(0, 40);
+    try {
+      const response = await this.call(`/payment_intents/search?query=${encodeURIComponent(`metadata['providerKey']:'${key2}'`)}&limit=1`, { method: "GET" });
+      const json16 = await response.json();
+      if (!response.ok || json16.error) return { outcome: "unknown", providerRef: "", note: "The processor could not be asked right now." };
+      const found = json16.data?.[0];
+      return found ? toResult(found) : { outcome: "none" };
+    } catch {
+      return { outcome: "unknown", providerRef: "", note: "The processor could not be reached." };
+    }
+  }
+};
+var override = null;
+var NotConfiguredAdapter = class {
+  constructor() {
+    this.name = "not-configured";
+  }
+  async charge() {
+    return { outcome: "failed", providerRef: "", note: "Card charging is not set up on this server (no Stripe test key)." };
+  }
+  async lookup() {
+    return { outcome: "none" };
+  }
+};
+function paymentAdapter() {
+  if (override) return override;
+  const key2 = process.env.STRIPE_SECRET_KEY;
+  return key2 ? new StripeTestAdapter(key2) : new NotConfiguredAdapter();
+}
+
+// features/keystone/services/membershipBilling.ts
+var BILLING2 = ["canManageMemberships", "canManageInvoices"];
+var STALE_CHARGE_MS = 2 * 6e4;
+var PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/;
+var lastDayOf = (period) => `${period}-${String(daysInMonth(Number(period.slice(0, 4)), Number(period.slice(5, 7)))).padStart(2, "0")}`;
+async function invoiceForAttempt(uow, actor, attempt) {
+  const { tx } = uow;
+  const m = await tx.membership.findUniqueOrThrow({ where: { id: attempt.membershipId ?? "" }, select: { id: true, ref: true, customerId: true, locationId: true, plan: { select: { name: true } } } });
+  const term = await tx.membershipTerm.findFirstOrThrow({ where: { membershipId: m.id, termNumber: attempt.termNumber }, select: { priceMinor: true, slots: true, startsOn: true } });
+  const ref = await nextReference(tx, "INV", uow.now);
+  const label = term.slots > 1 ? `${m.plan?.name ?? "Membership"}, payment ${attempt.slot + 1} of ${term.slots}` : `${m.plan?.name ?? "Membership"}, ${term.startsOn?.getUTCFullYear()} term`;
+  const invoice = await tx.invoice.create({
+    data: {
+      ref,
+      publicCode: publicCode("INV"),
+      customerId: m.customerId,
+      locationId: m.locationId,
+      payerKind: "customer",
+      status: "draft",
+      progressReason: "",
+      subtotalMinor: term.priceMinor,
+      discountMinor: 0n,
+      taxMinor: 0n,
+      totalMinor: term.priceMinor,
+      balanceMinor: 0n
+    },
+    select: { id: true, version: true }
+  });
+  await tx.invoiceLine.create({ data: { invoiceId: invoice.id, workLineId: null, description: label, quantity: "1", uom: "ea", unitPriceMinor: term.priceMinor, amountMinor: term.priceMinor, discountMinor: 0n, taxCategory: "membership", costMinor: 0n, revenueAccountCode: "4400", sortOrder: 0 } });
+  auditCreate(uow, actor, "Invoice", invoice.id, "invoice.drafted", { ref, membershipId: m.id, membershipRef: m.ref, slot: attempt.slot });
+  const posted = await postInvoiceInTx(uow, actor, { invoiceId: invoice.id, expectedVersion: invoice.version });
+  return { invoiceId: invoice.id, totalMinor: BigInt(posted.totalMinor) };
+}
+async function settleMembershipStatus(uow, actor, membershipId) {
+  const { tx } = uow;
+  const m = await tx.membership.findUniqueOrThrow({ where: { id: membershipId }, select: { id: true, status: true, version: true } });
+  const open = await tx.membershipBillingAttempt.count({ where: { membershipId, status: { in: ["failed", "unknown"] } } });
+  if (m.status === "pending_payment" || m.status === "past_due") {
+    if (!open) await casUpdate(uow, { model: "Membership", id: m.id, version: m.version, from: [m.status], to: "active", actor, eventType: "membership.paid_up" });
+  } else if (m.status === "active" && open) {
+    await casUpdate(uow, { model: "Membership", id: m.id, version: m.version, from: ["active"], to: "past_due", actor, eventType: "membership.payment_failed" });
+  }
+}
+async function finalizeSuccess(db, actor, attemptId, providerRef, now) {
+  return runInTransaction(db, async (uow) => {
+    const { tx } = uow;
+    const attempt = await lockRow(tx, "MembershipBillingAttempt", attemptId);
+    if (attempt.status === "succeeded") return "already_paid";
+    if (!attempt.invoiceId) throw new DomainError(Codes.GUARD_FAILED, "This attempt has no invoice to pay.");
+    const invoice = await lockInvoice(tx, attempt.invoiceId);
+    const payment = await createPayment(uow, actor, { customerId: invoice.customerId, jobId: null, method: "card", amountMinor: invoice.balanceMinor, reference: providerRef, receivedAt: uow.now });
+    await allocatePayment(uow, actor, invoice, payment.id, invoice.balanceMinor);
+    await casUpdate(uow, { model: "MembershipBillingAttempt", id: attempt.id, version: attempt.version, from: ["charging", "unknown", "queued", "failed"], to: "succeeded", actor, eventType: "membership.charge_succeeded", data: { paymentId: payment.id, providerRef, failureNote: "" } });
+    if (attempt.membershipId) await settleMembershipStatus(uow, actor, attempt.membershipId);
+    return "charged";
+  }, { now });
+}
+async function markStatus(db, actor, attemptId, to, note, providerRef, now) {
+  return runInTransaction(db, async (uow) => {
+    const attempt = await lockRow(uow.tx, "MembershipBillingAttempt", attemptId);
+    if (attempt.status === "succeeded") return;
+    await casUpdate(uow, { model: "MembershipBillingAttempt", id: attempt.id, version: attempt.version, from: [attempt.status], to, actor, eventType: `membership.charge_${to}`, reason: note, data: { failureNote: note.slice(0, 300), ...providerRef ? { providerRef } : {} } });
+    if (attempt.membershipId) await settleMembershipStatus(uow, actor, attempt.membershipId);
+  }, { now });
+}
+async function processAttempt(db, actor, attemptId, now, adapter = paymentAdapter()) {
+  const seen = await db.membershipBillingAttempt.findUniqueOrThrow({ where: { id: attemptId }, include: { membership: { select: { paymentMethodRef: true, customer: { select: { ref: true } } } } } });
+  if (seen.status === "succeeded") return "already_paid";
+  let status = seen.status;
+  const stale = status === "charging" && now.getTime() - seen.updatedAt.getTime() >= STALE_CHARGE_MS;
+  if (status === "charging" && !stale) return "in_progress";
+  if (status === "unknown" || stale) {
+    const found = await adapter.lookup(seen.providerKey);
+    if (found.outcome === "succeeded") return finalizeSuccess(db, actor, attemptId, found.providerRef, now);
+    if (found.outcome === "unknown") {
+      if (status !== "unknown") await markStatus(db, actor, attemptId, "unknown", found.note, "", now);
+      return "unknown";
+    }
+    if (found.outcome === "failed") {
+      await markStatus(db, actor, attemptId, "failed", found.note, found.providerRef, now);
+      status = "failed";
+    } else {
+      status = "retry_same_key";
+    }
+  }
+  if (!seen.membership?.paymentMethodRef) return "no_card";
+  const claim = await runInTransaction(db, async (uow) => {
+    const a = await lockRow(uow.tx, "MembershipBillingAttempt", attemptId);
+    const reclaimable = a.status === "queued" || a.status === "failed" || status === "retry_same_key" && ["unknown", "charging"].includes(a.status);
+    if (!reclaimable) return { skip: a.status === "succeeded" ? "already_paid" : "in_progress" };
+    const generation = a.status === "failed" ? a.generation + 1 : a.generation;
+    const providerKey = `${a.attemptKey}:g${generation}`;
+    const invoice = a.invoiceId ? { invoiceId: a.invoiceId, totalMinor: (await lockInvoice(uow.tx, a.invoiceId)).balanceMinor } : await invoiceForAttempt(uow, actor, a);
+    await uow.tx.membershipBillingAttempt.update({ where: { id: a.id }, data: { status: "charging", generation, providerKey, invoiceId: invoice.invoiceId, amountMinor: invoice.totalMinor, version: { increment: 1 } } });
+    uow.audit({ eventType: "membership.charge_started", entityType: "MembershipBillingAttempt", entityId: a.id, actorUserId: actorUserId(actor), after: { generation, amountMinor: invoice.totalMinor.toString() } });
+    return { skip: null, providerKey, amountMinor: invoice.totalMinor };
+  }, { now });
+  if (claim.skip) return claim.skip;
+  let result;
+  try {
+    result = await adapter.charge({
+      providerKey: claim.providerKey,
+      amountMinor: claim.amountMinor,
+      paymentMethodRef: seen.membership.paymentMethodRef,
+      description: `Membership ${seen.termNumber}.${seen.slot + 1}`,
+      metadata: { attempt: seen.attemptKey }
+    });
+  } catch {
+    result = { outcome: "unknown", providerRef: "", note: "The connection dropped before an answer came back. The card may or may not have been charged." };
+  }
+  if (result.outcome === "succeeded") return finalizeSuccess(db, actor, attemptId, result.providerRef, now);
+  if (result.outcome === "failed") {
+    await markStatus(db, actor, attemptId, "failed", result.note, result.providerRef, now);
+    return "declined";
+  }
+  await markStatus(db, actor, attemptId, "unknown", result.note, result.providerRef, now);
+  return "unknown";
+}
+async function runMembershipBilling(db, actor, args, adapter = paymentAdapter()) {
+  await authorizeOperation(db, actor, "membership.billing_run", BILLING2, args);
+  if (!PERIOD.test(args.period ?? "")) throw new DomainError(Codes.INVALID_INPUT, "Choose a month to bill.", { field: "period" });
+  const now = args.now ?? /* @__PURE__ */ new Date();
+  const { idempotencyKey, now: _now, ...params } = args;
+  const prepared = await command(db, { name: "membership.billing_run", actor, idempotencyKey, params, now }, async (uow) => {
+    const { tx } = uow;
+    const today = await companyToday(tx, uow.now);
+    if (args.period > today.slice(0, 7)) throw new DomainError(Codes.GUARD_FAILED, "That month has not started. Bill this month or an earlier one.", { reason: "future_period" });
+    const end = lastDayOf(args.period);
+    const run = await tx.membershipBillingRun.create({ data: { ref: await nextReference(tx, "MBP", uow.now), period: args.period, idempotencyKey, status: "running", startedById: actorUserId(actor), startedAt: uow.now }, select: { id: true, ref: true } });
+    const renewing = await tx.membership.findMany({ where: { autoRenew: true, status: { in: ["active", "past_due"] } }, select: { id: true, startsOn: true, planId: true, autoRenewConsentId: true, terms: { where: { status: "active" }, orderBy: { termNumber: "desc" }, take: 1, select: { termNumber: true, endsOn: true } } } });
+    const skippedRenewals = [];
+    for (const m of renewing) {
+      const last = m.terms[0];
+      if (!last?.endsOn) continue;
+      const nextStart = addDays(last.endsOn.toISOString().slice(0, 10), 1);
+      if (nextStart > end) continue;
+      const told = await tx.renewalNotice.findFirst({ where: { membershipId: m.id, kind: "auto_renew_reminder", status: "contacted", term: { termNumber: last.termNumber } }, select: { createdAt: true } });
+      const version = await tx.membershipPlanVersion.findFirst({ where: { planId: m.planId ?? "", status: "active" }, select: { renewalNoticeDays: true, autoRenew: true } });
+      if (!version?.autoRenew) {
+        skippedRenewals.push({ membershipId: m.id, reason: "The current plan no longer renews itself." });
+        continue;
+      }
+      if (!told || told.createdAt.toISOString().slice(0, 10) > addDays(nextStart, -version.renewalNoticeDays)) {
+        skippedRenewals.push({ membershipId: m.id, reason: "The customer has not been told about the renewal in time." });
+        continue;
+      }
+      await renewInTx(uow, actor, m.id, today);
+    }
+    const members = await tx.membership.findMany({
+      where: { status: { in: ["pending_payment", "active", "past_due"] } },
+      select: { id: true, startsOn: true, terms: { where: { status: "active" }, select: { id: true, termNumber: true, slots: true, billingFrequency: true, startsOn: true } }, planVersion: { select: { termMonths: true } } }
+    });
+    const rows = [];
+    for (const m of members) {
+      const anchor = m.startsOn.toISOString().slice(0, 10);
+      for (const t of m.terms) {
+        const months = m.planVersion?.termMonths ?? 12;
+        for (let k = 0; k < t.slots; k += 1) {
+          const due = t.billingFrequency === "monthly" ? slotDueDay(anchor, months, t.termNumber, k) : t.startsOn.toISOString().slice(0, 10);
+          if (due > end) continue;
+          rows.push({ attemptKey: `${m.id}:${t.termNumber}:${k}`, membershipId: m.id, termId: t.id, termNumber: t.termNumber, slot: k, dueOn: asDate(due), runId: run.id });
+        }
+      }
+    }
+    if (rows.length) await tx.membershipBillingAttempt.createMany({ data: rows, skipDuplicates: true });
+    auditCreate(uow, actor, "MembershipBillingRun", run.id, "membership.billing_run_started", { period: args.period, candidates: rows.length, skippedRenewals });
+    return { runId: run.id, ref: run.ref };
+  });
+  const attempts = await db.membershipBillingAttempt.findMany({
+    where: { dueOn: { lte: asDate(lastDayOf(args.period)) }, status: { not: "succeeded" }, membership: { status: { in: ["pending_payment", "active", "past_due"] } } },
+    orderBy: [{ dueOn: "asc" }, { attemptKey: "asc" }],
+    select: { id: true }
+  });
+  const tally = { charged: 0, declined: 0, unknown: 0, inProgress: 0, noCard: 0, already: 0 };
+  for (const a of attempts) {
+    const outcome = await processAttempt(db, actor, a.id, now, adapter);
+    if (outcome === "charged") tally.charged += 1;
+    else if (outcome === "declined") tally.declined += 1;
+    else if (outcome === "unknown") tally.unknown += 1;
+    else if (outcome === "in_progress") tally.inProgress += 1;
+    else if (outcome === "no_card") tally.noCard += 1;
+    else tally.already += 1;
+  }
+  const paid = await db.membershipBillingAttempt.aggregate({ where: { runId: prepared.value.runId, status: "succeeded" }, _sum: { amountMinor: true } });
+  const remaining = await db.membershipBillingAttempt.count({ where: { dueOn: { lte: asDate(lastDayOf(args.period)) }, status: { not: "succeeded" }, membership: { status: { in: ["pending_payment", "active", "past_due"] } } } });
+  await db.membershipBillingRun.update({
+    where: { id: prepared.value.runId },
+    data: { status: remaining === 0 || !tally.inProgress ? "completed" : "running", queuedCount: attempts.length, chargedCount: tally.charged, failedCount: tally.declined, unknownCount: tally.unknown, remainingCount: remaining, chargedMinor: paid._sum.amountMinor ?? 0n, completedAt: now }
+  });
+  return { runId: prepared.value.runId, ref: prepared.value.ref, period: args.period, queued: attempts.length, charged: tally.charged, declined: tally.declined, unknown: tally.unknown, inProgress: tally.inProgress, noCard: tally.noCard, remaining, chargedMinor: (paid._sum.amountMinor ?? 0n).toString(), replay: prepared.replay };
+}
+async function retryAttempt(db, actor, args, adapter = paymentAdapter()) {
+  await authorizeOperation(db, actor, "membership.attempt_retry", BILLING2, args);
+  const outcome = await processAttempt(db, actor, args.attemptId, args.now ?? /* @__PURE__ */ new Date(), adapter);
+  return { attemptId: args.attemptId, outcome };
+}
+
+// features/keystone/services/agreements.ts
+init_actor();
+init_cas();
+init_errors();
+var MANAGE2 = ["canManageMemberships"];
+var SELL4 = ["canSellMemberships", "canManageMemberships"];
+var ymd2 = (d) => d ? d.toISOString().slice(0, 10) : "";
+var clean = (v, field, min, max) => {
+  const s = String(v ?? "").trim();
+  if (s.length < min || s.length > max) throw new DomainError(Codes.INVALID_INPUT, min ? "This is needed." : "Too long.", { field });
+  return s;
+};
+async function recordRenewalNotice(db, actor, args) {
+  await authorizeOperation(db, actor, "membership.renewal_notice", SELL4, args);
+  if (!["drafted", "contacted", "dismissed"].includes(args.status)) throw new DomainError(Codes.INVALID_INPUT, "Choose what happened.", { field: "status" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "membership.renewal_notice", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const m = await tx.membership.findUnique({ where: { id: args.membershipId }, select: { id: true, autoRenew: true } });
+    if (!m) throw new DomainError(Codes.NOT_FOUND, "Membership not found.");
+    const term = await tx.membershipTerm.findFirst({ where: { membershipId: m.id, status: "active" }, orderBy: { termNumber: "desc" }, select: { id: true, endsOn: true, termNumber: true } });
+    if (!term) throw new DomainError(Codes.GUARD_FAILED, "This membership has no current term.");
+    const noticeKey = `${m.id}:${term.termNumber}:${m.autoRenew ? "auto_renew_reminder" : "renewal_coming"}`;
+    const existing = await tx.renewalNotice.findUnique({ where: { noticeKey }, select: { id: true, status: true, version: true } });
+    if (existing) {
+      if (existing.status === args.status) return { noticeId: existing.id };
+      await casUpdate(uow, { model: "RenewalNotice", id: existing.id, version: existing.version, from: [existing.status], to: args.status, actor, eventType: "membership.renewal_notice_updated" });
+      return { noticeId: existing.id };
+    }
+    const row = await tx.renewalNotice.create({ data: { noticeKey, membershipId: m.id, termId: term.id, kind: m.autoRenew ? "auto_renew_reminder" : "renewal_coming", dueOn: term.endsOn, status: args.status, preparedById: actorUserId(actor) }, select: { id: true } });
+    auditCreate(uow, actor, "RenewalNotice", row.id, "membership.renewal_notice_recorded", { membershipId: m.id, status: args.status });
+    return { noticeId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function saveAgreement(db, actor, args) {
+  await authorizeOperation(db, actor, "agreement.save", MANAGE2, args);
+  const name = clean(args.name, "name", 3, 120);
+  const scope = clean(args.scope, "scope", 10, 800);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.startsOn ?? "") || !/^\d{4}-\d{2}-\d{2}$/.test(args.endsOn ?? "") || args.endsOn < args.startsOn) throw new DomainError(Codes.INVALID_INPUT, "The agreement runs from a start day to a later end day.", { field: "endsOn" });
+  const months = [...new Set((args.visitMonths ?? []).map(Number))].sort((a, b) => a - b);
+  if (!months.length || months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) throw new DomainError(Codes.INVALID_INPUT, "Pick the months a visit is due.", { field: "visitMonths" });
+  const nte = args.nteMinor ? BigInt(args.nteMinor) : 0n;
+  if (nte < 0n) throw new DomainError(Codes.INVALID_INPUT, "The not-to-exceed amount is zero or more.", { field: "nteMinor" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "agreement.save", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const location = await tx.serviceLocation.findUnique({ where: { id: args.locationId }, select: { id: true, customerId: true } });
+    if (!location || location.customerId !== args.customerId) throw new DomainError(Codes.NOT_FOUND, "That address is not on this customer.", { field: "locationId" });
+    if (args.payerId && !await tx.payerProfile.findUnique({ where: { id: args.payerId }, select: { id: true } })) throw new DomainError(Codes.NOT_FOUND, "Payer not found.", { field: "payerId" });
+    const data = { name, customerId: args.customerId, locationId: location.id, payerId: args.payerId ?? null, startsOn: asDate(args.startsOn), endsOn: asDate(args.endsOn), scope, visitMonths: months, poNumber: args.poNumber?.trim() ?? "", nteMinor: nte };
+    if (args.agreementId) {
+      const a = await lockRow(tx, "ServiceAgreement", args.agreementId);
+      if (a.status !== "draft") throw new DomainError(Codes.GUARD_FAILED, "Only a draft agreement is edited. End it and write a new one.", { reason: "not_draft" });
+      await tx.serviceAgreement.update({ where: { id: a.id }, data });
+      auditCreate(uow, actor, "ServiceAgreement", a.id, "agreement.edited", { name });
+      return { agreementId: a.id };
+    }
+    const row = await tx.serviceAgreement.create({ data: { ...data, ref: await nextReference(tx, "AGR", uow.now), status: "draft" }, select: { id: true } });
+    auditCreate(uow, actor, "ServiceAgreement", row.id, "agreement.created", { name });
+    return { agreementId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function activateAgreement(db, actor, args) {
+  await authorizeOperation(db, actor, "agreement.activate", MANAGE2, args);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "agreement.activate", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const a = await lockRow(tx, "ServiceAgreement", args.agreementId);
+    if (a.status !== "draft") throw new DomainError(Codes.INVALID_TRANSITION, "Only a draft agreement is started.");
+    const start = ymd2(a.startsOn), end = ymd2(a.endsOn);
+    let made = 0;
+    for (let y = Number(start.slice(0, 4)); y <= Number(end.slice(0, 4)); y += 1) {
+      for (const m of a.visitMonths) {
+        const from = `${y}-${String(m).padStart(2, "0")}-01`;
+        const to = addDays(termEnd(from, 1, 1), 0);
+        if (to < start || from > end) continue;
+        await tx.recurringServiceEvent.create({ data: { eventKey: `${a.id}:${y}-${String(m).padStart(2, "0")}`, agreementId: a.id, code: "planned_maintenance", name: `${a.name}: ${new Date(Date.UTC(y, m - 1, 1)).toLocaleString("en-US", { month: "long", timeZone: "UTC" })} visit`, dueFrom: asDate(from < start ? start : from), dueBy: asDate(to > end ? end : to), status: "open" } });
+        made += 1;
+      }
+    }
+    if (!made) throw new DomainError(Codes.GUARD_FAILED, "None of the chosen months fall inside the agreement dates.", { reason: "no_visits" });
+    await casUpdate(uow, { model: "ServiceAgreement", id: a.id, version: a.version, from: ["draft"], to: "active", actor, eventType: "agreement.activated", data: {}, audit: { visits: made } });
+    return { agreementId: a.id, visits: made };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function endAgreement(db, actor, args) {
+  await authorizeOperation(db, actor, "agreement.end", MANAGE2, args);
+  const reason = clean(args.reason, "reason", 3, 300);
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "agreement.end", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const a = await lockRow(uow.tx, "ServiceAgreement", args.agreementId);
+    await casUpdate(uow, { model: "ServiceAgreement", id: a.id, version: a.version, from: ["active", "draft"], to: "ended", actor, eventType: "agreement.ended", reason });
+    await uow.tx.recurringServiceEvent.updateMany({ where: { agreementId: a.id, status: "open" }, data: { status: "skipped" } });
+    return { agreementId: a.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function setDocumentExpiry(db, actor, args) {
+  await authorizeOperation(db, actor, "document.set_expiry", ["canManageCustomers", "canManageInvoices", "canManageMemberships"], args);
+  const reason = clean(args.reason, "reason", 3, 200);
+  if (args.expiresOn !== null && !/^\d{4}-\d{2}-\d{2}$/.test(args.expiresOn ?? "")) throw new DomainError(Codes.INVALID_INPUT, "The expiry is a day, or empty for none.", { field: "expiresOn" });
+  const { idempotencyKey, now: _now, ...params } = args;
+  const result = await command(db, { name: "document.set_expiry", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const doc = await lockRow(uow.tx, "Document", args.documentId);
+    const today = await companyToday(uow.tx, uow.now);
+    if (args.expiresOn && args.expiresOn < addDays(today, -365)) throw new DomainError(Codes.INVALID_INPUT, "That expiry is more than a year ago.", { field: "expiresOn" });
+    await uow.tx.document.update({ where: { id: doc.id }, data: { expiresAt: args.expiresOn ? asDate(args.expiresOn) : null } });
+    uow.audit({ eventType: "document.expiry_set", entityType: "Document", entityId: doc.id, actorUserId: actorUserId(actor), reason, before: { expiresAt: ymd2(doc.expiresAt) || null }, after: { expiresAt: args.expiresOn } });
+    return { documentId: doc.id, expiresOn: args.expiresOn };
+  });
+  return { replay: result.replay, ...result.value };
+}
+
+// features/keystone/mutations/phase4.ts
+var graphql5 = String.raw;
+var bind4 = (fn) => op(async (_root, args, context) => {
+  const { now: _ignored, ...clean2 } = args;
+  const actor = await actorFor(context);
+  await advanceTimedStates(context.prisma);
+  return fn(context.prisma, actor, clean2);
+});
+var phase4TypeDefs = graphql5`
+  type Mutation {
+    openMembershipPlan(name: String!, code: String!, description: String, draft: JSON, idempotencyKey: String!): JSON
+    saveMembershipPlanDraft(planId: ID!, draft: JSON!, idempotencyKey: String!): JSON
+    activateMembershipPlanVersion(versionId: ID!, idempotencyKey: String!): JSON
+    retireMembershipPlan(planId: ID!, reason: String, idempotencyKey: String!): JSON
+
+    sellMembership(customerId: ID!, locationId: ID!, planId: ID!, startsOn: String, channel: String, paymentMethodRef: String, paymentMethodLabel: String, autoRenew: Boolean, consent: JSON, idempotencyKey: String!): JSON
+    updateMembershipPaymentMethod(membershipId: ID!, paymentMethodRef: String!, paymentMethodLabel: String!, idempotencyKey: String!): JSON
+    renewMembership(membershipId: ID!, idempotencyKey: String!): JSON
+    cancelMembership(membershipId: ID!, reason: String!, idempotencyKey: String!): JSON
+    transferMembership(membershipId: ID!, newCustomerId: ID!, newLocationId: ID, idempotencyKey: String!): JSON
+    bookMembershipVisit(eventId: ID!, jobRef: String!, idempotencyKey: String!): JSON
+    releaseMembershipVisit(eventId: ID!, reason: String!, idempotencyKey: String!): JSON
+
+    runMembershipBilling(period: String!, idempotencyKey: String!): JSON
+    retryMembershipCharge(attemptId: ID!, idempotencyKey: String!): JSON
+    recordRenewalNotice(membershipId: ID!, status: String!, idempotencyKey: String!): JSON
+
+    saveServiceAgreement(agreementId: ID, name: String!, customerId: ID!, locationId: ID!, payerId: ID, startsOn: String!, endsOn: String!, scope: String!, visitMonths: JSON!, poNumber: String, nteMinor: String, idempotencyKey: String!): JSON
+    activateServiceAgreement(agreementId: ID!, idempotencyKey: String!): JSON
+    endServiceAgreement(agreementId: ID!, reason: String!, idempotencyKey: String!): JSON
+    setDocumentExpiry(documentId: ID!, expiresOn: String, reason: String!, idempotencyKey: String!): JSON
+  }
+`;
+var phase4Resolvers = {
+  Mutation: {
+    openMembershipPlan: bind4(createPlan),
+    saveMembershipPlanDraft: bind4(saveDraftVersion),
+    activateMembershipPlanVersion: bind4(activatePlanVersion),
+    retireMembershipPlan: bind4(retirePlan),
+    sellMembership: bind4(sellMembership),
+    updateMembershipPaymentMethod: bind4(updatePaymentMethod),
+    renewMembership: bind4(renewMembership),
+    cancelMembership: bind4(cancelMembership),
+    transferMembership: bind4(transferMembership),
+    bookMembershipVisit: bind4(bookVisit),
+    releaseMembershipVisit: bind4(releaseVisit),
+    runMembershipBilling: bind4((db, actor, a) => runMembershipBilling(db, actor, a)),
+    retryMembershipCharge: bind4((db, actor, a) => retryAttempt(db, actor, a)),
+    recordRenewalNotice: bind4(recordRenewalNotice),
+    saveServiceAgreement: bind4(saveAgreement),
+    activateServiceAgreement: bind4(activateAgreement),
+    endServiceAgreement: bind4(endAgreement),
+    setDocumentExpiry: bind4(setDocumentExpiry)
+  }
+};
+
 // features/keystone/mutations/agentBinding.ts
 init_actor();
 init_errors();
 init_cas();
-var graphql5 = String.raw;
+var graphql6 = String.raw;
 var UNUSABLE_PASSWORD_HASH3 = "$2a$10$3dITCbIvf5zFA.1U8KZDhOHC3EEexi3KYy5ysZK1cRF6LHMm0H.ya";
-var agentBindingTypeDefs = graphql5`
+var agentBindingTypeDefs = graphql6`
   type Query { agentBindings: JSON }
   type Mutation {
     bindAgentApp(agentId: ID!, oauthAppId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
@@ -11199,11 +12458,11 @@ var agentBindingResolvers = {
 };
 
 // features/keystone/mutations/index.ts
-var graphql6 = String.raw;
+var graphql7 = String.raw;
 function extendGraphqlSchema(baseSchema) {
   const core = (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
-    typeDefs: graphql6`
+    typeDefs: graphql7`
       scalar JSON
       type Query {
         redirectToInit: Boolean
@@ -11240,7 +12499,7 @@ function extendGraphqlSchema(baseSchema) {
       }
     }
   });
-  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, phase3TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, phase3Resolvers, agentBindingResolvers] });
+  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, phase3TypeDefs, phase4TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, phase3Resolvers, phase4Resolvers, agentBindingResolvers] });
 }
 
 // features/keystone/lib/mail.ts
@@ -11460,7 +12719,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   `
 });
 var keystone_default = withAuth(
-  (0, import_core20.config)({
+  (0, import_core21.config)({
     db: {
       provider: "postgresql",
       url: databaseURL,

@@ -35,7 +35,7 @@ const costOf = (snapshot: unknown) => {
   return raw && /^\d+$/.test(raw) ? BigInt(raw) : 0n
 }
 
-async function taxContext(tx: Tx | Db, loc: { state: string; postalCode: string; city: string; timeZone: string; propertyClass: string } | null, on: Date) {
+export async function taxContext(tx: Tx | Db, loc: { state: string; postalCode: string; city: string; timeZone: string; propertyClass: string } | null, on: Date) {
   if (!loc) throw new DomainError(Codes.GUARD_FAILED, 'The job has no service address; sales tax depends on it.', { reason: 'no_location' })
   const place = placeOfLocation(loc)
   const policy = await resolvePolicyFromDb<SalesTaxRulesLike>(tx, 'sales_tax', place, localDate({ timeZone: loc.timeZone }, on))
@@ -138,7 +138,13 @@ export async function discardInvoiceDraft(db: Db, actor: Actor, args: { invoiceI
 export async function postInvoice(db: Db, actor: Actor, args: { invoiceId: string; expectedVersion: number; invoiceDate?: string | null; idempotencyKey: string; now?: Date }) {
   await authorizeOperation(db, actor, 'invoice.post', ['canPostInvoices'], args)
   const { idempotencyKey, now: _now, ...params } = args
-  const result = await command(db, { name: 'invoice.post', actor, idempotencyKey, params, now: args.now }, async uow => {
+  const result = await command(db, { name: 'invoice.post', actor, idempotencyKey, params, now: args.now }, uow => postInvoiceInTx(uow, actor, args))
+  return { replay: result.replay, ...result.value }
+}
+
+/** Post a draft inside the caller's transaction (membership billing posts its own invoices this way). */
+export async function postInvoiceInTx(uow: UnitOfWork, actor: Actor, args: { invoiceId: string; expectedVersion: number; invoiceDate?: string | null }) {
+  {
     const { tx } = uow
     const row = await lockInvoice(tx, args.invoiceId)
     if (row.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, 'This invoice changed since you loaded it. Reload and try again.', { currentStatus: row.status, currentVersion: row.version })
@@ -201,8 +207,7 @@ export async function postInvoice(db: Db, actor: Actor, args: { invoiceId: strin
     else await tx.invoice.update({ where: { id: row.id }, data: { status: 'paid' } })
     uow.audit({ eventType: 'invoice.posted', entityType: 'Invoice', entityId: row.id, actorUserId: actorUserId(actor), after: { ref: invoice.ref, totalMinor: total.toString(), taxMinor: taxed.taxMinor.toString(), invoiceDate, dueDate } })
     return { invoiceId: row.id, ref: invoice.ref, totalMinor: total.toString(), taxMinor: taxed.taxMinor.toString(), dueDate }
-  })
-  return { replay: result.replay, ...result.value }
+  }
 }
 
 /** Add a collections status (a label for the office; nothing is sent). */

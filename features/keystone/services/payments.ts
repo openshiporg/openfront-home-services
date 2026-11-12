@@ -40,7 +40,7 @@ async function batchFor(uow: UnitOfWork, method: string, day: string) {
 }
 
 /** Create the Payment row and file it in the day's batch. */
-async function createPayment(uow: UnitOfWork, actor: Actor, a: { customerId: string | null; jobId: string | null; payerId?: string | null; method: string; amountMinor: bigint; feeMinor?: bigint; reference?: string; checkNumber?: string; receivedAt: Date; kind?: string }) {
+export async function createPayment(uow: UnitOfWork, actor: Actor, a: { customerId: string | null; jobId: string | null; payerId?: string | null; method: string; amountMinor: bigint; feeMinor?: bigint; reference?: string; checkNumber?: string; receivedAt: Date; kind?: string }) {
   const day = await companyToday(uow.tx, a.receivedAt)
   await arPeriodFor(uow.tx, day) // money dated in a closed (or closing) AR month is refused (I-M9); the DB trigger Payment_period backs this
   const ref = await nextReference(uow.tx, 'PMT', uow.now)

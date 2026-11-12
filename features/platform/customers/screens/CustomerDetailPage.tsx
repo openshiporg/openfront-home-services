@@ -42,6 +42,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   ]);
   const c = d.customer;
   if (!c) notFound();
+  // Only roles that sell memberships can read them; for everyone else the panel is simply absent.
+  const mem = await q<{ memberships: { id: string; ref: string; status: string; plan: { name: string } | null; terms: { endsOn: string; status: string }[] }[] }>(`query Mem($id: ID!) { memberships(where: { customer: { id: { equals: $id } } }, orderBy: [{ createdAt: desc }], take: 10) { id ref status plan { name } terms(where: { status: { equals: "active" } }, orderBy: [{ termNumber: desc }], take: 1) { endsOn status } } }`, { id }).then(r => r.memberships).catch(() => null);
   const path = `/dashboard/platform/customers/${c.id}`;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const cert = c.taxExemptCertificate;
@@ -62,6 +64,18 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{cert.title}</span>{certExpired ? <span className="rounded border border-red-300 px-1.5 text-xs font-medium text-red-700">Expired</span> : <span className="rounded border border-emerald-300 px-1.5 text-xs font-medium text-emerald-700">Valid</span>}</span>
             <Meta>{cert.expiresAt ? `${certExpired ? 'Expired' : 'Expires'} ${dateText(cert.expiresAt)}` : 'No expiry date'}{certExpired ? ' · invoices are taxed' : ' · nonresidential work is not taxed'}</Meta>
           </Row>
+          <CommandForm op="setDocumentExpiry" submit="Set expiry" paths={[path]} fixed={{ documentId: cert.id }} fields={[{ name: 'expiresOn', label: 'New expiry date', kind: 'date', required: true, width: 'sm' }, { name: 'reason', label: 'Why (renewed certificate, new date on file)', required: true, width: 'lg' }]} />
+        </Section>
+      ) : null}
+
+      {mem ? (
+        <Section title={`Memberships · ${mem.length}`} aside={<Link className="text-xs underline" href="/dashboard/platform/memberships">All memberships</Link>}>
+          {mem.length ? mem.map(m => (
+            <Row key={m.id} href={`/dashboard/platform/memberships/${m.id}`}>
+              <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{m.plan?.name ?? 'Membership'}</span><Status value={m.status} /></span>
+              <Meta>{m.terms[0] ? `Current term ends ${dateText(m.terms[0].endsOn)}` : 'No current term'}</Meta>
+            </Row>
+          )) : <Empty>Not a member. Sell a membership from the Memberships page.</Empty>}
         </Section>
       ) : null}
 
