@@ -2619,6 +2619,7 @@ type Media {
   storageKey: String
   sha256: String
   mimeType: String
+  content: String
   capturedAt: DateTime
   capturedBy: User
   visibility: String
@@ -2669,6 +2670,7 @@ input MediaUpdateInput {
   storageKey: String
   sha256: String
   mimeType: String
+  content: String
   capturedAt: DateTime
   capturedBy: UserRelateToOneForUpdateInput
   visibility: String
@@ -2688,6 +2690,7 @@ input MediaCreateInput {
   storageKey: String
   sha256: String
   mimeType: String
+  content: String
   capturedAt: DateTime
   capturedBy: UserRelateToOneForCreateInput
   visibility: String

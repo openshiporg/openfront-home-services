@@ -604,6 +604,7 @@ model Media {
   storageKey                             String               @default("")
   sha256                                 String               @default("")
   mimeType                               String               @default("")
+  content                                String               @default("")
   capturedAt                             DateTime?
   capturedBy                             User?                @relation("Media_capturedBy", fields: [capturedById], references: [id])
   capturedById                           String?              @map("capturedBy")

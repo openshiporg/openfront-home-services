@@ -11,6 +11,7 @@ import { requestApproval, consumeApproval } from '../lib/approval'
 import { registerApplier } from '../lib/approvalAppliers'
 import { asDate, companyToday, dayOf } from './billingShared'
 import { decimal } from './inventory'
+import { createHash } from 'node:crypto'
 
 /*
  * Equipment and warranty (STATE-MACHINES §11). Nothing is sent to a manufacturer. A registration is a deadline with a packet staff copy
@@ -459,3 +460,45 @@ export async function registrationList(db: Db, now = new Date()) {
 }
 
 void dayOf
+
+
+// ── Photo evidence ───────────────────────────────────────────────────────────────────────────────────────────────
+
+export const CLAIM_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'] as const
+export const CLAIM_PHOTO_MAX_BYTES = 5 * 1024 * 1024
+
+/** A technician's own claims: ones they started, or on a job they are assigned to. */
+export const ownClaimWhere = (userId: string) => ({ OR: [{ draftedById: userId }, { job: { visits: { some: { assignments: { some: { employee: { userId } } } } } } }] })
+
+/** Office (claims, dispatch or billing roles) may see any claim; a technician (equipment permission) only a claim they started or on a job they are assigned to. */
+export async function mayUseClaimPhotos(db: Db | Tx, actor: Actor, claimId: string) {
+  if (actor.kind !== 'user') return false
+  if (actor.permissions.has('canSubmitWarrantyClaims') || actor.permissions.has('canDispatch') || actor.permissions.has('canManageInvoices')) return true
+  if (!actor.permissions.has('canManageEquipment')) return false
+  const own = await (db as Db).warrantyClaim.count({ where: { id: claimId, ...ownClaimWhere(actor.userId) } })
+  return own > 0
+}
+
+/** Attach one photo to a claim. The same photo sent twice is attached once. Only a draft or info-requested claim takes photos. */
+export async function attachClaimPhoto(db: Db, actor: Actor, args: { claimId: string; filename: string; mimeType: string; bytes: Buffer; now?: Date }) {
+  if (actor.kind !== 'user') throw new DomainError(Codes.NOT_AUTHORIZED, 'Photos are attached by a person.')
+  if (!(await mayUseClaimPhotos(db, actor, args.claimId))) throw new DomainError(Codes.NOT_AUTHORIZED, 'You can attach photos to claims on your own jobs.')
+  if (!(CLAIM_PHOTO_TYPES as readonly string[]).includes(args.mimeType)) throw new DomainError(Codes.INVALID_INPUT, 'A photo is a JPEG, PNG, WebP or HEIC file.', { field: 'file' })
+  if (!args.bytes.length) throw new DomainError(Codes.INVALID_INPUT, 'That file is empty.', { field: 'file' })
+  if (args.bytes.length > CLAIM_PHOTO_MAX_BYTES) throw new DomainError(Codes.INVALID_INPUT, 'That photo is over 5 MB. Send a smaller one.', { field: 'file' })
+  const sha = createHash('sha256').update(args.bytes).digest('hex')
+  const idempotencyKey = `claim-photo:${args.claimId}:${sha}`
+  const result = await command(db, { name: 'warranty.claim_photo', actor, idempotencyKey, params: { claimId: args.claimId, sha256: sha, mimeType: args.mimeType }, now: args.now }, async uow => {
+    const claim = await uow.tx.warrantyClaim.findUnique({ where: { id: args.claimId }, select: { id: true, status: true } })
+    if (!claim) throw new DomainError(Codes.NOT_FOUND, 'That claim does not exist.')
+    if (!['draft', 'info_requested'].includes(claim.status)) throw new DomainError(Codes.GUARD_FAILED, `This claim is ${claim.status}; photos are added before it is ready.`)
+    const media = await uow.tx.media.create({
+      data: { subjectType: 'WarrantyClaim', subjectId: claim.id, kind: 'photo', storageKey: `claims/${claim.id}/${sha.slice(0, 16)}-${args.filename.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 60)}`, sha256: sha, mimeType: args.mimeType, content: args.bytes.toString('base64'), capturedAt: uow.now, capturedById: actor.userId, visibility: 'internal' },
+      select: { id: true },
+    })
+    await uow.tx.warrantyClaim.update({ where: { id: claim.id }, data: { evidence: { connect: { id: media.id } } } })
+    auditCreate(uow, actor, 'WarrantyClaim', claim.id, 'warranty_claim.photo_attached', { mediaId: media.id, sha256: sha, bytes: args.bytes.length })
+    return { mediaId: media.id }
+  })
+  return { replay: result.replay, ...result.value }
+}

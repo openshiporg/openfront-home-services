@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { keystoneContext } from '@/features/keystone/context';
 import { stockSummary } from '@/features/keystone/services/inventory';
-import { registrationList } from '@/features/keystone/services/warranty';
+import { registrationList, ownClaimWhere } from '@/features/keystone/services/warranty';
 import { lienList } from '@/features/keystone/services/compliance';
 import { advanceTimedStates } from '@/features/keystone/services/maintenance';
 import { q, viewer } from '../../lib/server';
@@ -11,6 +11,7 @@ import { money, dateText, label, quantity } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
 import { CommandForm } from '../../components/CommandForm';
+import { ClaimPhotos } from '../../components/ClaimPhotos';
 
 /*
  * Equipment, warranty, stock, purchasing, permits, refrigerant and liens. Plain server screens over the Phase 5 commands. Costs show only
@@ -124,8 +125,9 @@ export async function RegistrationPacketPage({ id }: { id: string }) {
 const CLAIM_DECISIONS = ['info_requested', 'approved', 'partially_approved', 'denied'].map(v => ({ value: v, label: label(v) }));
 
 export async function ClaimsPage() {
-  const me = await gate('canSubmitWarrantyClaims');
-  const rows = await db().warrantyClaim.findMany({ orderBy: { createdAt: 'desc' }, take: 200, select: { id: true, ref: true, status: true, version: true, claimant: true, failedPart: true, failureDate: true, replacementSerial: true, laborHours: true, claimedMinor: true, recoveredMinor: true, externalClaimNumber: true, deadline: true, equipment: { select: { manufacturer: true, modelNumber: true, serialNumber: true } } } });
+  const me = await gate('canSubmitWarrantyClaims', 'canManageEquipment');
+  const office = me.can('canSubmitWarrantyClaims');
+  const rows = await db().warrantyClaim.findMany({ where: office ? {} : ownClaimWhere(me.id), orderBy: { createdAt: 'desc' }, take: 200, select: { id: true, ref: true, status: true, version: true, claimant: true, failedPart: true, failureDate: true, replacementSerial: true, laborHours: true, claimedMinor: true, recoveredMinor: true, externalClaimNumber: true, deadline: true, equipment: { select: { manufacturer: true, modelNumber: true, serialNumber: true } }, evidence: { select: { id: true, storageKey: true } } } });
   const paths = ['/dashboard/platform/warranty/claims'];
   return (
     <Page title="Warranty claims">
@@ -135,6 +137,7 @@ export async function ClaimsPage() {
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-x-3"><span className="font-medium">{c.equipment?.manufacturer} {c.equipment?.modelNumber}</span><Status value={c.status} /><Meta>{c.ref}</Meta></div>
               <Meta>{c.failedPart || 'Failed part not entered'} · claimed {money(String(c.claimedMinor))} · recovered {money(String(c.recoveredMinor))}{c.externalClaimNumber ? ` · maker claim ${c.externalClaimNumber}` : ''}{c.deadline ? ` · file by ${dateText(ymd(c.deadline))}` : ''}</Meta>
+              <ClaimPhotos claimId={c.id} photos={c.evidence.map((m: any) => ({ id: m.id, name: String(m.storageKey).split('/').pop() ?? 'photo' }))} canAdd={['draft', 'info_requested'].includes(c.status)} />
               {['draft', 'ready', 'info_requested'].includes(c.status) ? (
                 <CommandForm op="saveWarrantyClaimDraft" fixed={{ claimId: c.id, expectedVersion: c.version }} submit="Save claim details" paths={paths}
                   nest={{ draft: ['failedPart', 'failureDate', 'replacementSerial', 'laborHours', 'claimedMinor'] }}

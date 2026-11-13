@@ -287,6 +287,8 @@ export const Media = list({
     storageKey: systemText({ required: true }),
     sha256: systemText({ required: true }),
     mimeType: systemText(),
+    /** The file itself, base64, kept in the database. Never readable through the API: /api/warranty-claims/[id]/photo serves it to people who may see the claim. */
+    content: text({ access: { read: () => false, create: () => false, update: () => false }, isFilterable: false, isOrderable: false, ui: { createView: { fieldMode: 'hidden' }, itemView: { fieldMode: 'hidden' }, listView: { fieldMode: 'hidden' } } }),
     capturedAt: timestamp({ ...readOnly }),
     capturedBy: relationship({ ref: 'User', ...readOnly }),
     visibility: select({ type: 'string', options: ['internal', 'customer'].map(value => ({ label: value, value })), defaultValue: 'internal', validation: { isRequired: true }, ...readOnly }),
