@@ -31,7 +31,7 @@ const opt = (rows: { id: string; name?: string; code?: string; ref?: string; sku
 
 export async function EquipmentPage() {
   await gate('canManageEquipment', 'canSubmitWarrantyClaims', 'canDispatch', 'canWorkVisits');
-  const rows = await db().installedEquipment.findMany({ where: { status: { in: ['active', 'unknown'] } }, orderBy: [{ locationId: 'asc' }, { installDate: 'desc' }], take: 300, select: { id: true, ref: true, manufacturer: true, modelNumber: true, serialNumber: true, kind: true, installDate: true, refrigerantType: true, location: { select: { id: true, address1: true, city: true, customer: { select: { displayName: true } } } }, coverages: { select: { kind: true, endsOn: true } } } }).catch(() => []);
+  const rows = await db().installedEquipment.findMany({ where: { status: { in: ['active', 'unknown'] } }, orderBy: [{ locationId: 'asc' }, { installDate: 'desc' }], take: 300, select: { id: true, ref: true, manufacturer: true, modelNumber: true, serialNumber: true, kind: true, installDate: true, refrigerantType: true, location: { select: { id: true, address1: true, city: true, customer: { select: { displayName: true } } } }, from_WarrantyCoverage_equipment: { select: { kind: true, endsOn: true } } } });
   const locations = await db().serviceLocation.findMany({ take: 100, orderBy: { address1: 'asc' }, select: { id: true, address1: true, city: true } });
   const today = new Date().toISOString().slice(0, 10);
   const groups = new Map<string, any[]>();
@@ -53,7 +53,7 @@ export async function EquipmentPage() {
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-x-3"><span className="font-medium">{e.manufacturer} {e.modelNumber}</span><Meta>{label(e.kind)} · serial {e.serialNumber} · {e.ref}</Meta></div>
                 <Meta>{e.installDate ? `Installed ${dateText(ymd(e.installDate))}` : 'Install date unknown'}{e.refrigerantType ? ` · ${e.refrigerantType}` : ''}</Meta>
-                <div className="flex flex-wrap gap-2">{e.coverages.map((c: any, i: number) => <Status key={i} value={c.endsOn && ymd(c.endsOn)! < today ? 'expired' : 'active'} />)}{e.coverages.length ? <Meta>{e.coverages.map((c: any) => `${label(c.kind)} to ${dateText(ymd(c.endsOn))}`).join(' · ')}</Meta> : <Meta>No warranty on file</Meta>}</div>
+                <div className="flex flex-wrap gap-2">{e.from_WarrantyCoverage_equipment.map((c: any, i: number) => <Status key={i} value={c.endsOn && ymd(c.endsOn)! < today ? 'expired' : 'active'} />)}{e.from_WarrantyCoverage_equipment.length ? <Meta>{e.from_WarrantyCoverage_equipment.map((c: any) => `${label(c.kind)} to ${dateText(ymd(c.endsOn))}`).join(' · ')}</Meta> : <Meta>No warranty on file</Meta>}</div>
               </div>
               <ActionButton op="openWarrantyClaim" vars={{ equipmentId: e.id }} paths={['/dashboard/platform/warranty/claims']}>Start claim</ActionButton>
             </Row>
