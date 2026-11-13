@@ -4,6 +4,7 @@ import { q, companyTimeZone, viewer } from '../../lib/server';
 import { label, money, when, dateText, eventText } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
+import { CardButton } from '../../components/CardButton';
 import { CreditMemoForm, PaymentForm, RefundRequestForm } from '../components/BillingForms';
 
 type Inv = {
@@ -80,7 +81,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           {reopenedByRefund && me.can('canIssueRefunds') ? <ActionButton op="settleRefundedMembershipInvoice" vars={{ invoiceId: i.id }} paths={paths} confirm="This refund reopened the invoice. Credit the refunded amount so it is not owed, and close the membership term it paid for?">Credit the refund</ActionButton> : null}
         </Section>
       ) : null}
-      {live && takes && !reopenedByRefund ? <Section title="Record a payment"><PaymentForm invoiceId={i.id} balanceMinor={i.balanceMinor} /></Section> : null}
+      {live && takes && !reopenedByRefund ? <Section title="Take a payment"><div className="flex flex-wrap gap-2"><CardButton kind="invoice" id={i.id}>Pay by card</CardButton><CardButton kind="check" id={i.id}>Check card payment</CardButton></div><Meta>Cash, check or a payment taken elsewhere: record it below.</Meta><PaymentForm invoiceId={i.id} balanceMinor={i.balanceMinor} /></Section> : null}
       <Section title={`Payments and credits · ${i.allocations.length}`}>
         {i.allocations.length ? i.allocations.map(a => (
           <Row key={a.id}>

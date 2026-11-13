@@ -256,7 +256,7 @@ export async function sellMembership(db: Db, actor: Actor, args: SellArgs) {
       if (policy.rules.affirmativeConsentRequired && (!c?.confirmed || c.wording?.trim() !== version.consentWording.trim())) {
         throw new DomainError(Codes.GUARD_FAILED, 'Automatic renewal needs the customer to agree to the exact wording on the plan, and you to confirm they did.', { reason: 'consent_required' })
       }
-      if (!args.paymentMethodRef?.trim()) throw new DomainError(Codes.GUARD_FAILED, 'Automatic renewal needs a card on file.', { reason: 'payment_method_required' })
+      // The card is typed on Stripe's page after the sale; until then billing reports "no card" and does not charge.
       const customer = await tx.customer.findUniqueOrThrow({ where: { id: args.customerId }, select: { displayName: true } })
       const consent = await tx.consentRecord.create({
         data: {

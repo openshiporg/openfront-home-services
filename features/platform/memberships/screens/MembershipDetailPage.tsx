@@ -3,7 +3,7 @@ import { q, companyTimeZone, localToday, viewer } from '../../lib/server';
 import { money, dateText, label, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
-import { CardForm } from '../components/MembershipForms';
+import { CardButton } from '../../components/CardButton';
 import { stateOn } from '@/features/keystone/services/memberships';
 import { windowState } from '@/features/keystone/domain/membershipTime';
 
@@ -51,10 +51,10 @@ export default async function MembershipDetailPage({ params }: { params: Promise
       </div>
       <Meta>{m.ref} · {m.location ? `${m.location.address1}, ${m.location.city}` : ''} · {m.autoRenew ? 'renews automatically' : 'does not renew automatically'}. The customer can cancel online at /membership/{m.publicCode}</Meta>
       {m.status === 'cancelled' ? <Meta>Cancelled{m.cancelEffectiveOn ? ` on ${dateText(m.cancelEffectiveOn)}` : ''}: {m.cancelReason}. {m.refundOwedMinor && m.refundOwedMinor !== '0' ? `Refund owed to the customer: ${money(m.refundOwedMinor)}. Refund it from the invoice; the invoice stays paid.` : 'No refund owed.'}</Meta> : null}
-      {declined && billable ? (
-        <Section title="Card declined: update card, then Retry">
-          <Meta>Running billing again does not charge a declined card. Put a new card on file, then press Retry on the payment below.</Meta>
-          {canManage ? <CardForm membershipId={m.id} /> : null}
+      {billable && canManage && (declined || !m.paymentMethodLabel) ? (
+        <Section title={declined ? 'Card declined: update card, then Retry' : 'Put a card on file'}>
+          <Meta>{declined ? 'Running billing again does not charge a declined card. Put a new card on file, then press Retry on the payment below.' : 'The customer types the card on Stripe\'s page. Nothing is charged until billing runs.'}</Meta>
+          <CardButton kind="membership" id={m.id}>{declined ? 'Update card' : 'Add card'}</CardButton>
         </Section>
       ) : null}
       {live && canManage ? (

@@ -66,7 +66,7 @@ export async function seedMemberships(db: Db, opts: { owner: Actor; prefix?: str
   for (const [i, m] of members.entries()) {
     try {
       const r = await sellMembership(db, owner, {
-        customerId: m.h.id, locationId: m.h.location.id, planId: m.plan, startsOn: m.startsOn, channel: i % 2 ? 'phone' : 'office', paymentMethodRef: `pm_card_visa`, paymentMethodLabel: 'Visa ending 4242',
+        customerId: m.h.id, locationId: m.h.location.id, planId: m.plan, startsOn: m.startsOn, channel: i % 2 ? 'phone' : 'office',
         ...(m.auto ? { autoRenew: true, consent: { confirmed: true, wording: CLUB_WORDING, how: 'phone_recorded' as const, note: 'Agreed on the call and read the wording back.' } } : { autoRenew: false }),
         idempotencyKey: `${prefix}:sell:${i + 1}`,
       })

@@ -57,8 +57,6 @@ export function SellForm({ places, plans }: { places: SellOption[]; plans: SellP
       fields={[
         { name: 'place', label: 'Customer and address', kind: 'select', required: true, width: 'lg', options: places },
         { name: 'planId', label: 'Plan', kind: 'select', required: true, width: 'md', options: plans.map(p => ({ value: p.id, label: p.name + (p.autoRenew ? ' (renews automatically)' : '') })) },
-        { name: 'cardLabel', label: 'Card on file (for example Visa ending 4242)', width: 'md' },
-        { name: 'cardRef', label: 'Card reference from the processor', width: 'md', placeholder: 'pm_...' },
         { name: 'consentHow', label: 'Customer agreed to the renewal wording', kind: 'select', width: 'md', options: [{ value: '', label: 'Not asked / plan does not renew' }, { value: 'in_person', label: 'In person' }, { value: 'phone_recorded', label: 'On a recorded call' }, { value: 'signed_form', label: 'On a signed form' }] },
         { name: 'startsOn', label: 'Starts (date)', kind: 'date', width: 'sm' },
       ]}
@@ -66,7 +64,7 @@ export function SellForm({ places, plans }: { places: SellOption[]; plans: SellP
         const [customerId, locationId] = v.place.split('|');
         const plan = wordings[v.planId];
         return {
-          customerId, locationId, planId: v.planId, startsOn: v.startsOn || undefined, paymentMethodLabel: v.cardLabel || undefined, paymentMethodRef: v.cardRef || undefined,
+          customerId, locationId, planId: v.planId, startsOn: v.startsOn || undefined,
           ...(plan?.autoRenew && v.consentHow ? { autoRenew: true, consent: { confirmed: true, wording: plan.consentWording, how: v.consentHow } } : { autoRenew: false }),
         };
       }}
@@ -79,20 +77,6 @@ export function BillingRunForm({ periods }: { periods: { value: string; label: s
     <CommandForm
       op="runMembershipBilling" submit="Run billing" paths={['/dashboard/platform/billing-runs']}
       fields={[{ name: 'period', label: 'Month to bill', kind: 'select', width: 'md', options: periods }]}
-    />
-  );
-}
-
-/** Put a new card on file (after a decline). The charge is retried only when a person presses Retry. */
-export function CardForm({ membershipId }: { membershipId: string }) {
-  return (
-    <CommandForm
-      op="updateMembershipPaymentMethod" submit="Update card" paths={[`/dashboard/platform/memberships/${membershipId}`, '/dashboard/platform/billing-runs']}
-      fixed={{ membershipId }}
-      fields={[
-        { name: 'paymentMethodLabel', label: 'Card (for example Visa ending 4242)', required: true, width: 'md' },
-        { name: 'paymentMethodRef', label: 'Card reference from the processor', required: true, width: 'md', placeholder: 'pm_...' },
-      ]}
     />
   );
 }

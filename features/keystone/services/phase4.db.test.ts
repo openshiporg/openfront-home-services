@@ -4,7 +4,7 @@ import { hasTestDatabase, resetDatabase, testPrisma, uniqueKey } from '../../../
 import { permissionNames } from '../access'
 import type { Actor } from '../lib/actor'
 import { DomainError } from '../lib/errors'
-import { FakeAdapter } from '../lib/paymentAdapter'
+import { RecordedAdapter } from '../../../tests/helpers/recordedAdapter'
 import { loadCompanySetup, loadOperationsSetup } from '../mutations/setup'
 import { HOUSEHOLDS } from '../seed/operationsData'
 import { cancelMembership, cancelOnline, createPlan, activatePlanVersion, saveDraftVersion, sellMembership, renewMembership, bookVisit, debitEntitlement, releaseVisit, transferMembership, grantBalance } from './memberships'
@@ -64,7 +64,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('a concurrent double click on "Run billing" charges once', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     adapter.delayMs = 150 // make the two requests overlap inside the charge
     const period = thisMonth()
     const [a, b] = await Promise.all([
@@ -89,7 +89,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('the same click twice with one key is replayed, not run again', { timeout: 60_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     const key = k('same')
     const first = await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: key }, adapter)
     const again = await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: key }, adapter)
@@ -103,7 +103,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('a retry after the adapter answers `unknown` asks the processor and never charges twice (the charge did go through)', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     adapter.script = ['lost'] // the processor charged, but the answer never reached us
     const first = await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     expect(first.unknown).toBeGreaterThanOrEqual(1)
@@ -125,7 +125,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('a retry after `unknown` where the processor never saw the charge sends the same key once and charges once', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     adapter.script = ['throw'] // the connection dropped before the processor got it
     await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     let [row] = await attemptsOf(m.membershipId)
@@ -146,7 +146,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
     const { planId } = await planOf()
     const m = await sell(planId)
     const row = await prisma.membershipBillingAttempt.create({ data: { attemptKey: `${m.membershipId}:1:0`, membershipId: m.membershipId, termId: m.termId, termNumber: 1, slot: 0, dueOn: new Date(), status: 'queued' } })
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     adapter.delayMs = 200
     const sys: Actor = { kind: 'system', name: 'test' }
     const outcomes = await Promise.all([processAttempt(prisma, sys, row.id, new Date(), adapter), processAttempt(prisma, sys, row.id, new Date(), adapter), processAttempt(prisma, sys, row.id, new Date(), adapter)])
@@ -159,7 +159,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('a decline is final for its key: Run billing again does not charge, Retry needs a new card or a reason, the run is partial', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     adapter.script = ['decline']
     const r = await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     expect(r.declined).toBeGreaterThanOrEqual(1)
@@ -196,7 +196,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('a declined card can be retried as-is only with a stated reason', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     adapter.script = ['decline']
     await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     const [row] = await attemptsOf(m.membershipId)
@@ -208,7 +208,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
     const { planId } = await planOf()
     for (const end of ['cancelled', 'transferred', 'expired']) {
       const m = await sell(planId)
-      const adapter = new FakeAdapter()
+      const adapter = new RecordedAdapter()
       adapter.script = ['lost']
       await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
       const [row] = await attemptsOf(m.membershipId)
@@ -223,7 +223,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
 
   it('an accountant reads billing runs but cannot charge cards', { timeout: 60_000 }, async () => {
     const accountant: Actor = { kind: 'user', userId: owner.kind === 'user' ? owner.userId : '', name: 'acct', permissions: new Set(['canAccessDashboard', 'canManageInvoices', 'canManageAccounting', 'canReadAudit']) as never }
-    expect(await reason(runMembershipBilling(prisma, accountant, { period: thisMonth(), idempotencyKey: k('run') }, new FakeAdapter()))).toBe('NOT_AUTHORIZED')
+    expect(await reason(runMembershipBilling(prisma, accountant, { period: thisMonth(), idempotencyKey: k('run') }, new RecordedAdapter()))).toBe('NOT_AUTHORIZED')
   })
 
   it('a technician can neither sell nor cancel a membership', { timeout: 60_000 }, async () => {
@@ -241,7 +241,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('the database itself refuses a second attempt for the same membership, term and slot, and a change to a charged attempt', { timeout: 60_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     const [row] = await attemptsOf(m.membershipId)
     await expect(prisma.membershipBillingAttempt.create({ data: { attemptKey: `dupe:${row.id}`, membershipId: m.membershipId, termId: m.termId, termNumber: 1, slot: 0, dueOn: new Date(), status: 'queued' } })).rejects.toThrow()
@@ -252,7 +252,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('monthly billing writes one attempt per month and a run for a later month leaves the paid ones alone', { timeout: 180_000 }, async () => {
     const { planId } = await planOf({ priceMinor: '2500', billingFrequency: 'monthly' })
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     const rows = await attemptsOf(m.membershipId)
@@ -387,7 +387,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('cancelling refunds pro-rata by the plan rule, ends the open visits, and cancelling twice or online does the work in the request', { timeout: 120_000 }, async () => {
     const { planId } = await planOf({ cancellationRefundMethod: 'prorata' })
     const m = await sell(planId)
-    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, new FakeAdapter())
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, new RecordedAdapter())
     const cancelled = await cancelMembership(prisma, owner, { membershipId: m.membershipId, reason: 'Moving away', idempotencyKey: k() })
     expect(cancelled.status).toBe('cancelled')
     expect(BigInt(cancelled.refundOwedMinor)).toBeGreaterThan(0n)
@@ -423,7 +423,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('the buyer of a home is never billed for the term the seller paid; the paid term carries over', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     expect(adapter.succeededCount).toBe(1)
     expect((await prisma.membership.findUniqueOrThrow({ where: { id: m.membershipId } })).status).toBe('active')
@@ -444,7 +444,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('refunding a membership payment keeps the invoice paid (paid, then refunded), closes the term and ends the visits', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, new FakeAdapter())
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, new RecordedAdapter())
     const [row] = await attemptsOf(m.membershipId)
     expect(row.status).toBe('succeeded')
     const before = await prisma.invoice.findUniqueOrThrow({ where: { id: row.invoiceId! } })
@@ -463,7 +463,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
     for (const g of grants) expect(await grantBalance(prisma, g.id)).toBe(0)
     expect(await prisma.recurringServiceEvent.count({ where: { membershipId: m.membershipId, status: 'open' } })).toBe(0)
     // And billing does not charge it again.
-    const adapter = new FakeAdapter()
+    const adapter = new RecordedAdapter()
     await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, adapter)
     expect(adapter.charges.size).toBe(0)
   })
@@ -471,7 +471,7 @@ describe.skipIf(!hasTestDatabase)('Phase 4: memberships, billing and entitlement
   it('an invoice an earlier refund reopened (as live INV-2026-000004…11) is credited back to not owing, once', { timeout: 120_000 }, async () => {
     const { planId } = await planOf()
     const m = await sell(planId)
-    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, new FakeAdapter())
+    await runMembershipBilling(prisma, owner, { period: thisMonth(), idempotencyKey: k('run') }, new RecordedAdapter())
     const [row] = await attemptsOf(m.membershipId)
     // The old refund: allocations reversed, the invoice back to posted with its full balance.
     const { reverseAllocations } = await import('./billingShared')

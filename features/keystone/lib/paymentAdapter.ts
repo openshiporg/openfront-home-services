@@ -3,8 +3,9 @@ import { createHash } from 'node:crypto'
 /*
  * The one place a card is charged from code (INTEGRATIONS §payments). Membership billing calls it synchronously, inside a
  * staff request. Every charge carries a processor key that is fixed for the attempt, so asking twice charges once; and a
- * result that is lost (timeout, dropped connection) comes back as `unknown`, never as a guess. Stripe TEST keys only:
- * a live key is refused. No webhooks, no background polling: an unknown result is looked up again when staff run billing.
+ * result that is lost (timeout, dropped connection) comes back as `unknown`, never as a guess. The mode follows the key
+ * (sk_test_ or sk_live_): one code path. No webhooks, no background polling: an unknown result is looked up again when
+ * staff run billing. Cards are entered on Stripe Checkout (setup mode to keep one on file, payment mode to pay an invoice).
  */
 
 export type ChargeInput = {
@@ -48,10 +49,10 @@ const toResult = (intent: StripeIntent): ChargeResult => {
   return { outcome: 'failed', providerRef: intent.id, note: intent.last_payment_error?.message?.slice(0, 200) || `Charge ${intent.status.replace(/_/g, ' ')}.` }
 }
 
-export class StripeTestAdapter implements PaymentAdapter {
-  readonly name = 'stripe-test'
+export class StripeAdapter implements PaymentAdapter {
+  readonly name = 'stripe'
   constructor(private readonly secretKey: string, private readonly fetcher: typeof fetch = fetch, private readonly timeoutMs = 20_000) {
-    if (!/^sk_test_/.test(secretKey) && !/^rk_test_/.test(secretKey)) throw new Error('Only a Stripe TEST key is accepted here.')
+    if (!/^(sk|rk)_(test|live)_/.test(secretKey)) throw new Error('That is not a Stripe secret key.')
   }
 
   private async call(path: string, init: RequestInit & { idempotencyKey?: string }) {
@@ -61,8 +62,73 @@ export class StripeTestAdapter implements PaymentAdapter {
     return this.fetcher(`${STRIPE}${path}`, { ...init, headers, signal: AbortSignal.timeout(this.timeoutMs) })
   }
 
+  /** The Stripe customer a saved card belongs to (Checkout setup mode makes one); an off-session charge needs it. */
+  private async customerOf(paymentMethod: string): Promise<string | undefined> {
+    try {
+      const r = await this.call(`/payment_methods/${encodeURIComponent(paymentMethod)}`, { method: 'GET' })
+      const j = (await r.json()) as { customer?: string | null }
+      return j.customer ?? undefined
+    } catch { return undefined }
+  }
+
+  /** A hosted page where the customer types a card to keep on file (no charge). */
+  async setupCheckout(args: { successUrl: string; cancelUrl: string; description: string; metadata?: Record<string, string> }): Promise<{ id: string; url: string }> {
+    const r = await this.call('/checkout/sessions', { method: 'POST', body: form({
+      mode: 'setup', 'payment_method_types[0]': 'card', customer_creation: 'always', success_url: args.successUrl, cancel_url: args.cancelUrl,
+      'setup_intent_data[description]': args.description.slice(0, 250), ...Object.fromEntries(Object.entries(args.metadata ?? {}).map(([k, v]) => [`metadata[${k}]`, v])),
+    }) })
+    const j = (await r.json()) as { id?: string; url?: string; error?: { message?: string } }
+    if (!r.ok || !j.id || !j.url) throw new Error(j.error?.message ?? 'Stripe did not open the card page.')
+    return { id: j.id, url: j.url }
+  }
+
+  /** A hosted page where the customer pays one amount by card. */
+  async paymentCheckout(args: { amountMinor: bigint; currency?: string; name: string; successUrl: string; cancelUrl: string; metadata?: Record<string, string> }): Promise<{ id: string; url: string }> {
+    const meta = Object.fromEntries(Object.entries(args.metadata ?? {}).map(([k, v]) => [`metadata[${k}]`, v]))
+    const r = await this.call('/checkout/sessions', { method: 'POST', body: form({
+      mode: 'payment', 'payment_method_types[0]': 'card', success_url: args.successUrl, cancel_url: args.cancelUrl,
+      'line_items[0][quantity]': '1', 'line_items[0][price_data][currency]': (args.currency ?? 'usd').toLowerCase(),
+      'line_items[0][price_data][unit_amount]': args.amountMinor.toString(), 'line_items[0][price_data][product_data][name]': args.name.slice(0, 250),
+      'payment_intent_data[description]': args.name.slice(0, 250), ...Object.fromEntries(Object.entries(args.metadata ?? {}).map(([k, v]) => [`payment_intent_data[metadata][${k}]`, v])), ...meta,
+    }) })
+    const j = (await r.json()) as { id?: string; url?: string; error?: { message?: string } }
+    if (!r.ok || !j.id || !j.url) throw new Error(j.error?.message ?? 'Stripe did not open the payment page.')
+    return { id: j.id, url: j.url }
+  }
+
+  /** What the customer did on a Checkout page. */
+  async checkoutResult(sessionId: string): Promise<
+    | { mode: 'setup'; done: boolean; paymentMethod: string; label: string; metadata: Record<string, string> }
+    | { mode: 'payment'; done: boolean; paymentIntent: string; amountMinor: bigint; metadata: Record<string, string> }
+  > {
+    const r = await this.call(`/checkout/sessions/${encodeURIComponent(sessionId)}?expand[]=setup_intent.payment_method&expand[]=payment_intent`, { method: 'GET' })
+    const j = (await r.json()) as {
+      mode?: string; status?: string; payment_status?: string; metadata?: Record<string, string>; amount_total?: number
+      setup_intent?: { payment_method?: { id?: string; card?: { brand?: string; last4?: string } } | null } | null; payment_intent?: { id?: string; status?: string } | null; error?: { message?: string }
+    }
+    if (!r.ok || j.error) throw new Error(j.error?.message ?? 'Stripe could not be asked about that page.')
+    const metadata = j.metadata ?? {}
+    if (j.mode === 'setup') {
+      const pm = j.setup_intent?.payment_method
+      const card = pm?.card
+      return { mode: 'setup', done: j.status === 'complete' && !!pm?.id, paymentMethod: pm?.id ?? '', label: card ? `${(card.brand ?? 'Card').replace(/^./, c => c.toUpperCase())} ending ${card.last4}` : '', metadata }
+    }
+    return { mode: 'payment', done: j.payment_status === 'paid' && j.payment_intent?.status === 'succeeded', paymentIntent: j.payment_intent?.id ?? '', amountMinor: BigInt(j.amount_total ?? 0), metadata }
+  }
+
+  /** A paid Checkout payment for this attempt, if the customer finished one (staff left the page before it came back). */
+  async findPaidIntent(attemptId: string): Promise<{ paymentIntent: string; amountMinor: bigint; invoiceId: string } | null> {
+    try {
+      const r = await this.call(`/payment_intents/search?query=${encodeURIComponent(`metadata['attemptId']:'${attemptId.replace(/[^A-Za-z0-9_-]/g, '')}' AND status:'succeeded'`)}&limit=1`, { method: 'GET' })
+      const j = (await r.json()) as { data?: { id: string; amount_received?: number; metadata?: Record<string, string> }[] }
+      const f = j.data?.[0]
+      return r.ok && f ? { paymentIntent: f.id, amountMinor: BigInt(f.amount_received ?? 0), invoiceId: f.metadata?.invoiceId ?? '' } : null
+    } catch { return null }
+  }
+
   async charge(input: ChargeInput): Promise<ChargeResult> {
     const key = createHash('sha256').update(input.providerKey).digest('hex').slice(0, 40)
+    const customer = input.customerRef ?? await this.customerOf(input.paymentMethodRef)
     let response: Response
     try {
       response = await this.call('/payment_intents', {
@@ -70,7 +136,7 @@ export class StripeTestAdapter implements PaymentAdapter {
         idempotencyKey: input.providerKey.slice(0, 255),
         body: form({
           amount: input.amountMinor.toString(), currency: (input.currency ?? 'usd').toLowerCase(), payment_method: input.paymentMethodRef,
-          customer: input.customerRef, confirm: 'true', off_session: 'true', description: input.description.slice(0, 250),
+          customer, confirm: 'true', off_session: 'true', description: input.description.slice(0, 250),
           'metadata[providerKey]': key, ...Object.fromEntries(Object.entries(input.metadata ?? {}).map(([k, v]) => [`metadata[${k}]`, v])),
         }),
       })
@@ -102,51 +168,19 @@ export class StripeTestAdapter implements PaymentAdapter {
   }
 }
 
-/** Test double. Remembers every key, so a repeated key returns the first answer (as the processor does) and charges are countable. */
-export class FakeAdapter implements PaymentAdapter {
-  readonly name = 'fake'
-  readonly charges = new Map<string, { amountMinor: bigint; result: ChargeResult; calls: number }>()
-  /** Next answers to give, per call: 'ok', 'decline', or 'lost' (charged, but the caller is told unknown). */
-  script: ('ok' | 'decline' | 'lost' | 'throw')[] = []
-  /** Delay before answering, to make two callers overlap. */
-  delayMs = 0
-  lookups = 0
-  private serial = 0
-
-  async charge(input: ChargeInput): Promise<ChargeResult> {
-    if (this.delayMs) await new Promise(resolve => setTimeout(resolve, this.delayMs))
-    const seen = this.charges.get(input.providerKey)
-    if (seen) { seen.calls += 1; return seen.result }
-    const step = this.script.shift() ?? 'ok'
-    if (step === 'throw') throw new Error('socket hang up')
-    const providerRef = `pi_fake_${(this.serial += 1)}`
-    const result: ChargeResult = step === 'decline' ? { outcome: 'failed', providerRef, note: 'Your card was declined.' } : { outcome: 'succeeded', providerRef }
-    this.charges.set(input.providerKey, { amountMinor: input.amountMinor, result, calls: 1 })
-    if (step === 'lost') return { outcome: 'unknown', providerRef: '', note: 'No answer from the processor.' }
-    return result
-  }
-
-  async lookup(providerKey: string): Promise<LookupResult> {
-    this.lookups += 1
-    const seen = this.charges.get(providerKey)
-    return seen ? seen.result : { outcome: 'none' }
-  }
-
-  get succeededCount() { return [...this.charges.values()].filter(c => c.result.outcome === 'succeeded').length }
-}
-
-let override: PaymentAdapter | null = null
-/** Tests install a fake here. */
-export const setPaymentAdapter = (adapter: PaymentAdapter | null) => { override = adapter }
-
 export class NotConfiguredAdapter implements PaymentAdapter {
   readonly name = 'not-configured'
-  async charge(): Promise<ChargeResult> { return { outcome: 'failed', providerRef: '', note: 'Card charging is not set up on this server (no Stripe test key).' } }
+  async charge(): Promise<ChargeResult> { return { outcome: 'failed', providerRef: '', note: 'Card charging is not set up on this server (no Stripe secret key).' } }
   async lookup(): Promise<LookupResult> { return { outcome: 'none' } }
 }
 
 export function paymentAdapter(): PaymentAdapter {
-  if (override) return override
   const key = process.env.STRIPE_SECRET_KEY
-  return key ? new StripeTestAdapter(key) : new NotConfiguredAdapter()
+  return key ? new StripeAdapter(key) : new NotConfiguredAdapter()
+}
+
+/** The Stripe adapter, or null when the server has no secret key (card pages then say so, plainly). */
+export function stripeAdapter(): StripeAdapter | null {
+  const key = process.env.STRIPE_SECRET_KEY
+  return key ? new StripeAdapter(key) : null
 }
