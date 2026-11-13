@@ -1,5 +1,6 @@
 import { keystoneContext } from '@/features/keystone/context';
 import { stripeAdapter } from '@/features/keystone/lib/paymentAdapter';
+import { getBaseUrl } from '@/features/dashboard/lib/getBaseUrl';
 import { recordCardPayment, saveMembershipCard } from '@/features/platform/lib/cards';
 
 export const dynamic = 'force-dynamic';
@@ -8,13 +9,14 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const sessionId = url.searchParams.get('session_id') ?? '';
+  const origin = (await getBaseUrl()) || url.origin;
   const next = url.searchParams.get('next') ?? '';
   const back = (extra: string) => {
     const path = /^\/dashboard\/platform\/[A-Za-z0-9/_-]*$/.test(next) ? next : '/dashboard/platform';
-    return Response.redirect(new URL(`${path}${extra}`, url.origin), 303);
+    return Response.redirect(new URL(`${path}${extra}`, origin), 303);
   };
   const context = await keystoneContext.withRequest({ headers: { cookie: request.headers.get('cookie') || '' }, method: 'GET', url: url.pathname } as never);
-  if (!(context.session as { itemId?: string } | undefined)?.itemId) return Response.redirect(new URL('/dashboard/signin', url.origin), 303);
+  if (!(context.session as { itemId?: string } | undefined)?.itemId) return Response.redirect(new URL('/dashboard/signin', origin), 303);
   const stripe = stripeAdapter();
   if (!stripe || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return back('?cardError=' + encodeURIComponent('That card page could not be read.'));
   try {
