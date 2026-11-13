@@ -187,6 +187,18 @@ export async function cylinderBalance(tx: Tx | Db, cylinderId: string) {
   return rows.reduce((s, r) => (r.kind === 'recover' ? s.plus(r.quantityLb) : ['charge', 'transfer', 'reclaim_shipment'].includes(r.kind) ? s.minus(r.quantityLb) : s), new Prisma.Decimal(0))
 }
 
+/** Manager permissions: a role holding one of these runs a department, not just a truck. */
+const MANAGER: Permission[] = ['canDispatch', 'canManagePermits', 'canManageInventory', 'canApproveTimesheets']
+
+/**
+ * Who may log under another technician's name: a manager who holds canManageRefrigerant. A field role (canWorkVisits with no
+ * manager permission, like the seeded Technician, which holds canManageRefrigerant only to open the log) always logs as themselves.
+ */
+export function mayLogForOthers(actor: { permissions: { has: (p: Permission) => boolean } }) {
+  if (!actor.permissions.has('canManageRefrigerant')) return false
+  return !actor.permissions.has('canWorkVisits') || MANAGER.some(p => actor.permissions.has(p))
+}
+
 export type RefrigerantEntryInput = { kind: string; equipmentId?: string | null; jobId?: string | null; cylinderId?: string | null; refrigerantType: string; quantityLb: string; technicianId: string; notes?: string; idempotencyKey: string; now?: Date }
 
 /**
@@ -204,8 +216,9 @@ export async function logRefrigerant(db: Db, actor: Actor, args: RefrigerantEntr
     if (qty.decimalPlaces() > 2) throw new DomainError(Codes.INVALID_INPUT, 'Pounds are recorded to 0.01.', { field: 'quantityLb' })
     const tech = await tx.employee.findUnique({ where: { id: args.technicianId }, select: { id: true, userId: true } })
     if (!tech) throw new DomainError(Codes.NOT_FOUND, 'That technician does not exist.')
-    if (actor.kind === 'user' && !actor.permissions.has('canManageRefrigerant') && tech.userId !== actor.userId) throw new DomainError(Codes.NOT_AUTHORIZED, 'You log refrigerant under your own name.')
-    const day = (args.now ?? uow.now).toISOString().slice(0, 10)
+    if (actor.kind === 'user' && tech.userId !== actor.userId && !mayLogForOthers(actor)) throw new DomainError(Codes.NOT_AUTHORIZED, 'You log refrigerant under your own name.', { reason: 'not_own_name' })
+    // The company's calendar day, not UTC: a card that expires today is still good this evening in Texas.
+    const day = await companyToday(tx, args.now ?? uow.now)
     const cred = await epa608For(tx, tech.id, day)
     if (!cred) throw new DomainError(Codes.GUARD_FAILED, 'This technician has no verified, unexpired EPA 608 certification on file.', { reason: 'no_epa_608' })
     if (args.jobId) {

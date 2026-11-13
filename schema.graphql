@@ -17536,6 +17536,61 @@ type Mutation {
   activateServiceAgreement(agreementId: ID!, idempotencyKey: String!): JSON
   endServiceAgreement(agreementId: ID!, reason: String!, idempotencyKey: String!): JSON
   setDocumentExpiry(documentId: ID!, expiresOn: String, reason: String!, idempotencyKey: String!): JSON
+  recordEquipment(locationId: ID!, manufacturer: String!, modelNumber: String!, serialNumber: String!, kind: String, applianceClass: String, tonnage: String, refrigerantType: String, refrigerantChargeLb: String, installDate: String, manufactureDate: String, locationInHome: String, installedByJobId: ID, source: String, idempotencyKey: String!): JSON
+  recordEquipmentReading(equipmentId: ID!, visitId: ID, kind: String!, value: String!, unit: String, idempotencyKey: String!): JSON
+  retireEquipment(equipmentId: ID!, replacedById: ID, status: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  ensureWarrantyRegistration(equipmentId: ID!, idempotencyKey: String!): JSON
+  markWarrantyRegistrationSubmitted(registrationId: ID!, confirmationNumber: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  confirmWarrantyRegistration(registrationId: ID!, confirmationNumber: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  openWarrantyClaim(equipmentId: ID!, jobId: ID, draft: JSON, idempotencyKey: String!): JSON
+  saveWarrantyClaimDraft(claimId: ID!, draft: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  markWarrantyClaimReady(claimId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  submitWarrantyClaim(claimId: ID!, externalClaimNumber: String, lateReason: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  recordWarrantyClaimNumber(claimId: ID!, externalClaimNumber: String!, idempotencyKey: String!): JSON
+  recordWarrantyClaimDecision(claimId: ID!, decision: String!, recoveredMinor: String, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  settleWarrantyClaim(claimId: ID!, evidence: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  closeWarrantyClaim(claimId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  appealWarrantyClaim(claimId: ID!, note: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  requestWarrantyWriteOff(claimId: ID!, reason: String!, idempotencyKey: String!): JSON
+  writeOffWarrantyClaim(claimId: ID!, requestId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  receiveHomeWarrantyDispatch(payerId: ID!, externalDispatchNumber: String!, jobId: ID, serviceFeeMinor: String, idempotencyKey: String!): JSON
+  advanceHomeWarrantyDispatch(dispatchId: ID!, to: String!, authorizedMinor: String, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  saveStockItem(itemId: ID, sku: String!, name: String!, kind: String, baseUom: String!, trackSerial: Boolean, standardCostMinor: String, defaultSupplierId: ID, idempotencyKey: String!): JSON
+  saveStockLocation(code: String!, name: String!, kind: String!, employeeId: ID, idempotencyKey: String!): JSON
+  consumeStock(itemId: ID!, locationId: ID!, quantity: String!, uom: String, jobId: ID!, workLineId: ID, clientRecordedAt: String, idempotencyKey: String!): JSON
+  installSerializedUnit(serializedUnitId: ID!, equipmentId: ID!, jobId: ID!, idempotencyKey: String!): JSON
+  transferStock(itemId: ID!, fromLocationId: ID!, toLocationId: ID!, quantity: String!, uom: String, serializedUnitId: ID, idempotencyKey: String!): JSON
+  adjustStock(itemId: ID!, locationId: ID!, quantity: String!, reason: String!, idempotencyKey: String!): JSON
+  saveMinMaxRule(locationId: ID!, itemId: ID!, min: String!, max: String!, reorderFromId: ID, supplierId: ID, idempotencyKey: String!): JSON
+  proposeReplenishment(idempotencyKey: String!): JSON
+  decideReplenishment(requestId: ID!, decision: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  fillReplenishment(requestId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  startCycleCount(locationId: ID!, idempotencyKey: String!): JSON
+  submitCycleCount(countId: ID!, counted: JSON!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  requestCycleCountApproval(countId: ID!, idempotencyKey: String!): JSON
+  postCycleCount(countId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  openPurchaseOrder(supplierId: ID!, shipToId: ID!, jobId: ID, lines: JSON!, idempotencyKey: String!): JSON
+  submitPurchaseOrder(purchaseOrderId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  approvePurchaseOrder(purchaseOrderId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  markPurchaseOrderSent(purchaseOrderId: ID!, externalOrderNumber: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  cancelPurchaseOrder(purchaseOrderId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  receivePurchaseOrder(purchaseOrderId: ID!, lines: JSON!, overReceiptRequestId: ID, idempotencyKey: String!): JSON
+  requestOverReceipt(purchaseOrderId: ID!, lines: JSON!, idempotencyKey: String!): JSON
+  recordVendorBill(purchaseOrderId: ID!, billNumber: String!, totalMinor: String!, idempotencyKey: String!): JSON
+  requestBillVariance(billId: ID!, idempotencyKey: String!): JSON
+  acceptBillVariance(billId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  openPermit(jobId: ID!, ahj: String!, permitType: String!, feeMinor: String, idempotencyKey: String!): JSON
+  advancePermit(permitId: ID!, to: String!, externalNumber: String, expiresOn: String, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  requestInspection(permitId: ID!, kind: String!, scheduledFor: String, inspectorName: String, idempotencyKey: String!): JSON
+  recordInspectionResult(inspectionId: ID!, result: String!, notes: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  reinspect(inspectionId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  completeJob(jobId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  saveRefrigerantCylinder(serialOrTag: String!, refrigerantType: String!, kind: String, locationId: ID, tareLb: String, idempotencyKey: String!): JSON
+  logRefrigerant(kind: String!, equipmentId: ID, jobId: ID, cylinderId: ID, refrigerantType: String!, quantityLb: String!, technicianId: ID!, notes: String, idempotencyKey: String!): JSON
+  resolveLeakRate(evaluationId: ID!, to: String!, note: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  checkRefrigerantInstall(workLineId: ID!, equipmentModelId: ID!, stage: String!, idempotencyKey: String!): JSON
+  trackLien(jobId: ID!, invoiceId: ID, projectClass: String, idempotencyKey: String!): JSON
+  advanceLien(lienId: ID!, to: String!, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
   bindAgentApp(agentId: ID!, oauthAppId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   unbindAgentApp(agentId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
 }

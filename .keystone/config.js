@@ -4230,7 +4230,8 @@ var VendorBill = (0, import_core21.list)({
     billNumber: (0, import_fields21.text)({ validation: { isRequired: true } }),
     totalMinor: minor({ defaultValue: 0n, ...purchaseCost }),
     matchStatus: lifecycle(["unmatched", "matched", "variance", "approved_variance"]),
-    matchDetail: (0, import_fields21.json)({ isFilterable: false, isOrderable: false }),
+    // Carries ordered/received/billed amounts, so it follows the same cost rule as totalMinor (read, filter, order).
+    matchDetail: (0, import_fields21.json)({ ...purchaseCost, isFilterable: false, isOrderable: false }),
     approval: (0, import_fields21.relationship)({ ref: "ApprovalRequest" }),
     version: versionField(),
     ...trackingFields
@@ -5527,6 +5528,34 @@ var POLICY_PACKS = [
         { ref: "FTC Negative Option Rule, 16 CFR Part 425 and the Restore Online Shoppers' Confidence Act, 15 U.S.C. 8403", url: "https://www.ecfr.gov/current/title-16/part-425", verified: false, checkedOn: "2026-11-11", note: "Conservative company default: consent in writing, a reminder before each renewal, simple online cancellation. State rules (Texas Bus. & Com. Code ch. 17) have not been read against it; a lawyer confirms before launch." }
       ]
     }
+  },
+  {
+    id: "seed_pack_us_refrigerant",
+    code: "us-refrigerant",
+    name: "Refrigerant handling (Clean Air Act section 608)",
+    kind: "refrigerant",
+    jurisdictionCode: "US",
+    description: "Technicians who handle refrigerant hold an EPA 608 certification; appliances with a charge of 15 lb or more are checked for leaks.",
+    binding: { id: "seed_binding_us_refrigerant", scope: "company", scopeValue: "company", priority: 0 },
+    version: {
+      id: "seed_policy_us_refrigerant_v1",
+      effectiveFrom: "2026-01-01",
+      rules: {
+        technicianCertificationRequired: true,
+        certificationTypes: ["type_i", "type_ii", "type_iii", "universal"],
+        disposalRecords: { minChargeLb: "5", maxChargeLb: "50", includesHfc: true },
+        leakRepair: { minChargeLb: "15", repairDays: 30, effectiveFrom: "2026-01-01", excludedSubsectors: ["residential_ac", "light_commercial_ac"] },
+        installRules: [
+          { refrigerant: "R-22", equipmentClass: "residential_ac", allowed: false, condition: "R-22 new equipment has not been made or imported since 2020" },
+          { refrigerant: "R-410A", equipmentClass: "residential_ac", allowed: true, condition: "Allowed until the AIM Act technology transition for the product class takes effect" },
+          { refrigerant: "R-454B", equipmentClass: "residential_ac", allowed: true, condition: "Low-GWP replacement" },
+          { refrigerant: "R-32", equipmentClass: "residential_ac", allowed: true, condition: "Low-GWP replacement" }
+        ]
+      },
+      sourceRefs: [
+        { ref: "40 CFR 82 Subpart F (section 608) and 40 CFR 84.106 (AIM Act leak repair)", url: "https://www.ecfr.gov/current/title-40/chapter-I/subchapter-C/part-84", verified: false, checkedOn: "2026-11-12", note: "Thresholds are conservative defaults the owner should confirm against the current rule. Install rules list common refrigerants only." }
+      ]
+    }
   }
 ];
 
@@ -5904,6 +5933,104 @@ var HOUSEHOLDS = Array.from({ length: 60 }, (_, i) => {
 });
 var COMMERCIAL = { id: "seed_cus_hcpm", ref: "CUS-SEED-HCPM", displayName: "Hill Country Property Management", first: "Jordan", last: "Reese", phone: "+15125550199", email: "maintenance@hillcountrypm.com", location: { id: "seed_loc_hcpm_1", ref: "LOC-SEED-HCPM-1", address1: "2200 Riverside Commons, Bldg C", city: "Austin", postalCode: "78741", lat: "30.238100", lng: "-97.723300", propertyType: "multifamily", yearBuilt: 1998 } };
 
+// features/keystone/seed/stock.ts
+var import_client = require("@prisma/client");
+init_actor();
+var UOMS = [["ea", "Each", "count", 0], ["ft", "Foot", "length", 1], ["lb", "Pound", "weight", 2], ["case", "Case", "count", 0]];
+var SUPPLIERS = [
+  { name: "Austin Air Supply", kind: "supply_house", accountNumber: "SUM-4410", orderMethod: "email_pdf" },
+  { name: "Capital Plumbing Wholesale", kind: "supply_house", accountNumber: "SUM-7782", orderMethod: "email_pdf" }
+];
+var ITEMS = [
+  { sku: "CAP-45-440", name: "Run capacitor 45/5 \xB5F 440 V", cost: 1450n, min: 4, max: 10 },
+  { sku: "CONT-2P-30", name: "Contactor 2-pole 30 A", cost: 1890n, min: 3, max: 8 },
+  { sku: "FLT-16x25", name: "Air filter 16x25x1", cost: 420n, min: 10, max: 30 },
+  { sku: "DRN-SW", name: "Condensate float switch", cost: 1250n, min: 2, max: 6 },
+  { sku: "R410A-25", name: "R-410A refrigerant (lb)", cost: 1900n, min: 10, max: 50, uom: "lb" },
+  { sku: "PEX-12-100", name: "PEX 1/2 in tubing (ft)", cost: 85n, min: 50, max: 200, uom: "ft" },
+  { sku: "SHARK-12", name: "SharkBite 1/2 in coupling", cost: 640n, min: 6, max: 20 },
+  { sku: "WH-ANODE", name: "Water heater anode rod", cost: 3200n, min: 1, max: 4 }
+];
+var WARRANTY = [
+  // maker, register within days, parts yrs registered, parts yrs not registered, labour yrs
+  ["Carrier", 90, 10, 5, 1],
+  ["Trane", 60, 10, 5, 1],
+  ["Lennox", 60, 10, 5, 1],
+  ["Rheem", 60, 10, 5, 1],
+  ["Goodman", 60, 10, 5, 1],
+  ["American Standard", 60, 10, 5, 1],
+  ["A. O. Smith", 90, 6, 6, 1],
+  ["Bradford White", 90, 6, 6, 1]
+];
+async function seedStock(uow, actor) {
+  const { tx } = uow;
+  const out = { uoms: 0, suppliers: 0, items: 0, locations: 0, opening: 0, warrantyRules: 0 };
+  for (const [code, name, kind, maxDecimals] of UOMS) {
+    if (!await tx.unitOfMeasure.findUnique({ where: { code } })) {
+      await tx.unitOfMeasure.create({ data: { code, name, kind, maxDecimals } });
+      out.uoms += 1;
+    }
+  }
+  const uom = new Map((await tx.unitOfMeasure.findMany({ select: { id: true, code: true } })).map((u) => [u.code, u.id]));
+  for (const s of SUPPLIERS) {
+    if (!await tx.supplier.findFirst({ where: { name: s.name } })) {
+      await tx.supplier.create({ data: s });
+      out.suppliers += 1;
+    }
+  }
+  const supplier = await tx.supplier.findFirst({ where: { name: SUPPLIERS[0].name }, select: { id: true } });
+  const items = /* @__PURE__ */ new Map();
+  for (const i of ITEMS) {
+    let row = await tx.item.findUnique({ where: { sku: i.sku }, select: { id: true } });
+    if (!row) {
+      row = await tx.item.create({ data: { sku: i.sku, name: i.name, kind: i.sku.startsWith("R410") ? "refrigerant" : "part", baseUomId: uom.get(i.uom ?? "ea"), standardCostMinor: i.cost, defaultSupplierId: supplier?.id ?? null, active: true }, select: { id: true } });
+      out.items += 1;
+    }
+    items.set(i.sku, { id: row.id, min: i.min, max: i.max });
+  }
+  const wanted = [{ code: "WH-MAIN", name: "Main warehouse", kind: "warehouse", employeeId: null }, ...[["morrison", "Truck 1 \xB7 Morrison"], ["alvarez", "Truck 2 \xB7 Alvarez"], ["chu", "Truck 3 \xB7 Chu"]].map(([k, name], i) => ({ code: `TRUCK-${i + 1}`, name, kind: "truck", employeeId: `seed_emp_${k}` }))];
+  const loc = /* @__PURE__ */ new Map();
+  for (const w of wanted) {
+    let row = await tx.stockLocation.findFirst({ where: { code: w.code }, select: { id: true } });
+    if (!row) {
+      const emp = w.employeeId ? await tx.employee.findUnique({ where: { id: w.employeeId }, select: { id: true } }) : null;
+      row = await tx.stockLocation.create({ data: { code: w.code, name: w.name, kind: w.kind, employeeId: emp?.id ?? null, active: true }, select: { id: true } });
+      out.locations += 1;
+    }
+    loc.set(w.code, row.id);
+  }
+  const haveKeys = new Set((await tx.stockMovement.findMany({ where: { idempotencyKey: { startsWith: "seed:opening:" } }, select: { idempotencyKey: true } })).map((m) => m.idempotencyKey));
+  const itemRows = await tx.item.findMany({ where: { id: { in: [...items.values()].map((i) => i.id) } }, select: { id: true, baseUomId: true } });
+  const baseUom = new Map(itemRows.map((r) => [r.id, r.baseUomId]));
+  const movements = [];
+  for (const [code, locationId] of loc) {
+    for (const [sku, it] of items) {
+      const key2 = `seed:opening:${code}:${sku}`;
+      if (haveKeys.has(key2)) continue;
+      const qty2 = new import_client.Prisma.Decimal(code === "WH-MAIN" ? it.max * 3 : Math.max(1, Math.round(it.max / 2)));
+      movements.push({ idempotencyKey: key2, type: "adjust", itemId: it.id, locationId, quantity: qty2, baseQuantity: qty2, uomId: baseUom.get(it.id) ?? null, reason: "Opening count", actorId: actorUserId(actor), occurredAt: uow.now });
+    }
+  }
+  if (movements.length) {
+    await tx.stockMovement.createMany({ data: movements });
+    out.opening = movements.length;
+  }
+  const haveRules = new Set((await tx.minMaxRule.findMany({ select: { locationId: true, itemId: true } })).map((r) => `${r.locationId}:${r.itemId}`));
+  const rules2 = [];
+  for (const [code, locationId] of loc) {
+    if (code === "WH-MAIN") continue;
+    for (const [, it] of items) if (!haveRules.has(`${locationId}:${it.id}`)) rules2.push({ locationId, itemId: it.id, min: new import_client.Prisma.Decimal(Math.max(1, Math.round(it.min / 2))), max: new import_client.Prisma.Decimal(Math.max(2, Math.round(it.max / 2))), reorderFromId: loc.get("WH-MAIN") });
+  }
+  if (rules2.length) await tx.minMaxRule.createMany({ data: rules2 });
+  const haveRules2 = new Set((await tx.warrantyRule.findMany({ select: { manufacturer: true } })).map((r) => r.manufacturer));
+  const fresh = WARRANTY.filter((w) => !haveRules2.has(w[0])).map(([manufacturer, days, reg, unreg, labor]) => ({ manufacturer, brand: manufacturer, registrationDeadlineDays: days, partsYearsRegistered: reg, partsYearsUnregistered: unreg, laborYears: labor, claimDeadlineDays: 60, submitMethod: "portal", verified: false, notes: "Typical terms. Check against the maker's current warranty paper." }));
+  if (fresh.length) {
+    await tx.warrantyRule.createMany({ data: fresh });
+    out.warrantyRules = fresh.length;
+  }
+  return out;
+}
+
 // features/keystone/seed/operations.ts
 var UNUSABLE_PASSWORD_HASH2 = "$2a$10$3dITCbIvf5zFA.1U8KZDhOHC3EEexi3KYy5ysZK1cRF6LHMm0H.ya";
 var day2 = (iso) => /* @__PURE__ */ new Date(`${iso}T00:00:00Z`);
@@ -6079,6 +6206,8 @@ async function seedOperations(uow, actor) {
     created.locations = fresh.length;
     created.consents = consents.length;
   }
+  const stock = await seedStock(uow, actor);
+  Object.assign(created, Object.fromEntries(Object.entries(stock).map(([k, v]) => [`stock_${k}`, v])));
   return created;
 }
 
@@ -6112,8 +6241,8 @@ init_decimal();
 function windowsForDate(templates, date, timeZone, isOpen) {
   assertDate(date);
   if (!isOpen(date)) return [];
-  const day3 = weekday(date);
-  return templates.filter((t) => t.active && t.weekday === day3).map((t) => {
+  const day4 = weekday(date);
+  return templates.filter((t) => t.active && t.weekday === day4).map((t) => {
     const startsAt = zonedInstant(timeZone, date, t.startLocal);
     const endsAt = zonedInstant(timeZone, date, t.endLocal);
     if (endsAt <= startsAt) throw new Error(`Window ${t.label} ends before it starts on ${date}`);
@@ -7905,10 +8034,10 @@ function windowFor(start, end, season) {
   return best ?? { startDay: start, endDay: end };
 }
 var dayAt = (timeZone, at) => localDate({ timeZone }, at);
-function termDaysLeft(start, end, day3) {
+function termDaysLeft(start, end, day4) {
   const ms = (d) => Date.parse(`${d}T00:00:00Z`);
   const total = Math.round((ms(end) - ms(start)) / 864e5) + 1;
-  const left = day3 > end ? 0 : day3 < start ? total : Math.round((ms(end) - ms(day3)) / 864e5) + 1;
+  const left = day4 > end ? 0 : day4 < start ? total : Math.round((ms(end) - ms(day4)) / 864e5) + 1;
   return { left, total };
 }
 var prorate = (amountMinor, left, total) => total <= 0 ? 0n : amountMinor * BigInt(left) / BigInt(total);
@@ -7918,15 +8047,15 @@ init_actor();
 init_cas();
 init_errors();
 var TERMS_DAYS = { due_on_receipt: 0, net_15: 15, net_30: 30, net_45: 45, net_60: 60 };
-var asDate = (day3) => /* @__PURE__ */ new Date(`${day3}T00:00:00Z`);
+var asDate = (day4) => /* @__PURE__ */ new Date(`${day4}T00:00:00Z`);
 async function companyToday(tx, at) {
   const company = await tx.companySettings.findFirst({ select: { homeTimeZone: true } });
   return localDate({ timeZone: company?.homeTimeZone || "America/Chicago" }, at);
 }
-async function arPeriodFor(tx, day3, { requireOpen = true } = {}) {
-  const month = asDate(`${day3.slice(0, 7)}-01`);
+async function arPeriodFor(tx, day4, { requireOpen = true } = {}) {
+  const month = asDate(`${day4.slice(0, 7)}-01`);
   const period = await tx.arPeriod.upsert({ where: { month }, create: { month, status: "open" }, update: {}, select: { id: true, status: true } });
-  if (requireOpen && period.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The AR period for ${day3.slice(0, 7)} is ${period.status}. Choose a date in an open period.`, { reason: "ar_period_closed", month: day3.slice(0, 7) });
+  if (requireOpen && period.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The AR period for ${day4.slice(0, 7)} is ${period.status}. Choose a date in an open period.`, { reason: "ar_period_closed", month: day4.slice(0, 7) });
   return period;
 }
 async function lockInvoice(tx, id) {
@@ -7936,8 +8065,8 @@ function statusForBalance(total, balance) {
   return balance === 0n ? "paid" : balance < total ? "partially_paid" : "posted";
 }
 async function postArEntry(uow, input) {
-  const day3 = await companyToday(uow.tx, uow.now);
-  const period = await arPeriodFor(uow.tx, day3);
+  const day4 = await companyToday(uow.tx, uow.now);
+  const period = await arPeriodFor(uow.tx, day4);
   return uow.tx.arEntry.create({
     data: { invoiceId: input.invoice.id, customerId: input.invoice.customerId, payerId: input.invoice.payerId, kind: input.kind, amountMinor: input.amountMinor, sourceType: input.sourceType, sourceId: input.sourceId, arPeriodId: period.id, postedAt: uow.now, note: input.note ?? "" },
     select: { id: true }
@@ -8412,13 +8541,13 @@ async function renewMembership(db, actor, args) {
   });
   return { replay: result.replay, ...result.value };
 }
-function refundFor(rule2, paidMinor, term, day3) {
+function refundFor(rule2, paidMinor, term, day4) {
   if (paidMinor <= 0n || rule2.method === "none") return 0n;
   if (rule2.method === "prorata") {
-    const { left, total } = termDaysLeft(term.start, term.end, day3);
+    const { left, total } = termDaysLeft(term.start, term.end, day4);
     return prorate(paidMinor, left, total);
   }
-  return day3 <= addDays(term.start, rule2.days) ? paidMinor : 0n;
+  return day4 <= addDays(term.start, rule2.days) ? paidMinor : 0n;
 }
 async function cancelMembershipInTx(uow, actor, membershipId, reason, via) {
   const { tx } = uow;
@@ -10498,6 +10627,948 @@ async function resolvePolicyQuery(_root, args, context) {
   return resolvePolicyFromDb(context.prisma, args.kind, { state: args.state, county: args.county, city: args.city, zip: args.zip, branchId: args.branchId }, args.on);
 }
 
+// features/keystone/services/warranty.ts
+var warranty_exports = {};
+__export(warranty_exports, {
+  advanceHomeWarranty: () => advanceHomeWarranty,
+  advanceWarrantyStates: () => advanceWarrantyStates,
+  appealClaim: () => appealClaim,
+  claimGaps: () => claimGaps,
+  closeClaim: () => closeClaim,
+  confirmRegistration: () => confirmRegistration,
+  ensureRegistrationFor: () => ensureRegistrationFor,
+  markClaimReady: () => markClaimReady,
+  markRegistrationSubmitted: () => markRegistrationSubmitted,
+  openClaim: () => openClaim,
+  receiveHomeWarrantyDispatch: () => receiveHomeWarrantyDispatch,
+  recordClaimDecision: () => recordClaimDecision,
+  recordClaimNumber: () => recordClaimNumber,
+  recordEquipment: () => recordEquipment,
+  recordReading: () => recordReading,
+  registrationList: () => registrationList,
+  registrationPacket: () => registrationPacket,
+  replaceEquipment: () => replaceEquipment,
+  requestClaimWriteOff: () => requestClaimWriteOff,
+  saveClaimDraft: () => saveClaimDraft,
+  settleClaim: () => settleClaim,
+  submitClaim: () => submitClaim,
+  writeOffClaim: () => writeOffClaim
+});
+init_actor();
+init_cas();
+init_errors();
+init_approval();
+
+// features/keystone/services/inventory.ts
+var inventory_exports2 = {};
+__export(inventory_exports2, {
+  MANAGE: () => MANAGE2,
+  adjustStock: () => adjustStock,
+  applyMovement: () => applyMovement,
+  consumeStock: () => consumeStock,
+  decideReplenishment: () => decideReplenishment,
+  decimal: () => decimal2,
+  fillReplenishment: () => fillReplenishment,
+  installSerializedUnit: () => installSerializedUnit,
+  postCycleCount: () => postCycleCount,
+  proposeReplenishment: () => proposeReplenishment,
+  receiveSerializedUnit: () => receiveSerializedUnit,
+  requestCountApproval: () => requestCountApproval,
+  requireLocationAccess: () => requireLocationAccess,
+  saveItem: () => saveItem,
+  saveMinMaxRule: () => saveMinMaxRule,
+  saveStockLocation: () => saveStockLocation,
+  startCycleCount: () => startCycleCount,
+  stockSummary: () => stockSummary,
+  submitCycleCount: () => submitCycleCount,
+  toBase: () => toBase,
+  transferStock: () => transferStock,
+  verifyStock: () => verifyStock
+});
+var import_client2 = require("@prisma/client");
+var import_node_crypto8 = require("node:crypto");
+init_actor();
+init_cas();
+init_errors();
+init_approval();
+
+// features/keystone/domain/phase5Commands.ts
+var REPLENISHMENT_DECISIONS = ["approve", "reject"];
+var PHASE5 = {
+  // Equipment and warranty
+  recordEquipment: ["warranty", "recordEquipment", { locationId: "ID!", manufacturer: "String!", modelNumber: "String!", serialNumber: "String!", kind: "String", applianceClass: "String", tonnage: "String", refrigerantType: "String", refrigerantChargeLb: "String", installDate: "String", manufactureDate: "String", locationInHome: "String", installedByJobId: "ID", source: "String" }],
+  recordEquipmentReading: ["warranty", "recordReading", { equipmentId: "ID!", visitId: "ID", kind: "String!", value: "String!", unit: "String" }],
+  retireEquipment: ["warranty", "replaceEquipment", { equipmentId: "ID!", replacedById: "ID", status: "String!", expectedVersion: "Int!" }],
+  ensureWarrantyRegistration: ["warranty", "ensureRegistrationFor", { equipmentId: "ID!" }],
+  markWarrantyRegistrationSubmitted: ["warranty", "markRegistrationSubmitted", { registrationId: "ID!", confirmationNumber: "String", expectedVersion: "Int!" }],
+  confirmWarrantyRegistration: ["warranty", "confirmRegistration", { registrationId: "ID!", confirmationNumber: "String!", expectedVersion: "Int!" }],
+  openWarrantyClaim: ["warranty", "openClaim", { equipmentId: "ID!", jobId: "ID", draft: "JSON" }],
+  saveWarrantyClaimDraft: ["warranty", "saveClaimDraft", { claimId: "ID!", draft: "JSON!", expectedVersion: "Int!" }],
+  markWarrantyClaimReady: ["warranty", "markClaimReady", { claimId: "ID!", expectedVersion: "Int!" }],
+  submitWarrantyClaim: ["warranty", "submitClaim", { claimId: "ID!", externalClaimNumber: "String", lateReason: "String", expectedVersion: "Int!" }],
+  recordWarrantyClaimNumber: ["warranty", "recordClaimNumber", { claimId: "ID!", externalClaimNumber: "String!" }],
+  recordWarrantyClaimDecision: ["warranty", "recordClaimDecision", { claimId: "ID!", decision: "String!", recoveredMinor: "String", note: "String", expectedVersion: "Int!" }],
+  settleWarrantyClaim: ["warranty", "settleClaim", { claimId: "ID!", evidence: "String!", expectedVersion: "Int!" }],
+  closeWarrantyClaim: ["warranty", "closeClaim", { claimId: "ID!", expectedVersion: "Int!" }],
+  appealWarrantyClaim: ["warranty", "appealClaim", { claimId: "ID!", note: "String!", expectedVersion: "Int!" }],
+  requestWarrantyWriteOff: ["warranty", "requestClaimWriteOff", { claimId: "ID!", reason: "String!" }],
+  writeOffWarrantyClaim: ["warranty", "writeOffClaim", { claimId: "ID!", requestId: "ID!", reason: "String!", expectedVersion: "Int!" }],
+  receiveHomeWarrantyDispatch: ["warranty", "receiveHomeWarrantyDispatch", { payerId: "ID!", externalDispatchNumber: "String!", jobId: "ID", serviceFeeMinor: "String" }],
+  advanceHomeWarrantyDispatch: ["warranty", "advanceHomeWarranty", { dispatchId: "ID!", to: "String!", authorizedMinor: "String", note: "String", expectedVersion: "Int!" }],
+  // Stock
+  saveStockItem: ["inventory", "saveItem", { itemId: "ID", sku: "String!", name: "String!", kind: "String", baseUom: "String!", trackSerial: "Boolean", standardCostMinor: "String", defaultSupplierId: "ID" }],
+  saveStockLocation: ["inventory", "saveStockLocation", { code: "String!", name: "String!", kind: "String!", employeeId: "ID" }],
+  consumeStock: ["inventory", "consumeStock", { itemId: "ID!", locationId: "ID!", quantity: "String!", uom: "String", jobId: "ID!", workLineId: "ID", clientRecordedAt: "String" }],
+  installSerializedUnit: ["inventory", "installSerializedUnit", { serializedUnitId: "ID!", equipmentId: "ID!", jobId: "ID!" }],
+  transferStock: ["inventory", "transferStock", { itemId: "ID!", fromLocationId: "ID!", toLocationId: "ID!", quantity: "String!", uom: "String", serializedUnitId: "ID" }],
+  adjustStock: ["inventory", "adjustStock", { itemId: "ID!", locationId: "ID!", quantity: "String!", reason: "String!" }],
+  saveMinMaxRule: ["inventory", "saveMinMaxRule", { locationId: "ID!", itemId: "ID!", min: "String!", max: "String!", reorderFromId: "ID", supplierId: "ID" }],
+  proposeReplenishment: ["inventory", "proposeReplenishment", {}],
+  decideReplenishment: ["inventory", "decideReplenishment", { requestId: "ID!", decision: "String!", expectedVersion: "Int!" }],
+  fillReplenishment: ["inventory", "fillReplenishment", { requestId: "ID!", expectedVersion: "Int!" }],
+  startCycleCount: ["inventory", "startCycleCount", { locationId: "ID!" }],
+  submitCycleCount: ["inventory", "submitCycleCount", { countId: "ID!", counted: "JSON!", expectedVersion: "Int!" }],
+  requestCycleCountApproval: ["inventory", "requestCountApproval", { countId: "ID!" }],
+  postCycleCount: ["inventory", "postCycleCount", { countId: "ID!", expectedVersion: "Int!" }],
+  // Purchasing
+  openPurchaseOrder: ["purchasing", "createPurchaseOrder", { supplierId: "ID!", shipToId: "ID!", jobId: "ID", lines: "JSON!" }],
+  submitPurchaseOrder: ["purchasing", "submitPurchaseOrder", { purchaseOrderId: "ID!", expectedVersion: "Int!" }],
+  approvePurchaseOrder: ["purchasing", "approvePurchaseOrder", { purchaseOrderId: "ID!", expectedVersion: "Int!" }],
+  markPurchaseOrderSent: ["purchasing", "markPurchaseOrderSent", { purchaseOrderId: "ID!", externalOrderNumber: "String", expectedVersion: "Int!" }],
+  cancelPurchaseOrder: ["purchasing", "cancelPurchaseOrder", { purchaseOrderId: "ID!", reason: "String!", expectedVersion: "Int!" }],
+  receivePurchaseOrder: ["purchasing", "receivePurchaseOrder", { purchaseOrderId: "ID!", lines: "JSON!", overReceiptRequestId: "ID" }],
+  requestOverReceipt: ["purchasing", "requestOverReceipt", { purchaseOrderId: "ID!", lines: "JSON!" }],
+  recordVendorBill: ["purchasing", "recordVendorBill", { purchaseOrderId: "ID!", billNumber: "String!", totalMinor: "String!" }],
+  requestBillVariance: ["purchasing", "requestBillVariance", { billId: "ID!" }],
+  acceptBillVariance: ["purchasing", "acceptBillVariance", { billId: "ID!", expectedVersion: "Int!" }],
+  // Permits, refrigerant, liens
+  openPermit: ["compliance", "openPermit", { jobId: "ID!", ahj: "String!", permitType: "String!", feeMinor: "String" }],
+  advancePermit: ["compliance", "advancePermit", { permitId: "ID!", to: "String!", externalNumber: "String", expiresOn: "String", note: "String", expectedVersion: "Int!" }],
+  requestInspection: ["compliance", "requestInspection", { permitId: "ID!", kind: "String!", scheduledFor: "String", inspectorName: "String" }],
+  recordInspectionResult: ["compliance", "recordInspectionResult", { inspectionId: "ID!", result: "String!", notes: "String", expectedVersion: "Int!" }],
+  reinspect: ["compliance", "reinspect", { inspectionId: "ID!", expectedVersion: "Int!" }],
+  completeJob: ["compliance", "completeJob", { jobId: "ID!", expectedVersion: "Int!" }],
+  saveRefrigerantCylinder: ["compliance", "saveCylinder", { serialOrTag: "String!", refrigerantType: "String!", kind: "String", locationId: "ID", tareLb: "String" }],
+  logRefrigerant: ["compliance", "logRefrigerant", { kind: "String!", equipmentId: "ID", jobId: "ID", cylinderId: "ID", refrigerantType: "String!", quantityLb: "String!", technicianId: "ID!", notes: "String" }],
+  resolveLeakRate: ["compliance", "resolveLeak", { evaluationId: "ID!", to: "String!", note: "String!", expectedVersion: "Int!" }],
+  checkRefrigerantInstall: ["compliance", "checkRefrigerantInstall", { workLineId: "ID!", equipmentModelId: "ID!", stage: "String!" }],
+  trackLien: ["compliance", "trackLien", { jobId: "ID!", invoiceId: "ID", projectClass: "String" }],
+  advanceLien: ["compliance", "advanceLien", { lienId: "ID!", to: "String!", note: "String", expectedVersion: "Int!" }]
+};
+var PHASE5_OPS = Object.fromEntries(Object.entries(PHASE5).map(([name, [, , args]]) => [name, args]));
+
+// features/keystone/services/inventory.ts
+var MANAGE2 = ["canManageInventory"];
+var MOVERS = ["canManageInventory", "canReceive", "canPurchase"];
+var dec2 = (v, field, { positive = false, nonzero = false } = {}) => {
+  let d;
+  try {
+    d = new import_client2.Prisma.Decimal(String(v ?? "").trim());
+  } catch {
+    throw new DomainError(Codes.INVALID_INPUT, `${field} must be a number.`, { field });
+  }
+  if (!d.isFinite() || d.decimalPlaces() > 4) throw new DomainError(Codes.INVALID_INPUT, `${field} has at most four decimals.`, { field });
+  if (positive && d.lte(0)) throw new DomainError(Codes.INVALID_INPUT, `${field} must be more than zero.`, { field });
+  if (nonzero && d.isZero()) throw new DomainError(Codes.INVALID_INPUT, `${field} cannot be zero.`, { field });
+  return d;
+};
+var decimal2 = dec2;
+var clean = (v, field, max = 400) => {
+  const s = String(v ?? "").trim();
+  if (!s || s.length > max) throw new DomainError(Codes.INVALID_INPUT, `${field} is needed.`, { field });
+  return s;
+};
+async function requireLocationAccess(tx, actor, locationId) {
+  const loc = await tx.stockLocation.findUnique({ where: { id: locationId }, select: { id: true, kind: true, active: true, employee: { select: { userId: true } } } });
+  if (!loc) throw new DomainError(Codes.NOT_FOUND, "That stock location does not exist.");
+  if (actor.kind === "system") return loc;
+  if (actor.kind === "user" && MOVERS.some((p) => can(actor, p))) return loc;
+  if (actor.kind === "user" && can(actor, "canWorkVisits") && loc.kind === "truck" && loc.employee?.userId === actor.userId) return loc;
+  throw new DomainError(Codes.NOT_AUTHORIZED, "That is not your truck.");
+}
+async function toBase(tx, itemId, qty2, uomCode) {
+  const item = await tx.item.findUnique({ where: { id: itemId }, select: { id: true, active: true, trackSerial: true, baseUomId: true, baseUom: { select: { code: true, maxDecimals: true } } } });
+  if (!item) throw new DomainError(Codes.NOT_FOUND, "That item does not exist.");
+  if (!uomCode || uomCode === item.baseUom?.code) {
+    const max = item.baseUom?.maxDecimals ?? 4;
+    if (qty2.decimalPlaces() > max) throw new DomainError(Codes.INVALID_INPUT, `This item is counted to ${max} decimals.`, { field: "quantity" });
+    return { item, base: qty2, uomId: item.baseUomId };
+  }
+  const uom = await tx.unitOfMeasure.findUnique({ where: { code: uomCode }, select: { id: true } });
+  if (!uom) throw new DomainError(Codes.INVALID_INPUT, `Unknown unit ${uomCode}.`, { field: "uom" });
+  const conv = await tx.itemUomConversion.findFirst({ where: { itemId, fromUomId: uom.id, toUomId: item.baseUomId ?? "" } });
+  if (!conv?.factor) throw new DomainError(Codes.INVALID_INPUT, `No conversion from ${uomCode} to ${item.baseUom?.code ?? "the base unit"} for this item.`, { field: "uom" });
+  return { item, base: qty2.mul(conv.factor), uomId: uom.id };
+}
+async function applyMovement(uow, actor, m) {
+  const { tx } = uow;
+  const { item, base, uomId } = await toBase(tx, m.itemId, m.quantity, m.uomCode);
+  if (m.quantity.isZero()) throw new DomainError(Codes.INVALID_INPUT, "A movement cannot be zero.", { field: "quantity" });
+  if (item.trackSerial && !m.serializedUnitId && !["adjust", "count_variance"].includes(m.type)) {
+    throw new DomainError(Codes.GUARD_FAILED, "This item is tracked by serial number; name the unit.", { reason: "serial_required" });
+  }
+  let row;
+  try {
+    row = await tx.stockMovement.create({
+      data: {
+        idempotencyKey: m.key,
+        type: m.type,
+        itemId: m.itemId,
+        locationId: m.locationId,
+        quantity: m.quantity,
+        uomId,
+        baseQuantity: base,
+        unitCostMinor: m.unitCostMinor ?? 0n,
+        jobId: m.jobId ?? null,
+        workLineId: m.workLineId ?? null,
+        receiptId: m.receiptId ?? null,
+        transferGroup: m.transferGroup ?? "",
+        serializedUnitId: m.serializedUnitId ?? null,
+        reason: m.reason ?? "",
+        reversesId: m.reversesId ?? null,
+        actorId: actorUserId(actor),
+        occurredAt: m.occurredAt ?? uow.now,
+        clientRecordedAt: m.clientRecordedAt ?? null
+      },
+      select: { id: true }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/cannot go below zero/.test(message)) throw new DomainError(Codes.GUARD_FAILED, "There is not enough of that at this location.", { reason: "insufficient_stock" });
+    if (/does not allow a truck/.test(message)) throw new DomainError(Codes.GUARD_FAILED, "This company does not let a truck go below zero.", { reason: "negative_truck" });
+    throw error;
+  }
+  const level = await tx.stockLevel.findFirst({ where: { locationId: m.locationId, itemId: m.itemId }, select: { onHand: true, negativeSince: true } });
+  return { movementId: row.id, onHand: level?.onHand?.toString() ?? "0", negative: !!level?.negativeSince };
+}
+var keyOf = (...parts2) => (0, import_node_crypto8.createHash)("sha256").update(parts2.join("|")).digest("hex").slice(0, 40);
+async function saveItem(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.item_save", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.item_save", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const sku = clean(args.sku, "sku", 60).toUpperCase();
+    const name = clean(args.name, "name", 160);
+    const uom = await tx.unitOfMeasure.findUnique({ where: { code: args.baseUom }, select: { id: true } });
+    if (!uom) throw new DomainError(Codes.INVALID_INPUT, "Pick a unit of measure.", { field: "baseUom" });
+    const kind = args.kind ?? "part";
+    if (!["part", "material", "equipment", "refrigerant", "consumable"].includes(kind)) throw new DomainError(Codes.INVALID_INPUT, "Unknown kind.", { field: "kind" });
+    let cost = 0n;
+    if (args.standardCostMinor !== void 0) {
+      if (!/^\d{1,10}$/.test(String(args.standardCostMinor))) throw new DomainError(Codes.INVALID_INPUT, "Cost is whole cents.", { field: "standardCostMinor" });
+      cost = BigInt(args.standardCostMinor);
+    }
+    if (args.itemId) {
+      const before = await tx.item.findUnique({ where: { id: args.itemId }, select: { id: true } });
+      if (!before) throw new DomainError(Codes.NOT_FOUND, "That item does not exist.");
+      const dup = await tx.item.findFirst({ where: { sku, NOT: { id: args.itemId } }, select: { id: true } });
+      if (dup) throw new DomainError(Codes.GUARD_FAILED, "Another item uses that SKU.", { field: "sku" });
+      await tx.item.update({ where: { id: args.itemId }, data: { sku, name, kind, baseUomId: uom.id, trackSerial: !!args.trackSerial, standardCostMinor: cost, defaultSupplierId: args.defaultSupplierId ?? null } });
+      uow.audit({ eventType: "item.updated", entityType: "Item", entityId: args.itemId, actorUserId: actorUserId(actor), after: { sku, name, kind } });
+      return { itemId: args.itemId };
+    }
+    if (await tx.item.findUnique({ where: { sku }, select: { id: true } })) throw new DomainError(Codes.GUARD_FAILED, "An item already uses that SKU.", { field: "sku" });
+    const row = await tx.item.create({ data: { sku, name, kind, baseUomId: uom.id, trackSerial: !!args.trackSerial, standardCostMinor: cost, defaultSupplierId: args.defaultSupplierId ?? null }, select: { id: true } });
+    auditCreate(uow, actor, "Item", row.id, "item.created", { sku, name, kind });
+    return { itemId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function saveStockLocation(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.location_save", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.location_save", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const code = clean(args.code, "code", 40).toUpperCase();
+    if (!["warehouse", "truck", "job_site", "in_transit", "rma_staging", "scrap"].includes(args.kind)) throw new DomainError(Codes.INVALID_INPUT, "Unknown location kind.", { field: "kind" });
+    if (args.kind === "truck" && !args.employeeId) throw new DomainError(Codes.INVALID_INPUT, "A truck belongs to a technician.", { field: "employeeId" });
+    if (await tx.stockLocation.findUnique({ where: { code }, select: { id: true } })) throw new DomainError(Codes.GUARD_FAILED, "A location already uses that code.", { field: "code" });
+    const row = await tx.stockLocation.create({ data: { code, name: clean(args.name, "name", 120), kind: args.kind, employeeId: args.employeeId ?? null }, select: { id: true } });
+    auditCreate(uow, actor, "StockLocation", row.id, "stock_location.created", { code, kind: args.kind });
+    return { locationId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function consumeStock(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.consume", [...MOVERS, "canWorkVisits"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.consume", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    await requireLocationAccess(tx, actor, args.locationId);
+    const job = await tx.job.findUnique({ where: { id: args.jobId }, select: { id: true, status: true } });
+    if (!job) throw new DomainError(Codes.NOT_FOUND, "That job does not exist.");
+    if (["cancelled", "closed"].includes(job.status)) throw new DomainError(Codes.GUARD_FAILED, `The job is ${job.status}.`, { reason: "job_closed" });
+    const qty2 = dec2(args.quantity, "quantity", { positive: true });
+    const item = await tx.item.findUnique({ where: { id: args.itemId }, select: { standardCostMinor: true } });
+    if (args.serializedUnitId) throw new DomainError(Codes.GUARD_FAILED, "Install a serial-numbered unit into its equipment instead.", { reason: "use_install" });
+    const moved = await applyMovement(uow, actor, {
+      key: `consume:${idempotencyKey}`,
+      type: "consume_job",
+      itemId: args.itemId,
+      locationId: args.locationId,
+      quantity: qty2.neg(),
+      uomCode: args.uom,
+      unitCostMinor: item?.standardCostMinor ?? 0n,
+      jobId: args.jobId,
+      workLineId: args.workLineId,
+      clientRecordedAt: args.clientRecordedAt ? new Date(args.clientRecordedAt) : null
+    });
+    if (moved.negative) {
+      await tx.task.upsert({
+        where: { dedupeKey: `stock.negative:${args.locationId}:${args.itemId}` },
+        update: {},
+        create: { kind: "stock.negative", title: "A truck has less than zero of an item: recount it", subjectType: "StockLocation", subjectId: args.locationId, status: "open", priority: "normal", dedupeKey: `stock.negative:${args.locationId}:${args.itemId}` }
+      });
+    }
+    return moved;
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function installSerializedUnit(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.install_unit", [...MOVERS, "canWorkVisits", "canManageEquipment"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.install_unit", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const unit = await lockRow(tx, "SerializedUnit", args.serializedUnitId);
+    if (!["in_stock", "reserved"].includes(unit.status) || !unit.locationId) throw new DomainError(Codes.GUARD_FAILED, "That serial number is not in stock.", { reason: "unit_unavailable" });
+    await requireLocationAccess(tx, actor, unit.locationId);
+    const equip = await tx.installedEquipment.findUnique({ where: { id: args.equipmentId }, select: { id: true, serializedUnitId: true } });
+    if (!equip) throw new DomainError(Codes.NOT_FOUND, "That equipment does not exist.");
+    if (equip.serializedUnitId) throw new DomainError(Codes.GUARD_FAILED, "That equipment already has a unit.", { reason: "equipment_has_unit" });
+    const item = await tx.item.findUnique({ where: { id: unit.itemId }, select: { standardCostMinor: true } });
+    const moved = await applyMovement(uow, actor, { key: `install:${idempotencyKey}`, type: "consume_job", itemId: unit.itemId, locationId: unit.locationId, quantity: new import_client2.Prisma.Decimal(-1), unitCostMinor: item?.standardCostMinor ?? 0n, jobId: args.jobId, serializedUnitId: unit.id });
+    await casUpdate(uow, { model: "SerializedUnit", id: unit.id, version: unit.version, from: [unit.status], to: "installed", actor, eventType: "serialized_unit.installed", data: { locationId: null, installedEquipmentId: args.equipmentId }, audit: { equipmentId: args.equipmentId, jobId: args.jobId } });
+    await tx.installedEquipment.update({ where: { id: args.equipmentId }, data: { serializedUnitId: unit.id, version: { increment: 1 } } });
+    return { unitId: unit.id, movementId: moved.movementId };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function receiveSerializedUnit(uow, actor, args) {
+  const serial = clean(args.serialNumber, "serialNumber", 80);
+  const existing = await uow.tx.serializedUnit.findFirst({ where: { itemId: args.itemId, serialNumber: serial }, select: { id: true } });
+  if (existing) throw new DomainError(Codes.GUARD_FAILED, `Serial number ${serial} already exists.`, { reason: "duplicate_serial" });
+  const unit = await uow.tx.serializedUnit.create({ data: { itemId: args.itemId, serialNumber: serial, status: "in_stock", locationId: args.locationId }, select: { id: true } });
+  await applyMovement(uow, actor, { key: args.key, type: "receipt", itemId: args.itemId, locationId: args.locationId, quantity: new import_client2.Prisma.Decimal(1), unitCostMinor: args.unitCostMinor, receiptId: args.receiptId, serializedUnitId: unit.id });
+  auditCreate(uow, actor, "SerializedUnit", unit.id, "serialized_unit.received", { itemId: args.itemId, serialNumber: serial, locationId: args.locationId });
+  return unit.id;
+}
+async function transferStock(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.transfer", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.transfer", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    if (args.fromLocationId === args.toLocationId) throw new DomainError(Codes.INVALID_INPUT, "Pick two different locations.");
+    await requireLocationAccess(tx, actor, args.fromLocationId);
+    await requireLocationAccess(tx, actor, args.toLocationId);
+    const qty2 = dec2(args.quantity, "quantity", { positive: true });
+    if (args.serializedUnitId && !qty2.eq(1)) throw new DomainError(Codes.INVALID_INPUT, "A serial number is one unit: move it with quantity 1.", { field: "quantity" });
+    const group = `tr_${keyOf(idempotencyKey)}`;
+    const out = await applyMovement(uow, actor, { key: `${group}:out`, type: "transfer_out", itemId: args.itemId, locationId: args.fromLocationId, quantity: qty2.neg(), uomCode: args.uom, transferGroup: group, serializedUnitId: args.serializedUnitId });
+    await applyMovement(uow, actor, { key: `${group}:in`, type: "transfer_in", itemId: args.itemId, locationId: args.toLocationId, quantity: qty2, uomCode: args.uom, transferGroup: group, serializedUnitId: args.serializedUnitId });
+    if (args.serializedUnitId) {
+      const unit = await lockRow(tx, "SerializedUnit", args.serializedUnitId);
+      if (unit.status !== "in_stock" || unit.locationId !== args.fromLocationId) throw new DomainError(Codes.GUARD_FAILED, "That serial number is not at the location you are moving it from.", { reason: "unit_elsewhere" });
+      await tx.serializedUnit.update({ where: { id: unit.id }, data: { locationId: args.toLocationId, version: { increment: 1 } } });
+    }
+    return { transferGroup: group, movementId: out.movementId };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function adjustStock(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.adjust", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.adjust", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const qty2 = dec2(args.quantity, "quantity", { nonzero: true });
+    const reason = clean(args.reason, "reason", 300);
+    const item = await uow.tx.item.findUnique({ where: { id: args.itemId }, select: { standardCostMinor: true, trackSerial: true } });
+    if (item?.trackSerial) throw new DomainError(Codes.GUARD_FAILED, "Serialized units are received and moved by serial number, not adjusted.", { reason: "serialized" });
+    const moved = await applyMovement(uow, actor, { key: `adjust:${idempotencyKey}`, type: "adjust", itemId: args.itemId, locationId: args.locationId, quantity: qty2, unitCostMinor: item?.standardCostMinor ?? 0n, reason });
+    return moved;
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function verifyStock(db) {
+  const rows = await db.$queryRaw`
+    SELECT COALESCE(l."location", m."location") AS location, COALESCE(l."item", m."item") AS item, l."onHand" AS level, m.total AS ledger
+    FROM "StockLevel" l
+    FULL OUTER JOIN (SELECT "location", "item", SUM("baseQuantity") AS total FROM "StockMovement" GROUP BY "location", "item") m
+      ON m."location" = l."location" AND m."item" = l."item"
+    WHERE COALESCE(l."onHand", 0) <> COALESCE(m.total, 0)`;
+  return { ok: rows.length === 0, mismatches: rows.map((r) => ({ locationId: r.location, itemId: r.item, level: String(r.level ?? 0), ledger: String(r.ledger ?? 0) })) };
+}
+async function saveMinMaxRule(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.minmax_save", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.minmax_save", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const min = dec2(args.min, "min");
+    const max = dec2(args.max, "max");
+    if (min.lt(0) || max.lt(min)) throw new DomainError(Codes.INVALID_INPUT, "Max must be at least min, and min at least zero.", { field: "max" });
+    const data = { min, max, reorderFromId: args.reorderFromId ?? null, supplierId: args.supplierId ?? null };
+    const row = await uow.tx.minMaxRule.upsert({ where: { locationId_itemId: { locationId: args.locationId, itemId: args.itemId } }, update: data, create: { locationId: args.locationId, itemId: args.itemId, ...data }, select: { id: true } });
+    uow.audit({ eventType: "min_max_rule.saved", entityType: "MinMaxRule", entityId: row.id, actorUserId: actorUserId(actor), after: { min: args.min, max: args.max } });
+    return { ruleId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function proposeReplenishment(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.replenish_propose", MANAGE2, args);
+  const result = await command(db, { name: "inventory.replenish_propose", actor, idempotencyKey: args.idempotencyKey, params: {}, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const rules2 = await tx.minMaxRule.findMany({ select: { locationId: true, itemId: true, min: true, max: true, supplierId: true, reorderFromId: true } });
+    const levels = await tx.stockLevel.findMany({ select: { locationId: true, itemId: true, onHand: true, reserved: true } });
+    const have = new Map(levels.map((l) => [`${l.locationId}:${l.itemId}`, new import_client2.Prisma.Decimal(l.onHand ?? 0).minus(l.reserved ?? 0)]));
+    const byLocation = /* @__PURE__ */ new Map();
+    for (const r of rules2) {
+      const onHand = have.get(`${r.locationId}:${r.itemId}`) ?? new import_client2.Prisma.Decimal(0);
+      if (!r.min || !r.max || !onHand.lt(r.min)) continue;
+      const list20 = byLocation.get(r.locationId ?? "") ?? [];
+      list20.push({ itemId: r.itemId ?? "", onHand: onHand.toString(), min: r.min.toString(), max: r.max.toString(), need: new import_client2.Prisma.Decimal(r.max).minus(onHand).toString(), reorderFromId: r.reorderFromId, supplierId: r.supplierId });
+      byLocation.set(r.locationId ?? "", list20);
+    }
+    let proposed = 0;
+    let refreshed = 0;
+    for (const [locationId, lines] of byLocation) {
+      const open = await tx.replenishmentRequest.findFirst({ where: { locationId, status: "proposed" }, select: { id: true, version: true } });
+      if (open) {
+        await tx.replenishmentRequest.update({ where: { id: open.id }, data: { lines } });
+        refreshed += 1;
+        continue;
+      }
+      const ref = await nextReference(tx, "REP", uow.now);
+      const row = await tx.replenishmentRequest.create({ data: { ref, locationId, lines, status: "proposed", proposedBy: actor.kind === "user" ? "staff button" : "system" }, select: { id: true } });
+      auditCreate(uow, actor, "ReplenishmentRequest", row.id, "replenishment.proposed", { ref, lines: lines.length });
+      proposed += 1;
+    }
+    return { proposed, refreshed, rulesChecked: rules2.length };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function decideReplenishment(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.replenish_decide", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.replenish_decide", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    if (!REPLENISHMENT_DECISIONS.includes(args.decision)) throw new DomainError(Codes.INVALID_INPUT, "Decide approve or reject.", { field: "decision" });
+    const to = args.decision === "approve" ? "approved" : "rejected";
+    const v = await casUpdate(uow, { model: "ReplenishmentRequest", id: args.requestId, version: args.expectedVersion, from: ["proposed"], to, actor, eventType: `replenishment.${to}` });
+    return { requestId: args.requestId, status: to, version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function fillReplenishment(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.replenish_fill", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.replenish_fill", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const req = await lockRow(tx, "ReplenishmentRequest", args.requestId);
+    const group = `rep_${keyOf(req.id)}`;
+    let moved = 0;
+    const toOrder = [];
+    for (const line of req.lines ?? []) {
+      if (!line.reorderFromId) {
+        toOrder.push({ itemId: line.itemId, need: line.need });
+        continue;
+      }
+      const from = await tx.stockLevel.findFirst({ where: { locationId: line.reorderFromId, itemId: line.itemId }, select: { onHand: true } });
+      const have = new import_client2.Prisma.Decimal(from?.onHand ?? 0);
+      const take = import_client2.Prisma.Decimal.min(have, new import_client2.Prisma.Decimal(line.need));
+      if (take.gt(0)) {
+        await applyMovement(uow, actor, { key: `${group}:${line.itemId}:out`, type: "transfer_out", itemId: line.itemId, locationId: line.reorderFromId, quantity: take.neg(), transferGroup: group });
+        await applyMovement(uow, actor, { key: `${group}:${line.itemId}:in`, type: "transfer_in", itemId: line.itemId, locationId: req.locationId, quantity: take, transferGroup: group });
+        moved += 1;
+      }
+      const short = new import_client2.Prisma.Decimal(line.need).minus(take);
+      if (short.gt(0)) toOrder.push({ itemId: line.itemId, need: short.toString() });
+    }
+    await casUpdate(uow, { model: "ReplenishmentRequest", id: req.id, version: args.expectedVersion, from: ["approved"], to: toOrder.length ? "ordered" : "transferred", actor, eventType: "replenishment.filled", data: { transferGroup: group }, audit: { moved, toOrder: toOrder.length } });
+    return { moved, toOrder };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function startCycleCount(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.count_start", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.count_start", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const loc = await tx.stockLocation.findUnique({ where: { id: args.locationId }, select: { id: true } });
+    if (!loc) throw new DomainError(Codes.NOT_FOUND, "That location does not exist.");
+    const levels = await tx.stockLevel.findMany({ where: { locationId: args.locationId }, select: { itemId: true, onHand: true } });
+    const ref = await nextReference(tx, "CNT", uow.now);
+    const lines = levels.map((l) => ({ itemId: l.itemId, expected: String(l.onHand ?? 0), counted: null }));
+    const row = await tx.cycleCount.create({ data: { ref, locationId: args.locationId, status: "counting", lines }, select: { id: true } });
+    auditCreate(uow, actor, "CycleCount", row.id, "cycle_count.started", { ref, lines: lines.length });
+    return { countId: row.id, ref };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function submitCycleCount(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.count_submit", [...MOVERS, "canWorkVisits"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.count_submit", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const count = await lockRow(tx, "CycleCount", args.countId);
+    await requireLocationAccess(tx, actor, count.locationId);
+    const given = new Map(args.counted.map((c) => [c.itemId, dec2(c.counted, "counted")]));
+    let cost = 0n;
+    const lines = [];
+    for (const l of count.lines ?? []) {
+      const c = given.get(l.itemId);
+      if (c && c.lt(0)) throw new DomainError(Codes.INVALID_INPUT, "A count cannot be negative.", { field: "counted" });
+      const counted = c ? c.toString() : l.counted;
+      if (counted != null) {
+        const item = await tx.item.findUnique({ where: { id: l.itemId }, select: { standardCostMinor: true } });
+        const diff = new import_client2.Prisma.Decimal(counted).minus(l.expected);
+        cost += BigInt(diff.abs().mul(String(item?.standardCostMinor ?? 0n)).toDecimalPlaces(0).toString());
+      }
+      lines.push({ ...l, counted });
+    }
+    await casUpdate(uow, { model: "CycleCount", id: count.id, version: args.expectedVersion, from: ["counting"], to: "submitted", actor, eventType: "cycle_count.submitted", data: { lines, varianceMinor: cost } });
+    return { countId: count.id, varianceMinor: cost.toString() };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requestCountApproval(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.count_request", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.count_request", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const count = await uow.tx.cycleCount.findUnique({ where: { id: args.countId }, select: { id: true, status: true, lines: true, ref: true, approvalId: true } });
+    if (!count || count.status !== "submitted") throw new DomainError(Codes.INVALID_TRANSITION, "Only a submitted count goes for approval.");
+    if (count.approvalId) return { requestId: count.approvalId };
+    const req = await requestApproval(uow, actor, { action: "stock.count_post", targetList: "CycleCount", targetId: count.id, payload: { countId: count.id, lines: count.lines }, requiredPermission: "canApproveStockVariance", summary: `Post count ${count.ref}` });
+    await uow.tx.cycleCount.update({ where: { id: count.id }, data: { approvalId: req.id } });
+    return { requestId: req.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function postCycleCount(db, actor, args) {
+  await authorizeOperation(db, actor, "inventory.count_post", MANAGE2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inventory.count_post", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const count = await lockRow(tx, "CycleCount", args.countId);
+    if (count.status !== "submitted") throw new DomainError(Codes.INVALID_TRANSITION, "Only a submitted count posts.");
+    if (!count.approvalId) throw new DomainError(Codes.APPROVAL_REQUIRED, "A count needs a second person to approve it.");
+    await consumeApproval(uow, { requestId: count.approvalId, action: "stock.count_post", targetList: "CycleCount", targetId: count.id, payload: { countId: count.id, lines: count.lines } });
+    let posted = 0;
+    for (const l of count.lines ?? []) {
+      if (l.counted == null) continue;
+      const level = await tx.stockLevel.findFirst({ where: { locationId: count.locationId, itemId: l.itemId }, select: { onHand: true } });
+      const diff = new import_client2.Prisma.Decimal(l.counted).minus(level?.onHand ?? 0);
+      if (diff.isZero()) continue;
+      await applyMovement(uow, actor, { key: `count:${count.id}:${l.itemId}`, type: "count_variance", itemId: l.itemId, locationId: count.locationId, quantity: diff, reason: `Cycle count` });
+      posted += 1;
+    }
+    await casUpdate(uow, { model: "CycleCount", id: count.id, version: args.expectedVersion, from: ["submitted"], to: "posted", actor, eventType: "cycle_count.posted", audit: { posted } });
+    return { posted };
+  });
+  return { replay: result.replay, ...result.value };
+}
+registerApplier("stock.count_post", async () => ({ ok: true }), { applyOnApprove: false });
+async function stockSummary(db, locationKind) {
+  const levels = await db.stockLevel.findMany({
+    where: { location: { is: { active: true, ...locationKind ? { kind: locationKind } : {} } } },
+    orderBy: [{ locationId: "asc" }],
+    select: { id: true, onHand: true, reserved: true, negativeSince: true, location: { select: { id: true, code: true, name: true, kind: true } }, item: { select: { id: true, sku: true, name: true, trackSerial: true, baseUom: { select: { code: true } } } } }
+  });
+  return levels.map((l) => ({ id: l.id, location: l.location, item: l.item, onHand: String(l.onHand ?? 0), reserved: String(l.reserved ?? 0), negativeSince: l.negativeSince }));
+}
+
+// features/keystone/services/warranty.ts
+var EQUIP = ["canManageEquipment"];
+var CLAIM = ["canSubmitWarrantyClaims"];
+var ymd2 = (d) => d ? d.toISOString().slice(0, 10) : "";
+var addYears = (day4, years) => {
+  const d = /* @__PURE__ */ new Date(`${day4}T00:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() + years);
+  return d.toISOString().slice(0, 10);
+};
+var str = (v, field, max = 200, required = false) => {
+  const s = String(v ?? "").trim();
+  if (required && !s) throw new DomainError(Codes.INVALID_INPUT, `${field} is needed.`, { field });
+  if (s.length > max) throw new DomainError(Codes.INVALID_INPUT, `${field} is too long.`, { field });
+  return s;
+};
+var day3 = (v, field) => {
+  if (v == null || v === "") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(v)) || Number.isNaN(Date.parse(`${v}T00:00:00Z`))) throw new DomainError(Codes.INVALID_INPUT, `${field} is a date (YYYY-MM-DD).`, { field });
+  return String(v);
+};
+async function requireEquipmentAccess(tx, actor, locationId) {
+  if (actor.kind !== "user") return;
+  if (actor.permissions.has("canManageEquipment") || actor.permissions.has("canDispatch")) return;
+  if (actor.permissions.has("canWorkVisits")) {
+    const mine = await tx.job.count({ where: { locationId, visits: { some: { assignments: { some: { active: true, employee: { userId: actor.userId } } } } } } });
+    if (mine) return;
+  }
+  throw new DomainError(Codes.NOT_AUTHORIZED, "That is not a home you are working at.");
+}
+async function recordEquipment(db, actor, args) {
+  await authorizeOperation(db, actor, "equipment.record", [...EQUIP, "canWorkVisits"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "equipment.record", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    await requireEquipmentAccess(tx, actor, args.locationId);
+    const loc = await tx.serviceLocation.findUnique({ where: { id: args.locationId }, select: { id: true } });
+    if (!loc) throw new DomainError(Codes.NOT_FOUND, "That service location does not exist.");
+    const serial = str(args.serialNumber, "serialNumber", 80, true);
+    const manufacturer = str(args.manufacturer, "manufacturer", 80, true);
+    const dup = await tx.installedEquipment.findFirst({ where: { manufacturer: { equals: manufacturer, mode: "insensitive" }, serialNumber: serial, status: "active" }, select: { id: true, locationId: true } });
+    if (dup) throw new DomainError(Codes.GUARD_FAILED, "That serial number is already recorded on active equipment.", { reason: "duplicate_serial", equipmentId: dup.id });
+    const ref = await nextReference(tx, "EQP", uow.now);
+    const charge = args.refrigerantChargeLb ? decimal2(args.refrigerantChargeLb, "refrigerantChargeLb", { positive: true }) : null;
+    const row = await tx.installedEquipment.create({
+      data: {
+        ref,
+        locationId: args.locationId,
+        manufacturer,
+        modelNumber: str(args.modelNumber, "modelNumber", 80, true),
+        serialNumber: serial,
+        kind: args.kind ?? "other",
+        applianceClass: args.applianceClass ?? "residential_ac",
+        tonnage: args.tonnage ? decimal2(args.tonnage, "tonnage", { positive: true }) : null,
+        refrigerantType: str(args.refrigerantType, "refrigerantType", 40),
+        refrigerantChargeLb: charge,
+        installDate: args.installDate ? asDate(day3(args.installDate, "installDate")) : null,
+        manufactureDate: args.manufactureDate ? asDate(day3(args.manufactureDate, "manufactureDate")) : null,
+        locationInHome: str(args.locationInHome, "locationInHome", 120),
+        installedById: args.installedByJobId ?? null,
+        source: args.source ?? "recorded_on_visit",
+        status: "active"
+      },
+      select: { id: true }
+    });
+    auditCreate(uow, actor, "InstalledEquipment", row.id, "equipment.recorded", { ref, manufacturer, serial });
+    const registration = args.installDate ? await ensureRegistration(uow, actor, row.id) : null;
+    return { equipmentId: row.id, ref, registrationId: registration };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function recordReading(db, actor, args) {
+  await authorizeOperation(db, actor, "equipment.reading", [...EQUIP, "canWorkVisits"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "equipment.reading", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const eq = await tx.installedEquipment.findUnique({ where: { id: args.equipmentId }, select: { id: true, locationId: true } });
+    if (!eq?.locationId) throw new DomainError(Codes.NOT_FOUND, "That equipment does not exist.");
+    await requireEquipmentAccess(tx, actor, eq.locationId);
+    const row = await tx.equipmentReading.create({ data: { equipmentId: eq.id, visitId: args.visitId ?? null, kind: str(args.kind, "kind", 60, true), value: decimal2(args.value, "value"), unit: str(args.unit, "unit", 20), recordedById: actorUserId(actor), recordedAt: uow.now }, select: { id: true } });
+    return { readingId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function replaceEquipment(db, actor, args) {
+  await authorizeOperation(db, actor, "equipment.retire", EQUIP, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "equipment.retire", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "InstalledEquipment", id: args.equipmentId, version: args.expectedVersion, from: ["active"], to: args.status, actor, eventType: `equipment.${args.status}`, data: { replacedById: args.replacedById ?? null } });
+    return { status: args.status, version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function ruleFor(tx, manufacturer) {
+  const name = (manufacturer ?? "").trim();
+  return name ? tx.warrantyRule.findFirst({ where: { manufacturer: { equals: name, mode: "insensitive" } }, select: { id: true, registrationDeadlineDays: true } }) : null;
+}
+async function ensureRegistration(uow, actor, equipmentId) {
+  const tx = uow.tx;
+  const eq = await tx.installedEquipment.findUnique({ where: { id: equipmentId }, select: { id: true, manufacturer: true, installDate: true } });
+  if (!eq?.installDate) return null;
+  const rule2 = await ruleFor(tx, eq.manufacturer);
+  if (!rule2) return null;
+  const existing = await tx.warrantyRegistration.findFirst({ where: { equipmentId }, select: { id: true } });
+  if (existing) return existing.id;
+  const deadline = addDays(ymd2(eq.installDate), rule2.registrationDeadlineDays ?? 90);
+  const ref = await nextReference(tx, "WRG", uow.now);
+  const today = await companyToday(tx, uow.now);
+  const row = await tx.warrantyRegistration.create({ data: { ref, equipmentId, ruleId: rule2.id, deadline: asDate(deadline), status: deadline < today ? "overdue" : "due", overdueSince: deadline < today ? uow.now : null }, select: { id: true } });
+  auditCreate(uow, actor, "WarrantyRegistration", row.id, "warranty_registration.created", { ref, deadline });
+  if (deadline < today) await tx.task.upsert({ where: { dedupeKey: `warranty.registration_overdue:${row.id}` }, update: {}, create: { kind: "warranty.registration_overdue", title: `Warranty registration is overdue (${ref})`, subjectType: "WarrantyRegistration", subjectId: row.id, status: "open", priority: "high", dedupeKey: `warranty.registration_overdue:${row.id}` } });
+  return row.id;
+}
+async function advanceWarrantyStates(db, now) {
+  const today = await companyToday(db, now);
+  const due = await db.warrantyRegistration.findMany({ where: { status: "due", deadline: { lt: asDate(today) } }, select: { id: true, ref: true, version: true } });
+  let overdue = 0;
+  for (const r of due) {
+    const changed = await db.warrantyRegistration.updateMany({ where: { id: r.id, status: "due", version: r.version }, data: { status: "overdue", overdueSince: now, version: { increment: 1 } } });
+    if (!changed.count) continue;
+    overdue += 1;
+    await db.task.upsert({ where: { dedupeKey: `warranty.registration_overdue:${r.id}` }, update: {}, create: { kind: "warranty.registration_overdue", title: `Warranty registration is overdue (${r.ref})`, subjectType: "WarrantyRegistration", subjectId: r.id, status: "open", priority: "high", dedupeKey: `warranty.registration_overdue:${r.id}` } });
+  }
+  return { overdue };
+}
+async function ensureRegistrationFor(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.registration_ensure", [...EQUIP, ...CLAIM], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.registration_ensure", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const id = await ensureRegistration(uow, actor, args.equipmentId);
+    if (!id) throw new DomainError(Codes.GUARD_FAILED, "There is no warranty rule for this maker, or the install date is missing.", { reason: "no_rule" });
+    return { registrationId: id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function registrationPacket(db, registrationId) {
+  const r = await db.warrantyRegistration.findUnique({
+    where: { id: registrationId },
+    select: { ref: true, deadline: true, status: true, rule: { select: { manufacturer: true, portalUrl: true } }, equipment: { select: { manufacturer: true, modelNumber: true, serialNumber: true, installDate: true, location: { select: { address1: true, city: true, state: true, postalCode: true, customer: { select: { displayName: true } } } } } } }
+  });
+  if (!r) return null;
+  const e = r.equipment;
+  return { ref: r.ref, status: r.status, deadline: ymd2(r.deadline), portalUrl: r.rule?.portalUrl ?? "", manufacturer: r.rule?.manufacturer ?? e?.manufacturer ?? "", fields: [
+    ["Model", e?.modelNumber ?? ""],
+    ["Serial", e?.serialNumber ?? ""],
+    ["Install date", ymd2(e?.installDate)],
+    ["Owner", e?.location?.customer?.displayName ?? ""],
+    ["Address", [e?.location?.address1, e?.location?.city, e?.location?.state, e?.location?.postalCode].filter(Boolean).join(", ")]
+  ] };
+}
+async function markRegistrationSubmitted(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.registration_submit", [...EQUIP, ...CLAIM], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.registration_submit", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const conf = str(args.confirmationNumber, "confirmationNumber", 80);
+    const v = await casUpdate(uow, { model: "WarrantyRegistration", id: args.registrationId, version: args.expectedVersion, from: ["due", "overdue"], to: conf ? "confirmed" : "submitted", actor, eventType: conf ? "warranty_registration.confirmed" : "warranty_registration.submitted", data: { confirmationNumber: conf, submittedById: actorUserId(actor), submittedAt: uow.now } });
+    await uow.tx.task.updateMany({ where: { dedupeKey: `warranty.registration_overdue:${args.registrationId}`, status: "open" }, data: { status: "done", closedAt: uow.now, resolution: "submitted" } });
+    await writeCoverage(uow.tx, args.registrationId);
+    return { status: conf ? "confirmed" : "submitted", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function confirmRegistration(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.registration_confirm", [...EQUIP, ...CLAIM], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.registration_confirm", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "WarrantyRegistration", id: args.registrationId, version: args.expectedVersion, from: ["submitted"], to: "confirmed", actor, eventType: "warranty_registration.confirmed", data: { confirmationNumber: str(args.confirmationNumber, "confirmationNumber", 80, true) } });
+    await writeCoverage(uow.tx, args.registrationId);
+    return { status: "confirmed", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function writeCoverage(tx, registrationId) {
+  const r = await tx.warrantyRegistration.findUnique({ where: { id: registrationId }, select: { id: true, equipmentId: true, deadline: true, submittedAt: true, rule: { select: { manufacturer: true, partsYearsRegistered: true, partsYearsUnregistered: true, laborYears: true } }, equipment: { select: { installDate: true } } } });
+  if (!r?.equipmentId || !r.rule || !r.equipment?.installDate) return;
+  const install = ymd2(r.equipment.installDate);
+  const onTime = !!r.submittedAt && ymd2(r.submittedAt) <= ymd2(r.deadline);
+  const parts2 = onTime ? r.rule.partsYearsRegistered : r.rule.partsYearsUnregistered;
+  const labor = r.rule.laborYears;
+  const have = new Set((await tx.warrantyCoverage.findMany({ where: { equipmentId: r.equipmentId, registrationId }, select: { kind: true } })).map((c) => c.kind));
+  if (!have.has("manufacturer_parts")) await tx.warrantyCoverage.create({ data: { equipmentId: r.equipmentId, kind: "manufacturer_parts", startsOn: asDate(install), endsOn: asDate(addYears(install, parts2 ?? 5)), provider: r.rule.manufacturer, registrationId } });
+  if (!have.has("manufacturer_labor") && (labor ?? 0) > 0) await tx.warrantyCoverage.create({ data: { equipmentId: r.equipmentId, kind: "manufacturer_labor", startsOn: asDate(install), endsOn: asDate(addYears(install, labor ?? 1)), provider: r.rule.manufacturer, registrationId } });
+}
+async function openClaim(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_open", [...CLAIM, "canManageEquipment"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_open", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const eq = await tx.installedEquipment.findUnique({ where: { id: args.equipmentId }, select: { id: true, manufacturer: true } });
+    if (!eq) throw new DomainError(Codes.NOT_FOUND, "That equipment does not exist.");
+    const rule2 = await ruleFor(tx, eq.manufacturer);
+    const ref = await nextReference(tx, "WCL", uow.now);
+    const d = args.draft ?? {};
+    const row = await tx.warrantyClaim.create({
+      data: { ref, equipmentId: eq.id, jobId: args.jobId ?? null, ruleId: rule2?.id ?? null, status: "draft", draftedById: actor.kind === "user" ? actor.userId : null, draftedByAgentId: actor.kind === "agent" ? actor.agentId : null, ...claimData(d) },
+      select: { id: true }
+    });
+    auditCreate(uow, actor, "WarrantyClaim", row.id, "warranty_claim.opened", { ref, equipmentId: eq.id });
+    return { claimId: row.id, ref };
+  });
+  return { replay: result.replay, ...result.value };
+}
+function claimData(d) {
+  const data = {};
+  if (d.failedPart !== void 0) data.failedPart = str(d.failedPart, "failedPart", 160);
+  if (d.failureDate !== void 0) data.failureDate = d.failureDate ? asDate(day3(d.failureDate, "failureDate")) : null;
+  if (d.replacementSerial !== void 0) data.replacementSerial = str(d.replacementSerial, "replacementSerial", 80);
+  if (d.laborHours !== void 0) data.laborHours = d.laborHours ? decimal2(d.laborHours, "laborHours", { positive: true }) : null;
+  if (d.claimedMinor !== void 0) {
+    if (!/^\d{1,10}$/.test(String(d.claimedMinor))) throw new DomainError(Codes.INVALID_INPUT, "The claimed amount is whole cents.", { field: "claimedMinor" });
+    data.claimedMinor = BigInt(d.claimedMinor);
+  }
+  if (d.claimant) data.claimant = d.claimant;
+  if (d.distributorId !== void 0) data.distributorId = d.distributorId;
+  if (d.replacementItemId !== void 0) data.replacementItemId = d.replacementItemId;
+  return data;
+}
+async function saveClaimDraft(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_save", [...CLAIM, "canManageEquipment"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_save", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "WarrantyClaim", id: args.claimId, version: args.expectedVersion, from: ["draft", "ready", "info_requested"], to: "draft", actor, eventType: "warranty_claim.saved", data: claimData(args.draft), audit: { fields: Object.keys(args.draft) } });
+    return { version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function claimGaps(tx, claimId, today) {
+  const c = await tx.warrantyClaim.findUnique({ where: { id: claimId }, select: { failedPart: true, failureDate: true, replacementSerial: true, laborHours: true, claimedMinor: true, equipment: { select: { serialNumber: true, modelNumber: true, installDate: true, from_WarrantyRegistration_equipment: { select: { status: true } }, from_WarrantyCoverage_equipment: { select: { kind: true, endsOn: true } } } }, evidence: { select: { id: true } } } });
+  if (!c) throw new DomainError(Codes.NOT_FOUND, "That claim does not exist.");
+  const gaps = [];
+  if (!c.equipment?.serialNumber) gaps.push("Equipment serial number");
+  if (!c.equipment?.modelNumber) gaps.push("Equipment model number");
+  if (!c.equipment?.installDate) gaps.push("Install date");
+  if (!c.failureDate) gaps.push("Failure date");
+  if (!c.failedPart) gaps.push("Failed part");
+  if (!c.replacementSerial) gaps.push("Replacement part serial number");
+  if (!c.laborHours) gaps.push("Labour hours");
+  if (!c.evidence.length) gaps.push("At least one photo");
+  if (!c.equipment?.from_WarrantyRegistration_equipment.length) gaps.push("Warranty registration status");
+  const covered2 = (c.equipment?.from_WarrantyCoverage_equipment ?? []).some((k) => k.endsOn && ymd2(k.endsOn) >= (c.failureDate ? ymd2(c.failureDate) : today));
+  return { gaps, covered: covered2, uncoveredNote: covered2 ? "" : "No coverage on file for the failure date. The claim may be denied." };
+}
+async function markClaimReady(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_ready", [...CLAIM, "canManageEquipment"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_ready", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const today = await companyToday(uow.tx, uow.now);
+    const { gaps } = await claimGaps(uow.tx, args.claimId, today);
+    if (gaps.length) throw new DomainError(Codes.GUARD_FAILED, `Still needed: ${gaps.join(", ")}.`, { reason: "claim_incomplete", gaps });
+    const claim = await uow.tx.warrantyClaim.findUnique({ where: { id: args.claimId }, select: { failureDate: true, rule: { select: { claimDeadlineDays: true } } } });
+    const deadline = claim?.failureDate && claim.rule ? addDays(ymd2(claim.failureDate), claim.rule.claimDeadlineDays ?? 60) : null;
+    const v = await casUpdate(uow, { model: "WarrantyClaim", id: args.claimId, version: args.expectedVersion, from: ["draft", "info_requested"], to: "ready", actor, eventType: "warranty_claim.ready", data: { deadline: deadline ? asDate(deadline) : null } });
+    return { status: "ready", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function submitClaim(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_submit", CLAIM, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_submit", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const claim = await lockRow(tx, "WarrantyClaim", args.claimId);
+    const today = await companyToday(tx, uow.now);
+    const late = !!claim.deadline && ymd2(claim.deadline) < today;
+    if (late && !str(args.lateReason, "lateReason", 300)) throw new DomainError(Codes.GUARD_FAILED, "The claim deadline has passed. Give a reason to submit anyway.", { reason: "claim_deadline_passed", deadline: ymd2(claim.deadline) });
+    const number = str(args.externalClaimNumber, "externalClaimNumber", 80);
+    const v = await casUpdate(uow, { model: "WarrantyClaim", id: claim.id, version: args.expectedVersion, from: ["ready"], to: "submitted", actor, eventType: "warranty_claim.submitted", reason: late ? args.lateReason : null, data: { submittedById: actorUserId(actor), externalClaimNumber: number }, metadata: { late } });
+    if (!number) await tx.task.upsert({ where: { dedupeKey: `warranty.claim_number:${claim.id}` }, update: {}, create: { kind: "warranty.claim_number", title: "Enter the manufacturer's claim number once the portal gives it", subjectType: "WarrantyClaim", subjectId: claim.id, status: "open", priority: "normal", dedupeKey: `warranty.claim_number:${claim.id}` } });
+    return { status: "submitted", version: v, late };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function recordClaimNumber(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_number", CLAIM, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_number", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const n = str(args.externalClaimNumber, "externalClaimNumber", 80, true);
+    const c = await uow.tx.warrantyClaim.updateMany({ where: { id: args.claimId, status: { in: ["submitted", "info_requested", "approved", "partially_approved"] } }, data: { externalClaimNumber: n } });
+    if (!c.count) throw new DomainError(Codes.INVALID_TRANSITION, "This claim is not with the manufacturer.");
+    await uow.tx.task.updateMany({ where: { dedupeKey: `warranty.claim_number:${args.claimId}`, status: "open" }, data: { status: "done", closedAt: uow.now, resolution: "recorded" } });
+    uow.audit({ eventType: "warranty_claim.number_recorded", entityType: "WarrantyClaim", entityId: args.claimId, actorUserId: actorUserId(actor), after: { externalClaimNumber: n } });
+    return { externalClaimNumber: n };
+  });
+  return { replay: result.replay, ...result.value };
+}
+var DECISIONS = { info_requested: ["submitted"], approved: ["submitted", "info_requested"], partially_approved: ["submitted", "info_requested"], denied: ["submitted", "info_requested"] };
+async function recordClaimDecision(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_decision", CLAIM, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_decision", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const from = DECISIONS[args.decision];
+    if (!from) throw new DomainError(Codes.INVALID_INPUT, "Unknown decision.", { field: "decision" });
+    const claim = await uow.tx.warrantyClaim.findUnique({ where: { id: args.claimId }, select: { claimedMinor: true } });
+    const rec = args.recoveredMinor ? BigInt(/^\d{1,10}$/.test(String(args.recoveredMinor)) ? args.recoveredMinor : "-1") : 0n;
+    if (rec < 0n) throw new DomainError(Codes.INVALID_INPUT, "The amount is whole cents.", { field: "recoveredMinor" });
+    if (["approved", "partially_approved"].includes(args.decision) && rec <= 0n) throw new DomainError(Codes.INVALID_INPUT, "Enter the amount they will pay.", { field: "recoveredMinor" });
+    if (rec > (claim?.claimedMinor ?? 0n)) throw new DomainError(Codes.GUARD_FAILED, "The manufacturer cannot pay more than was claimed.", { reason: "over_recovery" });
+    const v = await casUpdate(uow, { model: "WarrantyClaim", id: args.claimId, version: args.expectedVersion, from, to: args.decision, actor, eventType: `warranty_claim.${args.decision}`, data: { recoveredMinor: rec, decisionNote: str(args.note, "note", 300) } });
+    return { status: args.decision, version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function settleClaim(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_settle", CLAIM, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_settle", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "WarrantyClaim", id: args.claimId, version: args.expectedVersion, from: ["approved", "partially_approved"], to: "settled", actor, eventType: "warranty_claim.settled", reason: str(args.evidence, "evidence", 300, true) });
+    return { status: "settled", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function closeClaim(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_close", CLAIM, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_close", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "WarrantyClaim", id: args.claimId, version: args.expectedVersion, from: ["settled"], to: "closed", actor, eventType: "warranty_claim.closed" });
+    return { status: "closed", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function appealClaim(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_appeal", CLAIM, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_appeal", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "WarrantyClaim", id: args.claimId, version: args.expectedVersion, from: ["denied"], to: "submitted", actor, eventType: "warranty_claim.appealed", reason: str(args.note, "note", 300, true) });
+    return { status: "submitted", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requestClaimWriteOff(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_writeoff_request", CLAIM, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_writeoff_request", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const c = await uow.tx.warrantyClaim.findUnique({ where: { id: args.claimId }, select: { id: true, status: true, claimedMinor: true, ref: true } });
+    if (!c || c.status !== "denied") throw new DomainError(Codes.INVALID_TRANSITION, "Only a denied claim is written off.");
+    const req = await requestApproval(uow, actor, { action: "warranty.write_off", targetList: "WarrantyClaim", targetId: c.id, payload: { claimId: c.id, claimedMinor: String(c.claimedMinor), reason: str(args.reason, "reason", 300, true) }, requiredPermission: "canApproveWarrantyWriteOff", summary: `Write off ${c.ref}` });
+    return { requestId: req.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function writeOffClaim(db, actor, args) {
+  await authorizeOperation(db, actor, "warranty.claim_writeoff", CLAIM, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "warranty.claim_writeoff", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const c = await uow.tx.warrantyClaim.findUnique({ where: { id: args.claimId }, select: { id: true, claimedMinor: true } });
+    if (!c) throw new DomainError(Codes.NOT_FOUND, "That claim does not exist.");
+    const { approverId } = await consumeApproval(uow, { requestId: args.requestId, action: "warranty.write_off", targetList: "WarrantyClaim", targetId: c.id, payload: { claimId: c.id, claimedMinor: String(c.claimedMinor), reason: str(args.reason, "reason", 300, true) } });
+    const v = await casUpdate(uow, { model: "WarrantyClaim", id: c.id, version: args.expectedVersion, from: ["denied"], to: "closed", actor, eventType: "warranty_claim.written_off", reason: args.reason, approverId });
+    return { status: "closed", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+registerApplier("warranty.write_off", async () => ({ ok: true }), { applyOnApprove: false });
+async function receiveHomeWarrantyDispatch(db, actor, args) {
+  await authorizeOperation(db, actor, "home_warranty.receive", ["canManageInvoices", "canDispatch", "canBook"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "home_warranty.receive", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const n = str(args.externalDispatchNumber, "externalDispatchNumber", 80, true);
+    const prior = await uow.tx.homeWarrantyDispatch.findUnique({ where: { externalDispatchNumber: n }, select: { id: true } });
+    if (prior) throw new DomainError(Codes.GUARD_FAILED, "That dispatch number is already recorded.", { reason: "duplicate_dispatch", dispatchId: prior.id });
+    const fee = args.serviceFeeMinor ? BigInt(/^\d{1,9}$/.test(String(args.serviceFeeMinor)) ? args.serviceFeeMinor : "-1") : 0n;
+    if (fee < 0n) throw new DomainError(Codes.INVALID_INPUT, "The service fee is whole cents.", { field: "serviceFeeMinor" });
+    const payer = await uow.tx.payerProfile.findUnique({ where: { id: args.payerId }, select: { id: true } });
+    if (!payer) throw new DomainError(Codes.NOT_FOUND, "That payer does not exist.");
+    const row = await uow.tx.homeWarrantyDispatch.create({ data: { payerId: args.payerId, externalDispatchNumber: n, jobId: args.jobId ?? null, serviceFeeMinor: fee, status: "dispatch_received" }, select: { id: true } });
+    auditCreate(uow, actor, "HomeWarrantyDispatch", row.id, "home_warranty.received", { externalDispatchNumber: n });
+    return { dispatchId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+var HW_NEXT = { dispatch_received: ["accepted", "declined"], accepted: ["auth_requested"], auth_requested: ["authorized", "cash_out_offered", "denied"], authorized: ["invoiced"], cash_out_offered: ["invoiced", "denied"], invoiced: ["paid"] };
+async function advanceHomeWarranty(db, actor, args) {
+  await authorizeOperation(db, actor, "home_warranty.advance", ["canManageInvoices", "canDispatch", "canBook"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "home_warranty.advance", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const row = await lockRow(uow.tx, "HomeWarrantyDispatch", args.dispatchId);
+    if (!(HW_NEXT[row.status] ?? []).includes(args.to)) throw new DomainError(Codes.INVALID_TRANSITION, `A dispatch that is ${row.status.replaceAll("_", " ")} cannot move to ${args.to.replaceAll("_", " ")}.`);
+    const data = { note: str(args.note, "note", 300) };
+    if (args.to === "authorized") {
+      if (!args.authorizedMinor || !/^\d{1,9}$/.test(String(args.authorizedMinor))) throw new DomainError(Codes.INVALID_INPUT, "Enter the authorised amount in cents.", { field: "authorizedMinor" });
+      data.authorizedMinor = BigInt(args.authorizedMinor);
+    }
+    const v = await casUpdate(uow, { model: "HomeWarrantyDispatch", id: args.dispatchId, version: args.expectedVersion, from: [row.status], to: args.to, actor, eventType: `home_warranty.${args.to}`, data });
+    return { status: args.to, version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function registrationList(db, now = /* @__PURE__ */ new Date()) {
+  const today = await companyToday(db, now);
+  const rows = await db.warrantyRegistration.findMany({
+    where: { status: { in: ["due", "overdue", "submitted"] } },
+    orderBy: { deadline: "asc" },
+    take: 300,
+    select: { id: true, ref: true, status: true, deadline: true, version: true, equipment: { select: { id: true, ref: true, manufacturer: true, modelNumber: true, serialNumber: true, location: { select: { address1: true, city: true } } } } }
+  });
+  return rows.map((r) => ({ ...r, deadline: ymd2(r.deadline), effectiveStatus: r.status === "due" && ymd2(r.deadline) < today ? "overdue" : r.status, daysLeft: Math.round((Date.parse(`${ymd2(r.deadline)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5) }));
+}
+
 // features/keystone/services/maintenance.ts
 async function runMaintenancePass(db, options = {}) {
   const clock = options.now ?? (() => /* @__PURE__ */ new Date());
@@ -10505,7 +11576,8 @@ async function runMaintenancePass(db, options = {}) {
   const priceBooks = await activateDuePriceBookVersions(db, clock());
   const estimates = await expireDueEstimates(db, clock());
   const notices = await expireCancellationNotices(db, clock());
-  return { holds, priceBooks, estimates, notices };
+  const warranty = await advanceWarrantyStates(db, clock());
+  return { holds, priceBooks, estimates, notices, warranty };
 }
 var MIN_GAP_MS = 5e3;
 var state = globalThis;
@@ -10531,7 +11603,7 @@ async function advanceTimedStates(db, options = {}) {
 }
 
 // features/keystone/services/dispatch.ts
-var import_node_crypto8 = require("node:crypto");
+var import_node_crypto9 = require("node:crypto");
 init_actor();
 init_db();
 init_cas();
@@ -11038,7 +12110,7 @@ async function recommendDispatch(db, actor, args) {
   });
   const ranked = rankCandidates(candidates).slice(0, 10);
   const features = { model: DISPATCH_MODEL, features: DISPATCH_FEATURES, date, window: ctx.window?.label ?? null, requirement: req, licensingVersionId: licensing.versionId };
-  const inputsHash = (0, import_node_crypto8.createHash)("sha256").update(canonicalJson({ visitId: ctx.id, visitVersion: ctx.version, candidates })).digest("hex");
+  const inputsHash = (0, import_node_crypto9.createHash)("sha256").update(canonicalJson({ visitId: ctx.id, visitVersion: ctx.version, candidates })).digest("hex");
   const result = await command(db, { name: "dispatch.recommend", actor, idempotencyKey: args.idempotencyKey, params: { visitId: args.visitId }, now: args.now }, async (uow) => {
     const rec = await uow.tx.dispatchRecommendation.create({
       data: { visitId: ctx.id, rankedCandidates: ranked, inputsHash, features, modelRef: DISPATCH_MODEL, generatedById: actorAgentId(actor), requestedById: actorUserId(actor), decision: "proposed" },
@@ -11092,19 +12164,19 @@ init_cas();
 init_errors();
 
 // features/keystone/lib/secretBox.ts
-var import_node_crypto9 = require("node:crypto");
+var import_node_crypto10 = require("node:crypto");
 function key(version = 1) {
   const material = process.env.SECRET_BOX_KEY || process.env.SESSION_SECRET;
   if (!material) {
     if (process.env.NODE_ENV === "production") throw new Error("SECRET_BOX_KEY is not set");
-    return (0, import_node_crypto9.createHash)("sha256").update("openfront-home-services:development-secret-box").digest();
+    return (0, import_node_crypto10.createHash)("sha256").update("openfront-home-services:development-secret-box").digest();
   }
-  return (0, import_node_crypto9.createHash)("sha256").update(`openfront-home-services:secret-box:v${version}:${material}`).digest();
+  return (0, import_node_crypto10.createHash)("sha256").update(`openfront-home-services:secret-box:v${version}:${material}`).digest();
 }
 async function sealSecret(tx, purpose, plaintext, createdById) {
   if (!plaintext || plaintext.length > 4096) throw new Error("Secret must be 1-4096 characters");
-  const iv = (0, import_node_crypto9.randomBytes)(12);
-  const cipher = (0, import_node_crypto9.createCipheriv)("aes-256-gcm", key(1), iv);
+  const iv = (0, import_node_crypto10.randomBytes)(12);
+  const cipher = (0, import_node_crypto10.createCipheriv)("aes-256-gcm", key(1), iv);
   cipher.setAAD(Buffer.from(purpose));
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const row = await tx.secretBox.create({
@@ -11116,7 +12188,7 @@ async function sealSecret(tx, purpose, plaintext, createdById) {
 async function openSecret(tx, id, purpose) {
   const row = await tx.secretBox.findUnique({ where: { id } });
   if (!row || row.purpose !== purpose) throw new Error("Secret not found");
-  const decipher = (0, import_node_crypto9.createDecipheriv)("aes-256-gcm", key(row.keyVersion ?? 1), Buffer.from(row.iv, "base64"));
+  const decipher = (0, import_node_crypto10.createDecipheriv)("aes-256-gcm", key(row.keyVersion ?? 1), Buffer.from(row.iv, "base64"));
   decipher.setAAD(Buffer.from(purpose));
   decipher.setAuthTag(Buffer.from(row.authTag, "base64"));
   return Buffer.concat([decipher.update(Buffer.from(row.ciphertext, "base64")), decipher.final()]).toString("utf8");
@@ -11429,10 +12501,10 @@ async function revokeCredential(db, actor, args) {
 // features/keystone/mutations/phase1.ts
 var graphql2 = String.raw;
 var bind = (fn) => op(async (_root, args, context) => {
-  const { now: _ignored, ...clean2 } = args;
+  const { now: _ignored, ...clean3 } = args;
   const actor = await actorFor(context);
   await advanceTimedStates(context.prisma);
-  return fn(context.prisma, actor, clean2);
+  return fn(context.prisma, actor, clean3);
 });
 var phase1TypeDefs = graphql2`
   type Query {
@@ -11518,10 +12590,10 @@ var phase1Resolvers = {
 // features/keystone/mutations/phase2.ts
 var graphql3 = String.raw;
 var bind2 = (fn) => op(async (_root, args, context) => {
-  const { now: _ignored, ...clean2 } = args;
+  const { now: _ignored, ...clean3 } = args;
   const actor = await actorFor(context);
   await advanceTimedStates(context.prisma);
-  return fn(context.prisma, actor, clean2);
+  return fn(context.prisma, actor, clean3);
 });
 var phase2TypeDefs = graphql3`
   type Query {
@@ -11950,24 +13022,24 @@ var cents = (v, field) => {
   return BigInt(v);
 };
 var tenderGroup = (method) => method === "card" ? "card" : method === "ach" ? "ach" : method === "financing" ? "financing" : method === "third_party" ? "third_party" : "check_cash";
-async function batchFor(uow, method, day3) {
+async function batchFor(uow, method, day4) {
   const group = tenderGroup(method);
-  const date = asDate(day3);
+  const date = asDate(day4);
   const existing = await uow.tx.paymentBatch.findFirst({ where: { businessDate: date, tenderGroup: group }, select: { id: true, status: true, expectedMinor: true, version: true } });
   if (existing) return existing;
   const ref = await nextReference(uow.tx, "PBT", uow.now);
   return uow.tx.paymentBatch.create({ data: { ref, businessDate: date, tenderGroup: group, status: "open" }, select: { id: true, status: true, expectedMinor: true, version: true } });
 }
 async function createPayment(uow, actor, a) {
-  const day3 = await companyToday(uow.tx, a.receivedAt);
-  await arPeriodFor(uow.tx, day3);
+  const day4 = await companyToday(uow.tx, a.receivedAt);
+  await arPeriodFor(uow.tx, day4);
   const ref = await nextReference(uow.tx, "PMT", uow.now);
   const payment = await uow.tx.payment.create({
     data: { ref, jobId: a.jobId, customerId: a.customerId, payerId: a.payerId ?? null, kind: a.kind ?? "payment", method: a.method, amountMinor: a.amountMinor, feeMinor: a.feeMinor ?? 0n, reference: a.reference ?? "", checkNumber: a.checkNumber ?? "", receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
     select: { id: true, ref: true }
   });
-  const batch = await batchFor(uow, a.method, day3);
-  if (batch.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The ${tenderGroup(a.method).replace("_", "/")} batch for ${day3} is ${batch.status}. Record it on today's date, or reopen nothing: closed batches are final.`, { reason: "batch_closed" });
+  const batch = await batchFor(uow, a.method, day4);
+  if (batch.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The ${tenderGroup(a.method).replace("_", "/")} batch for ${day4} is ${batch.status}. Record it on today's date, or reopen nothing: closed batches are final.`, { reason: "batch_closed" });
   await uow.tx.paymentBatch.update({ where: { id: batch.id }, data: { expectedMinor: { increment: a.amountMinor - (a.feeMinor ?? 0n) }, feesMinor: { increment: a.feeMinor ?? 0n } } });
   return { ...payment, batchId: batch.id };
 }
@@ -12199,17 +13271,17 @@ init_actor();
 init_errors();
 async function createPaymentForFunding(uow, actor, a) {
   const { tx } = uow;
-  const day3 = await companyToday(tx, a.receivedAt);
-  await arPeriodFor(tx, day3);
+  const day4 = await companyToday(tx, a.receivedAt);
+  await arPeriodFor(tx, day4);
   const ref = await nextReference(tx, "PMT", uow.now);
   const payment = await tx.payment.create({
     data: { ref, jobId: a.invoice.jobId, customerId: a.invoice.customerId, payerId: a.invoice.payerId, kind: "payment", method: "financing", amountMinor: a.gross, feeMinor: a.fee, reference: a.reference, receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
     select: { id: true }
   });
-  const date = asDate(day3);
+  const date = asDate(day4);
   let batch = await tx.paymentBatch.findFirst({ where: { businessDate: date, tenderGroup: "financing" }, select: { id: true, status: true } });
   if (!batch) batch = await tx.paymentBatch.create({ data: { ref: await nextReference(tx, "PBT", uow.now), businessDate: date, tenderGroup: "financing", status: "open" }, select: { id: true, status: true } });
-  if (batch.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The financing batch for ${day3} is ${batch.status}; record the payout on a day with an open batch.`, { reason: "batch_closed" });
+  if (batch.status !== "open") throw new DomainError(Codes.GUARD_FAILED, `The financing batch for ${day4} is ${batch.status}; record the payout on a day with an open batch.`, { reason: "batch_closed" });
   await tx.paymentBatch.update({ where: { id: batch.id }, data: { expectedMinor: { increment: a.gross - a.fee }, feesMinor: { increment: a.fee } } });
   return payment;
 }
@@ -12390,7 +13462,7 @@ async function reopenArPeriod(db, actor, args) {
 }
 
 // features/keystone/services/accounting.ts
-var import_node_crypto10 = require("node:crypto");
+var import_node_crypto11 = require("node:crypto");
 init_actor();
 init_cas();
 init_errors();
@@ -12432,8 +13504,8 @@ async function journalFor(tx, from, to, tz) {
   const hi = /* @__PURE__ */ new Date(`${to}T00:00:00Z`);
   hi.setUTCDate(hi.getUTCDate() + 2);
   const inRange = (d) => {
-    const day3 = localDate({ timeZone: tz }, d);
-    return day3 >= from && day3 <= to ? day3 : null;
+    const day4 = localDate({ timeZone: tz }, d);
+    return day4 >= from && day4 <= to ? day4 : null;
   };
   const lines = [];
   const customerRefOf = async (customerId, payerId) => {
@@ -12447,9 +13519,9 @@ async function journalFor(tx, from, to, tz) {
   };
   const entries = await tx.arEntry.findMany({ where: { postedAt: { gte: lo, lt: hi } }, orderBy: [{ postedAt: "asc" }, { id: "asc" }], include: { invoice: { select: { ref: true, lines: { orderBy: { sortOrder: "asc" } } } } } });
   for (const e of entries) {
-    const day3 = inRange(e.postedAt);
-    if (!day3) continue;
-    const base = { key: `ar:${e.id}`, entryDate: day3, memo: `${e.kind.replace(/_/g, " ")} ${e.invoice?.ref ?? ""}`.trim(), docRef: e.invoice?.ref ?? "", customerRef: await customerRefOf(e.customerId, e.payerId) };
+    const day4 = inRange(e.postedAt);
+    if (!day4) continue;
+    const base = { key: `ar:${e.id}`, entryDate: day4, memo: `${e.kind.replace(/_/g, " ")} ${e.invoice?.ref ?? ""}`.trim(), docRef: e.invoice?.ref ?? "", customerRef: await customerRefOf(e.customerId, e.payerId) };
     const amt = e.amountMinor < 0n ? -e.amountMinor : e.amountMinor;
     if (e.kind === "invoice_posted") {
       lines.push(dr(base, ACCOUNTS.ar, amt, 0));
@@ -12484,17 +13556,17 @@ async function journalFor(tx, from, to, tz) {
   }
   const payments = await tx.payment.findMany({ where: { receivedAt: { gte: lo, lt: hi } }, select: { id: true, ref: true, method: true, feeMinor: true, receivedAt: true, customerId: true, payerId: true } });
   for (const p of payments) {
-    const day3 = inRange(p.receivedAt);
-    if (!day3 || p.feeMinor === 0n) continue;
-    const base = { key: `fee:${p.id}`, entryDate: day3, memo: `processing fee ${p.ref}`, docRef: p.ref, customerRef: await customerRefOf(p.customerId, p.payerId) };
+    const day4 = inRange(p.receivedAt);
+    if (!day4 || p.feeMinor === 0n) continue;
+    const base = { key: `fee:${p.id}`, entryDate: day4, memo: `processing fee ${p.ref}`, docRef: p.ref, customerRef: await customerRefOf(p.customerId, p.payerId) };
     lines.push(dr(base, ACCOUNTS.fees, p.feeMinor, 0));
     lines.push(cr(base, TENDER_ACCOUNT[p.method] ?? ACCOUNTS.cash, p.feeMinor, 1));
   }
   const credits = await tx.customerCreditEntry.findMany({ where: { createdAt: { gte: lo, lt: hi } }, orderBy: { createdAt: "asc" } });
   for (const c of credits) {
-    const day3 = inRange(c.createdAt);
-    if (!day3) continue;
-    const base = { key: `credit:${c.id}`, entryDate: day3, memo: `customer credit ${c.kind}`, docRef: c.sourceId, customerRef: await customerRefOf(c.customerId, null) };
+    const day4 = inRange(c.createdAt);
+    if (!day4) continue;
+    const base = { key: `credit:${c.id}`, entryDate: day4, memo: `customer credit ${c.kind}`, docRef: c.sourceId, customerRef: await customerRefOf(c.customerId, null) };
     const amt = c.amountMinor < 0n ? -c.amountMinor : c.amountMinor;
     if (c.kind === "issued") {
       const src = c.sourceType === "Payment" ? await tx.payment.findUnique({ where: { id: c.sourceId }, select: { method: true } }) : null;
@@ -12507,9 +13579,9 @@ async function journalFor(tx, from, to, tz) {
   }
   const refunds = await tx.refund.findMany({ where: { refundedAt: { gte: lo, lt: hi } }, include: { payment: { select: { method: true, customerId: true, payerId: true } } } });
   for (const r of refunds) {
-    const day3 = inRange(r.refundedAt);
-    if (!day3) continue;
-    const base = { key: `refund:${r.id}`, entryDate: day3, memo: `refund ${r.ref}`, docRef: r.ref, customerRef: await customerRefOf(r.payment?.customerId ?? null, r.payment?.payerId ?? null) };
+    const day4 = inRange(r.refundedAt);
+    if (!day4) continue;
+    const base = { key: `refund:${r.id}`, entryDate: day4, memo: `refund ${r.ref}`, docRef: r.ref, customerRef: await customerRefOf(r.payment?.customerId ?? null, r.payment?.payerId ?? null) };
     lines.push(dr(base, ACCOUNTS.refundClearing, r.amountMinor, 0));
     lines.push(cr(base, TENDER_ACCOUNT[r.payment?.method ?? "other"] ?? ACCOUNTS.cash, r.amountMinor, 1));
   }
@@ -12530,7 +13602,7 @@ async function createExportBatch(db, actor, args) {
     const credit = fresh.reduce((a, l) => a + l.creditMinor, 0n);
     if (debit !== credit) throw new DomainError(Codes.GUARD_FAILED, `The journal does not balance (debits ${debit}, credits ${credit}). Nothing was exported.`, { reason: "unbalanced" });
     const ref = await nextReference(tx, "EXP", uow.now);
-    const sha = (0, import_node_crypto10.createHash)("sha256").update(fresh.map((l) => l.sourceKey).join("\n")).digest("hex");
+    const sha = (0, import_node_crypto11.createHash)("sha256").update(fresh.map((l) => l.sourceKey).join("\n")).digest("hex");
     const batch = await tx.accountingExportBatch.create({ data: { ref, periodFrom: /* @__PURE__ */ new Date(`${args.from}T00:00:00Z`), periodTo: /* @__PURE__ */ new Date(`${args.to}T00:00:00Z`), status: "created", lineCount: fresh.length, debitMinor: debit, creditMinor: credit, sha256: sha, createdById: actorUserId(actor) }, select: { id: true } });
     await tx.accountingExportLine.createMany({ data: fresh.map((l, i) => ({ batchId: batch.id, sourceKey: l.sourceKey, entryDate: /* @__PURE__ */ new Date(`${l.entryDate}T00:00:00Z`), account: l.account, debitMinor: l.debitMinor, creditMinor: l.creditMinor, memo: l.memo, docRef: l.docRef, customerRef: l.customerRef, sortOrder: i })) });
     auditCreate(uow, actor, "AccountingExportBatch", batch.id, "accounting.exported", { ref, lines: fresh.length, debitMinor: debit.toString(), from: args.from, to: args.to });
@@ -12542,10 +13614,10 @@ async function createExportBatch(db, actor, args) {
 // features/keystone/mutations/phase3.ts
 var graphql4 = String.raw;
 var bind3 = (fn) => op(async (_root, args, context) => {
-  const { now: _ignored, ...clean2 } = args;
+  const { now: _ignored, ...clean3 } = args;
   const actor = await actorFor(context);
   await advanceTimedStates(context.prisma);
-  return fn(context.prisma, actor, clean2);
+  return fn(context.prisma, actor, clean3);
 });
 var phase3TypeDefs = graphql4`
   type Mutation {
@@ -12617,7 +13689,7 @@ init_cas();
 init_errors();
 
 // features/keystone/lib/paymentAdapter.ts
-var import_node_crypto11 = require("node:crypto");
+var import_node_crypto12 = require("node:crypto");
 var STRIPE = "https://api.stripe.com/v1";
 var form = (values) => {
   const body = new URLSearchParams();
@@ -12644,7 +13716,7 @@ var StripeTestAdapter = class {
     return this.fetcher(`${STRIPE}${path}`, { ...init, headers, signal: AbortSignal.timeout(this.timeoutMs) });
   }
   async charge(input) {
-    const key2 = (0, import_node_crypto11.createHash)("sha256").update(input.providerKey).digest("hex").slice(0, 40);
+    const key2 = (0, import_node_crypto12.createHash)("sha256").update(input.providerKey).digest("hex").slice(0, 40);
     let response;
     try {
       response = await this.call("/payment_intents", {
@@ -12676,7 +13748,7 @@ var StripeTestAdapter = class {
     return toResult(json18);
   }
   async lookup(providerKey) {
-    const key2 = (0, import_node_crypto11.createHash)("sha256").update(providerKey).digest("hex").slice(0, 40);
+    const key2 = (0, import_node_crypto12.createHash)("sha256").update(providerKey).digest("hex").slice(0, 40);
     try {
       const response = await this.call(`/payment_intents/search?query=${encodeURIComponent(`metadata['providerKey']:'${key2}'`)}&limit=1`, { method: "GET" });
       const json18 = await response.json();
@@ -12711,14 +13783,14 @@ var BILLING2 = ["canManageMemberships"];
 var BILLABLE = ["pending_payment", "active", "past_due"];
 var STALE_CHARGE_MS = 2 * 6e4;
 var PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/;
-var ymd2 = (d) => d ? d.toISOString().slice(0, 10) : "";
+var ymd3 = (d) => d ? d.toISOString().slice(0, 10) : "";
 async function carriedOver(db, membershipIds) {
   const paid = /* @__PURE__ */ new Set();
   const from = /* @__PURE__ */ new Map();
   if (membershipIds.length) {
     const sellers = await db.membership.findMany({ where: { transferredToId: { in: membershipIds } }, select: { id: true, transferredToId: true, cancelEffectiveOn: true } });
     for (const s of sellers) {
-      from.set(s.transferredToId, ymd2(s.cancelEffectiveOn));
+      from.set(s.transferredToId, ymd3(s.cancelEffectiveOn));
       const rows = await db.membershipBillingAttempt.findMany({ where: { membershipId: s.id, status: "succeeded" }, select: { termNumber: true, slot: true } });
       for (const r of rows) paid.add(`${s.transferredToId}:${r.termNumber}:${r.slot}`);
     }
@@ -12790,7 +13862,7 @@ async function processAttempt(db, actor, attemptId, now, adapter = paymentAdapte
   const seen = await db.membershipBillingAttempt.findUniqueOrThrow({ where: { id: attemptId }, include: { membership: { select: { status: true, paymentMethodRef: true, customer: { select: { ref: true } } } } } });
   if (seen.status === "succeeded") return "already_paid";
   if (!BILLABLE.includes(seen.membership?.status ?? "")) return "not_billable";
-  if (seen.membershipId && (await carriedOver(db, [seen.membershipId]))(seen.membershipId, seen.termNumber, seen.slot, ymd2(seen.dueOn))) return "already_paid";
+  if (seen.membershipId && (await carriedOver(db, [seen.membershipId]))(seen.membershipId, seen.termNumber, seen.slot, ymd3(seen.dueOn))) return "already_paid";
   let status = seen.status;
   const stale = status === "charging" && now.getTime() - seen.updatedAt.getTime() >= STALE_CHARGE_MS;
   if (status === "charging" && !stale) return "in_progress";
@@ -12902,7 +13974,7 @@ async function runMembershipBilling(db, actor, args, adapter = paymentAdapter())
     select: { id: true, status: true, membershipId: true, termNumber: true, slot: true, dueOn: true }
   });
   const carriedNow = await carriedOver(db, [...new Set(open.map((a) => a.membershipId ?? ""))].filter(Boolean));
-  const due = open.filter((a) => !carriedNow(a.membershipId ?? "", a.termNumber, a.slot, ymd2(a.dueOn)));
+  const due = open.filter((a) => !carriedNow(a.membershipId ?? "", a.termNumber, a.slot, ymd3(a.dueOn)));
   const attempts = due.filter((a) => a.status !== "failed");
   const tally = { charged: 0, declined: due.length - attempts.length, unknown: 0, inProgress: 0, noCard: 0, already: 0 };
   const chargedIds = [];
@@ -12933,7 +14005,7 @@ async function retryAttempt(db, actor, args, adapter = paymentAdapter()) {
   if (!a?.membership) throw new DomainError(Codes.NOT_FOUND, "Payment not found.");
   const m = a.membership;
   const today = localDate({ timeZone: m.location?.timeZone ?? "America/Chicago" }, now);
-  const lastEnd = m.terms.map((t) => ymd2(t.endsOn)).sort().pop() ?? "";
+  const lastEnd = m.terms.map((t) => ymd3(t.endsOn)).sort().pop() ?? "";
   const standing = !BILLABLE.includes(m.status) ? m.status : !lastEnd || lastEnd < today ? "expired" : m.status;
   if (!BILLABLE.includes(standing)) throw new DomainError(Codes.GUARD_FAILED, `This membership is ${standing.replace(/_/g, " ")}, so it is not charged.`, { reason: "membership_not_billable" });
   const reason = String(args.reason ?? "").trim();
@@ -12954,10 +14026,10 @@ async function retryAttempt(db, actor, args, adapter = paymentAdapter()) {
 init_actor();
 init_cas();
 init_errors();
-var MANAGE2 = ["canManageMemberships"];
+var MANAGE3 = ["canManageMemberships"];
 var SELL4 = ["canSellMemberships", "canManageMemberships"];
-var ymd3 = (d) => d ? d.toISOString().slice(0, 10) : "";
-var clean = (v, field, min, max) => {
+var ymd4 = (d) => d ? d.toISOString().slice(0, 10) : "";
+var clean2 = (v, field, min, max) => {
   const s = String(v ?? "").trim();
   if (s.length < min || s.length > max) throw new DomainError(Codes.INVALID_INPUT, min ? "This is needed." : "Too long.", { field });
   return s;
@@ -12986,9 +14058,9 @@ async function recordRenewalNotice(db, actor, args) {
   return { replay: result.replay, ...result.value };
 }
 async function saveAgreement(db, actor, args) {
-  await authorizeOperation(db, actor, "agreement.save", MANAGE2, args);
-  const name = clean(args.name, "name", 3, 120);
-  const scope = clean(args.scope, "scope", 10, 800);
+  await authorizeOperation(db, actor, "agreement.save", MANAGE3, args);
+  const name = clean2(args.name, "name", 3, 120);
+  const scope = clean2(args.scope, "scope", 10, 800);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(args.startsOn ?? "") || !/^\d{4}-\d{2}-\d{2}$/.test(args.endsOn ?? "") || args.endsOn < args.startsOn) throw new DomainError(Codes.INVALID_INPUT, "The agreement runs from a start day to a later end day.", { field: "endsOn" });
   const months = [...new Set((args.visitMonths ?? []).map(Number))].sort((a, b) => a - b);
   if (!months.length || months.some((m) => !Number.isInteger(m) || m < 1 || m > 12)) throw new DomainError(Codes.INVALID_INPUT, "Pick the months a visit is due.", { field: "visitMonths" });
@@ -13015,13 +14087,13 @@ async function saveAgreement(db, actor, args) {
   return { replay: result.replay, ...result.value };
 }
 async function activateAgreement(db, actor, args) {
-  await authorizeOperation(db, actor, "agreement.activate", MANAGE2, args);
+  await authorizeOperation(db, actor, "agreement.activate", MANAGE3, args);
   const { idempotencyKey, now: _now, ...params } = args;
   const result = await command(db, { name: "agreement.activate", actor, idempotencyKey, params, now: args.now }, async (uow) => {
     const { tx } = uow;
     const a = await lockRow(tx, "ServiceAgreement", args.agreementId);
     if (a.status !== "draft") throw new DomainError(Codes.INVALID_TRANSITION, "Only a draft agreement is started.");
-    const start = ymd3(a.startsOn), end = ymd3(a.endsOn);
+    const start = ymd4(a.startsOn), end = ymd4(a.endsOn);
     let made = 0;
     for (let y = Number(start.slice(0, 4)); y <= Number(end.slice(0, 4)); y += 1) {
       for (const m of a.visitMonths) {
@@ -13039,8 +14111,8 @@ async function activateAgreement(db, actor, args) {
   return { replay: result.replay, ...result.value };
 }
 async function endAgreement(db, actor, args) {
-  await authorizeOperation(db, actor, "agreement.end", MANAGE2, args);
-  const reason = clean(args.reason, "reason", 3, 300);
+  await authorizeOperation(db, actor, "agreement.end", MANAGE3, args);
+  const reason = clean2(args.reason, "reason", 3, 300);
   const { idempotencyKey, now: _now, ...params } = args;
   const result = await command(db, { name: "agreement.end", actor, idempotencyKey, params, now: args.now }, async (uow) => {
     const a = await lockRow(uow.tx, "ServiceAgreement", args.agreementId);
@@ -13052,7 +14124,7 @@ async function endAgreement(db, actor, args) {
 }
 async function setDocumentExpiry(db, actor, args) {
   await authorizeOperation(db, actor, "document.set_expiry", ["canManageCustomers", "canManageInvoices", "canManageMemberships"], args);
-  const reason = clean(args.reason, "reason", 3, 200);
+  const reason = clean2(args.reason, "reason", 3, 200);
   if (args.expiresOn !== null && !/^\d{4}-\d{2}-\d{2}$/.test(args.expiresOn ?? "")) throw new DomainError(Codes.INVALID_INPUT, "The expiry is a day, or empty for none.", { field: "expiresOn" });
   const { idempotencyKey, now: _now, ...params } = args;
   const result = await command(db, { name: "document.set_expiry", actor, idempotencyKey, params, now: args.now }, async (uow) => {
@@ -13060,7 +14132,7 @@ async function setDocumentExpiry(db, actor, args) {
     const today = await companyToday(uow.tx, uow.now);
     if (args.expiresOn && args.expiresOn < addDays(today, -365)) throw new DomainError(Codes.INVALID_INPUT, "That expiry is more than a year ago.", { field: "expiresOn" });
     await uow.tx.document.update({ where: { id: doc.id }, data: { expiresAt: args.expiresOn ? asDate(args.expiresOn) : null } });
-    uow.audit({ eventType: "document.expiry_set", entityType: "Document", entityId: doc.id, actorUserId: actorUserId(actor), reason, before: { expiresAt: ymd3(doc.expiresAt) || null }, after: { expiresAt: args.expiresOn } });
+    uow.audit({ eventType: "document.expiry_set", entityType: "Document", entityId: doc.id, actorUserId: actorUserId(actor), reason, before: { expiresAt: ymd4(doc.expiresAt) || null }, after: { expiresAt: args.expiresOn } });
     return { documentId: doc.id, expiresOn: args.expiresOn };
   });
   return { replay: result.replay, ...result.value };
@@ -13069,10 +14141,10 @@ async function setDocumentExpiry(db, actor, args) {
 // features/keystone/mutations/phase4.ts
 var graphql5 = String.raw;
 var bind4 = (fn) => op(async (_root, args, context) => {
-  const { now: _ignored, ...clean2 } = args;
+  const { now: _ignored, ...clean3 } = args;
   const actor = await actorFor(context);
   await advanceTimedStates(context.prisma);
-  return fn(context.prisma, actor, clean2);
+  return fn(context.prisma, actor, clean3);
 });
 var phase4TypeDefs = graphql5`
   type Mutation {
@@ -13121,6 +14193,561 @@ var phase4Resolvers = {
     setDocumentExpiry: bind4(setDocumentExpiry)
   }
 };
+
+// features/keystone/services/purchasing.ts
+var purchasing_exports = {};
+__export(purchasing_exports, {
+  MATCH_TOLERANCE_BPS: () => MATCH_TOLERANCE_BPS,
+  PO_APPROVAL_THRESHOLD_MINOR: () => PO_APPROVAL_THRESHOLD_MINOR,
+  acceptBillVariance: () => acceptBillVariance,
+  approvePurchaseOrder: () => approvePurchaseOrder,
+  cancelPurchaseOrder: () => cancelPurchaseOrder,
+  createPurchaseOrder: () => createPurchaseOrder,
+  markPurchaseOrderSent: () => markPurchaseOrderSent,
+  purchaseOrderCsv: () => purchaseOrderCsv,
+  receivePurchaseOrder: () => receivePurchaseOrder,
+  recordVendorBill: () => recordVendorBill,
+  requestBillVariance: () => requestBillVariance,
+  requestOverReceipt: () => requestOverReceipt,
+  submitPurchaseOrder: () => submitPurchaseOrder,
+  threeWayMatch: () => threeWayMatch
+});
+var import_client3 = require("@prisma/client");
+init_actor();
+init_cas();
+init_errors();
+init_approval();
+var BUY2 = ["canPurchase"];
+var APPROVE = ["canApprovePurchases"];
+var RECEIVE = ["canReceive", "canManageInventory"];
+var BILL2 = ["canPurchase", "canManageAccounting"];
+var MATCH_TOLERANCE_BPS = 200;
+var PO_APPROVAL_THRESHOLD_MINOR = 250000n;
+var OVER_RECEIPT_PCT = 10;
+async function createPurchaseOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.po_create", BUY2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.po_create", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    if (!args.lines?.length || args.lines.length > 100) throw new DomainError(Codes.INVALID_INPUT, "An order has 1 to 100 lines.", { field: "lines" });
+    const supplier = await tx.supplier.findUnique({ where: { id: args.supplierId }, select: { id: true } });
+    if (!supplier) throw new DomainError(Codes.NOT_FOUND, "That supplier does not exist.");
+    await requireLocationAccess(tx, actor, args.shipToId);
+    let total = 0n;
+    const rows = [];
+    for (const l of args.lines) {
+      const qty2 = decimal2(l.quantity, "quantity", { positive: true });
+      const si = await tx.supplierItem.findFirst({ where: { supplierId: args.supplierId, itemId: l.itemId }, orderBy: { effectiveOn: "desc" }, select: { supplierSku: true, costMinor: true } });
+      const item = await tx.item.findUnique({ where: { id: l.itemId }, select: { id: true, baseUomId: true, standardCostMinor: true } });
+      if (!item) throw new DomainError(Codes.NOT_FOUND, "An item on the order does not exist.");
+      const cost = l.unitCostMinor !== void 0 ? BigInt(/^\d{1,10}$/.test(String(l.unitCostMinor)) ? l.unitCostMinor : "-1") : si?.costMinor ?? item.standardCostMinor ?? 0n;
+      if (cost < 0n) throw new DomainError(Codes.INVALID_INPUT, "Cost is whole cents.", { field: "unitCostMinor" });
+      total += BigInt(qty2.mul(String(cost)).toDecimalPlaces(0).toString());
+      rows.push({ itemId: l.itemId, supplierSku: si?.supplierSku ?? "", quantity: qty2, uomId: item.baseUomId, unitCostMinor: cost, receivedQuantity: 0, jobId: l.jobId ?? args.jobId ?? null });
+    }
+    const ref = await nextReference(tx, "PO", uow.now);
+    const po = await tx.purchaseOrder.create({ data: { ref, supplierId: args.supplierId, shipToId: args.shipToId, jobId: args.jobId ?? null, status: "draft", totalMinor: total, lines: { create: rows } }, select: { id: true } });
+    auditCreate(uow, actor, "PurchaseOrder", po.id, "purchase_order.created", { ref, lines: rows.length, totalMinor: total.toString() });
+    return { purchaseOrderId: po.id, ref, totalMinor: total.toString() };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function submitPurchaseOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.po_submit", BUY2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.po_submit", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const po = await lockRow(uow.tx, "PurchaseOrder", args.purchaseOrderId);
+    if (po.totalMinor >= PO_APPROVAL_THRESHOLD_MINOR) {
+      const req = await requestApproval(uow, actor, { action: "purchase_order.approve", targetList: "PurchaseOrder", targetId: po.id, payload: { purchaseOrderId: po.id, totalMinor: po.totalMinor.toString() }, requiredPermission: "canApprovePurchases", summary: `Approve ${po.ref}` });
+      const v2 = await casUpdate(uow, { model: "PurchaseOrder", id: po.id, version: args.expectedVersion, from: ["draft"], to: "pending_approval", actor, eventType: "purchase_order.submitted", data: { approvalId: req.id } });
+      return { status: "pending_approval", version: v2, requestId: req.id };
+    }
+    const v = await casUpdate(uow, { model: "PurchaseOrder", id: po.id, version: args.expectedVersion, from: ["draft"], to: "approved", actor, eventType: "purchase_order.approved" });
+    return { status: "approved", version: v, requestId: null };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function approvePurchaseOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.po_approve", [...BUY2, ...APPROVE], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.po_approve", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const po = await lockRow(uow.tx, "PurchaseOrder", args.purchaseOrderId);
+    if (!po.approvalId) throw new DomainError(Codes.APPROVAL_REQUIRED, "This order needs an approval request.");
+    const { approverId } = await consumeApproval(uow, { requestId: po.approvalId, action: "purchase_order.approve", targetList: "PurchaseOrder", targetId: po.id, payload: { purchaseOrderId: po.id, totalMinor: po.totalMinor.toString() } });
+    const v = await casUpdate(uow, { model: "PurchaseOrder", id: po.id, version: args.expectedVersion, from: ["pending_approval"], to: "approved", actor, eventType: "purchase_order.approved", approverId });
+    return { status: "approved", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function markPurchaseOrderSent(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.po_sent", BUY2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.po_sent", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "PurchaseOrder", id: args.purchaseOrderId, version: args.expectedVersion, from: ["approved"], to: "sent", actor, eventType: "purchase_order.sent", data: { externalOrderNumber: String(args.externalOrderNumber ?? "").trim().slice(0, 80) } });
+    return { status: "sent", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function cancelPurchaseOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.po_cancel", BUY2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.po_cancel", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    if (!String(args.reason ?? "").trim()) throw new DomainError(Codes.INVALID_INPUT, "Say why.", { field: "reason" });
+    const v = await casUpdate(uow, { model: "PurchaseOrder", id: args.purchaseOrderId, version: args.expectedVersion, from: ["draft", "pending_approval", "approved", "sent", "acknowledged"], to: "cancelled", actor, eventType: "purchase_order.cancelled", reason: args.reason });
+    return { status: "cancelled", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function receivePurchaseOrder(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.receive", RECEIVE, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.receive", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const po = await lockRow(tx, "PurchaseOrder", args.purchaseOrderId);
+    if (!["sent", "acknowledged", "partially_received"].includes(po.status)) throw new DomainError(Codes.INVALID_TRANSITION, `An order that is ${po.status.replaceAll("_", " ")} is not received against.`);
+    if (!po.shipToId) throw new DomainError(Codes.GUARD_FAILED, "The order has nowhere to ship to.");
+    const lines = await tx.purchaseOrderLine.findMany({ where: { poId: po.id }, select: { id: true, itemId: true, quantity: true, receivedQuantity: true, unitCostMinor: true, item: { select: { trackSerial: true } } } });
+    const byId = new Map(lines.map((l) => [l.id, l]));
+    if (!args.lines?.length) throw new DomainError(Codes.INVALID_INPUT, "Receive at least one line.", { field: "lines" });
+    const receipt = await tx.receipt.create({ data: { poId: po.id, lines: args.lines, receivedAt: uow.now, receivedById: actorUserId(actor) }, select: { id: true } });
+    let over = false;
+    for (const r of args.lines) {
+      const line = byId.get(r.lineId);
+      if (!line) throw new DomainError(Codes.INVALID_INPUT, "A line does not belong to this order.", { field: "lines" });
+      const qty2 = decimal2(r.quantity, "quantity", { positive: true });
+      const after = new import_client3.Prisma.Decimal(line.receivedQuantity ?? 0).plus(qty2);
+      const allowed = new import_client3.Prisma.Decimal(line.quantity ?? 0).mul(100 + OVER_RECEIPT_PCT).div(100);
+      if (after.gt(allowed)) over = true;
+      if (line.item?.trackSerial) {
+        if ((r.serials ?? []).length !== qty2.toNumber() || !qty2.isInteger()) throw new DomainError(Codes.INVALID_INPUT, "Give one serial number per unit received.", { field: "serials" });
+        for (const [i, serial] of (r.serials ?? []).entries()) await receiveSerializedUnit(uow, actor, { itemId: line.itemId ?? "", serialNumber: serial, locationId: po.shipToId, key: `receipt:${receipt.id}:${line.id}:${i}`, receiptId: receipt.id, unitCostMinor: line.unitCostMinor ?? 0n });
+      } else {
+        await applyMovement(uow, actor, { key: `receipt:${receipt.id}:${line.id}`, type: "receipt", itemId: line.itemId ?? "", locationId: po.shipToId, quantity: qty2, unitCostMinor: line.unitCostMinor ?? 0n, receiptId: receipt.id });
+      }
+      await tx.purchaseOrderLine.update({ where: { id: line.id }, data: { receivedQuantity: after } });
+      line.receivedQuantity = after;
+    }
+    if (over) {
+      if (!args.overReceiptRequestId) throw new DomainError(Codes.APPROVAL_REQUIRED, `More than ${OVER_RECEIPT_PCT}% over the order needs approval.`, { reason: "over_receipt" });
+      await consumeApproval(uow, { requestId: args.overReceiptRequestId, action: "purchase_order.over_receipt", targetList: "PurchaseOrder", targetId: po.id, payload: { purchaseOrderId: po.id, lines: args.lines } });
+    }
+    const full = [...byId.values()].every((l) => new import_client3.Prisma.Decimal(l.receivedQuantity ?? 0).gte(l.quantity ?? 0));
+    const v = await casUpdate(uow, { model: "PurchaseOrder", id: po.id, version: po.version, from: [po.status], to: full ? "received" : "partially_received", actor, eventType: full ? "purchase_order.received" : "purchase_order.partially_received" });
+    return { receiptId: receipt.id, status: full ? "received" : "partially_received", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requestOverReceipt(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.over_receipt_request", RECEIVE, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.over_receipt_request", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const req = await requestApproval(uow, actor, { action: "purchase_order.over_receipt", targetList: "PurchaseOrder", targetId: args.purchaseOrderId, payload: { purchaseOrderId: args.purchaseOrderId, lines: args.lines }, requiredPermission: "canApprovePurchases", summary: "Receive more than ordered" });
+    return { requestId: req.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+registerApplier("purchase_order.approve", async () => ({ ok: true }), { applyOnApprove: false });
+registerApplier("purchase_order.over_receipt", async () => ({ ok: true }), { applyOnApprove: false });
+registerApplier("vendor_bill.variance", async () => ({ ok: true }), { applyOnApprove: false });
+function threeWayMatch(args) {
+  const open = args.received - args.alreadyBilled;
+  const gap = args.billed > open ? args.billed - open : open - args.billed;
+  const matched = args.status !== "sent" && open > 0n && gap * 10000n <= open * BigInt(MATCH_TOLERANCE_BPS);
+  return { matched, gap, open };
+}
+async function recordVendorBill(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.bill_record", BILL2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.bill_record", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    if (!/^\d{1,10}$/.test(String(args.totalMinor))) throw new DomainError(Codes.INVALID_INPUT, "The bill total is whole cents.", { field: "totalMinor" });
+    const billNumber = String(args.billNumber ?? "").trim().slice(0, 80);
+    if (!billNumber) throw new DomainError(Codes.INVALID_INPUT, "Enter the bill number.", { field: "billNumber" });
+    await lockRow(tx, "PurchaseOrder", args.purchaseOrderId);
+    const po = await tx.purchaseOrder.findUnique({ where: { id: args.purchaseOrderId }, select: { id: true, supplierId: true, status: true, lines: { select: { quantity: true, receivedQuantity: true, unitCostMinor: true } } } });
+    if (!po) throw new DomainError(Codes.NOT_FOUND, "That order does not exist.");
+    if (await tx.vendorBill.findFirst({ where: { supplierId: po.supplierId, billNumber }, select: { id: true } })) throw new DomainError(Codes.GUARD_FAILED, "That bill number is already recorded for this supplier.", { reason: "duplicate_bill" });
+    const billed = BigInt(args.totalMinor);
+    const received = po.lines.reduce((s, l) => s + BigInt(new import_client3.Prisma.Decimal(l.receivedQuantity ?? 0).mul(String(l.unitCostMinor ?? 0n)).toDecimalPlaces(0).toString()), 0n);
+    const ordered = po.lines.reduce((s, l) => s + BigInt(new import_client3.Prisma.Decimal(l.quantity ?? 0).mul(String(l.unitCostMinor ?? 0n)).toDecimalPlaces(0).toString()), 0n);
+    const prior = await tx.vendorBill.findMany({ where: { poId: po.id, matchStatus: { in: ["matched", "approved_variance"] } }, select: { totalMinor: true } });
+    const alreadyBilled = prior.reduce((s, b) => s + (b.totalMinor ?? 0n), 0n);
+    const open = received - alreadyBilled;
+    const { matched, gap } = threeWayMatch({ billed, received, alreadyBilled, status: po.status });
+    const row = await tx.vendorBill.create({ data: { supplierId: po.supplierId, poId: po.id, billNumber, totalMinor: billed, matchStatus: matched ? "matched" : "variance", matchDetail: { orderedMinor: ordered.toString(), receivedMinor: received.toString(), alreadyBilledMinor: alreadyBilled.toString(), unbilledMinor: open.toString(), billedMinor: billed.toString(), gapMinor: gap.toString(), toleranceBps: MATCH_TOLERANCE_BPS } }, select: { id: true } });
+    auditCreate(uow, actor, "VendorBill", row.id, "vendor_bill.recorded", { billNumber, matched, gapMinor: gap.toString() });
+    if (matched && ["received", "partially_received"].includes(po.status)) {
+      await tx.purchaseOrder.update({ where: { id: po.id }, data: { status: po.status === "received" ? "billed" : po.status, version: { increment: 1 } } });
+    }
+    return { billId: row.id, matchStatus: matched ? "matched" : "variance", gapMinor: gap.toString() };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requestBillVariance(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.bill_variance_request", BILL2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.bill_variance_request", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const bill = await uow.tx.vendorBill.findUnique({ where: { id: args.billId }, select: { id: true, matchStatus: true, totalMinor: true, billNumber: true, approvalId: true } });
+    if (!bill || bill.matchStatus !== "variance") throw new DomainError(Codes.INVALID_TRANSITION, "Only a bill with a variance goes for approval.");
+    if (bill.approvalId) return { requestId: bill.approvalId };
+    const req = await requestApproval(uow, actor, { action: "vendor_bill.variance", targetList: "VendorBill", targetId: bill.id, payload: { billId: bill.id, totalMinor: String(bill.totalMinor) }, requiredPermission: "canApprovePurchases", summary: `Accept the variance on bill ${bill.billNumber}` });
+    await uow.tx.vendorBill.update({ where: { id: bill.id }, data: { approvalId: req.id } });
+    return { requestId: req.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function acceptBillVariance(db, actor, args) {
+  await authorizeOperation(db, actor, "purchasing.bill_variance_accept", BILL2, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "purchasing.bill_variance_accept", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const bill = await lockRow(uow.tx, "VendorBill", args.billId);
+    if (!bill.approvalId) throw new DomainError(Codes.APPROVAL_REQUIRED, "Ask for approval first.");
+    const { approverId } = await consumeApproval(uow, { requestId: bill.approvalId, action: "vendor_bill.variance", targetList: "VendorBill", targetId: bill.id, payload: { billId: bill.id, totalMinor: String(bill.totalMinor) } });
+    const v = await casUpdate(uow, { model: "VendorBill", id: bill.id, version: args.expectedVersion, from: ["variance"], to: "approved_variance", actor, statusField: "matchStatus", eventType: "vendor_bill.variance_accepted", approverId });
+    return { matchStatus: "approved_variance", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function purchaseOrderCsv(db, purchaseOrderId) {
+  const po = await db.purchaseOrder.findUnique({ where: { id: purchaseOrderId }, select: { ref: true, supplier: { select: { name: true, accountNumber: true } }, shipTo: { select: { name: true } }, lines: { select: { supplierSku: true, quantity: true, unitCostMinor: true, item: { select: { sku: true, name: true } } } } } });
+  if (!po) return null;
+  const q = (v) => {
+    let s = String(v ?? "");
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+  };
+  const rows = [["PO", "Supplier", "Account", "Ship to", "Supplier SKU", "Our SKU", "Item", "Quantity", "Unit cost"]];
+  for (const l of po.lines) rows.push([po.ref, po.supplier?.name ?? "", po.supplier?.accountNumber ?? "", po.shipTo?.name ?? "", l.supplierSku, l.item?.sku ?? "", l.item?.name ?? "", String(l.quantity ?? ""), (Number(l.unitCostMinor ?? 0n) / 100).toFixed(2)]);
+  return rows.map((r) => r.map(q).join(",")).join("\n") + "\n";
+}
+
+// features/keystone/services/compliance.ts
+var compliance_exports2 = {};
+__export(compliance_exports2, {
+  LEAK_THRESHOLD_PCT: () => LEAK_THRESHOLD_PCT,
+  advanceLien: () => advanceLien,
+  advancePermit: () => advancePermit,
+  checkRefrigerantInstall: () => checkRefrigerantInstall,
+  completeJob: () => completeJob,
+  completionBlockers: () => completionBlockers,
+  cylinderBalance: () => cylinderBalance,
+  epa608For: () => epa608For,
+  evaluateLeakRate: () => evaluateLeakRate,
+  lienList: () => lienList,
+  logRefrigerant: () => logRefrigerant,
+  mayLogForOthers: () => mayLogForOthers,
+  nthMonthDay: () => nthMonthDay,
+  openPermit: () => openPermit,
+  recordInspectionResult: () => recordInspectionResult,
+  reinspect: () => reinspect,
+  requestInspection: () => requestInspection,
+  resolveLeak: () => resolveLeak,
+  saveCylinder: () => saveCylinder,
+  trackLien: () => trackLien
+});
+var import_client4 = require("@prisma/client");
+init_actor();
+init_cas();
+init_errors();
+var PERMIT = ["canManagePermits"];
+var REFRIG = ["canManageRefrigerant"];
+var ymd5 = (d) => d ? d.toISOString().slice(0, 10) : "";
+var str2 = (v, field, max = 200, required = false) => {
+  const s = String(v ?? "").trim();
+  if (required && !s) throw new DomainError(Codes.INVALID_INPUT, `${field} is needed.`, { field });
+  if (s.length > max) throw new DomainError(Codes.INVALID_INPUT, `${field} is too long.`, { field });
+  return s;
+};
+async function openPermit(db, actor, args) {
+  await authorizeOperation(db, actor, "permit.open", PERMIT, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "permit.open", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const job = await tx.job.findUnique({ where: { id: args.jobId }, select: { id: true, status: true } });
+    if (!job) throw new DomainError(Codes.NOT_FOUND, "That job does not exist.");
+    if (["cancelled", "closed", "completed"].includes(job.status)) throw new DomainError(Codes.GUARD_FAILED, `The job is ${job.status}.`, { reason: "job_closed" });
+    const fee = args.feeMinor ? BigInt(/^\d{1,9}$/.test(String(args.feeMinor)) ? args.feeMinor : "-1") : 0n;
+    if (fee < 0n) throw new DomainError(Codes.INVALID_INPUT, "The fee is whole cents.", { field: "feeMinor" });
+    const ref = await nextReference(tx, "PRM", uow.now);
+    const row = await tx.permit.create({ data: { ref, jobId: job.id, ahj: str2(args.ahj, "ahj", 120, true), permitType: str2(args.permitType, "permitType", 80, true), status: "needed", feeMinor: fee }, select: { id: true } });
+    auditCreate(uow, actor, "Permit", row.id, "permit.opened", { ref, jobId: job.id });
+    await tx.task.upsert({ where: { dedupeKey: `permit.apply:${row.id}` }, update: {}, create: { kind: "permit.apply", title: `Apply for the ${args.permitType} permit (${ref})`, subjectType: "Permit", subjectId: row.id, status: "open", priority: "normal", dedupeKey: `permit.apply:${row.id}` } });
+    return { permitId: row.id, ref };
+  });
+  return { replay: result.replay, ...result.value };
+}
+var PERMIT_NEXT = { needed: ["applied", "not_required"], applied: ["issued", "rejected", "not_required"], rejected: ["needed"], issued: ["closed"] };
+async function advancePermit(db, actor, args) {
+  await authorizeOperation(db, actor, "permit.advance", PERMIT, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "permit.advance", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const p = await lockRow(tx, "Permit", args.permitId);
+    if (!(PERMIT_NEXT[p.status] ?? []).includes(args.to)) throw new DomainError(Codes.INVALID_TRANSITION, `A permit that is ${p.status.replaceAll("_", " ")} cannot move to ${args.to.replaceAll("_", " ")}.`);
+    const data = { note: str2(args.note, "note", 300) };
+    if (args.to === "applied") data.appliedOn = asDate(await companyToday(tx, uow.now));
+    if (args.to === "issued") {
+      data.externalNumber = str2(args.externalNumber, "externalNumber", 80, true);
+      data.issuedOn = asDate(await companyToday(tx, uow.now));
+      if (args.expiresOn) data.expiresOn = asDate(args.expiresOn);
+    }
+    if (args.to === "closed") {
+      const open = await tx.inspection.count({ where: { permitId: p.id, status: { not: "passed" } } });
+      const passed = await tx.inspection.count({ where: { permitId: p.id, status: "passed" } });
+      if (open || !passed) throw new DomainError(Codes.GUARD_FAILED, "A permit closes when every inspection has passed.", { reason: "inspections_open" });
+    }
+    const v = await casUpdate(uow, { model: "Permit", id: p.id, version: args.expectedVersion, from: [p.status], to: args.to, actor, eventType: `permit.${args.to}`, data });
+    return { status: args.to, version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function requestInspection(db, actor, args) {
+  await authorizeOperation(db, actor, "inspection.request", PERMIT, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inspection.request", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const p = await uow.tx.permit.findUnique({ where: { id: args.permitId }, select: { id: true, status: true } });
+    if (!p) throw new DomainError(Codes.NOT_FOUND, "That permit does not exist.");
+    if (p.status !== "issued") throw new DomainError(Codes.GUARD_FAILED, "Inspections are requested once the permit is issued.", { reason: "permit_not_issued" });
+    const when = args.scheduledFor ? new Date(args.scheduledFor) : null;
+    if (when && Number.isNaN(when.getTime())) throw new DomainError(Codes.INVALID_INPUT, "That is not a date and time.", { field: "scheduledFor" });
+    const row = await uow.tx.inspection.create({ data: { permitId: p.id, kind: str2(args.kind, "kind", 80, true), status: when ? "scheduled" : "requested", scheduledFor: when, inspectorName: str2(args.inspectorName, "inspectorName", 80) }, select: { id: true } });
+    auditCreate(uow, actor, "Inspection", row.id, "inspection.requested", { permitId: p.id, kind: args.kind });
+    return { inspectionId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function recordInspectionResult(db, actor, args) {
+  await authorizeOperation(db, actor, "inspection.result", PERMIT, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inspection.result", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    if (!["passed", "failed"].includes(args.result)) throw new DomainError(Codes.INVALID_INPUT, "Passed or failed.", { field: "result" });
+    const insp = await tx.inspection.findUnique({ where: { id: args.inspectionId }, select: { id: true, permit: { select: { id: true, ref: true, jobId: true } } } });
+    if (!insp) throw new DomainError(Codes.NOT_FOUND, "That inspection does not exist.");
+    let correctionsVisitId = null;
+    if (args.result === "failed" && insp.permit?.jobId) {
+      const ref = await nextReference(tx, "VIS", uow.now);
+      const visit = await tx.visit.create({ data: { ref, jobId: insp.permit.jobId, status: "unassigned", capacityHours: new import_client4.Prisma.Decimal(1) }, select: { id: true } });
+      correctionsVisitId = visit.id;
+      auditCreate(uow, actor, "Visit", visit.id, "visit.created", { ref, reason: "inspection_corrections" });
+    }
+    const v = await casUpdate(uow, { model: "Inspection", id: insp.id, version: args.expectedVersion, from: ["requested", "scheduled"], to: args.result, actor, eventType: `inspection.${args.result}`, data: { result: { notes: str2(args.notes, "notes", 400), at: uow.now.toISOString() }, ...correctionsVisitId ? { correctionsVisitId } : {} } });
+    return { status: args.result, version: v, correctionsVisitId };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function reinspect(db, actor, args) {
+  await authorizeOperation(db, actor, "inspection.reinspect", PERMIT, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "inspection.reinspect", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "Inspection", id: args.inspectionId, version: args.expectedVersion, from: ["failed"], to: "requested", actor, eventType: "inspection.reinspect_requested" });
+    return { status: "requested", version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function completionBlockers(tx, jobId) {
+  const permits = await tx.permit.findMany({ where: { jobId, status: { in: ["needed", "applied", "issued", "rejected"] } }, select: { ref: true, status: true } });
+  const inspections = await tx.inspection.findMany({ where: { permit: { is: { jobId } }, status: { in: ["requested", "scheduled", "failed"] } }, select: { kind: true, status: true } });
+  return { permits, inspections, blocked: permits.length + inspections.length > 0 };
+}
+async function completeJob(db, actor, args) {
+  await authorizeOperation(db, actor, "job.complete", ["canDispatch", "canManagePermits", "canManageInvoices"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "job.complete", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const job = await lockRow(tx, "Job", args.jobId);
+    if (!["work_complete", "awaiting_inspection"].includes(job.status)) throw new DomainError(Codes.INVALID_TRANSITION, `A job that is ${job.status.replaceAll("_", " ")} is not completed from here.`);
+    const type = job.jobTypeId ? await tx.jobType.findUnique({ where: { id: job.jobTypeId }, select: { refrigerantWork: true } }) : null;
+    if (type?.refrigerantWork && !await tx.refrigerantLogEntry.count({ where: { jobId: job.id } })) {
+      throw new DomainError(Codes.GUARD_FAILED, "This job handled refrigerant. Log it before completing.", { reason: "refrigerant_log_missing" });
+    }
+    const blockers = await completionBlockers(tx, job.id);
+    const to = blockers.blocked ? "awaiting_inspection" : "completed";
+    if (to === job.status) throw new DomainError(Codes.GUARD_FAILED, "Still waiting on a permit or inspection.", { reason: "permit_open", permits: blockers.permits, inspections: blockers.inspections });
+    const v = await casUpdate(uow, { model: "Job", id: job.id, version: args.expectedVersion, from: [job.status], to, actor, eventType: to === "completed" ? "job.completed" : "job.awaiting_inspection", data: to === "completed" ? { completedAt: uow.now } : {} });
+    return { status: to, version: v, blockers: blockers.blocked ? blockers : null };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function epa608For(tx, employeeId, day4) {
+  const creds = await tx.credential.findMany({ where: { employeeId, kind: "epa_608", status: "verified", epaType: { not: "none" } }, orderBy: { expiresOn: "desc" }, select: { id: true, epaType: true, expiresOn: true } });
+  return creds.find((c) => !c.expiresOn || ymd5(c.expiresOn) >= day4) ?? null;
+}
+async function saveCylinder(db, actor, args) {
+  await authorizeOperation(db, actor, "refrigerant.cylinder_save", [...REFRIG, "canManageInventory"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "refrigerant.cylinder_save", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const tag = str2(args.serialOrTag, "serialOrTag", 60, true);
+    if (await uow.tx.refrigerantCylinder.findUnique({ where: { serialOrTag: tag }, select: { id: true } })) throw new DomainError(Codes.GUARD_FAILED, "That cylinder is already recorded.", { reason: "duplicate_cylinder" });
+    if (args.locationId) await requireLocationAccess(uow.tx, actor, args.locationId);
+    const row = await uow.tx.refrigerantCylinder.create({ data: { serialOrTag: tag, refrigerantType: str2(args.refrigerantType, "refrigerantType", 40, true), kind: args.kind ?? "virgin", locationId: args.locationId ?? null, tareLb: args.tareLb ? decimal2(args.tareLb, "tareLb", { positive: true }) : null, status: "in_service" }, select: { id: true } });
+    auditCreate(uow, actor, "RefrigerantCylinder", row.id, "refrigerant_cylinder.created", { tag });
+    return { cylinderId: row.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function cylinderBalance(tx, cylinderId) {
+  const rows = await tx.refrigerantLogEntry.findMany({ where: { cylinderId }, select: { kind: true, quantityLb: true } });
+  return rows.reduce((s, r) => r.kind === "recover" ? s.plus(r.quantityLb) : ["charge", "transfer", "reclaim_shipment"].includes(r.kind) ? s.minus(r.quantityLb) : s, new import_client4.Prisma.Decimal(0));
+}
+var MANAGER = ["canDispatch", "canManagePermits", "canManageInventory", "canApproveTimesheets"];
+function mayLogForOthers(actor) {
+  if (!actor.permissions.has("canManageRefrigerant")) return false;
+  return !actor.permissions.has("canWorkVisits") || MANAGER.some((p) => actor.permissions.has(p));
+}
+async function logRefrigerant(db, actor, args) {
+  await authorizeOperation(db, actor, "refrigerant.log", [...REFRIG, "canWorkVisits"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "refrigerant.log", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    if (!["charge", "recover", "transfer", "reclaim_shipment", "disposal_verification"].includes(args.kind)) throw new DomainError(Codes.INVALID_INPUT, "Unknown entry kind.", { field: "kind" });
+    const qty2 = decimal2(args.quantityLb, "quantityLb", { positive: true });
+    if (qty2.decimalPlaces() > 2) throw new DomainError(Codes.INVALID_INPUT, "Pounds are recorded to 0.01.", { field: "quantityLb" });
+    const tech = await tx.employee.findUnique({ where: { id: args.technicianId }, select: { id: true, userId: true } });
+    if (!tech) throw new DomainError(Codes.NOT_FOUND, "That technician does not exist.");
+    if (actor.kind === "user" && tech.userId !== actor.userId && !mayLogForOthers(actor)) throw new DomainError(Codes.NOT_AUTHORIZED, "You log refrigerant under your own name.", { reason: "not_own_name" });
+    const day4 = await companyToday(tx, args.now ?? uow.now);
+    const cred = await epa608For(tx, tech.id, day4);
+    if (!cred) throw new DomainError(Codes.GUARD_FAILED, "This technician has no verified, unexpired EPA 608 certification on file.", { reason: "no_epa_608" });
+    if (args.jobId) {
+      const job = await tx.job.findUnique({ where: { id: args.jobId }, select: { id: true } });
+      if (!job) throw new DomainError(Codes.NOT_FOUND, "That job does not exist.");
+    }
+    if (args.cylinderId) {
+      const cyl = await lockRow(tx, "RefrigerantCylinder", args.cylinderId);
+      if (["retired", "sent_reclaim"].includes(cyl.status)) throw new DomainError(Codes.GUARD_FAILED, "That cylinder is out of service.", { reason: "cylinder_out" });
+      if (cyl.refrigerantType.toLowerCase() !== args.refrigerantType.trim().toLowerCase() && args.kind !== "recover") throw new DomainError(Codes.GUARD_FAILED, "The cylinder holds a different refrigerant.", { reason: "wrong_refrigerant" });
+      if (cyl.kind !== "virgin" && ["charge", "transfer", "reclaim_shipment"].includes(args.kind)) {
+        const left = await cylinderBalance(tx, cyl.id);
+        if (left.minus(qty2).lt(-1e-4)) throw new DomainError(Codes.GUARD_FAILED, "That is more than the cylinder holds on the log.", { reason: "cylinder_overdraw", balance: left.toString() });
+      }
+    }
+    const row = await tx.refrigerantLogEntry.create({
+      data: { idempotencyKey: `rl:${idempotencyKey}`, kind: args.kind, equipmentId: args.equipmentId ?? null, jobId: args.jobId ?? null, cylinderId: args.cylinderId ?? null, refrigerantType: str2(args.refrigerantType, "refrigerantType", 40, true), quantityLb: qty2, technicianId: tech.id, credentialId: cred.id, occurredAt: uow.now, notes: str2(args.notes, "notes", 300) },
+      select: { id: true }
+    });
+    auditCreate(uow, actor, "RefrigerantLogEntry", row.id, "refrigerant.logged", { kind: args.kind, quantityLb: qty2.toString(), jobId: args.jobId ?? null });
+    let leak = null;
+    if (args.kind === "charge" && args.equipmentId) leak = await evaluateLeakRate(uow, actor, args.equipmentId);
+    return { entryId: row.id, leak };
+  });
+  return { replay: result.replay, ...result.value };
+}
+var LEAK_THRESHOLD_PCT = { commercial_refrigeration: "20", industrial_process: "30", comfort_cooling: "10" };
+async function evaluateLeakRate(uow, actor, equipmentId) {
+  const { tx } = uow;
+  const eq = await tx.installedEquipment.findUnique({ where: { id: equipmentId }, select: { id: true, applianceClass: true, refrigerantChargeLb: true, location: { select: { state: true, postalCode: true, city: true } } } });
+  if (!eq) return null;
+  const policy = await resolvePolicyFromDb(tx, "refrigerant", placeOfLocation(eq.location), ymd5(uow.now));
+  const rules2 = policy.rules.leakRepair;
+  const charge = eq.refrigerantChargeLb ? new import_client4.Prisma.Decimal(eq.refrigerantChargeLb) : null;
+  const threshold = LEAK_THRESHOLD_PCT[eq.applianceClass];
+  const open = await tx.leakRateEvaluation.findFirst({ where: { equipmentId, status: { in: ["open", "repair_due"] } }, select: { id: true, version: true, status: true, repairDueBy: true } });
+  if (!charge || charge.lt(rules2.minChargeLb) || !threshold || rules2.excludedSubsectors.includes(eq.applianceClass)) return { applicable: false };
+  const since = new Date(uow.now.getTime() - 365 * 864e5);
+  const added = (await tx.refrigerantLogEntry.findMany({ where: { equipmentId, kind: "charge", occurredAt: { gte: since } }, select: { quantityLb: true } })).reduce((s, r) => s.plus(r.quantityLb), new import_client4.Prisma.Decimal(0));
+  const pct = added.div(charge).mul(100).toDecimalPlaces(2);
+  const over = pct.gte(threshold);
+  const base = { chargeLb: charge, addedLb: added, leakRatePct: pct, threshold: new import_client4.Prisma.Decimal(threshold), policyVersionId: policy.versionId };
+  if (open) {
+    await tx.leakRateEvaluation.update({ where: { id: open.id }, data: { ...base, ...over && open.status === "open" ? { status: "repair_due", repairDueBy: asDate(addDays(ymd5(uow.now), rules2.repairDays)), version: { increment: 1 } } : {} } });
+    return { applicable: true, evaluationId: open.id, leakRatePct: pct.toString(), over };
+  }
+  const row = await tx.leakRateEvaluation.create({ data: { equipmentId, ...base, status: over ? "repair_due" : "open", repairDueBy: over ? asDate(addDays(ymd5(uow.now), rules2.repairDays)) : null }, select: { id: true } });
+  if (over) await tx.task.upsert({ where: { dedupeKey: `refrigerant.leak_repair:${row.id}` }, update: {}, create: { kind: "refrigerant.leak_repair", title: `Leak rate ${pct}% is over the ${threshold}% limit: repair within ${rules2.repairDays} days`, subjectType: "LeakRateEvaluation", subjectId: row.id, status: "open", priority: "high", dedupeKey: `refrigerant.leak_repair:${row.id}` } });
+  return { applicable: true, evaluationId: row.id, leakRatePct: pct.toString(), over };
+}
+async function resolveLeak(db, actor, args) {
+  await authorizeOperation(db, actor, "refrigerant.leak_resolve", REFRIG, args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "refrigerant.leak_resolve", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const v = await casUpdate(uow, { model: "LeakRateEvaluation", id: args.evaluationId, version: args.expectedVersion, from: ["open", "repair_due"], to: args.to, actor, eventType: `leak_rate.${args.to}`, reason: str2(args.note, "note", 300, true) });
+    await uow.tx.task.updateMany({ where: { dedupeKey: `refrigerant.leak_repair:${args.evaluationId}`, status: "open" }, data: { status: "done", closedAt: uow.now, resolution: args.to } });
+    return { status: args.to, version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function checkRefrigerantInstall(db, actor, args) {
+  await authorizeOperation(db, actor, "refrigerant.install_check", [...REFRIG, "canSellEstimates", "canDispatch"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "refrigerant.install_check", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const line = await tx.workLine.findUnique({ where: { id: args.workLineId }, select: { id: true, job: { select: { location: { select: { state: true, postalCode: true, city: true } } } } } });
+    if (!line) throw new DomainError(Codes.NOT_FOUND, "That work line does not exist.");
+    const model = await tx.equipmentModel.findUnique({ where: { id: args.equipmentModelId }, select: { id: true, kind: true, refrigerantType: true, modelNumber: true } });
+    if (!model) throw new DomainError(Codes.NOT_FOUND, "That equipment model does not exist.");
+    const policy = await resolvePolicyFromDb(tx, "refrigerant", placeOfLocation(line.job?.location), ymd5(uow.now));
+    const klass = model.kind === "water_heater_tank" || model.kind === "ac_condenser" || model.kind === "heat_pump" || model.kind === "furnace" || model.kind === "mini_split" ? "residential_ac" : "other";
+    const hits = policy.rules.installRules.filter((r) => r.refrigerant.toLowerCase() === (model.refrigerantType ?? "").toLowerCase() && (r.equipmentClass === klass || r.equipmentClass === "any"));
+    const blocked = hits.find((h) => !h.allowed);
+    const result2 = blocked ? "blocked" : hits.length ? "allowed" : model.refrigerantType ? "warning" : "allowed";
+    const findings = blocked ? [{ refrigerant: blocked.refrigerant, note: blocked.condition }] : !hits.length && model.refrigerantType ? [{ refrigerant: model.refrigerantType, note: "No install rule covers this refrigerant. Check it before selling." }] : [];
+    const row = await tx.refrigerantInstallCheck.create({ data: { workLineId: line.id, equipmentModelId: model.id, stage: args.stage, policyVersionId: policy.versionId, result: result2, findings }, select: { id: true } });
+    auditCreate(uow, actor, "RefrigerantInstallCheck", row.id, "refrigerant.install_checked", { result: result2, stage: args.stage });
+    if (blocked && args.stage === "sold") throw new DomainError(Codes.GUARD_FAILED, `This refrigerant cannot be installed: ${blocked.condition}`, { reason: "refrigerant_install_blocked", checkId: row.id });
+    return { checkId: row.id, result: result2, findings };
+  });
+  return { replay: result.replay, ...result.value };
+}
+function nthMonthDay(day4, monthsAfter, dayOfMonth) {
+  const [y, m] = day4.split("-").map(Number);
+  const index = y * 12 + (m - 1) + monthsAfter;
+  return `${Math.floor(index / 12)}-${String(index % 12 + 1).padStart(2, "0")}-${String(dayOfMonth).padStart(2, "0")}`;
+}
+async function trackLien(db, actor, args) {
+  await authorizeOperation(db, actor, "lien.track", ["canManageInvoices", "canManageAccounting"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "lien.track", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const { tx } = uow;
+    const job = await tx.job.findUnique({ where: { id: args.jobId }, select: { id: true, status: true, completedAt: true, location: { select: { state: true, postalCode: true, city: true } } } });
+    if (!job) throw new DomainError(Codes.NOT_FOUND, "That job does not exist.");
+    if (!["completed", "closed"].includes(job.status) || !job.completedAt) throw new DomainError(Codes.GUARD_FAILED, "A lien clock starts when the work is completed.", { reason: "not_completed" });
+    if (await tx.lienTrack.findFirst({ where: { jobId: job.id, status: { in: ["monitoring", "notice_sent"] } }, select: { id: true } })) throw new DomainError(Codes.GUARD_FAILED, "This job already has a lien record.", { reason: "duplicate_lien" });
+    const completed = ymd5(job.completedAt);
+    const policy = await resolvePolicyFromDb(tx, "lien", placeOfLocation(job.location), completed);
+    const clock = policy.rules.clocks.find((c) => c.party === "original_contractor" && c.projectClass === (args.projectClass ?? "residential") && c.action === "file_affidavit");
+    if (!clock) throw new DomainError(Codes.POLICY_MISSING, "There is no lien clock for that kind of project.");
+    const affidavit = nthMonthDay(completed, clock.monthsAfter, clock.dayOfMonth);
+    const row = await tx.lienTrack.create({ data: { jobId: job.id, invoiceId: args.invoiceId ?? null, policyVersionId: policy.versionId, completionMonth: asDate(`${completed.slice(0, 7)}-01`), affidavitDueOn: asDate(affidavit), status: "monitoring" }, select: { id: true } });
+    auditCreate(uow, actor, "LienTrack", row.id, "lien.tracked", { affidavitDueOn: affidavit, policyVersion: policy.versionNumber });
+    return { lienId: row.id, affidavitDueOn: affidavit };
+  });
+  return { replay: result.replay, ...result.value };
+}
+var LIEN_NEXT = { monitoring: ["notice_sent", "affidavit_filed", "released", "abandoned"], notice_sent: ["affidavit_filed", "released", "abandoned"], affidavit_filed: ["released"] };
+async function advanceLien(db, actor, args) {
+  await authorizeOperation(db, actor, "lien.advance", ["canManageInvoices", "canManageAccounting"], args);
+  const { idempotencyKey, now: _n, ...params } = args;
+  const result = await command(db, { name: "lien.advance", actor, idempotencyKey, params, now: args.now }, async (uow) => {
+    const l = await lockRow(uow.tx, "LienTrack", args.lienId);
+    if (!(LIEN_NEXT[l.status] ?? []).includes(args.to)) throw new DomainError(Codes.INVALID_TRANSITION, `A lien that is ${l.status.replaceAll("_", " ")} cannot move to ${args.to.replaceAll("_", " ")}.`);
+    const v = await casUpdate(uow, { model: "LienTrack", id: args.lienId, version: args.expectedVersion, from: [l.status], to: args.to, actor, eventType: `lien.${args.to}`, data: { note: str2(args.note, "note", 300) } });
+    return { status: args.to, version: v };
+  });
+  return { replay: result.replay, ...result.value };
+}
+async function lienList(db, now = /* @__PURE__ */ new Date()) {
+  const today = await companyToday(db, now);
+  const rows = await db.lienTrack.findMany({ where: { status: { in: ["monitoring", "notice_sent", "affidavit_filed"] } }, orderBy: { affidavitDueOn: "asc" }, take: 300, select: { id: true, status: true, version: true, affidavitDueOn: true, completionMonth: true, job: { select: { id: true, ref: true } }, invoice: { select: { id: true, ref: true } } } });
+  return rows.map((r) => ({ ...r, affidavitDueOn: ymd5(r.affidavitDueOn), completionMonth: ymd5(r.completionMonth), daysLeft: Math.round((Date.parse(`${ymd5(r.affidavitDueOn)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5) }));
+}
+
+// features/keystone/mutations/phase5.ts
+var MODULES = { warranty: warranty_exports, inventory: inventory_exports2, purchasing: purchasing_exports, compliance: compliance_exports2 };
+var bind5 = (module2, fn) => op(async (_root, args, context) => {
+  const { now: _ignored, ...clean3 } = args;
+  const actor = await actorFor(context);
+  await advanceTimedStates(context.prisma);
+  const run = MODULES[module2]?.[fn];
+  if (!run) throw new Error(`Unknown command ${module2}.${fn}`);
+  return run(context.prisma, actor, clean3);
+});
+var phase5TypeDefs = `
+  type Mutation {
+${Object.entries(PHASE5).map(([name, [, , args]]) => `    ${name}(${[...Object.entries(args).map(([k, t]) => `${k}: ${t}`), "idempotencyKey: String!"].join(", ")}): JSON`).join("\n")}
+  }
+`;
+var phase5Resolvers = { Mutation: Object.fromEntries(Object.entries(PHASE5).map(([name, [module2, fn]]) => [name, bind5(module2, fn)])) };
 
 // features/keystone/mutations/agentBinding.ts
 init_actor();
@@ -13243,7 +14870,7 @@ function extendGraphqlSchema(baseSchema) {
       }
     }
   });
-  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, phase3TypeDefs, phase4TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, phase3Resolvers, phase4Resolvers, agentBindingResolvers] });
+  return (0, import_schema.mergeSchemas)({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, phase3TypeDefs, phase4TypeDefs, phase5TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, phase3Resolvers, phase4Resolvers, phase5Resolvers, agentBindingResolvers] });
 }
 
 // features/keystone/lib/mail.ts

@@ -5,6 +5,9 @@
  */
 type Args = Record<string, string>
 
+/** The only values decideReplenishment accepts; the Replenishment screen sends these. */
+export const REPLENISHMENT_DECISIONS = ['approve', 'reject'] as const
+
 export const PHASE5: Record<string, [string, string, Args]> = {
   // Equipment and warranty
   recordEquipment: ['warranty', 'recordEquipment', { locationId: 'ID!', manufacturer: 'String!', modelNumber: 'String!', serialNumber: 'String!', kind: 'String', applianceClass: 'String', tonnage: 'String', refrigerantType: 'String', refrigerantChargeLb: 'String', installDate: 'String', manufactureDate: 'String', locationInHome: 'String', installedByJobId: 'ID', source: 'String' }],

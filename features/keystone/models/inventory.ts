@@ -269,7 +269,8 @@ export const VendorBill = list({
     billNumber: text({ validation: { isRequired: true } }),
     totalMinor: minor({ defaultValue: 0n, ...purchaseCost }),
     matchStatus: lifecycle(['unmatched', 'matched', 'variance', 'approved_variance']),
-    matchDetail: json({ isFilterable: false, isOrderable: false } as never),
+    // Carries ordered/received/billed amounts, so it follows the same cost rule as totalMinor (read, filter, order).
+    matchDetail: json({ ...purchaseCost, isFilterable: false, isOrderable: false } as never),
     approval: relationship({ ref: 'ApprovalRequest' }),
     version: versionField(),
     ...trackingFields,

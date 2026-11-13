@@ -170,6 +170,17 @@ registerApplier('vendor_bill.variance', async () => ({ ok: true }), { applyOnApp
 
 // ── Three-way match ──────────────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The match rule: a bill matches when the order has arrived (not merely sent), something received is still unbilled, and the bill is
+ * within the tolerance of that unbilled amount (received value minus bills already accepted on the order).
+ */
+export function threeWayMatch(args: { billed: bigint; received: bigint; alreadyBilled: bigint; status: string }) {
+  const open = args.received - args.alreadyBilled
+  const gap = args.billed > open ? args.billed - open : open - args.billed
+  const matched = args.status !== 'sent' && open > 0n && gap * 10_000n <= open * BigInt(MATCH_TOLERANCE_BPS)
+  return { matched, gap, open }
+}
+
 /** Record the supplier's bill and compare it with what was ordered and what arrived. */
 export async function recordVendorBill(db: Db, actor: Actor, args: { purchaseOrderId: string; billNumber: string; totalMinor: string; idempotencyKey: string; now?: Date }) {
   await authorizeOperation(db, actor, 'purchasing.bill_record', BILL, args)
@@ -179,15 +190,21 @@ export async function recordVendorBill(db: Db, actor: Actor, args: { purchaseOrd
     if (!/^\d{1,10}$/.test(String(args.totalMinor))) throw new DomainError(Codes.INVALID_INPUT, 'The bill total is whole cents.', { field: 'totalMinor' })
     const billNumber = String(args.billNumber ?? '').trim().slice(0, 80)
     if (!billNumber) throw new DomainError(Codes.INVALID_INPUT, 'Enter the bill number.', { field: 'billNumber' })
+    // One bill at a time per order, so two bills for the same goods cannot both see the same unbilled amount.
+    await lockRow(tx, 'PurchaseOrder', args.purchaseOrderId)
     const po = await tx.purchaseOrder.findUnique({ where: { id: args.purchaseOrderId }, select: { id: true, supplierId: true, status: true, lines: { select: { quantity: true, receivedQuantity: true, unitCostMinor: true } } } })
     if (!po) throw new DomainError(Codes.NOT_FOUND, 'That order does not exist.')
     if (await tx.vendorBill.findFirst({ where: { supplierId: po.supplierId, billNumber }, select: { id: true } })) throw new DomainError(Codes.GUARD_FAILED, 'That bill number is already recorded for this supplier.', { reason: 'duplicate_bill' })
     const billed = BigInt(args.totalMinor)
     const received = po.lines.reduce((s, l) => s + BigInt(new Prisma.Decimal(l.receivedQuantity ?? 0).mul(String(l.unitCostMinor ?? 0n)).toDecimalPlaces(0).toString()), 0n)
     const ordered = po.lines.reduce((s, l) => s + BigInt(new Prisma.Decimal(l.quantity ?? 0).mul(String(l.unitCostMinor ?? 0n)).toDecimalPlaces(0).toString()), 0n)
-    const gap = billed > received ? billed - received : received - billed
-    const matched = po.status !== 'sent' && received > 0n && gap * 10_000n <= received * BigInt(MATCH_TOLERANCE_BPS)
-    const row = await tx.vendorBill.create({ data: { supplierId: po.supplierId, poId: po.id, billNumber, totalMinor: billed, matchStatus: matched ? 'matched' : 'variance', matchDetail: { orderedMinor: ordered.toString(), receivedMinor: received.toString(), billedMinor: billed.toString(), gapMinor: gap.toString(), toleranceBps: MATCH_TOLERANCE_BPS } as never }, select: { id: true } })
+    // Earlier bills already accepted against this order (matched, or a variance a second person accepted) used up that much of
+    // what was received; a new bill is matched only against what is received and not yet billed.
+    const prior = await tx.vendorBill.findMany({ where: { poId: po.id, matchStatus: { in: ['matched', 'approved_variance'] } }, select: { totalMinor: true } })
+    const alreadyBilled = prior.reduce((s, b) => s + (b.totalMinor ?? 0n), 0n)
+    const open = received - alreadyBilled
+    const { matched, gap } = threeWayMatch({ billed, received, alreadyBilled, status: po.status })
+    const row = await tx.vendorBill.create({ data: { supplierId: po.supplierId, poId: po.id, billNumber, totalMinor: billed, matchStatus: matched ? 'matched' : 'variance', matchDetail: { orderedMinor: ordered.toString(), receivedMinor: received.toString(), alreadyBilledMinor: alreadyBilled.toString(), unbilledMinor: open.toString(), billedMinor: billed.toString(), gapMinor: gap.toString(), toleranceBps: MATCH_TOLERANCE_BPS } as never }, select: { id: true } })
     auditCreate(uow, actor, 'VendorBill', row.id, 'vendor_bill.recorded', { billNumber, matched, gapMinor: gap.toString() })
     if (matched && ['received', 'partially_received'].includes(po.status)) {
       await tx.purchaseOrder.update({ where: { id: po.id }, data: { status: po.status === 'received' ? 'billed' : po.status, version: { increment: 1 } } })

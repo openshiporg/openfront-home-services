@@ -11,6 +11,7 @@ import type { UnitOfWork } from '../lib/unitOfWork'
 import type { Permission } from '../access'
 import { requestApproval, consumeApproval } from '../lib/approval'
 import { registerApplier } from '../lib/approvalAppliers'
+import { REPLENISHMENT_DECISIONS } from '../domain/phase5Commands'
 
 /*
  * Stock (STATE-MACHINES §13, SCHEMA §12). Movement-only: the one write that changes a quantity is a StockMovement row; the database
@@ -234,6 +235,7 @@ export async function transferStock(db: Db, actor: Actor, args: { itemId: string
     if (args.fromLocationId === args.toLocationId) throw new DomainError(Codes.INVALID_INPUT, 'Pick two different locations.')
     await requireLocationAccess(tx, actor, args.fromLocationId); await requireLocationAccess(tx, actor, args.toLocationId)
     const qty = dec(args.quantity, 'quantity', { positive: true })
+    if (args.serializedUnitId && !qty.eq(1)) throw new DomainError(Codes.INVALID_INPUT, 'A serial number is one unit: move it with quantity 1.', { field: 'quantity' })
     const group = `tr_${keyOf(idempotencyKey)}`
     const out = await applyMovement(uow, actor, { key: `${group}:out`, type: 'transfer_out', itemId: args.itemId, locationId: args.fromLocationId, quantity: qty.neg(), uomCode: args.uom, transferGroup: group, serializedUnitId: args.serializedUnitId })
     await applyMovement(uow, actor, { key: `${group}:in`, type: 'transfer_in', itemId: args.itemId, locationId: args.toLocationId, quantity: qty, uomCode: args.uom, transferGroup: group, serializedUnitId: args.serializedUnitId })
@@ -332,6 +334,8 @@ export async function decideReplenishment(db: Db, actor: Actor, args: { requestI
   await authorizeOperation(db, actor, 'inventory.replenish_decide', MANAGE, args)
   const { idempotencyKey, now: _n, ...params } = args
   const result = await command(db, { name: 'inventory.replenish_decide', actor, idempotencyKey, params, now: args.now }, async uow => {
+    // Only the two exact words; anything else (the screen once sent 'approved') is refused, never read as a rejection.
+    if (!(REPLENISHMENT_DECISIONS as readonly string[]).includes(args.decision)) throw new DomainError(Codes.INVALID_INPUT, 'Decide approve or reject.', { field: 'decision' })
     const to = args.decision === 'approve' ? 'approved' : 'rejected'
     const v = await casUpdate(uow, { model: 'ReplenishmentRequest', id: args.requestId, version: args.expectedVersion, from: ['proposed'], to, actor, eventType: `replenishment.${to}` })
     return { requestId: args.requestId, status: to, version: v }
