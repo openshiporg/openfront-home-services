@@ -73,7 +73,8 @@ export async function EquipmentPage() {
 // ── Warranty ────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export async function RegistrationsPage() {
-  await gate('canManageEquipment', 'canSubmitWarrantyClaims');
+  // Office only: the list carries every customer's address, which a technician (canManageEquipment) must not see.
+  await gate('canSubmitWarrantyClaims', 'canDispatch', 'canManageInvoices');
   // Guarded: a read that throws shows an empty list with a note, never a 500.
   const rows = await registrationList(keystoneContext.prisma as never).catch((e: unknown) => { console.error('Registrations read failed:', e instanceof Error ? e.message.slice(0, 200) : 'unknown'); return null; });
   if (!rows) return <Page title="Warranty registrations"><Section title="Registrations"><Empty>Registrations could not be loaded. Reload the page.</Empty></Section></Page>;
@@ -102,7 +103,7 @@ export async function RegistrationsPage() {
 }
 
 export async function RegistrationPacketPage({ id }: { id: string }) {
-  await gate('canManageEquipment', 'canSubmitWarrantyClaims');
+  await gate('canSubmitWarrantyClaims', 'canDispatch', 'canManageInvoices');
   const { registrationPacket } = await import('@/features/keystone/services/warranty');
   const packet = await registrationPacket(keystoneContext.prisma as never, id).catch(() => null);
   if (!packet) notFound();

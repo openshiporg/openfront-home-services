@@ -55,7 +55,7 @@ export const platformNavItems: PlatformNavItem[] = [
 
   { title: 'Equipment', href: '/platform/equipment', color: 'orange', description: 'Installed equipment by location, with warranty cover.', icon: HardHat, group: 'operations', requires: 'canManageEquipment' },
   { title: 'Inventory', href: '/platform/inventory', color: 'orange', description: 'Warehouse and truck stock.', icon: Boxes, group: 'operations', requires: 'canManageInventory' },
-  { title: 'Warranty registrations', href: '/platform/warranty/registrations', color: 'orange', description: 'Registrations due and overdue, with the portal packet.', icon: ClipboardCheck, group: 'operations', requires: 'canManageEquipment' },
+  { title: 'Warranty registrations', href: '/platform/warranty/registrations', color: 'orange', description: 'Registrations due and overdue, with the portal packet.', icon: ClipboardCheck, group: 'operations', requires: 'canSubmitWarrantyClaims' },
   { title: 'Warranty claims', href: '/platform/warranty/claims', color: 'orange', description: 'Claims to the manufacturer, appeals and write-offs.', icon: FileText, group: 'operations', requires: 'canSubmitWarrantyClaims' },
   { title: 'Home warranty', href: '/platform/home-warranty', color: 'orange', description: 'Dispatches from home-warranty companies.', icon: Scale, group: 'operations', requires: 'canSubmitWarrantyClaims' },
   { title: 'Replenishment', href: '/platform/replenishment', color: 'orange', description: 'Min/max proposals for trucks and the warehouse.', icon: Truck, group: 'operations', requires: 'canManageInventory' },
