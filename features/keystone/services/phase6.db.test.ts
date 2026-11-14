@@ -153,6 +153,37 @@ describe.skipIf(!hasTestDatabase)('Phase 6: labour and pay (database)', () => {
     expect(segs.map(x => x.kind)).toEqual(['drive', 'job'])
   })
 
+  it('a card refund is made at Stripe against the payment\'s own intent, once, and the re_ id is what is recorded', { timeout: 120_000 }, async () => {
+    const s = await sale('2026-06-10', 5_000n)
+    const pay = await recordInvoicePayment(prisma, owner, { invoiceId: s.invoice.id, amountMinor: '5000', method: 'card', reference: 'pi_TESTINTENT1', idempotencyKey: k(), now: new Date('2026-06-10T16:00:00Z') })
+    expect(pay.replay).toBe(false)
+    const paymentId = (await prisma.paymentAllocation.findFirstOrThrow({ where: { invoiceId: s.invoice.id } })).paymentId as string
+    const calls: { paymentIntent: string; amountMinor: bigint; idempotencyKey: string }[] = []
+    const fake = { refund: async (i: { paymentIntent: string; amountMinor: bigint; idempotencyKey: string }) => { calls.push(i); return { outcome: 'succeeded' as const, refundId: 're_FAKE1' } } }
+    const key = k('rf')
+    const r = await requestRefund(prisma, owner, { paymentId, amountMinor: '2000', method: 'processor_refund', reason: 'Customer cancelled', reference: '', idempotencyKey: key }, fake)
+    expect(r.status).toBe('recorded')
+    expect(calls).toHaveLength(1)
+    expect(calls[0].paymentIntent).toBe('pi_TESTINTENT1')
+    expect(calls[0].amountMinor).toBe(2000n)
+    const row = await prisma.refund.findFirstOrThrow({ where: { paymentId } })
+    expect(row.reference).toBe('re_FAKE1')
+    // The same staff action again is a replay: Stripe is asked with the same key (it would return the same refund) and no second row is written.
+    await requestRefund(prisma, owner, { paymentId, amountMinor: '2000', method: 'processor_refund', reason: 'Customer cancelled', reference: '', idempotencyKey: key }, fake)
+    expect(await prisma.refund.count({ where: { paymentId } })).toBe(1)
+    if (calls.length > 1) expect(calls[1].idempotencyKey).toBe(calls[0].idempotencyKey)
+
+    // Stripe says unknown or refuses: nothing is recorded.
+    for (const outcome of ['unknown', 'failed'] as const) {
+      const bad = { refund: async () => ({ outcome, refundId: '', note: 'x' }) }
+      expect(await reason(requestRefund(prisma, owner, { paymentId, amountMinor: '1000', method: 'processor_refund', reason: 'Try', reference: '', idempotencyKey: k('rf'), }, bad))).not.toBe('OK')
+    }
+    expect(await prisma.refund.count({ where: { paymentId } })).toBe(1)
+    // A check payment, or a typed id on a payment that is not a Stripe intent, is recorded as before and never sent to Stripe.
+    const none = { refund: async () => { throw new Error('must not be called') } }
+    expect(await reason(requestRefund(prisma, owner, { paymentId, amountMinor: '500', method: 'check', reason: 'By check', reference: 'CHK-77', idempotencyKey: k('rf') }, none))).toBe('OK')
+  })
+
   it('overlapping entries are refused', { timeout: 60_000 }, async () => {
     const date = '2026-09-29'
     const s = await proposeTimesheet(prisma, tech, { workDate: date, idempotencyKey: k() })

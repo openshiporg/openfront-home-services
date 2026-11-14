@@ -154,6 +154,28 @@ export class StripeAdapter implements PaymentAdapter {
     return toResult(json as unknown as StripeIntent)
   }
 
+  /**
+   * Refund a card payment at Stripe, against the payment's own intent. The idempotency key makes a retry of the same staff
+   * action return the same refund (re_...) instead of refunding twice. `unknown` means Stripe may or may not have it: retry with the same key.
+   */
+  async refund(input: { paymentIntent: string; amountMinor: bigint; idempotencyKey: string; reason?: string }): Promise<{ outcome: 'succeeded' | 'failed' | 'unknown'; refundId: string; note?: string }> {
+    let response: Response
+    try {
+      response = await this.call('/refunds', {
+        method: 'POST', idempotencyKey: input.idempotencyKey.slice(0, 255),
+        body: form({ payment_intent: input.paymentIntent, amount: input.amountMinor.toString(), 'metadata[reason]': input.reason?.slice(0, 200) }),
+      })
+    } catch {
+      return { outcome: 'unknown', refundId: '', note: 'No answer from the processor. The refund may or may not have been made. Try again: the same try never refunds twice.' }
+    }
+    const json = (await response.json().catch(() => null)) as { id?: string; status?: string; error?: { message?: string } } | null
+    if (response.status >= 500 || response.status === 429 || !json) return { outcome: 'unknown', refundId: '', note: 'The processor answered with an error. Try again: the same try never refunds twice.' }
+    if (json.error || !json.id) return { outcome: 'failed', refundId: '', note: json.error?.message?.slice(0, 200) || 'The processor refused the refund.' }
+    // A card refund is `succeeded`, or `pending` while the bank settles it; both are money on its way back.
+    if (json.status === 'succeeded' || json.status === 'pending') return { outcome: 'succeeded', refundId: json.id }
+    return { outcome: 'failed', refundId: json.id, note: `The processor ended the refund as ${String(json.status).replace(/_/g, ' ')}.` }
+  }
+
   async lookup(providerKey: string): Promise<LookupResult> {
     const key = createHash('sha256').update(providerKey).digest('hex').slice(0, 40)
     try {

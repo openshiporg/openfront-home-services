@@ -8,6 +8,7 @@ import type { Db } from '../lib/db'
 import { Codes, DomainError } from '../lib/errors'
 import { nextReference } from '../lib/sequence'
 import type { UnitOfWork } from '../lib/unitOfWork'
+import { stripeAdapter } from '../lib/paymentAdapter'
 import { creditForRefund } from './invoices'
 import { closeTermForRefund } from './memberships'
 import { allocatePayment, arPeriodFor, asDate, companyToday, lockInvoice, money, reverseAllocations, unappliedOf } from './billingShared'
@@ -228,18 +229,46 @@ async function writeRefund(uow: UnitOfWork, actor: Actor, a: { paymentId: string
   return { refundId: refund.id, ref }
 }
 
+/** What can issue a card refund: only the processor adapter's refund call, injected in tests. */
+export type CardRefunder = { refund(input: { paymentIntent: string; amountMinor: bigint; idempotencyKey: string; reason?: string }): Promise<{ outcome: 'succeeded' | 'failed' | 'unknown'; refundId: string; note?: string }> }
+
+/**
+ * A "card refund" on a card payment that Stripe took (its reference is the payment intent, pi_...) is made AT Stripe, against that
+ * intent, and the refund id Stripe returns (re_...) is what gets recorded. Anything else (a check, a payment taken on a terminal
+ * elsewhere, no Stripe key on this server) is recorded against the id the person typed, as before.
+ * Stripe is asked outside any database transaction, with a key made from the staff action's own key, so a retry never refunds twice.
+ */
+async function issueAtStripe(db: Db, refunder: CardRefunder | null, a: { paymentId: string; amountMinor: bigint; method: string; reason: string; key: string }): Promise<string | null> {
+  if (a.method !== 'processor_refund' || !refunder) return null
+  const payment = await db.payment.findUnique({ where: { id: a.paymentId }, select: { method: true, reference: true } })
+  const intent = payment?.method === 'card' && /^pi_[A-Za-z0-9]+$/.test(payment.reference ?? '') ? payment.reference : null
+  if (!intent) return null
+  const r = await refunder.refund({ paymentIntent: intent, amountMinor: a.amountMinor, idempotencyKey: `hs-refund:${a.paymentId}:${a.key}`, reason: a.reason })
+  if (r.outcome === 'succeeded') return r.refundId
+  throw new DomainError(r.outcome === 'unknown' ? Codes.GUARD_FAILED : Codes.INVALID_INPUT, `Stripe did not refund this: ${r.note ?? r.outcome}`, { reason: r.outcome === 'unknown' ? 'refund_unknown' : 'refund_refused' })
+}
+
 /**
  * Refund a payment (I-M6). Above the company threshold it waits for a second person's approval; the approved request is bound
  * to the payment, amount, method and reference, and is consumed when the refund is recorded.
  */
-export async function requestRefund(db: Db, actor: Actor, args: { paymentId: string; amountMinor: string; method: 'processor_refund' | 'check'; reason: string; reference: string; idempotencyKey: string; now?: Date }) {
+export async function requestRefund(db: Db, actor: Actor, args: { paymentId: string; amountMinor: string; method: 'processor_refund' | 'check'; reason: string; reference: string; idempotencyKey: string; now?: Date }, refunder: CardRefunder | null = stripeAdapter()) {
   await authorizeOperation(db, actor, 'refund.issue', ['canIssueRefunds'], args)
   const amount = cents(args.amountMinor, 'amountMinor')
   if (!['processor_refund', 'check'].includes(args.method)) throw new DomainError(Codes.INVALID_INPUT, 'Refund by processor refund or check.', { field: 'method' })
   const reason = String(args.reason ?? '').trim()
   if (reason.length < 3) throw new DomainError(Codes.INVALID_INPUT, 'Say why, in a few words.', { field: 'reason' })
-  const reference = String(args.reference ?? '').trim()
-  if (!reference) throw new DomainError(Codes.INVALID_INPUT, 'Enter the processor refund id or the check number.', { field: 'reference' })
+  let reference = String(args.reference ?? '').trim()
+  // Under the approval threshold the refund is recorded now, so Stripe is asked now. Above it, Stripe is asked when the approved refund is recorded.
+  let stripeRef: string | null = null
+  if (!reference || args.method === 'processor_refund') {
+    const known = await unappliedOf(db as never, args.paymentId).catch(() => null)
+    const limit = (await db.companySettings.findFirst({ select: { refundApprovalThresholdMinor: true } }))?.refundApprovalThresholdMinor ?? 50000n
+    const direct = !!known && known.refunded + amount <= limit && amount <= known.amountMinor - known.refunded
+    if (direct) stripeRef = await issueAtStripe(db, refunder, { paymentId: args.paymentId, amountMinor: amount, method: args.method, reason, key: args.idempotencyKey })
+    if (stripeRef) reference = stripeRef
+  }
+  if (!reference && !(args.method === 'processor_refund' && (await cardPaymentAtStripe(db, args.paymentId, refunder)))) throw new DomainError(Codes.INVALID_INPUT, 'Enter the processor refund id or the check number.', { field: 'reference' })
   const { idempotencyKey, now: _now, ...params } = args
   const result = await command(db, { name: 'refund.issue', actor, idempotencyKey, params, now: args.now }, async uow => {
     const { tx } = uow
@@ -253,7 +282,7 @@ export async function requestRefund(db: Db, actor: Actor, args: { paymentId: str
     }
     const approval = await requestApproval(uow, actor, {
       action: 'refund.issue', targetList: 'Payment', targetId: args.paymentId, requiredPermission: 'canApproveRefunds',
-      payload: { paymentId: args.paymentId, amountMinor: amount.toString(), method: args.method, reason, reference },
+      payload: { paymentId: args.paymentId, amountMinor: amount.toString(), method: args.method, reason, reference: reference === stripeRef ? '' : reference },
       summary: `Refund ${money(amount)} by ${args.method === 'check' ? 'check' : 'processor'} — ${reason}`,
     })
     return { status: 'pending_approval', approvalRequestId: approval.id }
@@ -262,8 +291,12 @@ export async function requestRefund(db: Db, actor: Actor, args: { paymentId: str
 }
 
 // An approved refund is recorded when the requester (or anyone with issue-refund rights) confirms it; the approval is consumed then.
-export async function recordApprovedRefund(db: Db, actor: Actor, args: { approvalRequestId: string; idempotencyKey: string; now?: Date }) {
+export async function recordApprovedRefund(db: Db, actor: Actor, args: { approvalRequestId: string; idempotencyKey: string; now?: Date }, refunder: CardRefunder | null = stripeAdapter()) {
   await authorizeOperation(db, actor, 'refund.record_approved', ['canIssueRefunds'], args)
+  // An approved refund with no typed id is a card refund for Stripe to make, once, keyed by the approval itself.
+  const pending = await db.approvalRequest.findUnique({ where: { id: args.approvalRequestId } })
+  const pay = pending?.action === 'refund.issue' ? (pending.payload as { paymentId: string; amountMinor: string; method: string; reason: string; reference: string }) : null
+  const atStripe = pay && !pay.reference ? await issueAtStripe(db, refunder, { paymentId: pay.paymentId, amountMinor: BigInt(pay.amountMinor), method: pay.method, reason: pay.reason, key: `approval:${args.approvalRequestId}` }) : null
   const { idempotencyKey, now: _now, ...params } = args
   const result = await command(db, { name: 'refund.record_approved', actor, idempotencyKey, params, now: args.now }, async uow => {
     const { consumeApproval } = await import('../lib/approval')
@@ -272,9 +305,16 @@ export async function recordApprovedRefund(db: Db, actor: Actor, args: { approva
     const payload = request.payload as { paymentId: string; amountMinor: string; method: string; reason: string; reference: string }
     await consumeApproval(uow, { requestId: request.id, action: request.action, targetList: request.targetList, targetId: request.targetId, payload })
     await lockRow(uow.tx, 'Payment', payload.paymentId)
-    return { status: 'recorded', ...(await writeRefund(uow, actor, { paymentId: payload.paymentId, amountMinor: BigInt(payload.amountMinor), method: payload.method, reason: payload.reason, reference: payload.reference, approvalId: request.id })) }
+    return { status: 'recorded', ...(await writeRefund(uow, actor, { paymentId: payload.paymentId, amountMinor: BigInt(payload.amountMinor), method: payload.method, reason: payload.reason, reference: atStripe || payload.reference, approvalId: request.id })) }
   })
   return { replay: result.replay, ...result.value }
+}
+
+/** Whether a card refund on this payment would be made at Stripe (so a typed id is not needed). */
+async function cardPaymentAtStripe(db: Db, paymentId: string, refunder: CardRefunder | null) {
+  if (!refunder) return false
+  const p = await db.payment.findUnique({ where: { id: paymentId }, select: { method: true, reference: true } })
+  return p?.method === 'card' && /^pi_[A-Za-z0-9]+$/.test(p.reference ?? '')
 }
 
 registerApplier('refund.issue', async () => ({ deferred: true }), { applyOnApprove: false })

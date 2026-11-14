@@ -48,10 +48,10 @@ export function RefundRequestForm({ invoiceId, paymentId, max }: { invoiceId: st
       fields={[
         { name: 'amount', label: 'Refund ($)', required: true, width: 'sm', defaultValue: (Number(max) / 100).toFixed(2) },
         { name: 'method', label: 'Refunded by', kind: 'select', width: 'md', options: [{ value: 'check', label: 'Check' }, { value: 'processor_refund', label: 'Card refund' }, { value: 'cash', label: 'Cash' }] },
-        { name: 'reference', label: 'Refund or check number', required: true, width: 'md' },
+        { name: 'reference', label: 'Check number (leave empty for a card paid through Stripe: the card is refunded there)', width: 'md' },
         { name: 'reason', label: 'Why', required: true, width: 'lg' },
       ]}
-      shape={(v) => ({ paymentId, amountMinor: centsFromDollars(v.amount), method: v.method, reference: v.reference, reason: v.reason })}
+      shape={(v) => ({ paymentId, amountMinor: centsFromDollars(v.amount), method: v.method, reference: v.reference ?? '', reason: v.reason })}
     />
   );
 }
