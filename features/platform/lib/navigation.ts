@@ -1,6 +1,6 @@
 import {
   Bot, BookOpenCheck, Boxes, CalendarClock, ClipboardCheck, ClipboardList, Contact, CreditCard, FileText, Gauge, HardHat, LucideIcon,
-  Megaphone, PhoneCall, Wallet, Landmark, Calculator, Repeat, Scale, Settings, Smartphone, Tags, Truck, Users, Wrench,
+  Megaphone, PhoneCall, Clock, BadgeDollarSign, Wallet, Landmark, Calculator, Repeat, Scale, Settings, Smartphone, Tags, Truck, Users, Wrench,
 } from 'lucide-react'
 
 export interface PlatformNavItem {
@@ -62,6 +62,11 @@ export const platformNavItems: PlatformNavItem[] = [
   { title: 'Purchase orders', href: '/platform/purchase-orders', color: 'orange', description: 'Orders to suppliers, approval and three-way match.', icon: ClipboardList, group: 'operations', requires: 'canPurchase' },
   { title: 'Receiving', href: '/platform/receiving', color: 'orange', description: 'Orders on their way, received into stock.', icon: Boxes, group: 'operations', requires: 'canReceive' },
   { title: 'Cycle counts', href: '/platform/counts', color: 'orange', description: 'Count a location and post the difference.', icon: ClipboardCheck, group: 'operations', requires: 'canManageInventory' },
+  { title: 'My timesheet', href: '/platform/my-timesheet', color: 'rose', description: 'Your day from the visit record: add what is missing, send it in.', icon: Clock, group: 'team', requires: 'canWorkVisits' },
+  { title: 'My pay', href: '/platform/my-pay', color: 'rose', description: 'Your pay by period: hours, overtime, commission and anything taken back.', icon: BadgeDollarSign, group: 'team', requires: 'canWorkVisits' },
+  { title: 'Timesheets', href: '/platform/timesheets', color: 'rose', description: 'Approve submitted days; add time that was missed.', icon: Clock, group: 'team', requires: 'canApproveTimesheets' },
+  { title: 'Pay plans', href: '/platform/pay-plans', color: 'rose', description: 'Hourly, overtime, commission and spiff terms, versions and who is on which.', icon: BadgeDollarSign, group: 'team', requires: 'canManagePayPlans' },
+  { title: 'Pay periods', href: '/platform/pay-periods', color: 'rose', description: 'Calculate, review, approve and export a pay period.', icon: BadgeDollarSign, group: 'team', requires: 'canRunPayroll' },
   { title: 'Permits', href: '/platform/permits', color: 'orange', description: 'Permits and inspections that gate job completion.', icon: ClipboardCheck, group: 'operations', requires: 'canManagePermits' },
   { title: 'Refrigerant log', href: '/platform/refrigerant', color: 'orange', description: 'EPA 608 log, cylinders and leak rates.', icon: Gauge, group: 'operations', requires: 'canManageRefrigerant' },
   { title: 'Liens', href: '/platform/liens', color: 'orange', description: 'Texas lien dates by month for completed jobs.', icon: Landmark, group: 'operations', requires: 'canManageInvoices' },
@@ -93,6 +98,8 @@ export const SHIPPED_ROUTES = new Set<string>([
   // Phase 5: equipment, warranty, inventory, purchasing, compliance
   '/platform/equipment', '/platform/warranty/registrations', '/platform/warranty/claims', '/platform/home-warranty', '/platform/inventory', '/platform/replenishment',
   '/platform/purchase-orders', '/platform/receiving', '/platform/counts', '/platform/permits', '/platform/refrigerant', '/platform/liens',
+  // Phase 6: labour and pay
+  '/platform/my-timesheet', '/platform/my-pay', '/platform/timesheets', '/platform/pay-plans', '/platform/pay-periods',
 ])
 
 const shipped = platformNavItems.filter(item => SHIPPED_ROUTES.has(item.href))

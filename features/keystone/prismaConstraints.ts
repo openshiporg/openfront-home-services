@@ -32,6 +32,12 @@ export const COMPOUND_UNIQUES: Record<string, string[]> = {
   SupplierItem: ['@@unique([supplierId, supplierSku], map: "SupplierItem_supplier_sku_key")'],
   ItemUomConversion: ['@@unique([itemId, fromUomId, toUomId], map: "ItemUomConversion_item_from_to_key")'],
   MinMaxRule: ['@@unique([locationId, itemId], map: "MinMaxRule_location_item_key")'],
+  // Phase 6: labour and pay
+  Timesheet: ['@@unique([employeeId, workDate], map: "Timesheet_employee_date_key")'],
+  PayPlanVersion: ['@@unique([planId, versionNumber], map: "PayPlanVersion_plan_number_key")'],
+  EarningLine: ['@@unique([payPeriodId, lineKey], map: "EarningLine_period_line_key")'],
+  PayrollExportBatch: ['@@unique([payPeriodId, target], map: "PayrollExportBatch_period_target_key")'],
+  TimeSegment: ['@@unique([timesheetId, sourceKey], map: "TimeSegment_sheet_source_key")'],
 }
 
 export function addDatabaseConstraints(schema: string): string {

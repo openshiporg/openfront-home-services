@@ -83,6 +83,11 @@ model User {
   from_WarrantyRegistration_submittedBy   WarrantyRegistration[]   @relation("WarrantyRegistration_submittedBy")
   from_Receipt_receivedBy                 Receipt[]                @relation("Receipt_receivedBy")
   from_StockMovement_actor                StockMovement[]          @relation("StockMovement_actor")
+  from_CommissionAttribution_createdBy    CommissionAttribution[]  @relation("CommissionAttribution_createdBy")
+  from_PayPlanAssignment_createdBy        PayPlanAssignment[]      @relation("PayPlanAssignment_createdBy")
+  from_PayrollExportBatch_createdBy       PayrollExportBatch[]     @relation("PayrollExportBatch_createdBy")
+  from_TimeSegment_createdBy              TimeSegment[]            @relation("TimeSegment_createdBy")
+  from_Timesheet_approvedBy               Timesheet[]              @relation("Timesheet_approvedBy")
 
   @@index([roleId])
 }
@@ -438,6 +443,9 @@ model ApprovalRequest {
   from_PurchaseOrder_approval                 PurchaseOrder[]         @relation("PurchaseOrder_approval")
   from_Receipt_overReceiptApproval            Receipt[]               @relation("Receipt_overReceiptApproval")
   from_VendorBill_approval                    VendorBill[]            @relation("VendorBill_approval")
+  from_PayPeriod_approval                     PayPeriod[]             @relation("PayPeriod_approval")
+  from_PayPlanVersion_approval                PayPlanVersion[]        @relation("PayPlanVersion_approval")
+  from_TimeSegment_approval                   TimeSegment[]           @relation("TimeSegment_approval")
 
   @@index([action])
   @@index([targetId])
@@ -1026,6 +1034,10 @@ model Employee {
   from_Estimate_presentedBy           Estimate[]              @relation("Estimate_presentedBy")
   from_StockLocation_employee         StockLocation[]         @relation("StockLocation_employee")
   from_RefrigerantLogEntry_technician RefrigerantLogEntry[]   @relation("RefrigerantLogEntry_technician")
+  from_CommissionAttribution_employee CommissionAttribution[] @relation("CommissionAttribution_employee")
+  from_EarningLine_employee           EarningLine[]           @relation("EarningLine_employee")
+  from_PayPlanAssignment_employee     PayPlanAssignment[]     @relation("PayPlanAssignment_employee")
+  from_Timesheet_employee             Timesheet[]             @relation("Timesheet_employee")
 
   @@index([userId])
   @@index([homeBranchId])
@@ -1895,6 +1907,7 @@ model Visit {
   from_DispatchRecommendation_visit DispatchRecommendation[] @relation("DispatchRecommendation_visit")
   from_EquipmentReading_visit       EquipmentReading[]       @relation("EquipmentReading_visit")
   from_Inspection_correctionsVisit  Inspection[]             @relation("Inspection_correctionsVisit")
+  from_TimeSegment_visit            TimeSegment[]            @relation("TimeSegment_visit")
 
   @@index([jobId])
   @@index([windowId])
@@ -1984,6 +1997,7 @@ model WorkLine {
   from_StockMovement_workLine           StockMovement[]           @relation("StockMovement_workLine")
   from_StockReservation_workLine        StockReservation[]        @relation("StockReservation_workLine")
   from_RefrigerantInstallCheck_workLine RefrigerantInstallCheck[] @relation("RefrigerantInstallCheck_workLine")
+  from_CommissionAttribution_workLine   CommissionAttribution[]   @relation("CommissionAttribution_workLine")
 
   @@index([jobId])
   @@index([estimateLineId])
@@ -2701,32 +2715,33 @@ model Dispute {
 }
 
 model FinancingApplication {
-  id                String             @id @default(cuid())
-  ref               String             @unique @default("")
-  customer          Customer?          @relation("FinancingApplication_customer", fields: [customerId], references: [id])
-  customerId        String?            @map("customer")
-  job               Job?               @relation("FinancingApplication_job", fields: [jobId], references: [id])
-  jobId             String?            @map("job")
-  estimateVersion   EstimateVersion?   @relation("FinancingApplication_estimateVersion", fields: [estimateVersionId], references: [id])
-  estimateVersionId String?            @map("estimateVersion")
-  invoice           Invoice?           @relation("FinancingApplication_invoice", fields: [invoiceId], references: [id])
-  invoiceId         String?            @map("invoice")
-  program           FinancingProgram?  @relation("FinancingApplication_program", fields: [programId], references: [id])
-  programId         String?            @map("program")
-  amountMinor       BigInt
-  status            String             @default("started")
-  consentRecordedAt DateTime?
-  partnerReference  String             @default("")
-  offers            Json?
-  selectedOffer     Json?
-  offerExpiresAt    DateTime?
-  declineNote       String             @default("")
-  fundings          FinancingFunding[] @relation("FinancingFunding_application")
-  createdBy         User?              @relation("FinancingApplication_createdBy", fields: [createdById], references: [id])
-  createdById       String?            @map("createdBy")
-  version           Int                @default(0)
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @default(now()) @updatedAt
+  id                                              String                  @id @default(cuid())
+  ref                                             String                  @unique @default("")
+  customer                                        Customer?               @relation("FinancingApplication_customer", fields: [customerId], references: [id])
+  customerId                                      String?                 @map("customer")
+  job                                             Job?                    @relation("FinancingApplication_job", fields: [jobId], references: [id])
+  jobId                                           String?                 @map("job")
+  estimateVersion                                 EstimateVersion?        @relation("FinancingApplication_estimateVersion", fields: [estimateVersionId], references: [id])
+  estimateVersionId                               String?                 @map("estimateVersion")
+  invoice                                         Invoice?                @relation("FinancingApplication_invoice", fields: [invoiceId], references: [id])
+  invoiceId                                       String?                 @map("invoice")
+  program                                         FinancingProgram?       @relation("FinancingApplication_program", fields: [programId], references: [id])
+  programId                                       String?                 @map("program")
+  amountMinor                                     BigInt
+  status                                          String                  @default("started")
+  consentRecordedAt                               DateTime?
+  partnerReference                                String                  @default("")
+  offers                                          Json?
+  selectedOffer                                   Json?
+  offerExpiresAt                                  DateTime?
+  declineNote                                     String                  @default("")
+  fundings                                        FinancingFunding[]      @relation("FinancingFunding_application")
+  createdBy                                       User?                   @relation("FinancingApplication_createdBy", fields: [createdById], references: [id])
+  createdById                                     String?                 @map("createdBy")
+  version                                         Int                     @default(0)
+  createdAt                                       DateTime                @default(now())
+  updatedAt                                       DateTime                @default(now()) @updatedAt
+  from_CommissionAttribution_financingApplication CommissionAttribution[] @relation("CommissionAttribution_financingApplication")
 
   @@index([customerId])
   @@index([jobId])
@@ -3053,6 +3068,7 @@ model Membership {
   from_MembershipBillingAttempt_membership MembershipBillingAttempt[] @relation("MembershipBillingAttempt_membership")
   from_RecurringServiceEvent_membership    RecurringServiceEvent[]    @relation("RecurringServiceEvent_membership")
   from_RenewalNotice_membership            RenewalNotice[]            @relation("RenewalNotice_membership")
+  from_CommissionAttribution_membership    CommissionAttribution[]    @relation("CommissionAttribution_membership")
 
   @@index([customerId])
   @@index([locationId])
@@ -4015,6 +4031,220 @@ model RefrigerantLogEntry {
   @@index([cylinderId])
   @@index([technicianId])
   @@index([credentialId])
+}
+
+model CommissionAttribution {
+  id                     String                @id @default(cuid())
+  workLine               WorkLine?             @relation("CommissionAttribution_workLine", fields: [workLineId], references: [id])
+  workLineId             String?               @map("workLine")
+  membership             Membership?           @relation("CommissionAttribution_membership", fields: [membershipId], references: [id])
+  membershipId           String?               @map("membership")
+  financingApplication   FinancingApplication? @relation("CommissionAttribution_financingApplication", fields: [financingApplicationId], references: [id])
+  financingApplicationId String?               @map("financingApplication")
+  employee               Employee?             @relation("CommissionAttribution_employee", fields: [employeeId], references: [id])
+  employeeId             String?               @map("employee")
+  role                   String
+  sharePct               Decimal               @postgresql.Decimal(12, 6)
+  createdBy              User?                 @relation("CommissionAttribution_createdBy", fields: [createdById], references: [id])
+  createdById            String?               @map("createdBy")
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @default(now()) @updatedAt
+
+  @@index([workLineId])
+  @@index([membershipId])
+  @@index([financingApplicationId])
+  @@index([employeeId])
+  @@index([createdById])
+}
+
+model EarningLine {
+  id                        String          @id @default(cuid())
+  payPeriod                 PayPeriod?      @relation("EarningLine_payPeriod", fields: [payPeriodId], references: [id])
+  payPeriodId               String?         @map("payPeriod")
+  employee                  Employee?       @relation("EarningLine_employee", fields: [employeeId], references: [id])
+  employeeId                String?         @map("employee")
+  workweekStart             DateTime        @postgresql.Date
+  kind                      String
+  hours                     Decimal?        @postgresql.Decimal(18, 4)
+  rateMinor                 BigInt          @default(0)
+  amountMinor               BigInt
+  basisType                 String          @default("")
+  basisId                   String          @default("")
+  basisVersion              Int?            @default(0)
+  payPlanVersion            PayPlanVersion? @relation("EarningLine_payPlanVersion", fields: [payPlanVersionId], references: [id])
+  payPlanVersionId          String?         @map("payPlanVersion")
+  earningCode               String          @default("")
+  regularRateReview         Boolean         @default(false)
+  reverses                  EarningLine?    @relation("EarningLine_reverses", fields: [reversesId], references: [id])
+  reversesId                String?         @map("reverses")
+  lineKey                   String          @default("")
+  note                      String          @default("")
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @default(now()) @updatedAt
+  from_EarningLine_reverses EarningLine[]   @relation("EarningLine_reverses")
+
+  @@unique([payPeriodId, lineKey], map: "EarningLine_period_line_key")
+  @@index([payPeriodId])
+  @@index([employeeId])
+  @@index([basisId])
+  @@index([payPlanVersionId])
+  @@index([reversesId])
+  @@index([lineKey])
+}
+
+model PayPeriod {
+  id                         String               @id @default(cuid())
+  startsOn                   DateTime             @unique @postgresql.Date
+  endsOn                     DateTime             @postgresql.Date
+  payDate                    DateTime             @postgresql.Date
+  status                     String               @default("open")
+  approval                   ApprovalRequest?     @relation("PayPeriod_approval", fields: [approvalId], references: [id])
+  approvalId                 String?              @map("approval")
+  inputsHash                 String               @default("")
+  summary                    Json?
+  calculatedAt               DateTime?
+  earningLines               EarningLine[]        @relation("EarningLine_payPeriod")
+  batches                    PayrollExportBatch[] @relation("PayrollExportBatch_payPeriod")
+  version                    Int                  @default(0)
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @default(now()) @updatedAt
+  from_TimeSegment_payPeriod TimeSegment[]        @relation("TimeSegment_payPeriod")
+
+  @@index([approvalId])
+}
+
+model PayPlan {
+  id        String           @id @default(cuid())
+  name      String           @unique @default("")
+  active    Boolean          @default(false)
+  versions  PayPlanVersion[] @relation("PayPlanVersion_plan")
+  version   Int              @default(0)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now()) @updatedAt
+}
+
+model PayPlanAssignment {
+  id            String          @id @default(cuid())
+  employee      Employee?       @relation("PayPlanAssignment_employee", fields: [employeeId], references: [id])
+  employeeId    String?         @map("employee")
+  planVersion   PayPlanVersion? @relation("PayPlanAssignment_planVersion", fields: [planVersionId], references: [id])
+  planVersionId String?         @map("planVersion")
+  from          DateTime        @postgresql.Date
+  to            DateTime?       @postgresql.Date
+  createdBy     User?           @relation("PayPlanAssignment_createdBy", fields: [createdById], references: [id])
+  createdById   String?         @map("createdBy")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @default(now()) @updatedAt
+
+  @@index([employeeId])
+  @@index([planVersionId])
+  @@index([createdById])
+}
+
+model PayPlanVersion {
+  id                                 String              @id @default(cuid())
+  plan                               PayPlan?            @relation("PayPlanVersion_plan", fields: [planId], references: [id])
+  planId                             String?             @map("plan")
+  versionNumber                      Int
+  hourlyRates                        Json?
+  overtime                           Json?
+  commission                         Json?
+  spiffs                             Json?
+  clawbacks                          Json?
+  laterEngine                        Json?
+  status                             String              @default("draft")
+  contentHash                        String              @default("")
+  approval                           ApprovalRequest?    @relation("PayPlanVersion_approval", fields: [approvalId], references: [id])
+  approvalId                         String?             @map("approval")
+  activatedAt                        DateTime?
+  version                            Int                 @default(0)
+  createdAt                          DateTime            @default(now())
+  updatedAt                          DateTime            @default(now()) @updatedAt
+  from_EarningLine_payPlanVersion    EarningLine[]       @relation("EarningLine_payPlanVersion")
+  from_PayPlanAssignment_planVersion PayPlanAssignment[] @relation("PayPlanAssignment_planVersion")
+
+  @@unique([planId, versionNumber], map: "PayPlanVersion_plan_number_key")
+  @@index([planId])
+  @@index([approvalId])
+}
+
+model PayrollExportBatch {
+  id          String     @id @default(cuid())
+  ref         String     @unique @default("")
+  payPeriod   PayPeriod? @relation("PayrollExportBatch_payPeriod", fields: [payPeriodId], references: [id])
+  payPeriodId String?    @map("payPeriod")
+  target      String
+  status      String     @default("ready")
+  lineCount   Int?       @default(0)
+  totalMinor  BigInt     @default(0)
+  sha256      String     @default("")
+  createdBy   User?      @relation("PayrollExportBatch_createdBy", fields: [createdById], references: [id])
+  createdById String?    @map("createdBy")
+  version     Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @default(now()) @updatedAt
+
+  @@unique([payPeriodId, target], map: "PayrollExportBatch_period_target_key")
+  @@index([payPeriodId])
+  @@index([createdById])
+}
+
+model TimeSegment {
+  id                       String           @id @default(cuid())
+  timesheet                Timesheet?       @relation("TimeSegment_timesheet", fields: [timesheetId], references: [id])
+  timesheetId              String?          @map("timesheet")
+  kind                     String
+  startsAt                 DateTime
+  endsAt                   DateTime
+  hours                    Decimal?         @postgresql.Decimal(18, 4)
+  visit                    Visit?           @relation("TimeSegment_visit", fields: [visitId], references: [id])
+  visitId                  String?          @map("visit")
+  source                   String
+  sourceKey                String           @default("")
+  adjusts                  TimeSegment?     @relation("TimeSegment_adjusts", fields: [adjustsId], references: [id])
+  adjustsId                String?          @map("adjusts")
+  approval                 ApprovalRequest? @relation("TimeSegment_approval", fields: [approvalId], references: [id])
+  approvalId               String?          @map("approval")
+  payPeriod                PayPeriod?       @relation("TimeSegment_payPeriod", fields: [payPeriodId], references: [id])
+  payPeriodId              String?          @map("payPeriod")
+  note                     String           @default("")
+  createdBy                User?            @relation("TimeSegment_createdBy", fields: [createdById], references: [id])
+  createdById              String?          @map("createdBy")
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @default(now()) @updatedAt
+  from_TimeSegment_adjusts TimeSegment[]    @relation("TimeSegment_adjusts")
+
+  @@unique([timesheetId, sourceKey], map: "TimeSegment_sheet_source_key")
+  @@index([timesheetId])
+  @@index([visitId])
+  @@index([sourceKey])
+  @@index([adjustsId])
+  @@index([approvalId])
+  @@index([payPeriodId])
+  @@index([createdById])
+}
+
+model Timesheet {
+  id            String        @id @default(cuid())
+  employee      Employee?     @relation("Timesheet_employee", fields: [employeeId], references: [id])
+  employeeId    String?       @map("employee")
+  workDate      DateTime      @postgresql.Date
+  workweekStart DateTime      @postgresql.Date
+  status        String        @default("open")
+  submittedAt   DateTime?
+  approvedBy    User?         @relation("Timesheet_approvedBy", fields: [approvedById], references: [id])
+  approvedById  String?       @map("approvedBy")
+  approvedAt    DateTime?
+  rejectReason  String        @default("")
+  totalHours    Decimal?      @postgresql.Decimal(18, 4)
+  segments      TimeSegment[] @relation("TimeSegment_timesheet")
+  version       Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @default(now()) @updatedAt
+
+  @@unique([employeeId, workDate], map: "Timesheet_employee_date_key")
+  @@index([employeeId])
+  @@index([approvedById])
 }
 
 enum UserKindType {

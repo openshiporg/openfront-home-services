@@ -12,6 +12,7 @@ import { phase2Resolvers, phase2TypeDefs } from './phase2'
 import { phase3Resolvers, phase3TypeDefs } from './phase3'
 import { phase4Resolvers, phase4TypeDefs } from './phase4'
 import { phase5Resolvers, phase5TypeDefs } from './phase5'
+import { phase6Resolvers, phase6TypeDefs } from './phase6'
 import '../services/invoices'
 import '../services/payments'
 import '../services/financing'
@@ -63,5 +64,5 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       },
     },
   })
-  return mergeSchemas({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, phase3TypeDefs, phase4TypeDefs, phase5TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, phase3Resolvers, phase4Resolvers, phase5Resolvers, agentBindingResolvers] })
+  return mergeSchemas({ schemas: [core], typeDefs: [phase1TypeDefs, phase2TypeDefs, phase3TypeDefs, phase4TypeDefs, phase5TypeDefs, phase6TypeDefs, agentBindingTypeDefs], resolvers: [phase1Resolvers, phase2Resolvers, phase3Resolvers, phase4Resolvers, phase5Resolvers, phase6Resolvers, agentBindingResolvers] })
 }

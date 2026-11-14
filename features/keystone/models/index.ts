@@ -17,6 +17,7 @@ import * as memberships from './memberships'
 import * as equipment from './equipment'
 import * as inventory from './inventory'
 import * as compliance from './compliance'
+import * as labour from './labour'
 
 const listsOf = (module: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(module).filter(([name, value]) => /^[A-Z]/.test(name) && typeof value === 'object' && value !== null && 'fields' in (value as object)))
@@ -41,6 +42,7 @@ export const models = {
   ...listsOf(equipment),
   ...listsOf(inventory),
   ...listsOf(compliance),
+  ...listsOf(labour),
 } as Record<string, any>
 
 export default models

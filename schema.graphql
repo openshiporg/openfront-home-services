@@ -16485,6 +16485,913 @@ input CredentialRelateToOneForCreateInput {
   connect: CredentialWhereUniqueInput
 }
 
+type CommissionAttribution {
+  id: ID!
+  workLine: WorkLine
+  membership: Membership
+  financingApplication: FinancingApplication
+  employee: Employee
+  role: String
+  sharePct: Decimal
+  createdBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CommissionAttributionWhereUniqueInput {
+  id: ID
+}
+
+input CommissionAttributionWhereInput {
+  AND: [CommissionAttributionWhereInput!]
+  OR: [CommissionAttributionWhereInput!]
+  NOT: [CommissionAttributionWhereInput!]
+  id: IDFilter
+  workLine: WorkLineWhereInput
+  membership: MembershipWhereInput
+  financingApplication: FinancingApplicationWhereInput
+  employee: EmployeeWhereInput
+  role: StringFilter
+  sharePct: DecimalFilter
+  createdBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input CommissionAttributionOrderByInput {
+  id: OrderDirection
+  role: OrderDirection
+  sharePct: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input CommissionAttributionUpdateInput {
+  workLine: WorkLineRelateToOneForUpdateInput
+  membership: MembershipRelateToOneForUpdateInput
+  financingApplication: FinancingApplicationRelateToOneForUpdateInput
+  employee: EmployeeRelateToOneForUpdateInput
+  role: String
+  sharePct: Decimal
+  createdBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input CommissionAttributionUpdateArgs {
+  where: CommissionAttributionWhereUniqueInput!
+  data: CommissionAttributionUpdateInput!
+}
+
+input CommissionAttributionCreateInput {
+  workLine: WorkLineRelateToOneForCreateInput
+  membership: MembershipRelateToOneForCreateInput
+  financingApplication: FinancingApplicationRelateToOneForCreateInput
+  employee: EmployeeRelateToOneForCreateInput
+  role: String
+  sharePct: Decimal
+  createdBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type EarningLine {
+  id: ID!
+  payPeriod: PayPeriod
+  employee: Employee
+  workweekStart: CalendarDay
+  kind: String
+  hours: Decimal
+  rateMinor: BigInt
+  amountMinor: BigInt
+  basisType: String
+  basisId: String
+  basisVersion: Int
+  payPlanVersion: PayPlanVersion
+  earningCode: String
+  regularRateReview: Boolean
+  reverses: EarningLine
+  lineKey: String
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EarningLineWhereUniqueInput {
+  id: ID
+}
+
+input EarningLineWhereInput {
+  AND: [EarningLineWhereInput!]
+  OR: [EarningLineWhereInput!]
+  NOT: [EarningLineWhereInput!]
+  id: IDFilter
+  payPeriod: PayPeriodWhereInput
+  employee: EmployeeWhereInput
+  workweekStart: CalendarDayFilter
+  kind: StringFilter
+  hours: DecimalNullableFilter
+  rateMinor: BigIntFilter
+  amountMinor: BigIntFilter
+  basisType: StringFilter
+  basisId: StringFilter
+  basisVersion: IntNullableFilter
+  payPlanVersion: PayPlanVersionWhereInput
+  earningCode: StringFilter
+  regularRateReview: BooleanFilter
+  reverses: EarningLineWhereInput
+  lineKey: StringFilter
+  note: StringFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EarningLineOrderByInput {
+  id: OrderDirection
+  workweekStart: OrderDirection
+  kind: OrderDirection
+  hours: OrderDirection
+  rateMinor: OrderDirection
+  amountMinor: OrderDirection
+  basisType: OrderDirection
+  basisId: OrderDirection
+  basisVersion: OrderDirection
+  earningCode: OrderDirection
+  regularRateReview: OrderDirection
+  lineKey: OrderDirection
+  note: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input EarningLineUpdateInput {
+  payPeriod: PayPeriodRelateToOneForUpdateInput
+  employee: EmployeeRelateToOneForUpdateInput
+  workweekStart: CalendarDay
+  kind: String
+  hours: Decimal
+  rateMinor: BigInt
+  amountMinor: BigInt
+  basisType: String
+  basisId: String
+  basisVersion: Int
+  payPlanVersion: PayPlanVersionRelateToOneForUpdateInput
+  earningCode: String
+  regularRateReview: Boolean
+  reverses: EarningLineRelateToOneForUpdateInput
+  lineKey: String
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPeriodRelateToOneForUpdateInput {
+  create: PayPeriodCreateInput
+  connect: PayPeriodWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PayPlanVersionRelateToOneForUpdateInput {
+  create: PayPlanVersionCreateInput
+  connect: PayPlanVersionWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EarningLineRelateToOneForUpdateInput {
+  create: EarningLineCreateInput
+  connect: EarningLineWhereUniqueInput
+  disconnect: Boolean
+}
+
+input EarningLineUpdateArgs {
+  where: EarningLineWhereUniqueInput!
+  data: EarningLineUpdateInput!
+}
+
+input EarningLineCreateInput {
+  payPeriod: PayPeriodRelateToOneForCreateInput
+  employee: EmployeeRelateToOneForCreateInput
+  workweekStart: CalendarDay
+  kind: String
+  hours: Decimal
+  rateMinor: BigInt
+  amountMinor: BigInt
+  basisType: String
+  basisId: String
+  basisVersion: Int
+  payPlanVersion: PayPlanVersionRelateToOneForCreateInput
+  earningCode: String
+  regularRateReview: Boolean
+  reverses: EarningLineRelateToOneForCreateInput
+  lineKey: String
+  note: String
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPeriodRelateToOneForCreateInput {
+  create: PayPeriodCreateInput
+  connect: PayPeriodWhereUniqueInput
+}
+
+input PayPlanVersionRelateToOneForCreateInput {
+  create: PayPlanVersionCreateInput
+  connect: PayPlanVersionWhereUniqueInput
+}
+
+input EarningLineRelateToOneForCreateInput {
+  create: EarningLineCreateInput
+  connect: EarningLineWhereUniqueInput
+}
+
+type PayPeriod {
+  id: ID!
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  payDate: CalendarDay
+  status: String
+  approval: ApprovalRequest
+  inputsHash: String
+  summary: JSON
+  calculatedAt: DateTime
+  earningLines(where: EarningLineWhereInput! = {}, orderBy: [EarningLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EarningLineWhereUniqueInput): [EarningLine!]
+  earningLinesCount(where: EarningLineWhereInput! = {}): Int
+  batches(where: PayrollExportBatchWhereInput! = {}, orderBy: [PayrollExportBatchOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PayrollExportBatchWhereUniqueInput): [PayrollExportBatch!]
+  batchesCount(where: PayrollExportBatchWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPeriodWhereUniqueInput {
+  id: ID
+  startsOn: CalendarDay
+}
+
+input PayPeriodWhereInput {
+  AND: [PayPeriodWhereInput!]
+  OR: [PayPeriodWhereInput!]
+  NOT: [PayPeriodWhereInput!]
+  id: IDFilter
+  startsOn: CalendarDayFilter
+  endsOn: CalendarDayFilter
+  payDate: CalendarDayFilter
+  status: StringFilter
+  approval: ApprovalRequestWhereInput
+  inputsHash: StringFilter
+  calculatedAt: DateTimeNullableFilter
+  earningLines: EarningLineManyRelationFilter
+  batches: PayrollExportBatchManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input EarningLineManyRelationFilter {
+  every: EarningLineWhereInput
+  some: EarningLineWhereInput
+  none: EarningLineWhereInput
+}
+
+input PayrollExportBatchManyRelationFilter {
+  every: PayrollExportBatchWhereInput
+  some: PayrollExportBatchWhereInput
+  none: PayrollExportBatchWhereInput
+}
+
+input PayPeriodOrderByInput {
+  id: OrderDirection
+  startsOn: OrderDirection
+  endsOn: OrderDirection
+  payDate: OrderDirection
+  status: OrderDirection
+  inputsHash: OrderDirection
+  calculatedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PayPeriodUpdateInput {
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  payDate: CalendarDay
+  status: String
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  inputsHash: String
+  summary: JSON
+  calculatedAt: DateTime
+  earningLines: EarningLineRelateToManyForUpdateInput
+  batches: PayrollExportBatchRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EarningLineRelateToManyForUpdateInput {
+  disconnect: [EarningLineWhereUniqueInput!]
+  set: [EarningLineWhereUniqueInput!]
+  create: [EarningLineCreateInput!]
+  connect: [EarningLineWhereUniqueInput!]
+}
+
+input PayrollExportBatchRelateToManyForUpdateInput {
+  disconnect: [PayrollExportBatchWhereUniqueInput!]
+  set: [PayrollExportBatchWhereUniqueInput!]
+  create: [PayrollExportBatchCreateInput!]
+  connect: [PayrollExportBatchWhereUniqueInput!]
+}
+
+input PayPeriodUpdateArgs {
+  where: PayPeriodWhereUniqueInput!
+  data: PayPeriodUpdateInput!
+}
+
+input PayPeriodCreateInput {
+  startsOn: CalendarDay
+  endsOn: CalendarDay
+  payDate: CalendarDay
+  status: String
+  approval: ApprovalRequestRelateToOneForCreateInput
+  inputsHash: String
+  summary: JSON
+  calculatedAt: DateTime
+  earningLines: EarningLineRelateToManyForCreateInput
+  batches: PayrollExportBatchRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input EarningLineRelateToManyForCreateInput {
+  create: [EarningLineCreateInput!]
+  connect: [EarningLineWhereUniqueInput!]
+}
+
+input PayrollExportBatchRelateToManyForCreateInput {
+  create: [PayrollExportBatchCreateInput!]
+  connect: [PayrollExportBatchWhereUniqueInput!]
+}
+
+type PayPlan {
+  id: ID!
+  name: String
+  active: Boolean
+  versions(where: PayPlanVersionWhereInput! = {}, orderBy: [PayPlanVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PayPlanVersionWhereUniqueInput): [PayPlanVersion!]
+  versionsCount(where: PayPlanVersionWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPlanWhereUniqueInput {
+  id: ID
+  name: String
+}
+
+input PayPlanWhereInput {
+  AND: [PayPlanWhereInput!]
+  OR: [PayPlanWhereInput!]
+  NOT: [PayPlanWhereInput!]
+  id: IDFilter
+  name: StringFilter
+  active: BooleanFilter
+  versions: PayPlanVersionManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PayPlanVersionManyRelationFilter {
+  every: PayPlanVersionWhereInput
+  some: PayPlanVersionWhereInput
+  none: PayPlanVersionWhereInput
+}
+
+input PayPlanOrderByInput {
+  id: OrderDirection
+  name: OrderDirection
+  active: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PayPlanUpdateInput {
+  name: String
+  active: Boolean
+  versions: PayPlanVersionRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPlanVersionRelateToManyForUpdateInput {
+  disconnect: [PayPlanVersionWhereUniqueInput!]
+  set: [PayPlanVersionWhereUniqueInput!]
+  create: [PayPlanVersionCreateInput!]
+  connect: [PayPlanVersionWhereUniqueInput!]
+}
+
+input PayPlanUpdateArgs {
+  where: PayPlanWhereUniqueInput!
+  data: PayPlanUpdateInput!
+}
+
+input PayPlanCreateInput {
+  name: String
+  active: Boolean
+  versions: PayPlanVersionRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPlanVersionRelateToManyForCreateInput {
+  create: [PayPlanVersionCreateInput!]
+  connect: [PayPlanVersionWhereUniqueInput!]
+}
+
+type PayPlanAssignment {
+  id: ID!
+  employee: Employee
+  planVersion: PayPlanVersion
+  from: CalendarDay
+  to: CalendarDay
+  createdBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPlanAssignmentWhereUniqueInput {
+  id: ID
+}
+
+input PayPlanAssignmentWhereInput {
+  AND: [PayPlanAssignmentWhereInput!]
+  OR: [PayPlanAssignmentWhereInput!]
+  NOT: [PayPlanAssignmentWhereInput!]
+  id: IDFilter
+  employee: EmployeeWhereInput
+  planVersion: PayPlanVersionWhereInput
+  from: CalendarDayFilter
+  to: CalendarDayNullableFilter
+  createdBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PayPlanAssignmentOrderByInput {
+  id: OrderDirection
+  from: OrderDirection
+  to: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PayPlanAssignmentUpdateInput {
+  employee: EmployeeRelateToOneForUpdateInput
+  planVersion: PayPlanVersionRelateToOneForUpdateInput
+  from: CalendarDay
+  to: CalendarDay
+  createdBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPlanAssignmentUpdateArgs {
+  where: PayPlanAssignmentWhereUniqueInput!
+  data: PayPlanAssignmentUpdateInput!
+}
+
+input PayPlanAssignmentCreateInput {
+  employee: EmployeeRelateToOneForCreateInput
+  planVersion: PayPlanVersionRelateToOneForCreateInput
+  from: CalendarDay
+  to: CalendarDay
+  createdBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type PayPlanVersion {
+  id: ID!
+  plan: PayPlan
+  versionNumber: Int
+  hourlyRates: JSON
+  overtime: JSON
+  commission: JSON
+  spiffs: JSON
+  clawbacks: JSON
+  laterEngine: JSON
+  status: String
+  contentHash: String
+  approval: ApprovalRequest
+  activatedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPlanVersionWhereUniqueInput {
+  id: ID
+}
+
+input PayPlanVersionWhereInput {
+  AND: [PayPlanVersionWhereInput!]
+  OR: [PayPlanVersionWhereInput!]
+  NOT: [PayPlanVersionWhereInput!]
+  id: IDFilter
+  plan: PayPlanWhereInput
+  versionNumber: IntFilter
+  status: StringFilter
+  contentHash: StringFilter
+  approval: ApprovalRequestWhereInput
+  activatedAt: DateTimeNullableFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PayPlanVersionOrderByInput {
+  id: OrderDirection
+  versionNumber: OrderDirection
+  status: OrderDirection
+  contentHash: OrderDirection
+  activatedAt: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PayPlanVersionUpdateInput {
+  plan: PayPlanRelateToOneForUpdateInput
+  versionNumber: Int
+  hourlyRates: JSON
+  overtime: JSON
+  commission: JSON
+  spiffs: JSON
+  clawbacks: JSON
+  laterEngine: JSON
+  status: String
+  contentHash: String
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  activatedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPlanRelateToOneForUpdateInput {
+  create: PayPlanCreateInput
+  connect: PayPlanWhereUniqueInput
+  disconnect: Boolean
+}
+
+input PayPlanVersionUpdateArgs {
+  where: PayPlanVersionWhereUniqueInput!
+  data: PayPlanVersionUpdateInput!
+}
+
+input PayPlanVersionCreateInput {
+  plan: PayPlanRelateToOneForCreateInput
+  versionNumber: Int
+  hourlyRates: JSON
+  overtime: JSON
+  commission: JSON
+  spiffs: JSON
+  clawbacks: JSON
+  laterEngine: JSON
+  status: String
+  contentHash: String
+  approval: ApprovalRequestRelateToOneForCreateInput
+  activatedAt: DateTime
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayPlanRelateToOneForCreateInput {
+  create: PayPlanCreateInput
+  connect: PayPlanWhereUniqueInput
+}
+
+type PayrollExportBatch {
+  id: ID!
+  ref: String
+  payPeriod: PayPeriod
+  target: String
+  status: String
+  lineCount: Int
+  totalMinor: BigInt
+  sha256: String
+  createdBy: User
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayrollExportBatchWhereUniqueInput {
+  id: ID
+  ref: String
+}
+
+input PayrollExportBatchWhereInput {
+  AND: [PayrollExportBatchWhereInput!]
+  OR: [PayrollExportBatchWhereInput!]
+  NOT: [PayrollExportBatchWhereInput!]
+  id: IDFilter
+  ref: StringFilter
+  payPeriod: PayPeriodWhereInput
+  target: StringFilter
+  status: StringFilter
+  lineCount: IntNullableFilter
+  totalMinor: BigIntFilter
+  sha256: StringFilter
+  createdBy: UserWhereInput
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PayrollExportBatchOrderByInput {
+  id: OrderDirection
+  ref: OrderDirection
+  target: OrderDirection
+  status: OrderDirection
+  lineCount: OrderDirection
+  totalMinor: OrderDirection
+  sha256: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input PayrollExportBatchUpdateInput {
+  ref: String
+  payPeriod: PayPeriodRelateToOneForUpdateInput
+  target: String
+  status: String
+  lineCount: Int
+  totalMinor: BigInt
+  sha256: String
+  createdBy: UserRelateToOneForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PayrollExportBatchUpdateArgs {
+  where: PayrollExportBatchWhereUniqueInput!
+  data: PayrollExportBatchUpdateInput!
+}
+
+input PayrollExportBatchCreateInput {
+  ref: String
+  payPeriod: PayPeriodRelateToOneForCreateInput
+  target: String
+  status: String
+  lineCount: Int
+  totalMinor: BigInt
+  sha256: String
+  createdBy: UserRelateToOneForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+type TimeSegment {
+  id: ID!
+  timesheet: Timesheet
+  kind: String
+  startsAt: DateTime
+  endsAt: DateTime
+  hours: Decimal
+  visit: Visit
+  source: String
+  sourceKey: String
+  adjusts: TimeSegment
+  approval: ApprovalRequest
+  payPeriod: PayPeriod
+  note: String
+  createdBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TimeSegmentWhereUniqueInput {
+  id: ID
+}
+
+input TimeSegmentWhereInput {
+  AND: [TimeSegmentWhereInput!]
+  OR: [TimeSegmentWhereInput!]
+  NOT: [TimeSegmentWhereInput!]
+  id: IDFilter
+  timesheet: TimesheetWhereInput
+  kind: StringFilter
+  startsAt: DateTimeFilter
+  endsAt: DateTimeFilter
+  hours: DecimalNullableFilter
+  visit: VisitWhereInput
+  source: StringFilter
+  sourceKey: StringFilter
+  adjusts: TimeSegmentWhereInput
+  approval: ApprovalRequestWhereInput
+  payPeriod: PayPeriodWhereInput
+  note: StringFilter
+  createdBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input TimeSegmentOrderByInput {
+  id: OrderDirection
+  kind: OrderDirection
+  startsAt: OrderDirection
+  endsAt: OrderDirection
+  hours: OrderDirection
+  source: OrderDirection
+  sourceKey: OrderDirection
+  note: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TimeSegmentUpdateInput {
+  timesheet: TimesheetRelateToOneForUpdateInput
+  kind: String
+  startsAt: DateTime
+  endsAt: DateTime
+  hours: Decimal
+  visit: VisitRelateToOneForUpdateInput
+  source: String
+  sourceKey: String
+  adjusts: TimeSegmentRelateToOneForUpdateInput
+  approval: ApprovalRequestRelateToOneForUpdateInput
+  payPeriod: PayPeriodRelateToOneForUpdateInput
+  note: String
+  createdBy: UserRelateToOneForUpdateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TimesheetRelateToOneForUpdateInput {
+  create: TimesheetCreateInput
+  connect: TimesheetWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TimeSegmentRelateToOneForUpdateInput {
+  create: TimeSegmentCreateInput
+  connect: TimeSegmentWhereUniqueInput
+  disconnect: Boolean
+}
+
+input TimeSegmentUpdateArgs {
+  where: TimeSegmentWhereUniqueInput!
+  data: TimeSegmentUpdateInput!
+}
+
+input TimeSegmentCreateInput {
+  timesheet: TimesheetRelateToOneForCreateInput
+  kind: String
+  startsAt: DateTime
+  endsAt: DateTime
+  hours: Decimal
+  visit: VisitRelateToOneForCreateInput
+  source: String
+  sourceKey: String
+  adjusts: TimeSegmentRelateToOneForCreateInput
+  approval: ApprovalRequestRelateToOneForCreateInput
+  payPeriod: PayPeriodRelateToOneForCreateInput
+  note: String
+  createdBy: UserRelateToOneForCreateInput
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TimesheetRelateToOneForCreateInput {
+  create: TimesheetCreateInput
+  connect: TimesheetWhereUniqueInput
+}
+
+input TimeSegmentRelateToOneForCreateInput {
+  create: TimeSegmentCreateInput
+  connect: TimeSegmentWhereUniqueInput
+}
+
+type Timesheet {
+  id: ID!
+  employee: Employee
+  workDate: CalendarDay
+  workweekStart: CalendarDay
+  status: String
+  submittedAt: DateTime
+  approvedBy: User
+  approvedAt: DateTime
+  rejectReason: String
+  totalHours: Decimal
+  segments(where: TimeSegmentWhereInput! = {}, orderBy: [TimeSegmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TimeSegmentWhereUniqueInput): [TimeSegment!]
+  segmentsCount(where: TimeSegmentWhereInput! = {}): Int
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TimesheetWhereUniqueInput {
+  id: ID
+}
+
+input TimesheetWhereInput {
+  AND: [TimesheetWhereInput!]
+  OR: [TimesheetWhereInput!]
+  NOT: [TimesheetWhereInput!]
+  id: IDFilter
+  employee: EmployeeWhereInput
+  workDate: CalendarDayFilter
+  workweekStart: CalendarDayFilter
+  status: StringFilter
+  submittedAt: DateTimeNullableFilter
+  approvedBy: UserWhereInput
+  approvedAt: DateTimeNullableFilter
+  rejectReason: StringFilter
+  totalHours: DecimalNullableFilter
+  segments: TimeSegmentManyRelationFilter
+  version: IntFilter
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input TimeSegmentManyRelationFilter {
+  every: TimeSegmentWhereInput
+  some: TimeSegmentWhereInput
+  none: TimeSegmentWhereInput
+}
+
+input TimesheetOrderByInput {
+  id: OrderDirection
+  workDate: OrderDirection
+  workweekStart: OrderDirection
+  status: OrderDirection
+  submittedAt: OrderDirection
+  approvedAt: OrderDirection
+  rejectReason: OrderDirection
+  totalHours: OrderDirection
+  version: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+input TimesheetUpdateInput {
+  employee: EmployeeRelateToOneForUpdateInput
+  workDate: CalendarDay
+  workweekStart: CalendarDay
+  status: String
+  submittedAt: DateTime
+  approvedBy: UserRelateToOneForUpdateInput
+  approvedAt: DateTime
+  rejectReason: String
+  totalHours: Decimal
+  segments: TimeSegmentRelateToManyForUpdateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TimeSegmentRelateToManyForUpdateInput {
+  disconnect: [TimeSegmentWhereUniqueInput!]
+  set: [TimeSegmentWhereUniqueInput!]
+  create: [TimeSegmentCreateInput!]
+  connect: [TimeSegmentWhereUniqueInput!]
+}
+
+input TimesheetUpdateArgs {
+  where: TimesheetWhereUniqueInput!
+  data: TimesheetUpdateInput!
+}
+
+input TimesheetCreateInput {
+  employee: EmployeeRelateToOneForCreateInput
+  workDate: CalendarDay
+  workweekStart: CalendarDay
+  status: String
+  submittedAt: DateTime
+  approvedBy: UserRelateToOneForCreateInput
+  approvedAt: DateTime
+  rejectReason: String
+  totalHours: Decimal
+  segments: TimeSegmentRelateToManyForCreateInput
+  version: Int
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input TimeSegmentRelateToManyForCreateInput {
+  create: [TimeSegmentCreateInput!]
+  connect: [TimeSegmentWhereUniqueInput!]
+}
+
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
@@ -17421,6 +18328,60 @@ type Mutation {
   updateRefrigerantLogEntries(data: [RefrigerantLogEntryUpdateArgs!]!): [RefrigerantLogEntry]
   deleteRefrigerantLogEntry(where: RefrigerantLogEntryWhereUniqueInput!): RefrigerantLogEntry
   deleteRefrigerantLogEntries(where: [RefrigerantLogEntryWhereUniqueInput!]!): [RefrigerantLogEntry]
+  createCommissionAttribution(data: CommissionAttributionCreateInput!): CommissionAttribution
+  createCommissionAttributions(data: [CommissionAttributionCreateInput!]!): [CommissionAttribution]
+  updateCommissionAttribution(where: CommissionAttributionWhereUniqueInput!, data: CommissionAttributionUpdateInput!): CommissionAttribution
+  updateCommissionAttributions(data: [CommissionAttributionUpdateArgs!]!): [CommissionAttribution]
+  deleteCommissionAttribution(where: CommissionAttributionWhereUniqueInput!): CommissionAttribution
+  deleteCommissionAttributions(where: [CommissionAttributionWhereUniqueInput!]!): [CommissionAttribution]
+  createEarningLine(data: EarningLineCreateInput!): EarningLine
+  createEarningLines(data: [EarningLineCreateInput!]!): [EarningLine]
+  updateEarningLine(where: EarningLineWhereUniqueInput!, data: EarningLineUpdateInput!): EarningLine
+  updateEarningLines(data: [EarningLineUpdateArgs!]!): [EarningLine]
+  deleteEarningLine(where: EarningLineWhereUniqueInput!): EarningLine
+  deleteEarningLines(where: [EarningLineWhereUniqueInput!]!): [EarningLine]
+  createPayPeriod(data: PayPeriodCreateInput!): PayPeriod
+  createPayPeriods(data: [PayPeriodCreateInput!]!): [PayPeriod]
+  updatePayPeriod(where: PayPeriodWhereUniqueInput!, data: PayPeriodUpdateInput!): PayPeriod
+  updatePayPeriods(data: [PayPeriodUpdateArgs!]!): [PayPeriod]
+  deletePayPeriod(where: PayPeriodWhereUniqueInput!): PayPeriod
+  deletePayPeriods(where: [PayPeriodWhereUniqueInput!]!): [PayPeriod]
+  createPayPlan(data: PayPlanCreateInput!): PayPlan
+  createPayPlans(data: [PayPlanCreateInput!]!): [PayPlan]
+  updatePayPlan(where: PayPlanWhereUniqueInput!, data: PayPlanUpdateInput!): PayPlan
+  updatePayPlans(data: [PayPlanUpdateArgs!]!): [PayPlan]
+  deletePayPlan(where: PayPlanWhereUniqueInput!): PayPlan
+  deletePayPlans(where: [PayPlanWhereUniqueInput!]!): [PayPlan]
+  createPayPlanAssignment(data: PayPlanAssignmentCreateInput!): PayPlanAssignment
+  createPayPlanAssignments(data: [PayPlanAssignmentCreateInput!]!): [PayPlanAssignment]
+  updatePayPlanAssignment(where: PayPlanAssignmentWhereUniqueInput!, data: PayPlanAssignmentUpdateInput!): PayPlanAssignment
+  updatePayPlanAssignments(data: [PayPlanAssignmentUpdateArgs!]!): [PayPlanAssignment]
+  deletePayPlanAssignment(where: PayPlanAssignmentWhereUniqueInput!): PayPlanAssignment
+  deletePayPlanAssignments(where: [PayPlanAssignmentWhereUniqueInput!]!): [PayPlanAssignment]
+  createPayPlanVersion(data: PayPlanVersionCreateInput!): PayPlanVersion
+  createPayPlanVersions(data: [PayPlanVersionCreateInput!]!): [PayPlanVersion]
+  updatePayPlanVersion(where: PayPlanVersionWhereUniqueInput!, data: PayPlanVersionUpdateInput!): PayPlanVersion
+  updatePayPlanVersions(data: [PayPlanVersionUpdateArgs!]!): [PayPlanVersion]
+  deletePayPlanVersion(where: PayPlanVersionWhereUniqueInput!): PayPlanVersion
+  deletePayPlanVersions(where: [PayPlanVersionWhereUniqueInput!]!): [PayPlanVersion]
+  createPayrollExportBatch(data: PayrollExportBatchCreateInput!): PayrollExportBatch
+  createPayrollExportBatches(data: [PayrollExportBatchCreateInput!]!): [PayrollExportBatch]
+  updatePayrollExportBatch(where: PayrollExportBatchWhereUniqueInput!, data: PayrollExportBatchUpdateInput!): PayrollExportBatch
+  updatePayrollExportBatches(data: [PayrollExportBatchUpdateArgs!]!): [PayrollExportBatch]
+  deletePayrollExportBatch(where: PayrollExportBatchWhereUniqueInput!): PayrollExportBatch
+  deletePayrollExportBatches(where: [PayrollExportBatchWhereUniqueInput!]!): [PayrollExportBatch]
+  createTimeSegment(data: TimeSegmentCreateInput!): TimeSegment
+  createTimeSegments(data: [TimeSegmentCreateInput!]!): [TimeSegment]
+  updateTimeSegment(where: TimeSegmentWhereUniqueInput!, data: TimeSegmentUpdateInput!): TimeSegment
+  updateTimeSegments(data: [TimeSegmentUpdateArgs!]!): [TimeSegment]
+  deleteTimeSegment(where: TimeSegmentWhereUniqueInput!): TimeSegment
+  deleteTimeSegments(where: [TimeSegmentWhereUniqueInput!]!): [TimeSegment]
+  createTimesheet(data: TimesheetCreateInput!): Timesheet
+  createTimesheets(data: [TimesheetCreateInput!]!): [Timesheet]
+  updateTimesheet(where: TimesheetWhereUniqueInput!, data: TimesheetUpdateInput!): Timesheet
+  updateTimesheets(data: [TimesheetUpdateArgs!]!): [Timesheet]
+  deleteTimesheet(where: TimesheetWhereUniqueInput!): Timesheet
+  deleteTimesheets(where: [TimesheetWhereUniqueInput!]!): [Timesheet]
   endSession: Boolean!
   authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
@@ -18092,6 +19053,33 @@ type Query {
   refrigerantLogEntry(where: RefrigerantLogEntryWhereUniqueInput!): RefrigerantLogEntry
   refrigerantLogEntries(where: RefrigerantLogEntryWhereInput! = {}, orderBy: [RefrigerantLogEntryOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: RefrigerantLogEntryWhereUniqueInput): [RefrigerantLogEntry!]
   refrigerantLogEntriesCount(where: RefrigerantLogEntryWhereInput! = {}): Int
+  commissionAttribution(where: CommissionAttributionWhereUniqueInput!): CommissionAttribution
+  commissionAttributions(where: CommissionAttributionWhereInput! = {}, orderBy: [CommissionAttributionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: CommissionAttributionWhereUniqueInput): [CommissionAttribution!]
+  commissionAttributionsCount(where: CommissionAttributionWhereInput! = {}): Int
+  earningLine(where: EarningLineWhereUniqueInput!): EarningLine
+  earningLines(where: EarningLineWhereInput! = {}, orderBy: [EarningLineOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: EarningLineWhereUniqueInput): [EarningLine!]
+  earningLinesCount(where: EarningLineWhereInput! = {}): Int
+  payPeriod(where: PayPeriodWhereUniqueInput!): PayPeriod
+  payPeriods(where: PayPeriodWhereInput! = {}, orderBy: [PayPeriodOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PayPeriodWhereUniqueInput): [PayPeriod!]
+  payPeriodsCount(where: PayPeriodWhereInput! = {}): Int
+  payPlan(where: PayPlanWhereUniqueInput!): PayPlan
+  payPlans(where: PayPlanWhereInput! = {}, orderBy: [PayPlanOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PayPlanWhereUniqueInput): [PayPlan!]
+  payPlansCount(where: PayPlanWhereInput! = {}): Int
+  payPlanAssignment(where: PayPlanAssignmentWhereUniqueInput!): PayPlanAssignment
+  payPlanAssignments(where: PayPlanAssignmentWhereInput! = {}, orderBy: [PayPlanAssignmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PayPlanAssignmentWhereUniqueInput): [PayPlanAssignment!]
+  payPlanAssignmentsCount(where: PayPlanAssignmentWhereInput! = {}): Int
+  payPlanVersion(where: PayPlanVersionWhereUniqueInput!): PayPlanVersion
+  payPlanVersions(where: PayPlanVersionWhereInput! = {}, orderBy: [PayPlanVersionOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PayPlanVersionWhereUniqueInput): [PayPlanVersion!]
+  payPlanVersionsCount(where: PayPlanVersionWhereInput! = {}): Int
+  payrollExportBatch(where: PayrollExportBatchWhereUniqueInput!): PayrollExportBatch
+  payrollExportBatches(where: PayrollExportBatchWhereInput! = {}, orderBy: [PayrollExportBatchOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PayrollExportBatchWhereUniqueInput): [PayrollExportBatch!]
+  payrollExportBatchesCount(where: PayrollExportBatchWhereInput! = {}): Int
+  timeSegment(where: TimeSegmentWhereUniqueInput!): TimeSegment
+  timeSegments(where: TimeSegmentWhereInput! = {}, orderBy: [TimeSegmentOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TimeSegmentWhereUniqueInput): [TimeSegment!]
+  timeSegmentsCount(where: TimeSegmentWhereInput! = {}): Int
+  timesheet(where: TimesheetWhereUniqueInput!): Timesheet
+  timesheets(where: TimesheetWhereInput! = {}, orderBy: [TimesheetOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: TimesheetWhereUniqueInput): [Timesheet!]
+  timesheetsCount(where: TimesheetWhereInput! = {}): Int
   keystone: KeystoneMeta!
   authenticatedItem: AuthenticatedItem
   validateUserPasswordResetToken(email: String!, token: String!): ValidateUserPasswordResetTokenResult

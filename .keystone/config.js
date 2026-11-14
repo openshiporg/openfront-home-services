@@ -221,9 +221,9 @@ function dec(value) {
     if (!Number.isSafeInteger(value)) throw new Error(`Refusing float ${value}: pass the exact decimal as a string`);
     return new Decimal(value);
   }
-  const text23 = String(value).trim();
-  if (!DECIMAL_TEXT.test(text23)) throw new Error(`Not a decimal number: ${JSON.stringify(text23).slice(0, 40)}`);
-  return new Decimal(text23);
+  const text24 = String(value).trim();
+  if (!DECIMAL_TEXT.test(text24)) throw new Error(`Not a decimal number: ${JSON.stringify(text24).slice(0, 40)}`);
+  return new Decimal(text24);
 }
 function toScale(value, scale, rounding = Decimal.ROUND_HALF_UP) {
   const places = typeof scale === "number" ? scale : Scale[scale];
@@ -283,7 +283,7 @@ var init_canonical = __esm({
     import_node_crypto2 = require("node:crypto");
     init_decimal();
     canonicalJson = (value) => JSON.stringify(canonicalize(value));
-    sha256 = (text23) => (0, import_node_crypto2.createHash)("sha256").update(text23).digest("hex");
+    sha256 = (text24) => (0, import_node_crypto2.createHash)("sha256").update(text24).digest("hex");
     payloadHash = (value) => sha256(canonicalJson(value));
     toJsonValue = (value) => canonicalize(value);
     DEVELOPMENT_SECRET2 = "this secret should only be used in testing";
@@ -513,7 +513,7 @@ module.exports = __toCommonJS(keystone_exports);
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core24 = require("@keystone-6/core");
+var import_core25 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 
 // features/keystone/models/User.ts
@@ -1544,6 +1544,8 @@ var Media = (0, import_core9.list)({
     storageKey: systemText({ required: true }),
     sha256: systemText({ required: true }),
     mimeType: systemText(),
+    /** The file itself, base64, kept in the database. Never readable through the API: /api/warranty-claims/[id]/photo serves it to people who may see the claim. */
+    content: (0, import_fields9.text)({ access: { read: () => false, create: () => false, update: () => false }, isFilterable: false, isOrderable: false, ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } } }),
     capturedAt: (0, import_fields9.timestamp)({ ...readOnly }),
     capturedBy: (0, import_fields9.relationship)({ ref: "User", ...readOnly }),
     visibility: (0, import_fields9.select)({ type: "string", options: ["internal", "customer"].map((value) => ({ label: value, value })), defaultValue: "internal", validation: { isRequired: true }, ...readOnly }),
@@ -4399,6 +4401,221 @@ var LienTrack = (0, import_core22.list)({
   }
 });
 
+// features/keystone/models/labour.ts
+var labour_exports = {};
+__export(labour_exports, {
+  ATTRIBUTION_ROLES: () => ATTRIBUTION_ROLES,
+  CommissionAttribution: () => CommissionAttribution,
+  EARNING_KINDS: () => EARNING_KINDS,
+  EXPORT_STATUSES: () => EXPORT_STATUSES,
+  EXPORT_TARGETS: () => EXPORT_TARGETS,
+  EarningLine: () => EarningLine,
+  PAID_PERIOD_STATUSES: () => PAID_PERIOD_STATUSES,
+  PAY_PERIOD_STATUSES: () => PAY_PERIOD_STATUSES,
+  PLAN_VERSION_STATUSES: () => PLAN_VERSION_STATUSES2,
+  PayPeriod: () => PayPeriod,
+  PayPlan: () => PayPlan,
+  PayPlanAssignment: () => PayPlanAssignment,
+  PayPlanVersion: () => PayPlanVersion,
+  PayrollExportBatch: () => PayrollExportBatch,
+  SEGMENT_KINDS: () => SEGMENT_KINDS,
+  SEGMENT_SOURCES: () => SEGMENT_SOURCES,
+  TIMESHEET_STATUSES: () => TIMESHEET_STATUSES,
+  TimeSegment: () => TimeSegment,
+  Timesheet: () => Timesheet
+});
+var import_core23 = require("@keystone-6/core");
+var import_fields23 = require("@keystone-6/core/fields");
+init_access();
+var TIMESHEET_STATUSES = ["open", "submitted", "approved", "locked"];
+var SEGMENT_KINDS = ["job", "drive", "shop", "supply_run", "break_unpaid", "break_paid", "on_call_standby", "training", "pto"];
+var SEGMENT_SOURCES = ["status_event", "manual", "adjustment"];
+var PLAN_VERSION_STATUSES2 = ["draft", "pending_approval", "active", "retired"];
+var PAY_PERIOD_STATUSES = ["open", "calculating", "review", "approved", "exported", "closed"];
+var EARNING_KINDS = ["regular", "overtime", "commission", "spiff", "clawback", "adjustment", "pto"];
+var ATTRIBUTION_ROLES = ["sold_by", "performed_by", "lead_generated_by"];
+var EXPORT_TARGETS = ["csv", "gusto", "adp", "paychex"];
+var EXPORT_STATUSES = ["building", "ready", "sent", "acknowledged", "failed"];
+var PAID_PERIOD_STATUSES = ["approved", "exported", "closed"];
+var PAY = ["canReadPay", "canRunPayroll", "canManagePayPlans", "canApprovePayPlans", "canApprovePayPeriods"];
+var TIME = [...PAY, "canApproveTimesheets"];
+var human = ({ session }) => isSignedIn({ session }) && !session?.agent;
+var has5 = (session, names) => names.some((name) => session?.data?.role?.[name] === true);
+var payAccess = (all2, own) => ({
+  operation: {
+    query: (args) => human(args) && (has5(args.session, all2) || !!own && has5(args.session, ["canWorkVisits"])),
+    create: sys,
+    update: sys,
+    delete: sys
+  },
+  filter: {
+    query: (args) => {
+      if (!human(args)) return false;
+      if (has5(args.session, all2)) return true;
+      if (own && has5(args.session, ["canWorkVisits"])) return own(args.session.itemId);
+      return false;
+    }
+  }
+});
+var payRule = (args) => human(args) && has5(args.session, PAY);
+var payOnly = { access: { read: payRule }, isFilterable: payRule, isOrderable: payRule };
+var myTimesheet = (userId) => ({ employee: { user: { id: { equals: userId } } } });
+var Timesheet = (0, import_core23.list)({
+  access: payAccess(TIME, myTimesheet),
+  ui: { labelField: "workDate", listView: { initialColumns: ["employee", "workDate", "status", "totalHours", "approvedBy"] } },
+  fields: {
+    employee: (0, import_fields23.relationship)({ ref: "Employee", ...readOnly }),
+    workDate: (0, import_fields23.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    workweekStart: (0, import_fields23.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    status: lifecycle(TIMESHEET_STATUSES),
+    submittedAt: (0, import_fields23.timestamp)({ ...readOnly }),
+    approvedBy: (0, import_fields23.relationship)({ ref: "User", ...readOnly }),
+    approvedAt: (0, import_fields23.timestamp)({ ...readOnly }),
+    rejectReason: systemText(),
+    totalHours: qty({ ...readOnly }),
+    segments: (0, import_fields23.relationship)({ ref: "TimeSegment.timesheet", many: true, ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var TimeSegment = (0, import_core23.list)({
+  access: payAccess(TIME, (u) => ({ timesheet: myTimesheet(u) })),
+  ui: { labelField: "kind", listView: { initialColumns: ["timesheet", "kind", "startsAt", "endsAt", "hours", "source"] } },
+  fields: {
+    timesheet: (0, import_fields23.relationship)({ ref: "Timesheet.segments", ...readOnly }),
+    kind: fixedChoice(SEGMENT_KINDS),
+    startsAt: (0, import_fields23.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    endsAt: (0, import_fields23.timestamp)({ validation: { isRequired: true }, ...readOnly }),
+    hours: qty({ ...readOnly }),
+    visit: (0, import_fields23.relationship)({ ref: "Visit", ...readOnly }),
+    source: fixedChoice(SEGMENT_SOURCES),
+    sourceKey: systemText({ indexed: true }),
+    adjusts: (0, import_fields23.relationship)({ ref: "TimeSegment", ...readOnly }),
+    approval: (0, import_fields23.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    /** Set when the pay period that paid this time is exported; time with no pay period yet is still owed. */
+    payPeriod: (0, import_fields23.relationship)({ ref: "PayPeriod", ...readOnly }),
+    note: systemText(),
+    createdBy: (0, import_fields23.relationship)({ ref: "User", ...readOnly }),
+    ...trackingFields
+  }
+});
+var PayPlan = (0, import_core23.list)({
+  access: payAccess(PAY),
+  ui: { labelField: "name", listView: { initialColumns: ["name", "active"] } },
+  fields: {
+    name: (0, import_fields23.text)({ isIndexed: "unique", validation: { isRequired: true }, ...readOnly }),
+    active: (0, import_fields23.checkbox)({ defaultValue: false, ...readOnly }),
+    versions: (0, import_fields23.relationship)({ ref: "PayPlanVersion.plan", many: true, ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var planJson = () => (0, import_fields23.json)({ ...readOnly });
+var PayPlanVersion = (0, import_core23.list)({
+  access: payAccess(PAY),
+  ui: { labelField: "versionNumber", listView: { initialColumns: ["plan", "versionNumber", "status", "activatedAt"] } },
+  fields: {
+    plan: (0, import_fields23.relationship)({ ref: "PayPlan.versions", ...readOnly }),
+    versionNumber: (0, import_fields23.integer)({ validation: { isRequired: true }, ...readOnly }),
+    hourlyRates: planJson(),
+    overtime: planJson(),
+    commission: planJson(),
+    spiffs: planJson(),
+    clawbacks: planJson(),
+    laterEngine: planJson(),
+    status: lifecycle(PLAN_VERSION_STATUSES2),
+    contentHash: systemText(),
+    approval: (0, import_fields23.relationship)({ ref: "ApprovalRequest", ...readOnly }),
+    activatedAt: (0, import_fields23.timestamp)({ ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var PayPlanAssignment = (0, import_core23.list)({
+  access: payAccess(PAY),
+  ui: { labelField: "from", listView: { initialColumns: ["employee", "planVersion", "from", "to"] } },
+  fields: {
+    employee: (0, import_fields23.relationship)({ ref: "Employee", ...readOnly }),
+    planVersion: (0, import_fields23.relationship)({ ref: "PayPlanVersion", ...readOnly }),
+    from: (0, import_fields23.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    to: (0, import_fields23.calendarDay)({ ...readOnly }),
+    createdBy: (0, import_fields23.relationship)({ ref: "User", ...readOnly }),
+    ...trackingFields
+  }
+});
+var CommissionAttribution = (0, import_core23.list)({
+  access: payAccess(PAY),
+  ui: { labelField: "role", listView: { initialColumns: ["employee", "role", "sharePct", "workLine", "membership", "financingApplication"] } },
+  fields: {
+    workLine: (0, import_fields23.relationship)({ ref: "WorkLine", ...readOnly }),
+    membership: (0, import_fields23.relationship)({ ref: "Membership", ...readOnly }),
+    financingApplication: (0, import_fields23.relationship)({ ref: "FinancingApplication", ...readOnly }),
+    employee: (0, import_fields23.relationship)({ ref: "Employee", ...readOnly }),
+    role: fixedChoice(ATTRIBUTION_ROLES),
+    sharePct: rate({ required: true, ...readOnly }),
+    createdBy: (0, import_fields23.relationship)({ ref: "User", ...readOnly }),
+    ...trackingFields
+  }
+});
+var PayPeriod = (0, import_core23.list)({
+  access: payAccess(PAY, () => ({ status: { in: [...PAID_PERIOD_STATUSES] } })),
+  ui: { labelField: "startsOn", listView: { initialColumns: ["startsOn", "endsOn", "payDate", "status", "inputsHash"] } },
+  fields: {
+    startsOn: (0, import_fields23.calendarDay)({ validation: { isRequired: true }, isIndexed: "unique", ...readOnly }),
+    endsOn: (0, import_fields23.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    payDate: (0, import_fields23.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    status: lifecycle(PAY_PERIOD_STATUSES),
+    approval: (0, import_fields23.relationship)({ ref: "ApprovalRequest", ...readOnly, ...payOnly }),
+    inputsHash: (0, import_fields23.text)({ ...readOnly, ...payOnly }),
+    summary: (0, import_fields23.json)({ ...readOnly, ...payOnly }),
+    calculatedAt: (0, import_fields23.timestamp)({ ...readOnly, ...payOnly }),
+    earningLines: (0, import_fields23.relationship)({ ref: "EarningLine.payPeriod", many: true, ...readOnly, ...payOnly }),
+    batches: (0, import_fields23.relationship)({ ref: "PayrollExportBatch.payPeriod", many: true, ...readOnly, ...payOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+var myPaidLines = (userId) => ({ employee: { user: { id: { equals: userId } } }, payPeriod: { status: { in: [...PAID_PERIOD_STATUSES] } } });
+var EarningLine = (0, import_core23.list)({
+  access: payAccess(PAY, myPaidLines),
+  ui: { labelField: "kind", listView: { initialColumns: ["payPeriod", "employee", "workweekStart", "kind", "hours", "amountMinor"] } },
+  fields: {
+    payPeriod: (0, import_fields23.relationship)({ ref: "PayPeriod.earningLines", ...readOnly }),
+    employee: (0, import_fields23.relationship)({ ref: "Employee", ...readOnly }),
+    workweekStart: (0, import_fields23.calendarDay)({ validation: { isRequired: true }, ...readOnly }),
+    kind: fixedChoice(EARNING_KINDS),
+    hours: qty({ ...readOnly }),
+    rateMinor: minor({ defaultValue: 0n }),
+    amountMinor: minor({ required: true }),
+    basisType: systemText(),
+    basisId: systemText({ indexed: true }),
+    basisVersion: (0, import_fields23.integer)({ defaultValue: 0, ...readOnly }),
+    payPlanVersion: (0, import_fields23.relationship)({ ref: "PayPlanVersion", ...readOnly }),
+    earningCode: systemText(),
+    regularRateReview: (0, import_fields23.checkbox)({ defaultValue: false, ...readOnly }),
+    reverses: (0, import_fields23.relationship)({ ref: "EarningLine", ...readOnly }),
+    lineKey: systemText({ indexed: true }),
+    note: systemText(),
+    ...trackingFields
+  }
+});
+var PayrollExportBatch = (0, import_core23.list)({
+  access: payAccess(PAY),
+  ui: { labelField: "ref", listView: { initialColumns: ["ref", "payPeriod", "target", "status", "lineCount", "totalMinor"] } },
+  fields: {
+    ref: systemText({ indexed: "unique", required: true }),
+    payPeriod: (0, import_fields23.relationship)({ ref: "PayPeriod.batches", ...readOnly }),
+    target: fixedChoice(EXPORT_TARGETS),
+    status: lifecycle(EXPORT_STATUSES, "ready"),
+    lineCount: (0, import_fields23.integer)({ defaultValue: 0, ...readOnly }),
+    totalMinor: minor({ defaultValue: 0n }),
+    sha256: systemText(),
+    createdBy: (0, import_fields23.relationship)({ ref: "User", ...readOnly }),
+    version: versionField(),
+    ...trackingFields
+  }
+});
+
 // features/keystone/models/index.ts
 var listsOf = (module2) => Object.fromEntries(Object.entries(module2).filter(([name, value]) => /^[A-Z]/.test(name) && typeof value === "object" && value !== null && "fields" in value));
 var models = {
@@ -4420,7 +4637,8 @@ var models = {
   ...listsOf(memberships_exports),
   ...listsOf(equipment_exports),
   ...listsOf(inventory_exports),
-  ...listsOf(compliance_exports)
+  ...listsOf(compliance_exports),
+  ...listsOf(labour_exports)
 };
 
 // features/keystone/index.ts
@@ -7703,10 +7921,10 @@ var PAGE_H = 792;
 var MARGIN = 54;
 var W = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
 var WB = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
-function ansi(text23) {
+function ansi(text24) {
   const map = { "\u20AC": 128, "\u201A": 130, "\u201E": 132, "\u2026": 133, "\u2018": 145, "\u2019": 146, "\u201C": 147, "\u201D": 148, "\u2022": 149, "\u2013": 150, "\u2014": 151, "\u2122": 153, "\u2212": 45, "\xB7": 183, "\xA7": 167 };
   let out = "";
-  for (const ch of text23) {
+  for (const ch of text24) {
     const c = ch.codePointAt(0);
     const b = map[ch] ?? (c >= 32 && c <= 255 && !(c >= 127 && c < 160) ? c : 63);
     out += String.fromCharCode(b);
@@ -7714,19 +7932,19 @@ function ansi(text23) {
   return out;
 }
 var esc = (s) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-function textWidth(text23, size, font = "regular") {
-  if (font === "mono") return ansi(text23).length * 600 * size / 1e3;
+function textWidth(text24, size, font = "regular") {
+  if (font === "mono") return ansi(text24).length * 600 * size / 1e3;
   const table = font === "bold" ? WB : W;
   let w = 0;
-  for (const ch of ansi(text23)) {
+  for (const ch of ansi(text24)) {
     const c = ch.charCodeAt(0);
     w += c >= 32 && c <= 126 ? table[c - 32] : 556;
   }
   return w * size / 1e3;
 }
-function wrap(text23, width, size, font = "regular") {
+function wrap(text24, width, size, font = "regular") {
   const lines = [];
-  for (const para of text23.split("\n")) {
+  for (const para of text24.split("\n")) {
     let line = "";
     for (const word of para.split(/\s+/).filter(Boolean)) {
       const next = line ? `${line} ${word}` : word;
@@ -8169,7 +8387,7 @@ async function storeRecordedDocument(uow, actor, spec) {
 var MANAGE = ["canManageMemberships"];
 var SELL2 = ["canSellMemberships", "canManageMemberships"];
 var ymd = (d) => d ? d.toISOString().slice(0, 10) : "";
-var text22 = (v, field, min = 1, max = 400) => {
+var text23 = (v, field, min = 1, max = 400) => {
   const s = String(v ?? "").trim();
   if (s.length < min || s.length > max) throw new DomainError(Codes.INVALID_INPUT, min > 0 ? `${field.replace(/([A-Z])/g, " $1").toLowerCase()} is needed.` : "Too long.", { field });
   return s;
@@ -8229,7 +8447,7 @@ function draftData(input) {
 }
 async function createPlan(db, actor, args) {
   await authorizeOperation(db, actor, "membership.plan_create", MANAGE, args);
-  const name = text22(args.name, "name", 3, 80);
+  const name = text23(args.name, "name", 3, 80);
   const code = String(args.code ?? "").trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9-]{1,39}$/.test(code)) throw new DomainError(Codes.INVALID_INPUT, "The code is lower-case letters, digits and dashes.", { field: "code" });
   const { idempotencyKey, now: _now, ...params } = args;
@@ -8376,7 +8594,6 @@ async function sellMembership(db, actor, args) {
       if (policy.rules.affirmativeConsentRequired && (!c?.confirmed || c.wording?.trim() !== version.consentWording.trim())) {
         throw new DomainError(Codes.GUARD_FAILED, "Automatic renewal needs the customer to agree to the exact wording on the plan, and you to confirm they did.", { reason: "consent_required" });
       }
-      if (!args.paymentMethodRef?.trim()) throw new DomainError(Codes.GUARD_FAILED, "Automatic renewal needs a card on file.", { reason: "payment_method_required" });
       const customer = await tx.customer.findUniqueOrThrow({ where: { id: args.customerId }, select: { displayName: true } });
       const consent = await tx.consentRecord.create({
         data: {
@@ -8427,7 +8644,7 @@ async function updatePaymentMethod(db, actor, args) {
     const m = await lockRow(uow.tx, "Membership", args.membershipId);
     if (["cancelled", "transferred", "expired"].includes(m.status)) throw new DomainError(Codes.GUARD_FAILED, `This membership is ${m.status}.`);
     if (!/^pm_[A-Za-z0-9_]{6,100}$/.test(args.paymentMethodRef.trim())) throw new DomainError(Codes.INVALID_INPUT, "That is not a saved card reference.", { field: "paymentMethodRef" });
-    await uow.tx.membership.update({ where: { id: m.id }, data: { paymentMethodRef: args.paymentMethodRef.trim(), paymentMethodLabel: text22(args.paymentMethodLabel, "paymentMethodLabel", 2, 60) } });
+    await uow.tx.membership.update({ where: { id: m.id }, data: { paymentMethodRef: args.paymentMethodRef.trim(), paymentMethodLabel: text23(args.paymentMethodLabel, "paymentMethodLabel", 2, 60) } });
     auditCreate(uow, actor, "Membership", m.id, "membership.payment_method_set", { label: args.paymentMethodLabel });
     return { membershipId: m.id };
   });
@@ -8493,7 +8710,7 @@ async function bookVisit(db, actor, args) {
 }
 async function releaseVisit(db, actor, args) {
   await authorizeOperation(db, actor, "membership.visit_release", [...SELL2, "canBook"], args);
-  const reason = text22(args.reason, "reason", 3, 200);
+  const reason = text23(args.reason, "reason", 3, 200);
   const { idempotencyKey, now: _now, ...params } = args;
   const result = await command(db, { name: "membership.visit_release", actor, idempotencyKey, params, now: args.now }, async (uow) => {
     const event = await lockRow(uow.tx, "RecurringServiceEvent", args.eventId);
@@ -8587,7 +8804,7 @@ async function closeTermForRefund(uow, actor, a) {
 }
 async function cancelMembership(db, actor, args) {
   await authorizeOperation(db, actor, "membership.cancel", SELL2, args);
-  const reason = text22(args.reason, "reason", 3, 300);
+  const reason = text23(args.reason, "reason", 3, 300);
   const { idempotencyKey, now: _now, ...params } = args;
   const result = await command(db, { name: "membership.cancel", actor, idempotencyKey, params, now: args.now }, (uow) => cancelMembershipInTx(uow, actor, args.membershipId, reason, "staff"));
   return { replay: result.replay, ...result.value };
@@ -10630,16 +10847,21 @@ async function resolvePolicyQuery(_root, args, context) {
 // features/keystone/services/warranty.ts
 var warranty_exports = {};
 __export(warranty_exports, {
+  CLAIM_PHOTO_MAX_BYTES: () => CLAIM_PHOTO_MAX_BYTES,
+  CLAIM_PHOTO_TYPES: () => CLAIM_PHOTO_TYPES,
   advanceHomeWarranty: () => advanceHomeWarranty,
   advanceWarrantyStates: () => advanceWarrantyStates,
   appealClaim: () => appealClaim,
+  attachClaimPhoto: () => attachClaimPhoto,
   claimGaps: () => claimGaps,
   closeClaim: () => closeClaim,
   confirmRegistration: () => confirmRegistration,
   ensureRegistrationFor: () => ensureRegistrationFor,
   markClaimReady: () => markClaimReady,
   markRegistrationSubmitted: () => markRegistrationSubmitted,
+  mayUseClaimPhotos: () => mayUseClaimPhotos,
   openClaim: () => openClaim,
+  ownClaimWhere: () => ownClaimWhere,
   receiveHomeWarrantyDispatch: () => receiveHomeWarrantyDispatch,
   recordClaimDecision: () => recordClaimDecision,
   recordClaimNumber: () => recordClaimNumber,
@@ -11021,9 +11243,9 @@ async function proposeReplenishment(db, actor, args) {
     for (const r of rules2) {
       const onHand = have.get(`${r.locationId}:${r.itemId}`) ?? new import_client2.Prisma.Decimal(0);
       if (!r.min || !r.max || !onHand.lt(r.min)) continue;
-      const list20 = byLocation.get(r.locationId ?? "") ?? [];
-      list20.push({ itemId: r.itemId ?? "", onHand: onHand.toString(), min: r.min.toString(), max: r.max.toString(), need: new import_client2.Prisma.Decimal(r.max).minus(onHand).toString(), reorderFromId: r.reorderFromId, supplierId: r.supplierId });
-      byLocation.set(r.locationId ?? "", list20);
+      const list21 = byLocation.get(r.locationId ?? "") ?? [];
+      list21.push({ itemId: r.itemId ?? "", onHand: onHand.toString(), min: r.min.toString(), max: r.max.toString(), need: new import_client2.Prisma.Decimal(r.max).minus(onHand).toString(), reorderFromId: r.reorderFromId, supplierId: r.supplierId });
+      byLocation.set(r.locationId ?? "", list21);
     }
     let proposed = 0;
     let refreshed = 0;
@@ -11173,6 +11395,7 @@ async function stockSummary(db, locationKind) {
 }
 
 // features/keystone/services/warranty.ts
+var import_node_crypto9 = require("node:crypto");
 var EQUIP = ["canManageEquipment"];
 var CLAIM = ["canSubmitWarrantyClaims"];
 var ymd2 = (d) => d ? d.toISOString().slice(0, 10) : "";
@@ -11568,6 +11791,38 @@ async function registrationList(db, now = /* @__PURE__ */ new Date()) {
   });
   return rows.map((r) => ({ ...r, deadline: ymd2(r.deadline), effectiveStatus: r.status === "due" && ymd2(r.deadline) < today ? "overdue" : r.status, daysLeft: Math.round((Date.parse(`${ymd2(r.deadline)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 864e5) }));
 }
+var CLAIM_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+var CLAIM_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+var ownClaimWhere = (userId) => ({ OR: [{ draftedById: userId }, { job: { visits: { some: { assignments: { some: { employee: { userId } } } } } } }] });
+async function mayUseClaimPhotos(db, actor, claimId) {
+  if (actor.kind !== "user") return false;
+  if (actor.permissions.has("canSubmitWarrantyClaims") || actor.permissions.has("canDispatch") || actor.permissions.has("canManageInvoices")) return true;
+  if (!actor.permissions.has("canManageEquipment")) return false;
+  const own = await db.warrantyClaim.count({ where: { id: claimId, ...ownClaimWhere(actor.userId) } });
+  return own > 0;
+}
+async function attachClaimPhoto(db, actor, args) {
+  if (actor.kind !== "user") throw new DomainError(Codes.NOT_AUTHORIZED, "Photos are attached by a person.");
+  if (!await mayUseClaimPhotos(db, actor, args.claimId)) throw new DomainError(Codes.NOT_AUTHORIZED, "You can attach photos to claims on your own jobs.");
+  if (!CLAIM_PHOTO_TYPES.includes(args.mimeType)) throw new DomainError(Codes.INVALID_INPUT, "A photo is a JPEG, PNG, WebP or HEIC file.", { field: "file" });
+  if (!args.bytes.length) throw new DomainError(Codes.INVALID_INPUT, "That file is empty.", { field: "file" });
+  if (args.bytes.length > CLAIM_PHOTO_MAX_BYTES) throw new DomainError(Codes.INVALID_INPUT, "That photo is over 5 MB. Send a smaller one.", { field: "file" });
+  const sha = (0, import_node_crypto9.createHash)("sha256").update(args.bytes).digest("hex");
+  const idempotencyKey = `claim-photo:${args.claimId}:${sha}`;
+  const result = await command(db, { name: "warranty.claim_photo", actor, idempotencyKey, params: { claimId: args.claimId, sha256: sha, mimeType: args.mimeType }, now: args.now }, async (uow) => {
+    const claim = await uow.tx.warrantyClaim.findUnique({ where: { id: args.claimId }, select: { id: true, status: true } });
+    if (!claim) throw new DomainError(Codes.NOT_FOUND, "That claim does not exist.");
+    if (!["draft", "info_requested"].includes(claim.status)) throw new DomainError(Codes.GUARD_FAILED, `This claim is ${claim.status}; photos are added before it is ready.`);
+    const media = await uow.tx.media.create({
+      data: { subjectType: "WarrantyClaim", subjectId: claim.id, kind: "photo", storageKey: `claims/${claim.id}/${sha.slice(0, 16)}-${args.filename.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 60)}`, sha256: sha, mimeType: args.mimeType, content: args.bytes.toString("base64"), capturedAt: uow.now, capturedById: actor.userId, visibility: "internal" },
+      select: { id: true }
+    });
+    await uow.tx.warrantyClaim.update({ where: { id: claim.id }, data: { evidence: { connect: { id: media.id } } } });
+    auditCreate(uow, actor, "WarrantyClaim", claim.id, "warranty_claim.photo_attached", { mediaId: media.id, sha256: sha, bytes: args.bytes.length });
+    return { mediaId: media.id };
+  });
+  return { replay: result.replay, ...result.value };
+}
 
 // features/keystone/services/maintenance.ts
 async function runMaintenancePass(db, options = {}) {
@@ -11603,7 +11858,7 @@ async function advanceTimedStates(db, options = {}) {
 }
 
 // features/keystone/services/dispatch.ts
-var import_node_crypto9 = require("node:crypto");
+var import_node_crypto10 = require("node:crypto");
 init_actor();
 init_db();
 init_cas();
@@ -12110,7 +12365,7 @@ async function recommendDispatch(db, actor, args) {
   });
   const ranked = rankCandidates(candidates).slice(0, 10);
   const features = { model: DISPATCH_MODEL, features: DISPATCH_FEATURES, date, window: ctx.window?.label ?? null, requirement: req, licensingVersionId: licensing.versionId };
-  const inputsHash = (0, import_node_crypto9.createHash)("sha256").update(canonicalJson({ visitId: ctx.id, visitVersion: ctx.version, candidates })).digest("hex");
+  const inputsHash = (0, import_node_crypto10.createHash)("sha256").update(canonicalJson({ visitId: ctx.id, visitVersion: ctx.version, candidates })).digest("hex");
   const result = await command(db, { name: "dispatch.recommend", actor, idempotencyKey: args.idempotencyKey, params: { visitId: args.visitId }, now: args.now }, async (uow) => {
     const rec = await uow.tx.dispatchRecommendation.create({
       data: { visitId: ctx.id, rankedCandidates: ranked, inputsHash, features, modelRef: DISPATCH_MODEL, generatedById: actorAgentId(actor), requestedById: actorUserId(actor), decision: "proposed" },
@@ -12164,19 +12419,19 @@ init_cas();
 init_errors();
 
 // features/keystone/lib/secretBox.ts
-var import_node_crypto10 = require("node:crypto");
+var import_node_crypto11 = require("node:crypto");
 function key(version = 1) {
   const material = process.env.SECRET_BOX_KEY || process.env.SESSION_SECRET;
   if (!material) {
     if (process.env.NODE_ENV === "production") throw new Error("SECRET_BOX_KEY is not set");
-    return (0, import_node_crypto10.createHash)("sha256").update("openfront-home-services:development-secret-box").digest();
+    return (0, import_node_crypto11.createHash)("sha256").update("openfront-home-services:development-secret-box").digest();
   }
-  return (0, import_node_crypto10.createHash)("sha256").update(`openfront-home-services:secret-box:v${version}:${material}`).digest();
+  return (0, import_node_crypto11.createHash)("sha256").update(`openfront-home-services:secret-box:v${version}:${material}`).digest();
 }
 async function sealSecret(tx, purpose, plaintext, createdById) {
   if (!plaintext || plaintext.length > 4096) throw new Error("Secret must be 1-4096 characters");
-  const iv = (0, import_node_crypto10.randomBytes)(12);
-  const cipher = (0, import_node_crypto10.createCipheriv)("aes-256-gcm", key(1), iv);
+  const iv = (0, import_node_crypto11.randomBytes)(12);
+  const cipher = (0, import_node_crypto11.createCipheriv)("aes-256-gcm", key(1), iv);
   cipher.setAAD(Buffer.from(purpose));
   const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const row = await tx.secretBox.create({
@@ -12188,7 +12443,7 @@ async function sealSecret(tx, purpose, plaintext, createdById) {
 async function openSecret(tx, id, purpose) {
   const row = await tx.secretBox.findUnique({ where: { id } });
   if (!row || row.purpose !== purpose) throw new Error("Secret not found");
-  const decipher = (0, import_node_crypto10.createDecipheriv)("aes-256-gcm", key(row.keyVersion ?? 1), Buffer.from(row.iv, "base64"));
+  const decipher = (0, import_node_crypto11.createDecipheriv)("aes-256-gcm", key(row.keyVersion ?? 1), Buffer.from(row.iv, "base64"));
   decipher.setAAD(Buffer.from(purpose));
   decipher.setAuthTag(Buffer.from(row.authTag, "base64"));
   return Buffer.concat([decipher.update(Buffer.from(row.ciphertext, "base64")), decipher.final()]).toString("utf8");
@@ -12415,14 +12670,14 @@ async function mergeLead(db, actor, args) {
 }
 async function matchJobType(db, actor, args) {
   await authorizeOperation(db, actor, "jobtype.match", ["canBook"], args);
-  const text23 = args.description.toLowerCase();
+  const text24 = args.description.toLowerCase();
   const types = await db.jobType.findMany({ where: { active: true }, select: { id: true, code: true, name: true, trade: true, priority: true, keywords: true, emergencyPolicy: true, bookableByAi: true, bookingQuestions: true, businessUnitId: true } });
-  const words = new Set(text23.split(/[^a-z0-9]+/).filter(Boolean));
+  const words = new Set(text24.split(/[^a-z0-9]+/).filter(Boolean));
   const scored = types.map((t) => {
     const keys = (t.keywords ?? []).map((k) => k.toLowerCase());
-    const hits = keys.filter((k) => k.includes(" ") ? text23.includes(k) : words.has(k));
+    const hits = keys.filter((k) => k.includes(" ") ? text24.includes(k) : words.has(k));
     const emergency = t.emergencyPolicy;
-    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text23.includes(k.toLowerCase()));
+    const emergencyHits = (emergency?.keywords ?? []).filter((k) => text24.includes(k.toLowerCase()));
     return { jobTypeId: t.id, code: t.code, name: t.name, trade: t.trade, priority: t.priority, bookableByAi: t.bookableByAi, score: hits.length * 10 + emergencyHits.length * 25, matched: hits, emergency: emergencyHits.length ? { matched: emergencyHits, script: emergency?.script ?? "", page: !!emergency?.page } : null, questions: t.bookingQuestions ?? [], businessUnitId: t.businessUnitId };
   }).filter((t) => t.score > 0).sort((a, b) => b.score - a.score || a.code.localeCompare(b.code)).slice(0, 3);
   let inArea = null;
@@ -12695,8 +12950,8 @@ init_errors();
 var BILL = ["canManageInvoices", "canPostInvoices"];
 var REVENUE_ACCOUNT = { labor: "4000", material: "4100", equipment: "4100", fee: "4300", disposal: "4300", permit_passthrough: "2300", warranty_reimbursed: "4200", membership: "4400", maintenance: "4400" };
 var BILLABLE_JOB = ["work_complete", "awaiting_inspection", "completed", "closed"];
-var mustReason = (text23, field = "reason") => {
-  const v = String(text23 ?? "").trim();
+var mustReason = (text24, field = "reason") => {
+  const v = String(text24 ?? "").trim();
   if (v.length < 3) throw new DomainError(Codes.INVALID_INPUT, "Say why, in a few words.", { field });
   return v;
 };
@@ -13462,7 +13717,7 @@ async function reopenArPeriod(db, actor, args) {
 }
 
 // features/keystone/services/accounting.ts
-var import_node_crypto11 = require("node:crypto");
+var import_node_crypto12 = require("node:crypto");
 init_actor();
 init_cas();
 init_errors();
@@ -13602,7 +13857,7 @@ async function createExportBatch(db, actor, args) {
     const credit = fresh.reduce((a, l) => a + l.creditMinor, 0n);
     if (debit !== credit) throw new DomainError(Codes.GUARD_FAILED, `The journal does not balance (debits ${debit}, credits ${credit}). Nothing was exported.`, { reason: "unbalanced" });
     const ref = await nextReference(tx, "EXP", uow.now);
-    const sha = (0, import_node_crypto11.createHash)("sha256").update(fresh.map((l) => l.sourceKey).join("\n")).digest("hex");
+    const sha = (0, import_node_crypto12.createHash)("sha256").update(fresh.map((l) => l.sourceKey).join("\n")).digest("hex");
     const batch = await tx.accountingExportBatch.create({ data: { ref, periodFrom: /* @__PURE__ */ new Date(`${args.from}T00:00:00Z`), periodTo: /* @__PURE__ */ new Date(`${args.to}T00:00:00Z`), status: "created", lineCount: fresh.length, debitMinor: debit, creditMinor: credit, sha256: sha, createdById: actorUserId(actor) }, select: { id: true } });
     await tx.accountingExportLine.createMany({ data: fresh.map((l, i) => ({ batchId: batch.id, sourceKey: l.sourceKey, entryDate: /* @__PURE__ */ new Date(`${l.entryDate}T00:00:00Z`), account: l.account, debitMinor: l.debitMinor, creditMinor: l.creditMinor, memo: l.memo, docRef: l.docRef, customerRef: l.customerRef, sortOrder: i })) });
     auditCreate(uow, actor, "AccountingExportBatch", batch.id, "accounting.exported", { ref, lines: fresh.length, debitMinor: debit.toString(), from: args.from, to: args.to });
@@ -13689,7 +13944,7 @@ init_cas();
 init_errors();
 
 // features/keystone/lib/paymentAdapter.ts
-var import_node_crypto12 = require("node:crypto");
+var import_node_crypto13 = require("node:crypto");
 var STRIPE = "https://api.stripe.com/v1";
 var form = (values) => {
   const body = new URLSearchParams();
@@ -13701,13 +13956,13 @@ var toResult = (intent) => {
   if (intent.status === "processing") return { outcome: "unknown", providerRef: intent.id, note: "The processor is still working on this charge." };
   return { outcome: "failed", providerRef: intent.id, note: intent.last_payment_error?.message?.slice(0, 200) || `Charge ${intent.status.replace(/_/g, " ")}.` };
 };
-var StripeTestAdapter = class {
+var StripeAdapter = class {
   constructor(secretKey, fetcher = fetch, timeoutMs = 2e4) {
     this.secretKey = secretKey;
     this.fetcher = fetcher;
     this.timeoutMs = timeoutMs;
-    this.name = "stripe-test";
-    if (!/^sk_test_/.test(secretKey) && !/^rk_test_/.test(secretKey)) throw new Error("Only a Stripe TEST key is accepted here.");
+    this.name = "stripe";
+    if (!/^(sk|rk)_(test|live)_/.test(secretKey)) throw new Error("That is not a Stripe secret key.");
   }
   async call(path, init) {
     const headers = { Authorization: `Bearer ${this.secretKey}` };
@@ -13715,8 +13970,78 @@ var StripeTestAdapter = class {
     if (init.method === "POST") headers["Content-Type"] = "application/x-www-form-urlencoded";
     return this.fetcher(`${STRIPE}${path}`, { ...init, headers, signal: AbortSignal.timeout(this.timeoutMs) });
   }
+  /** The Stripe customer a saved card belongs to (Checkout setup mode makes one); an off-session charge needs it. */
+  async customerOf(paymentMethod) {
+    try {
+      const r = await this.call(`/payment_methods/${encodeURIComponent(paymentMethod)}`, { method: "GET" });
+      const j = await r.json();
+      return j.customer ?? void 0;
+    } catch {
+      return void 0;
+    }
+  }
+  /** A hosted page where the customer types a card to keep on file (no charge). */
+  async setupCheckout(args) {
+    const r = await this.call("/checkout/sessions", { method: "POST", body: form({
+      mode: "setup",
+      "payment_method_types[0]": "card",
+      customer_creation: "always",
+      success_url: args.successUrl,
+      cancel_url: args.cancelUrl,
+      "setup_intent_data[description]": args.description.slice(0, 250),
+      ...Object.fromEntries(Object.entries(args.metadata ?? {}).map(([k, v]) => [`metadata[${k}]`, v]))
+    }) });
+    const j = await r.json();
+    if (!r.ok || !j.id || !j.url) throw new Error(j.error?.message ?? "Stripe did not open the card page.");
+    return { id: j.id, url: j.url };
+  }
+  /** A hosted page where the customer pays one amount by card. */
+  async paymentCheckout(args) {
+    const meta = Object.fromEntries(Object.entries(args.metadata ?? {}).map(([k, v]) => [`metadata[${k}]`, v]));
+    const r = await this.call("/checkout/sessions", { method: "POST", body: form({
+      mode: "payment",
+      "payment_method_types[0]": "card",
+      success_url: args.successUrl,
+      cancel_url: args.cancelUrl,
+      "line_items[0][quantity]": "1",
+      "line_items[0][price_data][currency]": (args.currency ?? "usd").toLowerCase(),
+      "line_items[0][price_data][unit_amount]": args.amountMinor.toString(),
+      "line_items[0][price_data][product_data][name]": args.name.slice(0, 250),
+      "payment_intent_data[description]": args.name.slice(0, 250),
+      ...Object.fromEntries(Object.entries(args.metadata ?? {}).map(([k, v]) => [`payment_intent_data[metadata][${k}]`, v])),
+      ...meta
+    }) });
+    const j = await r.json();
+    if (!r.ok || !j.id || !j.url) throw new Error(j.error?.message ?? "Stripe did not open the payment page.");
+    return { id: j.id, url: j.url };
+  }
+  /** What the customer did on a Checkout page. */
+  async checkoutResult(sessionId) {
+    const r = await this.call(`/checkout/sessions/${encodeURIComponent(sessionId)}?expand[]=setup_intent.payment_method&expand[]=payment_intent`, { method: "GET" });
+    const j = await r.json();
+    if (!r.ok || j.error) throw new Error(j.error?.message ?? "Stripe could not be asked about that page.");
+    const metadata = j.metadata ?? {};
+    if (j.mode === "setup") {
+      const pm = j.setup_intent?.payment_method;
+      const card = pm?.card;
+      return { mode: "setup", done: j.status === "complete" && !!pm?.id, paymentMethod: pm?.id ?? "", label: card ? `${(card.brand ?? "Card").replace(/^./, (c) => c.toUpperCase())} ending ${card.last4}` : "", metadata };
+    }
+    return { mode: "payment", done: j.payment_status === "paid" && j.payment_intent?.status === "succeeded", paymentIntent: j.payment_intent?.id ?? "", amountMinor: BigInt(j.amount_total ?? 0), metadata };
+  }
+  /** A paid Checkout payment for this attempt, if the customer finished one (staff left the page before it came back). */
+  async findPaidIntent(attemptId) {
+    try {
+      const r = await this.call(`/payment_intents/search?query=${encodeURIComponent(`metadata['attemptId']:'${attemptId.replace(/[^A-Za-z0-9_-]/g, "")}' AND status:'succeeded'`)}&limit=1`, { method: "GET" });
+      const j = await r.json();
+      const f = j.data?.[0];
+      return r.ok && f ? { paymentIntent: f.id, amountMinor: BigInt(f.amount_received ?? 0), invoiceId: f.metadata?.invoiceId ?? "" } : null;
+    } catch {
+      return null;
+    }
+  }
   async charge(input) {
-    const key2 = (0, import_node_crypto12.createHash)("sha256").update(input.providerKey).digest("hex").slice(0, 40);
+    const key2 = (0, import_node_crypto13.createHash)("sha256").update(input.providerKey).digest("hex").slice(0, 40);
+    const customer = input.customerRef ?? await this.customerOf(input.paymentMethodRef);
     let response;
     try {
       response = await this.call("/payment_intents", {
@@ -13726,7 +14051,7 @@ var StripeTestAdapter = class {
           amount: input.amountMinor.toString(),
           currency: (input.currency ?? "usd").toLowerCase(),
           payment_method: input.paymentMethodRef,
-          customer: input.customerRef,
+          customer,
           confirm: "true",
           off_session: "true",
           description: input.description.slice(0, 250),
@@ -13737,45 +14062,43 @@ var StripeTestAdapter = class {
     } catch {
       return { outcome: "unknown", providerRef: "", note: "No answer from the processor. The card may or may not have been charged." };
     }
-    const json18 = await response.json().catch(() => null);
-    if (response.status >= 500 || !json18) return { outcome: "unknown", providerRef: "", note: "The processor answered with an error. The card may or may not have been charged." };
-    if (json18.error) {
-      const intent = json18.error.payment_intent;
-      if (intent?.id) return { outcome: "failed", providerRef: intent.id, note: json18.error.message?.slice(0, 200) || "The card was declined." };
-      if (response.status === 429 || json18.error.type === "api_connection_error") return { outcome: "unknown", providerRef: "", note: "The processor was busy. Nothing is known about this charge yet." };
-      return { outcome: "failed", providerRef: "", note: json18.error.message?.slice(0, 200) || "The card was declined." };
+    const json19 = await response.json().catch(() => null);
+    if (response.status >= 500 || !json19) return { outcome: "unknown", providerRef: "", note: "The processor answered with an error. The card may or may not have been charged." };
+    if (json19.error) {
+      const intent = json19.error.payment_intent;
+      if (intent?.id) return { outcome: "failed", providerRef: intent.id, note: json19.error.message?.slice(0, 200) || "The card was declined." };
+      if (response.status === 429 || json19.error.type === "api_connection_error") return { outcome: "unknown", providerRef: "", note: "The processor was busy. Nothing is known about this charge yet." };
+      return { outcome: "failed", providerRef: "", note: json19.error.message?.slice(0, 200) || "The card was declined." };
     }
-    return toResult(json18);
+    return toResult(json19);
   }
   async lookup(providerKey) {
-    const key2 = (0, import_node_crypto12.createHash)("sha256").update(providerKey).digest("hex").slice(0, 40);
+    const key2 = (0, import_node_crypto13.createHash)("sha256").update(providerKey).digest("hex").slice(0, 40);
     try {
       const response = await this.call(`/payment_intents/search?query=${encodeURIComponent(`metadata['providerKey']:'${key2}'`)}&limit=1`, { method: "GET" });
-      const json18 = await response.json();
-      if (!response.ok || json18.error) return { outcome: "unknown", providerRef: "", note: "The processor could not be asked right now." };
-      const found = json18.data?.[0];
+      const json19 = await response.json();
+      if (!response.ok || json19.error) return { outcome: "unknown", providerRef: "", note: "The processor could not be asked right now." };
+      const found = json19.data?.[0];
       return found ? toResult(found) : { outcome: "none" };
     } catch {
       return { outcome: "unknown", providerRef: "", note: "The processor could not be reached." };
     }
   }
 };
-var override = null;
 var NotConfiguredAdapter = class {
   constructor() {
     this.name = "not-configured";
   }
   async charge() {
-    return { outcome: "failed", providerRef: "", note: "Card charging is not set up on this server (no Stripe test key)." };
+    return { outcome: "failed", providerRef: "", note: "Card charging is not set up on this server (no Stripe secret key)." };
   }
   async lookup() {
     return { outcome: "none" };
   }
 };
 function paymentAdapter() {
-  if (override) return override;
   const key2 = process.env.STRIPE_SECRET_KEY;
-  return key2 ? new StripeTestAdapter(key2) : new NotConfiguredAdapter();
+  return key2 ? new StripeAdapter(key2) : new NotConfiguredAdapter();
 }
 
 // features/keystone/services/membershipBilling.ts
@@ -14972,7 +15295,13 @@ var COMPOUND_UNIQUES = {
   SerializedUnit: ['@@unique([itemId, serialNumber], map: "SerializedUnit_item_serial_key")'],
   SupplierItem: ['@@unique([supplierId, supplierSku], map: "SupplierItem_supplier_sku_key")'],
   ItemUomConversion: ['@@unique([itemId, fromUomId, toUomId], map: "ItemUomConversion_item_from_to_key")'],
-  MinMaxRule: ['@@unique([locationId, itemId], map: "MinMaxRule_location_item_key")']
+  MinMaxRule: ['@@unique([locationId, itemId], map: "MinMaxRule_location_item_key")'],
+  // Phase 6: labour and pay
+  Timesheet: ['@@unique([employeeId, workDate], map: "Timesheet_employee_date_key")'],
+  PayPlanVersion: ['@@unique([planId, versionNumber], map: "PayPlanVersion_plan_number_key")'],
+  EarningLine: ['@@unique([payPeriodId, lineKey], map: "EarningLine_period_line_key")'],
+  PayrollExportBatch: ['@@unique([payPeriodId, target], map: "PayrollExportBatch_period_target_key")'],
+  TimeSegment: ['@@unique([timesheetId, sourceKey], map: "TimeSegment_sheet_source_key")']
 };
 function addDatabaseConstraints(schema) {
   for (const [modelName, directives] of Object.entries(COMPOUND_UNIQUES)) {
@@ -15096,7 +15425,7 @@ var { withAuth } = (0, import_auth.createAuth)({
   `
 });
 var keystone_default = withAuth(
-  (0, import_core24.config)({
+  (0, import_core25.config)({
     db: {
       provider: "postgresql",
       url: databaseURL,
