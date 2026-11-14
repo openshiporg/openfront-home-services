@@ -4,6 +4,7 @@ import { money, dateText, label, when } from '../../lib/format';
 import { Page, Row, Empty, Meta, Section, Status, Stat } from '../../components/ui';
 import { ActionButton } from '../../components/ActionButton';
 import { CommandForm } from '../../components/CommandForm';
+import { NewPayPlanForm, EditPayPlanDraftForm } from '../components/PayPlanForms';
 
 /*
  * Timesheets, pay plans, pay periods and pay statements. Plain server screens over the Phase 6 commands. Every read goes through the
@@ -123,26 +124,6 @@ export async function TimesheetsPage({ status }: { status?: string }) {
 
 type Version = { id: string; versionNumber: number; status: string; version: number; contentHash: string; hourlyRates: Record<string, string> | null; overtime: { weeklyThresholdHours: string; multiplier: string } | null; commission: { basis: string; rules: { scope: string; kind: string; value: string; splitBasis?: string }[] } | null; spiffs: Record<string, string> | null; clawbacks: Record<string, unknown> | null; approval: { id: string; status: string; version: number; requestedBy: { id: string } | null } | null };
 
-const TERMS_FIELDS = [
-  { name: 'rate', label: 'Hourly rate (cents)', required: true, width: 'sm' as const, defaultValue: '2800' },
-  { name: 'threshold', label: 'Overtime after (hours a week)', width: 'sm' as const, defaultValue: '40' },
-  { name: 'multiplier', label: 'Overtime multiplier', width: 'sm' as const, defaultValue: '1.5' },
-  { name: 'basis', label: 'Commission paid on', kind: 'select' as const, options: [{ value: 'invoice_posted', label: 'Invoice posted' }, { value: 'payment_received', label: 'Payment received' }], width: 'md' as const },
-  { name: 'commissionKind', label: 'Commission is', kind: 'select' as const, options: [{ value: 'percent_of_sold', label: 'A percent of the sale' }, { value: 'fixed_per_task', label: 'A fixed amount per task' }, { value: 'none', label: 'None' }], width: 'md' as const },
-  { name: 'commissionValue', label: 'Percent, or cents per task', width: 'sm' as const, defaultValue: '5' },
-  { name: 'tgl', label: 'Lead spiff (cents)', width: 'sm' as const }, { name: 'membership', label: 'Membership spiff (cents)', width: 'sm' as const }, { name: 'financing', label: 'Financing spiff (cents)', width: 'sm' as const },
-  { name: 'recallPercent', label: 'Recall clawback (percent)', width: 'sm' as const, defaultValue: '0' },
-  { name: 'windowDays', label: 'Clawback window (days)', width: 'sm' as const, defaultValue: '90' },
-];
-/** The form's flat values become the plan terms. Server-side validation is the real check. */
-const termsFrom = (v: Record<string, string>) => ({
-  hourlyRates: { default: v.rate },
-  overtime: { weeklyThresholdHours: v.threshold || '40', multiplier: v.multiplier || '1.5' },
-  commission: { basis: v.basis || 'invoice_posted', rules: v.commissionKind && v.commissionKind !== 'none' ? [{ scope: 'all', kind: v.commissionKind, value: v.commissionValue || '0', splitBasis: 'sold_by' }] : [] },
-  spiffs: Object.fromEntries(['tgl', 'membership', 'financing'].filter(k => v[k]).map(k => [k, v[k]])),
-  clawbacks: { windowDays: Number(v.windowDays || '90'), recallPercent: v.recallPercent || '0', refund: true, chargeback: true, membershipCancel: true },
-});
-
 export async function PayPlansPage() {
   const me = await gate('canManagePayPlans', 'canApprovePayPlans');
   const d = await q<{ payPlans: { id: string; name: string; versions: Version[] }[]; employees: { id: string; displayName: string }[]; payPlanAssignments: { id: string; from: string; to: string | null; employee: { displayName: string } | null; planVersion: { versionNumber: number; plan: { name: string } | null } | null }[] }>(`{
@@ -156,7 +137,7 @@ export async function PayPlansPage() {
     <Page title="Pay plans">
       {manage ? (
         <Section title="New pay plan">
-          <CommandForm op="definePayPlan" submit="Create draft" paths={['/dashboard/platform/pay-plans']} shape={v => ({ name: v.name, terms: termsFrom(v) })} fields={[{ name: 'name', label: 'Name', required: true, width: 'md' }, ...TERMS_FIELDS]} />
+          <NewPayPlanForm />
         </Section>
       ) : null}
       {d.payPlans.length === 0 ? <Section title="Plans"><Empty>No pay plans yet.</Empty></Section> : d.payPlans.map(p => (
@@ -183,7 +164,7 @@ export async function PayPlansPage() {
           ))}
           {manage ? (
             <details className="text-sm"><summary className="cursor-pointer text-muted-foreground">New version of {p.name}</summary>
-              <CommandForm op="savePayPlanDraft" submit="Save draft version" fixed={{ planId: p.id }} paths={['/dashboard/platform/pay-plans']} shape={v => ({ terms: termsFrom(v) })} fields={TERMS_FIELDS} />
+              <EditPayPlanDraftForm planId={p.id} />
             </details>
           ) : null}
         </Section>

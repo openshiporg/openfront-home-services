@@ -18555,6 +18555,26 @@ type Mutation {
   checkRefrigerantInstall(workLineId: ID!, equipmentModelId: ID!, stage: String!, idempotencyKey: String!): JSON
   trackLien(jobId: ID!, invoiceId: ID, projectClass: String, idempotencyKey: String!): JSON
   advanceLien(lienId: ID!, to: String!, note: String, expectedVersion: Int!, idempotencyKey: String!): JSON
+  proposeTimesheet(employeeId: ID, workDate: String!, idempotencyKey: String!): JSON
+  addTimeSegment(timesheetId: ID!, kind: String!, startsAt: String!, endsAt: String!, note: String, idempotencyKey: String!): JSON
+  removeTimeSegment(segmentId: ID!, idempotencyKey: String!): JSON
+  submitTimesheet(timesheetId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  approveTimesheet(timesheetId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  rejectTimesheet(timesheetId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  adjustTimesheet(timesheetId: ID!, kind: String!, startsAt: String!, endsAt: String!, reason: String!, idempotencyKey: String!): JSON
+  definePayPlan(name: String!, terms: JSON!, idempotencyKey: String!): JSON
+  savePayPlanDraft(planId: ID!, terms: JSON!, idempotencyKey: String!): JSON
+  requestPayPlanPublish(versionId: ID!, idempotencyKey: String!): JSON
+  publishPayPlanVersion(versionId: ID!, requestId: ID!, idempotencyKey: String!): JSON
+  assignPayPlan(employeeId: ID!, planVersionId: ID!, from: String!, idempotencyKey: String!): JSON
+  setAttribution(workLineId: ID, membershipId: ID, financingApplicationId: ID, role: String!, shares: JSON!, idempotencyKey: String!): JSON
+  openPayPeriod(startsOn: String!, endsOn: String!, payDate: String!, idempotencyKey: String!): JSON
+  calculatePayPeriod(payPeriodId: ID!, idempotencyKey: String!): JSON
+  addPayAdjustment(payPeriodId: ID!, employeeId: ID!, amountMinor: String!, reason: String!, idempotencyKey: String!): JSON
+  requestPayPeriodApproval(payPeriodId: ID!, idempotencyKey: String!): JSON
+  approvePayPeriod(payPeriodId: ID!, requestId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  reopenPayPeriod(payPeriodId: ID!, reason: String!, expectedVersion: Int!, idempotencyKey: String!): JSON
+  exportPayPeriod(payPeriodId: ID!, target: String!, idempotencyKey: String!): JSON
   bindAgentApp(agentId: ID!, oauthAppId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
   unbindAgentApp(agentId: ID!, expectedVersion: Int!, idempotencyKey: String!): JSON
 }
