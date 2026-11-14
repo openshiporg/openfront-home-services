@@ -15,8 +15,12 @@ export async function Booking({ trade, jobTypeId }: { trade?: string; jobTypeId?
     const d = diagnostics.find(x => x.trade === t)
     return { key: t, name: TRADE_COPY[t].name, short: TRADE_COPY[t].short, diagnostic: d ? `${d.name}: ${dollars(d.priceMinor)}.` : '' }
   })
+  // The ZIP the widget starts with comes from the store's own service area: the branch's ZIP when an area covers it, else the first area's first ZIP.
+  const branchZip = company.address?.postalCode?.trim().slice(0, 5) ?? ''
+  const defaultZip = company.areas.some(a => a.zips.includes(branchZip)) ? branchZip : (company.areas.find(a => a.zips.length)?.zips[0] ?? '')
   return (
     <BookingWidget
+      defaultZip={defaultZip}
       jobTypes={jobTypes.map(j => ({ id: j.id, name: j.name, trade: j.trade }))} trades={trades} phone={company.phone} phoneHref={company.phoneHref}
       placeTime={company.address?.city ? `${company.address.city} time` : 'local time'} defaultState={company.address?.region || 'TX'} initialTrade={trade} initialJobTypeId={jobTypeId}
     />

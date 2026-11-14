@@ -25,7 +25,7 @@ export function Wordmark({ name, className = '' }: { name: string; className?: s
   const tail = words.slice(cut).join(' ')
   return (
     <span className={`font-[family-name:var(--font-sf-logo)] tracking-[-0.01em] ${className}`}>
-      <span className="font-medium">{lead}</span>{tail ? <span className="font-light"> {tail}</span> : null}
+      <span className="font-semibold">{lead}</span>{tail ? <span className="font-normal"> {tail}</span> : null}
     </span>
   )
 }

@@ -17,6 +17,8 @@ type Props = {
   /** "Austin time": how the company's time zone is said to a customer. */
   placeTime: string
   defaultState: string
+  /** A ZIP from the store's own service area, so the open arrival windows show at first paint. */
+  defaultZip?: string
   initialTrade?: string
   initialJobTypeId?: string
 }
@@ -31,14 +33,14 @@ function Dot({ tone }: { tone: 'ok' | 'no' | 'wait' }) {
   return <span aria-hidden="true" className={`inline-block size-2.5 shrink-0 rounded-full ${tone === 'ok' ? 'bg-[#1e9e4a]' : tone === 'no' ? 'bg-[#c8321e]' : 'bg-[#b4b9bd]'}`} />
 }
 
-export function BookingWidget({ jobTypes, trades, phone, phoneHref, placeTime, defaultState, initialTrade, initialJobTypeId }: Props) {
+export function BookingWidget({ jobTypes, trades, phone, phoneHref, placeTime, defaultState, defaultZip = '', initialTrade, initialJobTypeId }: Props) {
   const router = useRouter()
   const firstJob = (trade: string) => jobTypes.find(j => j.trade === trade)?.id ?? ''
   const startTrade = (initialJobTypeId && jobTypes.find(j => j.id === initialJobTypeId)?.trade) || (initialTrade && trades.some(t => t.key === initialTrade) ? initialTrade : trades[0]?.key) || ''
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [trade, setTrade] = useState(startTrade)
   const [jobTypeId, setJobTypeId] = useState(initialJobTypeId && jobTypes.some(j => j.id === initialJobTypeId) ? initialJobTypeId : firstJob(startTrade))
-  const [zip, setZip] = useState('')
+  const [zip, setZip] = useState(/^\d{5}$/.test(defaultZip) ? defaultZip : '')
   const [answer, setAnswer] = useState<WindowsResult | null>(null)
   const [answerFor, setAnswerFor] = useState('')
   const [windowId, setWindowId] = useState('')

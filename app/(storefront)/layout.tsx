@@ -4,7 +4,7 @@ import { Footer, Header } from '@/features/storefront/components/Shell'
 import { getCompany, servedPlaces } from '@/features/storefront/lib/data'
 
 const body = Manrope({ subsets: ['latin'], variable: '--font-sf' })
-const logo = Tektur({ subsets: ['latin'], variable: '--font-sf-logo', weight: ['400', '500'] })
+const logo = Tektur({ subsets: ['latin'], variable: '--font-sf-logo', weight: ['400', '600'] })
 
 export const dynamic = 'force-dynamic'
 
