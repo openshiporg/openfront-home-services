@@ -20,12 +20,12 @@ export async function HomeScreen() {
   const ladder = ladders.find(l => /water heater/i.test(l.title)) ?? ladders[0]
   return (
     <>
-      <div className="mx-auto max-w-[1440px] lg:flex">
-        <div className="min-w-0 flex-1 px-4 pt-5 sm:px-6 lg:pl-10 lg:pr-6 lg:pt-6">
-          <h1 className="text-[clamp(34px,9.4vw,46px)] font-extrabold leading-[1.02] tracking-[-0.045em] sm:text-[56px] xl:text-[68px]">Book a visit. {day ? `We’ll be there ${day}.` : 'We’ll be right there.'}</h1>
-          <div className="mt-4 lg:mt-6"><Booking /></div>
+      <div className="mx-auto max-w-[1440px] lg:grid lg:grid-cols-[minmax(0,1fr)_35%] lg:grid-rows-[auto_1fr]">
+        <h1 className="px-4 pt-5 text-[clamp(34px,9.4vw,46px)] font-extrabold leading-[1.02] tracking-[-0.045em] sm:px-6 sm:text-[56px] lg:col-span-2 lg:row-start-1 lg:pl-10 lg:pr-6 lg:pt-6 xl:text-[68px]">Book a visit. {day ? `We’ll be there ${day}.` : 'We’ll be right there.'}</h1>
+        <div className="min-w-0 px-4 pt-4 sm:px-6 lg:row-start-2 lg:pl-10 lg:pr-6 lg:pt-6">
+          <Booking />
         </div>
-        <HeroPhoto className="mx-4 mt-5 aspect-[4/3] sm:mx-6 lg:mx-0 lg:mt-0 lg:aspect-auto lg:w-[35%] lg:shrink-0" />
+        <HeroPhoto className="mx-4 mt-5 aspect-[4/3] sm:mx-6 lg:col-start-2 lg:row-start-2 lg:mx-0 lg:mt-6 lg:aspect-auto" />
       </div>
       <div className={`${container} mt-6 lg:mt-7`}><InfoStrip /></div>
       <div className={`${container} mt-10 lg:mt-12`}><MembershipsBand /></div>
