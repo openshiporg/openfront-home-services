@@ -219,7 +219,7 @@ describe.skipIf(!hasTestDatabase)('Phase 6: labour and pay (database)', () => {
     const lockedSheet = await prisma.timesheet.findFirstOrThrow({ where: { status: 'locked' } })
     // A locked day takes no change, in the command or behind it.
     expect(await reason(adjustTimesheet(prisma, timeApprover, { timesheetId: lockedSheet.id, kind: 'shop', startsAt: '2026-10-05T01:00:00Z', endsAt: '2026-10-05T02:00:00Z', reason: 'missed', idempotencyKey: k() }))).not.toBe('OK')
-    await expect(prisma.timesheet.update({ where: { id: lockedSheet.id }, data: { totalHours: '1' } })).rejects.toThrow(/locked/)
+    await expect(prisma.timesheet.update({ where: { id: lockedSheet.id }, data: { totalHours: '7' } })).rejects.toThrow(/locked/)
     expect(await reason(reopenPayPeriod(prisma, payroll, { payPeriodId: id, reason: 'x', expectedVersion: 99, idempotencyKey: k() }))).not.toBe('OK')
     await expect(prisma.payPeriod.update({ where: { id }, data: { status: 'review' } })).rejects.toThrow(/does not reopen/)
     expect(await reason(addPayAdjustment(prisma, payroll, { payPeriodId: id, employeeId: techEmp, amountMinor: '100', reason: 'late', idempotencyKey: k() }))).not.toBe('OK')
@@ -266,5 +266,23 @@ describe.skipIf(!hasTestDatabase)('Phase 6: labour and pay (database)', () => {
     const clerk = as(await prisma.user.create({ data: { name: 'c', email: `${k('c')}@test.local`, password: 'x'.repeat(60), roleId: 'seed_role_dispatcher' } }).then(u => u.id), role('seed_role_dispatcher'))
     expect((await clerk(`{ earningLines { id } }`).catch(() => ({ earningLines: [] }))).earningLines).toEqual([])
     expect((await clerk(`{ timesheets { id } }`).catch(() => ({ timesheets: [] }))).timesheets).toEqual([])
+  })
+
+  it('deleting a person is not blocked by the pay guards, even with locked sheets and exported lines', { timeout: 60_000 }, async () => {
+    // By now the technician has locked timesheets and exported earning lines; the approver approved sheets and an exported period.
+    expect(await prisma.timesheet.count({ where: { employeeId: techEmp, status: 'locked' } })).toBeGreaterThan(0)
+    const lines = await prisma.earningLine.count({ where: { employeeId: techEmp } })
+    expect(lines).toBeGreaterThan(0)
+    await prisma.employee.delete({ where: { id: techEmp } })
+    // Deleting a User is refused by the older append-only audit guard once they have acted, so the pay side is proved by the update the
+    // delete would cascade to: the approver and creator detached from locked sheets, segments, the exported batch and the plan assignments.
+    await prisma.timesheet.updateMany({ where: { status: 'locked' }, data: { approvedById: null } })
+    await prisma.payrollExportBatch.updateMany({ data: { createdById: null } })
+    await prisma.timeSegment.updateMany({ data: { createdById: null } })
+    await prisma.payPlanAssignment.updateMany({ data: { createdById: null } })
+    await prisma.commissionAttribution.updateMany({ data: { createdById: null } })
+    expect(await prisma.earningLine.count({ where: { employeeId: null } })).toBeGreaterThanOrEqual(lines)
+    // The lines are still never edited.
+    await expect(prisma.earningLine.updateMany({ where: { employeeId: null }, data: { amountMinor: 1n } })).rejects.toThrow()
   })
 })
