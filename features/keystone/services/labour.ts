@@ -109,8 +109,10 @@ export async function proposeTimesheet(db: Db, actor: Actor, args: { employeeId?
     }
     if (sheet.status !== 'open') return { id: sheet.id, status: sheet.status, added: 0, created }
     const zone = await homeZone(tx)
+    // The status screen records who moved a visit as a user, so the person's events are theirs by employee or by their sign-in on a visit they are on.
+    const person = await tx.employee.findUniqueOrThrow({ where: { id: employeeId }, select: { userId: true } })
     const events = await tx.visitStatusEvent.findMany({
-      where: { employeeId, occurredAt: { gte: new Date(asDate(workDate).getTime() - 86_400_000), lt: new Date(asDate(workDate).getTime() + 3 * 86_400_000) } },
+      where: { OR: [{ employeeId }, ...(person.userId ? [{ actorUserId: person.userId, visit: { assignments: { some: { employeeId } } } }] : [])], occurredAt: { gte: new Date(asDate(workDate).getTime() - 86_400_000), lt: new Date(asDate(workDate).getTime() + 3 * 86_400_000) } },
       select: { id: true, visitId: true, toStatus: true, occurredAt: true }, orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
     })
     const proposed = proposeSegments(events.filter(e => !!e.visitId).map(e => ({ id: e.id, visitId: e.visitId as string, toStatus: e.toStatus, occurredAt: e.occurredAt })))

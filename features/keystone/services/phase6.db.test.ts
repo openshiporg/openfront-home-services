@@ -141,6 +141,18 @@ describe.skipIf(!hasTestDatabase)('Phase 6: labour and pay (database)', () => {
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: s.id } })).status).toBe('approved')
   })
 
+  it('a timesheet is proposed from the technician\'s own status moves, which carry their sign-in', { timeout: 60_000 }, async () => {
+    const job = await prisma.visit.create({ data: { ref: `P6-EVT-${Date.now()}`, status: 'done', capacityHours: '1' } })
+    await prisma.visitAssignment.create({ data: { visitId: job.id, employeeId: techEmp, role: 'lead', active: true } })
+    const at = (h: number, m = 0) => new Date(Date.UTC(2026, 5, 3, h, m))
+    const moves: [string, Date][] = [['en_route', at(14)], ['on_site', at(14, 30)], ['working', at(14, 35)], ['done', at(16, 5)]]
+    for (const [toStatus, occurredAt] of moves) await prisma.visitStatusEvent.create({ data: { visitId: job.id, actorUserId: techUser, fromStatus: 'x', toStatus, kind: 'transition', occurredAt, idempotencyKey: `p6evt:${job.id}:${toStatus}` } })
+    const s = await proposeTimesheet(prisma, tech, { workDate: '2026-06-03', idempotencyKey: k() })
+    expect(s.added).toBe(2)
+    const segs = await prisma.timeSegment.findMany({ where: { timesheetId: s.id }, orderBy: { startsAt: 'asc' } })
+    expect(segs.map(x => x.kind)).toEqual(['drive', 'job'])
+  })
+
   it('overlapping entries are refused', { timeout: 60_000 }, async () => {
     const date = '2026-09-29'
     const s = await proposeTimesheet(prisma, tech, { workDate: date, idempotencyKey: k() })
