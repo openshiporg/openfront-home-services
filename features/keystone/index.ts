@@ -10,7 +10,12 @@ import { isSignedIn, permissionNames, type Session } from "./access";
 import { addDatabaseConstraints } from "./prismaConstraints";
 import { throwKeystonePrismaErrors } from "./lib/keystonePrismaErrors";
 
-const databaseURL = process.env.DATABASE_URL || "file:./keystone.db";
+/**
+ * Prisma's default pool is (CPUs x 2 + 1) connections per client. On a 48-CPU host that is 97 held open by one client, so a busy
+ * minute, or a second container during a deploy, can use up the database. Unless the URL already sets a limit, cap the pool.
+ */
+const withPoolLimit = (url: string, limit: number) => (/^postgres(ql)?:/.test(url) && !/[?&]connection_limit=/.test(url) ? `${url}${url.includes("?") ? "&" : "?"}connection_limit=${limit}` : url);
+const databaseURL = withPoolLimit(process.env.DATABASE_URL || "file:./keystone.db", 10);
 
 const sessionConfig = {
   maxAge: 60 * 60 * 24 * 360, // How long they stay signed in?

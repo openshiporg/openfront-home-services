@@ -7,6 +7,6 @@ import * as PrismaModule from "@prisma/client";
 export const keystoneContext: Context =
   (globalThis as any).keystoneContext ?? getContext(config, PrismaModule)
 
-if (process.env.NODE_ENV !== 'production') {
-  (globalThis as any).keystoneContext = keystoneContext
-}
+// Cached in production too: every route bundle that imports this file would otherwise build its own client and its own pool,
+// and each pool holds open connections (the database ran out of them once).
+(globalThis as any).keystoneContext = keystoneContext
