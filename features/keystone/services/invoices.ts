@@ -2,7 +2,7 @@ import { authorizeOperation } from '../lib/agentGate'
 import { actorUserId, can, type Actor } from '../lib/actor'
 import { requestApproval } from '../lib/approval'
 import { registerApplier } from '../lib/approvalAppliers'
-import { auditCreate, casUpdate } from '../lib/cas'
+import { auditCreate, casUpdate, lockRow } from '../lib/cas'
 import { command } from '../lib/command'
 import { addDays, localDate } from '../lib/calendar'
 import type { Db, Tx } from '../lib/db'
@@ -56,6 +56,8 @@ export async function createInvoiceDraft(db: Db, actor: Actor, args: CreateInvoi
   const { idempotencyKey, now: _now, ...params } = args
   const result = await command(db, { name: 'invoice.draft', actor, idempotencyKey, params, now: args.now }, async uow => {
     const { tx } = uow
+    // Lock the job so two drafts started together cannot both take the same work lines.
+    await lockRow(tx, 'Job', args.jobId)
     const job = await tx.job.findUnique({ where: { id: args.jobId }, select: { id: true, status: true, customerId: true, locationId: true, businessUnitId: true, poNumber: true, location: { select: { id: true } } } })
     if (!job) throw new DomainError(Codes.NOT_FOUND, 'Job not found.')
     if (job.status === 'cancelled') throw new DomainError(Codes.GUARD_FAILED, 'A cancelled job is not invoiced.')
