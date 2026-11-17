@@ -43,12 +43,12 @@ async function batchFor(uow: UnitOfWork, method: string, day: string) {
 }
 
 /** Create the Payment row and file it in the day's batch. */
-export async function createPayment(uow: UnitOfWork, actor: Actor, a: { customerId: string | null; jobId: string | null; payerId?: string | null; method: string; amountMinor: bigint; feeMinor?: bigint; reference?: string; checkNumber?: string; receivedAt: Date; kind?: string }) {
+export async function createPayment(uow: UnitOfWork, actor: Actor, a: { customerId: string | null; jobId: string | null; payerId?: string | null; method: string; amountMinor: bigint; feeMinor?: bigint; reference?: string; checkNumber?: string; receivedAt: Date; kind?: string; authorizationId?: string | null }) {
   const day = await companyToday(uow.tx, a.receivedAt)
   await arPeriodFor(uow.tx, day) // money dated in a closed (or closing) AR month is refused (I-M9); the DB trigger Payment_period backs this
   const ref = await nextReference(uow.tx, 'PMT', uow.now)
   const payment = await uow.tx.payment.create({
-    data: { ref, jobId: a.jobId, customerId: a.customerId, payerId: a.payerId ?? null, kind: a.kind ?? 'payment', method: a.method, amountMinor: a.amountMinor, feeMinor: a.feeMinor ?? 0n, reference: a.reference ?? '', checkNumber: a.checkNumber ?? '', receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
+    data: { ref, jobId: a.jobId, customerId: a.customerId, payerId: a.payerId ?? null, ...(a.authorizationId ? { authorizationId: a.authorizationId } : {}), kind: a.kind ?? 'payment', method: a.method, amountMinor: a.amountMinor, feeMinor: a.feeMinor ?? 0n, reference: a.reference ?? '', checkNumber: a.checkNumber ?? '', receivedAt: a.receivedAt, recordedById: actorUserId(actor) },
     select: { id: true, ref: true },
   })
   const batch = await batchFor(uow, a.method, day)
@@ -205,6 +205,18 @@ export async function settleRefundedMembershipInvoice(db: Db, actor: Actor, args
   return { replay: result.replay, ...result.value }
 }
 
+/** Take back up to `upTo` of the customer credit this payment left (an overpayment, a deposit), before the money is refunded. */
+export async function takeBackCredit(uow: UnitOfWork, actor: Actor, paymentId: string, customerId: string | null, upTo: bigint) {
+  const { tx } = uow
+  const credit = customerId ? (await tx.customerCreditEntry.aggregate({ where: { customerId, sourceType: 'Payment', sourceId: paymentId }, _sum: { amountMinor: true } }))._sum.amountMinor ?? 0n : 0n
+  const fromCredit = credit < upTo ? credit : upTo
+  if (fromCredit > 0n && customerId) {
+    await tx.customerCreditEntry.create({ data: { customerId, kind: 'refunded', amountMinor: -fromCredit, sourceType: 'Payment', sourceId: paymentId } })
+    await tx.paymentAllocation.create({ data: { paymentId, invoiceId: null, kind: 'reverse', reversesId: (await tx.paymentAllocation.findFirst({ where: { paymentId, invoiceId: null, kind: 'apply' }, select: { id: true } }))?.id, amountMinor: fromCredit, reason: 'refund of customer credit', createdById: actorUserId(actor) } })
+  }
+  return fromCredit > 0n ? fromCredit : 0n
+}
+
 async function writeRefund(uow: UnitOfWork, actor: Actor, a: { paymentId: string; amountMinor: bigint; method: string; reason: string; reference: string; approvalId: string | null }) {
   const { tx } = uow
   const u = await unappliedOf(tx, a.paymentId)
@@ -214,12 +226,7 @@ async function writeRefund(uow: UnitOfWork, actor: Actor, a: { paymentId: string
   const membershipCharge = await tx.membershipBillingAttempt.findFirst({ where: { paymentId: a.paymentId }, select: { invoiceId: true, membershipId: true, termId: true } })
   const customerId = (await tx.payment.findUniqueOrThrow({ where: { id: a.paymentId }, select: { customerId: true } })).customerId
   if (needBack > 0n) {
-    const credit = customerId ? (await tx.customerCreditEntry.aggregate({ where: { customerId, sourceType: 'Payment', sourceId: a.paymentId }, _sum: { amountMinor: true } }))._sum.amountMinor ?? 0n : 0n
-    const fromCredit = credit < needBack ? credit : needBack
-    if (fromCredit > 0n && customerId) {
-      await tx.customerCreditEntry.create({ data: { customerId, kind: 'refunded', amountMinor: -fromCredit, sourceType: 'Payment', sourceId: a.paymentId } })
-      await tx.paymentAllocation.create({ data: { paymentId: a.paymentId, invoiceId: null, kind: 'reverse', reversesId: (await tx.paymentAllocation.findFirst({ where: { paymentId: a.paymentId, invoiceId: null, kind: 'apply' }, select: { id: true } }))?.id, amountMinor: fromCredit, reason: 'refund of customer credit', createdById: actorUserId(actor) } })
-    }
+    const fromCredit = await takeBackCredit(uow, actor, a.paymentId, customerId, needBack)
     const back = needBack - fromCredit
     if (back > 0n) {
       const done = await reverseAllocations(uow, actor, a.paymentId, back, 'refund_reopen', `Refund: ${a.reason}`)

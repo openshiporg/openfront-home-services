@@ -134,9 +134,9 @@ async function unrefundedPayments(tx: Tx, evaluationId: string | null) {
   const rows = await tx.payment.findMany({
     where: { authorization: { from_CancellationEvaluation_authorization: { some: { id: evaluationId } } } },
     orderBy: [{ receivedAt: 'asc' }, { id: 'asc' }],
-    select: { id: true, ref: true, amountMinor: true, refunds: { select: { amountMinor: true } } },
+    select: { id: true, ref: true, customerId: true, amountMinor: true, refunds: { select: { amountMinor: true } } },
   })
-  return rows.map(p => ({ id: p.id, ref: p.ref, remainingMinor: p.amountMinor - p.refunds.reduce((sum, r) => sum + r.amountMinor, 0n) })).filter(p => p.remainingMinor > 0n)
+  return rows.map(p => ({ id: p.id, ref: p.ref, customerId: p.customerId, remainingMinor: p.amountMinor - p.refunds.reduce((sum, r) => sum + r.amountMinor, 0n) })).filter(p => p.remainingMinor > 0n)
 }
 
 async function lockNotice(tx: Tx, id: string, expectedVersion?: number | null) {
@@ -287,7 +287,13 @@ export async function markCancellationRefunded(db: Db, actor: Actor, args: { not
       const payments = await unrefundedPayments(uow.tx, row.evaluation)
       const refundable = payments.reduce((sum, p) => sum + p.remainingMinor, 0n)
       if (refundable !== amount) throw new DomainError(Codes.GUARD_FAILED, `The payments on this sale leave ${refundable.toString()}¢ to refund, not ${amount.toString()}¢.`, { reason: 'refund_payments_mismatch', refundableMinor: refundable.toString() })
+      const { takeBackCredit } = await import('./payments')
       for (const p of payments) {
+        // A deposit is held as the customer's credit until an invoice takes it: that credit comes back before the money does.
+        const held = p.customerId ? (await uow.tx.customerCreditEntry.aggregate({ where: { customerId: p.customerId, sourceType: 'Payment', sourceId: p.id }, _sum: { amountMinor: true } }))._sum.amountMinor ?? 0n : 0n
+        const balance = p.customerId && held > 0n ? (await uow.tx.customerCreditEntry.aggregate({ where: { customerId: p.customerId }, _sum: { amountMinor: true } }))._sum.amountMinor ?? 0n : 0n
+        if (held > balance) throw new DomainError(Codes.GUARD_FAILED, `The deposit ${p.ref} has already paid an invoice. Refund it from that invoice's payment instead.`, { reason: 'deposit_used' })
+        await takeBackCredit(uow, actor, p.id, p.customerId, p.remainingMinor)
         const ref = await nextReference(uow.tx, 'RFD', uow.now)
         await uow.tx.refund.create({ data: { ref, paymentId: p.id, noticeId: row.id, method: e.method as 'processor_refund' | 'check', amountMinor: p.remainingMinor, reference: e.reference!.trim(), refundedAt: uow.now, recordedById: actorUserId(actor) } })
         auditCreate(uow, actor, 'Refund', ref, 'refund.recorded', { noticeId: row.id, paymentRef: p.ref, amountMinor: p.remainingMinor.toString(), method: e.method, reference: e.reference!.trim() })

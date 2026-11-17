@@ -582,8 +582,14 @@ export async function sellEstimate(db: Db, actor: Actor, args: SellArgs) {
       select: { id: true },
     })
     if (deposit > 0n) {
-      const ref = await nextReference(tx, 'PMT', uow.now)
-      const payment = await tx.payment.create({ data: { ref, jobId: est.jobId, customerId: est.customerId ?? null, authorizationId: authorization.id, kind: 'deposit', method: args.depositMethod ?? 'card', amountMinor: deposit, reference: args.depositReference?.trim() ?? '', receivedAt: uow.now, recordedById: actorUserId(actor) }, select: { id: true } })
+      // The deposit goes in the day's batch and is held as the customer's credit until the job's invoice takes it (apply credit).
+      const { createPayment } = await import('./payments')
+      const payment = await createPayment(uow, actor, { customerId: est.customerId ?? null, jobId: est.jobId, kind: 'deposit', method: args.depositMethod ?? 'card', amountMinor: deposit, reference: args.depositReference?.trim() ?? '', receivedAt: uow.now, authorizationId: authorization.id })
+      const ref = payment.ref
+      if (est.customerId) {
+        await tx.customerCreditEntry.create({ data: { customerId: est.customerId, kind: 'issued', amountMinor: deposit, sourceType: 'Payment', sourceId: payment.id } })
+        await tx.paymentAllocation.create({ data: { paymentId: payment.id, invoiceId: null, kind: 'apply', amountMinor: deposit, reason: 'deposit held as customer credit', createdById: actorUserId(actor) } })
+      }
       auditCreate(uow, actor, 'Payment', payment.id, 'payment.recorded', { ref, authorizationId: authorization.id, amountMinor: deposit.toString(), method: args.depositMethod ?? 'card', kind: 'deposit' })
     }
     auditCreate(uow, actor, 'Authorization', authorization.id, 'authorization.recorded', { subject: `EstimateVersion:${row.id}`, optionId: option.id, method: args.authorization.method, signerRole, location: args.saleLocation, initiatedBy: args.initiatedBy, contentHash: option.contentHash, ownerApproval: args.authorization.ownerApproval ?? null })
