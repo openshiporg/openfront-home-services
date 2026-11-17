@@ -1,4 +1,5 @@
 import type { IncomingMessage } from 'node:http'
+import { isSignedIn } from '@/features/keystone/access'
 import { keystoneContext } from '@/features/keystone/context'
 import { renewalsComing, renewalsCsv } from '@/features/keystone/services/agreements'
 
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const context = await keystoneContext.withRequest({ headers: { cookie: request.headers.get('cookie') || '' }, method: 'GET', url: '/api/membership-renewals/csv' } as IncomingMessage)
   const session = context.session as { data?: { role?: Record<string, unknown> } } | undefined
-  if (!session?.data) return new Response('Sign in to export.', { status: 401 })
+  if (!session?.data || !isSignedIn({ session: session as never })) return new Response('Sign in to export.', { status: 401 })
   const role = session.data.role ?? {}
   if (role.canSellMemberships !== true && role.canManageMemberships !== true) return new Response('Not found.', { status: 404 })
   const url = new URL(request.url)

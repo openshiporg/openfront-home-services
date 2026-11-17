@@ -1,4 +1,5 @@
 import type { IncomingMessage } from 'node:http'
+import { isSignedIn } from '../access'
 import { keystoneContext } from '../context'
 
 /** CSV cell: a leading = + - @ is made harmless so a spreadsheet never runs it as a formula. */
@@ -13,7 +14,7 @@ export const toCsv = (rows: unknown[][]) => rows.map(r => r.map(cell).join(','))
 export async function exportCsv(request: Request, path: string, perms: string[], filename: string, build: (db: any) => Promise<string | null>) {
   const context = await keystoneContext.withRequest({ headers: { cookie: request.headers.get('cookie') || '' }, method: 'GET', url: path } as IncomingMessage)
   const session = context.session as { data?: { role?: Record<string, unknown> } } | undefined
-  if (!session?.data) return new Response('Sign in to export.', { status: 401 })
+  if (!session?.data || !isSignedIn({ session: session as never })) return new Response('Sign in to export.', { status: 401 })
   const role = session.data.role ?? {}
   if (!perms.some(p => role[p] === true)) return new Response('Not found.', { status: 404 })
   const body = await build(keystoneContext.prisma)
