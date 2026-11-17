@@ -49,8 +49,18 @@ export async function startInvoiceCard(invoiceId: string): Promise<Out> {
     if (!r.success) return { ok: false, error: r.error || 'The card try could not be started.' };
     attemptId = r.data.startPaymentAttempt.attemptId; amount = invoice.balanceMinor;
   }
-  const origin = await getBaseUrl();
   const back = `/dashboard/platform/invoices/${invoice.id}`;
+  if (open) {
+    // A card page for this try may already be paid, or still open: record the paid one, and close the open ones, so one try is paid once.
+    const paid = await stripe.findPaidIntent(open.id);
+    if (paid) {
+      if (paid.amountMinor !== open.amountMinor || paid.invoiceId !== invoiceId) return { ok: false, error: 'Stripe has a payment for a different amount. Check the processor dashboard.' };
+      const err = await recordCardPayment({ invoiceId, attemptId: open.id, amountMinor: open.amountMinor.toString(), paymentIntent: paid.paymentIntent });
+      return err ? { ok: false, error: err } : { ok: true, message: 'Payment recorded.' };
+    }
+    if (!(await stripe.expireOpenCheckouts(open.id))) return { ok: false, error: 'The earlier card page for this invoice could not be closed. Press Check card payment, then try again.' };
+  }
+  const origin = await getBaseUrl();
   try {
     const s = await stripe.paymentCheckout({
       amountMinor: amount!, name: `Invoice ${invoice.ref}`, successUrl: `${origin}/api/cards/return?session_id={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(back)}`, cancelUrl: `${origin}${back}`,

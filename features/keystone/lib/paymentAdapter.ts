@@ -116,6 +116,24 @@ export class StripeAdapter implements PaymentAdapter {
     return { mode: 'payment', done: j.payment_status === 'paid' && j.payment_intent?.status === 'succeeded', paymentIntent: j.payment_intent?.id ?? '', amountMinor: BigInt(j.amount_total ?? 0), metadata }
   }
 
+  /**
+   * Close every card page still open for this attempt, so only the page opened next can take money.
+   * Returns false when a page could not be closed (it was being paid, or Stripe did not answer): do not open another.
+   */
+  async expireOpenCheckouts(attemptId: string): Promise<boolean> {
+    try {
+      const r = await this.call('/checkout/sessions?status=open&limit=100', { method: 'GET' })
+      const j = (await r.json()) as { data?: { id: string; metadata?: Record<string, string> }[] }
+      if (!r.ok) return false
+      for (const s of j.data ?? []) {
+        if (s.metadata?.attemptId !== attemptId) continue
+        const x = await this.call(`/checkout/sessions/${encodeURIComponent(s.id)}/expire`, { method: 'POST' })
+        if (!x.ok) return false
+      }
+      return true
+    } catch { return false }
+  }
+
   /** A paid Checkout payment for this attempt, if the customer finished one (staff left the page before it came back). */
   async findPaidIntent(attemptId: string): Promise<{ paymentIntent: string; amountMinor: bigint; invoiceId: string } | null> {
     try {
