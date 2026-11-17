@@ -334,8 +334,12 @@ export async function closePaymentBatch(db: Db, actor: Actor, args: { batchId: s
   await authorizeOperation(db, actor, 'payment_batch.close', ['canManagePayments', 'canManageAccounting'], args)
   const { idempotencyKey, now: _now, ...params } = args
   const result = await command(db, { name: 'payment_batch.close', actor, idempotencyKey, params, now: args.now }, async uow => {
-    const b = await lockRow<{ id: string; version: number }>(uow.tx, 'PaymentBatch', args.batchId)
+    const b = await lockRow<{ id: string; version: number; businessDate: Date | null; tenderGroup: string }>(uow.tx, 'PaymentBatch', args.batchId)
     if (b.version !== args.expectedVersion) throw new DomainError(Codes.STALE_STATE, 'This batch changed since you loaded it. Reload and try again.')
+    // Card and ACH money keeps arriving from the processor all day, so today's batch for them closes tomorrow.
+    if (['card', 'ach'].includes(b.tenderGroup) && b.businessDate && b.businessDate.toISOString().slice(0, 10) >= (await companyToday(uow.tx, uow.now))) {
+      throw new DomainError(Codes.GUARD_FAILED, `Today's ${b.tenderGroup === 'ach' ? 'ACH' : 'card'} batch closes from tomorrow: card payments can still arrive today.`, { reason: 'batch_day_open' })
+    }
     const version = await casUpdate(uow, { model: 'PaymentBatch', id: b.id, version: b.version, from: ['open'], to: 'closed', actor, eventType: 'payment_batch.closed', data: { closedById: actorUserId(actor), closedAt: uow.now } })
     return { batchId: b.id, status: 'closed', version }
   })
