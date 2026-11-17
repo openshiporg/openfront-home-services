@@ -257,7 +257,10 @@ export async function runMembershipBilling(db: Db, actor: Actor, args: { period:
   const tally = { charged: 0, declined: due.length - attempts.length, unknown: 0, inProgress: 0, noCard: 0, already: 0 }
   const chargedIds: string[] = []
   for (const a of attempts) {
-    const outcome = await processAttempt(db, actor, a.id, now, adapter)
+    // One attempt that cannot be settled (its invoice was paid another way, its day's batch is closed) is left for a person;
+    // it never stops the members after it from being billed. It stays open, so it counts as left to collect.
+    let outcome: AttemptOutcome
+    try { outcome = await processAttempt(db, actor, a.id, now, adapter) } catch { tally.unknown += 1; continue }
     if (outcome === 'charged') { tally.charged += 1; chargedIds.push(a.id) }
     else if (outcome === 'declined') tally.declined += 1
     else if (outcome === 'unknown') tally.unknown += 1
