@@ -60,6 +60,9 @@ export default async function ApprovalsPage({ searchParams }: { searchParams?: P
                     <ActionButton op="decideApprovalRequest" vars={{ requestId: r.id, decision: 'reject', expectedVersion: r.version }} ask="Why are you rejecting this?" paths={['/dashboard/platform/approvals']}>Reject</ActionButton>
                   </>
                 ) : null}
+                {r.action === 'refund.issue' && r.status === 'approved' && !r.consumedAt && !(r.expiresAt !== null && new Date(r.expiresAt).getTime() <= now) ? (
+                  <ActionButton op="recordApprovedRefund" vars={{ approvalRequestId: r.id }} confirm="Make this refund now?" paths={['/dashboard/platform/approvals']}>Record refund</ActionButton>
+                ) : null}
                 {r.status === 'pending' && mine ? <ActionButton op="cancelApprovalRequest" vars={{ requestId: r.id, expectedVersion: r.version }} confirm="Withdraw this request?" paths={['/dashboard/platform/approvals']}>Withdraw</ActionButton> : null}
               </div>
             </Row>
