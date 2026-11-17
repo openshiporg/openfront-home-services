@@ -47,7 +47,7 @@ export function RefundRequestForm({ invoiceId, paymentId, max }: { invoiceId: st
       op="requestRefund" submit="Refund" paths={invPaths(invoiceId)}
       fields={[
         { name: 'amount', label: 'Refund ($)', required: true, width: 'sm', defaultValue: (Number(max) / 100).toFixed(2) },
-        { name: 'method', label: 'Refunded by', kind: 'select', width: 'md', options: [{ value: 'check', label: 'Check' }, { value: 'processor_refund', label: 'Card refund' }, { value: 'cash', label: 'Cash' }] },
+        { name: 'method', label: 'Refunded by', kind: 'select', width: 'md', options: [{ value: 'check', label: 'Check' }, { value: 'processor_refund', label: 'Card refund' }] },
         { name: 'reference', label: 'Check number (leave empty for a card paid through Stripe: the card is refunded there)', width: 'md' },
         { name: 'reason', label: 'Why', required: true, width: 'lg' },
       ]}

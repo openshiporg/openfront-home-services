@@ -79,7 +79,7 @@ const OPS: Record<string, Record<string, string>> = {
   startPaymentAttempt: { invoiceId: 'ID!', amountMinor: 'String!', method: 'String!' },
   markAttemptUnknown: { attemptId: 'ID!', expectedVersion: 'Int!', note: 'String' },
   resolveAttemptFailed: { attemptId: 'ID!', expectedVersion: 'Int!', evidence: 'String!' },
-  requestRefund: { paymentId: 'ID!', amountMinor: 'String!', method: 'String!', reason: 'String!', reference: 'String!' },
+  requestRefund: { paymentId: 'ID!', amountMinor: 'String!', method: 'String!', reason: 'String!', reference: 'String' },
   recordApprovedRefund: { approvalRequestId: 'ID!' },
   settleRefundedMembershipInvoice: { invoiceId: 'ID!' },
   closePaymentBatch: { batchId: 'ID!', expectedVersion: 'Int!' },

@@ -7,7 +7,7 @@ import { command } from '../lib/command'
 import type { Db } from '../lib/db'
 import { Codes, DomainError } from '../lib/errors'
 import { nextReference } from '../lib/sequence'
-import type { UnitOfWork } from '../lib/unitOfWork'
+import { runInTransaction, type UnitOfWork } from '../lib/unitOfWork'
 import { stripeAdapter } from '../lib/paymentAdapter'
 import { creditForRefund } from './invoices'
 import { closeTermForRefund } from './memberships'
@@ -237,6 +237,12 @@ async function writeRefund(uow: UnitOfWork, actor: Actor, a: { paymentId: string
   return { refundId: refund.id, ref }
 }
 
+const DRY_RUN = new Error('dry run')
+/** Run the refund's database write and roll it back: Stripe is only asked once the books are known to take the refund. */
+async function refundWouldRecord(db: Db, now: Date | undefined, work: (uow: UnitOfWork) => Promise<unknown>) {
+  try { await runInTransaction(db, async uow => { await work(uow); await uow.tx.$executeRawUnsafe('SET CONSTRAINTS ALL IMMEDIATE'); throw DRY_RUN }, { now }) } catch (e) { if (e !== DRY_RUN) throw e }
+}
+
 /** What can issue a card refund: only the processor adapter's refund call, injected in tests. */
 export type CardRefunder = { refund(input: { paymentIntent: string; amountMinor: bigint; idempotencyKey: string; reason?: string }): Promise<{ outcome: 'succeeded' | 'failed' | 'unknown'; refundId: string; note?: string }> }
 
@@ -273,7 +279,11 @@ export async function requestRefund(db: Db, actor: Actor, args: { paymentId: str
     const known = await unappliedOf(db as never, args.paymentId).catch(() => null)
     const limit = (await db.companySettings.findFirst({ select: { refundApprovalThresholdMinor: true } }))?.refundApprovalThresholdMinor ?? 50000n
     const direct = !!known && known.refunded + amount <= limit && amount <= known.amountMinor - known.refunded
-    if (direct) stripeRef = await issueAtStripe(db, refunder, { paymentId: args.paymentId, amountMinor: amount, method: args.method, reason, key: args.idempotencyKey })
+    if (direct && (await cardPaymentAtStripe(db, args.paymentId, refunder)) && args.method === 'processor_refund') {
+      await refundWouldRecord(db, args.now, async uow => { await lockRow(uow.tx, 'Payment', args.paymentId); await writeRefund(uow, actor, { paymentId: args.paymentId, amountMinor: amount, method: args.method, reason, reference: 're_check', approvalId: null }) })
+      // Keyed by what has been refunded so far: pressing Refund again after a failure (even after a reload) gets the same Stripe refund back.
+      stripeRef = await issueAtStripe(db, refunder, { paymentId: args.paymentId, amountMinor: amount, method: args.method, reason, key: `${known!.refunded}:${amount}` })
+    }
     if (stripeRef) reference = stripeRef
   }
   if (!reference && !(args.method === 'processor_refund' && (await cardPaymentAtStripe(db, args.paymentId, refunder)))) throw new DomainError(Codes.INVALID_INPUT, 'Enter the processor refund id or the check number.', { field: 'reference' })
@@ -304,6 +314,15 @@ export async function recordApprovedRefund(db: Db, actor: Actor, args: { approva
   // An approved refund with no typed id is a card refund for Stripe to make, once, keyed by the approval itself.
   const pending = await db.approvalRequest.findUnique({ where: { id: args.approvalRequestId } })
   const pay = pending?.action === 'refund.issue' ? (pending.payload as { paymentId: string; amountMinor: string; method: string; reason: string; reference: string }) : null
+  // Approved, unused, unexpired and for this payload, and the books take it, before Stripe is asked (the same checks run again below).
+  if (pay && !pay.reference) {
+    await refundWouldRecord(db, args.now, async uow => {
+      const { consumeApproval } = await import('../lib/approval')
+      await consumeApproval(uow, { requestId: pending!.id, action: pending!.action, targetList: pending!.targetList, targetId: pending!.targetId, payload: pay })
+      await lockRow(uow.tx, 'Payment', pay.paymentId)
+      await writeRefund(uow, actor, { paymentId: pay.paymentId, amountMinor: BigInt(pay.amountMinor), method: pay.method, reason: pay.reason, reference: 're_check', approvalId: pending!.id })
+    })
+  }
   const atStripe = pay && !pay.reference ? await issueAtStripe(db, refunder, { paymentId: pay.paymentId, amountMinor: BigInt(pay.amountMinor), method: pay.method, reason: pay.reason, key: `approval:${args.approvalRequestId}` }) : null
   const { idempotencyKey, now: _now, ...params } = args
   const result = await command(db, { name: 'refund.record_approved', actor, idempotencyKey, params, now: args.now }, async uow => {
