@@ -334,6 +334,12 @@ async function rollJob(uow: UnitOfWork, actor: Actor, jobId: string, holdReason:
     await uow.tx.task.create({ data: { kind: 'job.no_access', title: `No access on ${job.id.slice(-6)}: call the customer and rebook`, subjectType: 'Job', subjectId: job.id, status: 'open', priority: 'high', dueAt: new Date(uow.now.getTime() + 4 * 3600_000), dedupeKey: `job.no_access:${job.id}:${job.version}` } })
     return
   }
+  // Every visit still standing is done: the work is complete and the job can be completed (permits, inspections) and billed.
+  const standing = statuses.filter(s => s !== 'cancelled' && s !== 'no_access')
+  if (['scheduled', 'in_progress'].includes(job.status) && standing.length && standing.every(s => s === 'done')) {
+    await casUpdate(uow, { model: 'Job', id: job.id, version: job.version, from: [job.status], to: 'work_complete', actor, eventType: 'job.work_complete' })
+    return
+  }
   if (job.status === 'scheduled' && statuses.some(s => ['working', 'paused', 'done'].includes(s))) {
     await casUpdate(uow, { model: 'Job', id: job.id, version: job.version, from: ['scheduled'], to: 'in_progress', actor, eventType: 'job.in_progress' })
     return
