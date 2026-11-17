@@ -295,6 +295,7 @@ export async function bookJob(db: Db, actor: Actor, args: BookArgs) {
       ? await tx.serviceLocation.findUnique({ where: { id: args.locationId }, select: { id: true, postalCode: true, customerId: true } })
       : await createLocationInTx(uow, actor, customer.id, args.location!, geo!)
     if (!location) throw new DomainError(Codes.NOT_FOUND, 'Service address not found.', { field: 'locationId' })
+    if (location.customerId !== customer.id) throw new DomainError(Codes.GUARD_FAILED, 'That service address belongs to another customer.', { field: 'locationId', reason: 'location_customer_mismatch' })
     const area = await serviceAreaFor(tx, jobType.businessUnitId, location.postalCode)
     if (!area) throw new DomainError(Codes.OUT_OF_AREA, `ZIP ${location.postalCode} is outside the service area for ${jobType.name}.`, { reason: 'out_of_area' })
 
