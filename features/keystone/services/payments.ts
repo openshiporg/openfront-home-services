@@ -90,6 +90,10 @@ export async function recordInvoicePayment(db: Db, actor: Actor, args: RecordInv
     if (attempt) await casUpdate(uow, { model: 'PaymentAttempt', id: attempt.id, version: attempt.version, from: ['pending', 'unknown'], to: 'succeeded', actor, eventType: 'payment_attempt.succeeded', data: { paymentId: payment.id } })
     const apply = amount < invoice.balanceMinor ? amount : invoice.balanceMinor
     await allocatePayment(uow, actor, invoice, payment.id, apply)
+    if (apply === invoice.balanceMinor) {
+      const { settleAttemptsPaidElsewhere } = await import('./membershipBilling')
+      await settleAttemptsPaidElsewhere(uow, actor, invoice.id, payment.id)
+    }
     const excess = amount - apply
     if (excess > 0n && invoice.customerId) {
       await uow.tx.customerCreditEntry.create({ data: { customerId: invoice.customerId, kind: 'issued', amountMinor: excess, sourceType: 'Payment', sourceId: payment.id } })
@@ -116,6 +120,10 @@ export async function applyCustomerCredit(db: Db, actor: Actor, args: { invoiceI
     const payment = await createPayment(uow, actor, { customerId: invoice.customerId, jobId: invoice.jobId, payerId: invoice.payerId, method: 'customer_credit', amountMinor: amount, reference: 'Customer credit', receivedAt: uow.now })
     await tx.customerCreditEntry.create({ data: { customerId: invoice.customerId, kind: 'applied', amountMinor: -amount, sourceType: 'Payment', sourceId: payment.id } })
     await allocatePayment(uow, actor, invoice, payment.id, amount)
+    if (amount === invoice.balanceMinor) {
+      const { settleAttemptsPaidElsewhere } = await import('./membershipBilling')
+      await settleAttemptsPaidElsewhere(uow, actor, invoice.id, payment.id)
+    }
     auditCreate(uow, actor, 'Payment', payment.id, 'credit.applied', { invoiceId: invoice.id, amountMinor: amount.toString() })
     return { paymentId: payment.id, ref: payment.ref }
   })

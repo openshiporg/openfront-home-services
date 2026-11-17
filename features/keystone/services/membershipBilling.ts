@@ -87,6 +87,21 @@ async function settleMembershipStatus(uow: UnitOfWork, actor: Actor, membershipI
   }
 }
 
+/**
+ * An invoice of a declined membership charge was paid another way, in full: the attempt is settled by that payment,
+ * so it is never charged again and the membership's status follows. A try whose card outcome is unknown is left for the lookup.
+ */
+export async function settleAttemptsPaidElsewhere(uow: UnitOfWork, actor: Actor, invoiceId: string, paymentId: string) {
+  // One attempt per invoice (each charge posts its own invoice), and one attempt per payment (unique index).
+  const found = await uow.tx.membershipBillingAttempt.findFirst({ where: { invoiceId, status: 'failed' }, select: { id: true } })
+  if (found) {
+    const a = await lockRow<{ id: string; status: string; version: number; membershipId: string | null }>(uow.tx, 'MembershipBillingAttempt', found.id)
+    if (a.status !== 'failed') return
+    await casUpdate(uow, { model: 'MembershipBillingAttempt', id: a.id, version: a.version, from: [a.status], to: 'succeeded', actor, eventType: 'membership.charge_paid_elsewhere', data: { paymentId, failureNote: '' } })
+    if (a.membershipId) await settleMembershipStatus(uow, actor, a.membershipId)
+  }
+}
+
 async function finalizeSuccess(db: Db, actor: Actor, attemptId: string, providerRef: string, now: Date) {
   return runInTransaction(db, async uow => {
     const { tx } = uow
