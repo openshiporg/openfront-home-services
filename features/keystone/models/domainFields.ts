@@ -1,7 +1,7 @@
 import { bigInt, decimal, integer, select, text } from '@keystone-6/core/fields'
 
 /** Money in integer minor units (SCHEMA G2); field names end in `Minor`. */
-export const minor = (options: { required?: boolean; defaultValue?: bigint; description?: string; access?: { read?: (args: any) => boolean }; isFilterable?: (args: any) => boolean; isOrderable?: (args: any) => boolean } = {}) =>
+export const minor = (options: { required?: boolean; defaultValue?: bigint; description?: string; access?: { read?: (args: any) => boolean; update?: (args: any) => boolean }; isFilterable?: (args: any) => boolean; isOrderable?: (args: any) => boolean } = {}) =>
   bigInt({
     ...(options.access ? { access: options.access } : {}),
     ...(options.isFilterable ? { isFilterable: options.isFilterable } : {}),
@@ -34,8 +34,8 @@ export const rate = exact(12, 6)
 export const geo = exact(9, 6)
 
 /** Integer basis points (discount thresholds). */
-export const bps = (defaultValue?: number) =>
-  integer({ ...(defaultValue !== undefined ? { defaultValue } : {}), validation: { isRequired: defaultValue !== undefined } })
+export const bps = (defaultValue?: number, access?: { update?: (args: any) => boolean }) =>
+  integer({ ...(defaultValue !== undefined ? { defaultValue } : {}), ...(access ? { access } : {}), validation: { isRequired: defaultValue !== undefined } })
 
 const option = (value: string) => ({ label: value ? value.replaceAll('_', ' ').replaceAll('.', ' · ') : 'none', value })
 

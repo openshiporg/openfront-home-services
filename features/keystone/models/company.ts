@@ -34,9 +34,10 @@ export const CompanySettings = list({
     allowNegativeTruckStock: checkbox({ defaultValue: true }),
     estimateValidityDays: integer({ defaultValue: 30, validation: { isRequired: true, min: 1, max: 365 } }),
     recallWindowDays: integer({ defaultValue: 30, validation: { isRequired: true, min: 0, max: 365 } }),
-    discountApprovalThresholdBps: bps(1000),
-    refundApprovalThresholdMinor: minor({ defaultValue: 50000n }),
-    poApprovalThresholdMinor: minor({ defaultValue: 250000n }),
+    // The approval thresholds change only through a second person's approval (lib/companyControls), never a direct edit.
+    discountApprovalThresholdBps: bps(1000, { update: () => false }),
+    refundApprovalThresholdMinor: minor({ defaultValue: 50000n, access: { update: () => false } }),
+    poApprovalThresholdMinor: minor({ defaultValue: 250000n, access: { update: () => false } }),
     arPeriodCloseDay: integer({ defaultValue: 5, validation: { isRequired: true, min: 1, max: 28 } }),
     features: json({ defaultValue: DEFAULT_FEATURES, ui: { description: 'Modules this shop uses. Turning one off hides its screens; data is kept.' } }),
     onboardingStatus: select({
