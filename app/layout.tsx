@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Next x Keystone Starter",
-  description: "Next, Keystone, and Tailwind Starter Template",
+  title: "Openfront Home Services",
+  description: "Booking, dispatch, invoicing and memberships for home service companies",
 };
 
 export default function RootLayout({

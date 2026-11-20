@@ -83,7 +83,7 @@ export function MembershipTable({ plans, links = true }: { plans: Plan[]; links?
   const { rows, has } = planRows(plans)
   if (!plans.length) return null
   return (
-    <div className="overflow-x-auto rounded-[6px] border border-[#d9dcdf]">
+    <div className="relative overflow-x-auto rounded-[6px] border border-[#d9dcdf]">
       <table className="w-full min-w-[min(100%,560px)] border-collapse text-left text-[15px] sm:text-[16px]">
         <thead>
           <tr className="bg-[#f5f6f7]">

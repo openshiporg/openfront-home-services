@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { keystoneContext } from '@/features/keystone/context';
 import { cancelOnline } from '@/features/keystone/services/memberships';
@@ -15,13 +15,19 @@ async function cancel(formData: FormData) {
   'use server';
   const code = String(formData.get('code') ?? '');
   const reason = String(formData.get('reason') ?? '');
-  try { await cancelOnline(keystoneContext.prisma as never, { publicCode: code, reason }); } catch { /* the page shows the current state */ }
+  let failed = false;
+  try { await cancelOnline(keystoneContext.prisma as never, { publicCode: code, reason }); } catch (e) {
+    failed = true;
+    console.error(JSON.stringify({ component: 'storefront-membership', status: 'cancel_failed', error: e instanceof Error ? e.message.slice(0, 300) : 'unknown error' }));
+  }
   revalidatePath(`/membership/${code}`);
+  if (failed) redirect(`/membership/${encodeURIComponent(code)}?cancel=failed`);
 }
 
 /** The customer's own link: see the membership and cancel it online. The work happens in the request. */
-export default async function MembershipPublicPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function MembershipPublicPage({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ cancel?: string }> }) {
   const code = decodeURIComponent((await params).code).toUpperCase();
+  const cancelFailed = (await searchParams).cancel === 'failed';
   if (!CODE.test(code)) notFound();
   const m = await (keystoneContext.prisma as any).membership.findUnique({
     where: { publicCode: code },
@@ -49,6 +55,7 @@ export default async function MembershipPublicPage({ params }: { params: Promise
           <section className="border-y border-[#d9dcdf] py-5">
             <p className="flex items-center gap-2.5 text-[20px] font-bold"><span aria-hidden="true" className="inline-block size-3 rounded-full bg-[#1e9e4a]" />Your membership is on.</p>
             <p className="mt-2 text-[17px] leading-snug">{m.autoRenew ? `Your membership renews automatically${endsOn ? ` after ${day(endsOn)}` : ''}. Cancel here at any time and it will not renew.` : `Your membership runs until ${endsOn ? day(endsOn) : 'the end of the term'} and does not renew by itself.`}</p>
+            {cancelFailed ? <p role="alert" className="mt-4 text-[16px] font-bold text-[#b3261e]">The cancellation did not go through, and your membership is still on. Please try again, or call the office.</p> : null}
             <form action={cancel} className="mt-6 max-w-xl">
               <input type="hidden" name="code" value={code} />
               <label className="block text-[15px] font-bold" htmlFor="reason">Anything you would like us to know? (optional)</label>

@@ -49,7 +49,7 @@ export default async function MembershipDetailPage({ params }: { params: Promise
         <Stat name="Started" value={dateText(m.startsOn)} />
         <Stat name="Card on file" value={m.paymentMethodLabel || 'None'} />
       </div>
-      <Meta>{m.ref} · {m.location ? `${m.location.address1}, ${m.location.city}` : ''} · {m.autoRenew ? 'renews automatically' : 'does not renew automatically'}. The customer can cancel online at /membership/{m.publicCode}</Meta>
+      <Meta>{m.ref} · {m.location ? `${m.location.address1}, ${m.location.city}` : ''} · {m.autoRenew ? 'renews automatically' : 'does not renew automatically'}. The customer can cancel online at <span className="select-all font-mono">/membership/{m.publicCode}</span>.</Meta>
       {m.status === 'cancelled' ? <Meta>Cancelled{m.cancelEffectiveOn ? ` on ${dateText(m.cancelEffectiveOn)}` : ''}: {m.cancelReason}. {m.refundOwedMinor && m.refundOwedMinor !== '0' ? `Refund owed to the customer: ${money(m.refundOwedMinor)}. Refund it from the invoice; the invoice stays paid.` : 'No refund owed.'}</Meta> : null}
       {billable && canManage && (declined || !m.paymentMethodLabel) ? (
         <Section title={declined ? 'Card declined: update card, then Retry' : 'Put a card on file'}>
