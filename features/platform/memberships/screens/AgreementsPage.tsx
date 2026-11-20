@@ -29,7 +29,7 @@ export default async function AgreementsPage() {
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-x-3"><span className="font-medium">{a.name} · {a.customer?.displayName}</span><Status value={a.status} />{a.nteMinor && a.nteMinor !== '0' ? <span className="ml-auto text-sm tabular-nums">up to {money(a.nteMinor)}</span> : null}</div>
               <Meta>{a.ref} · {a.location ? `${a.location.address1}, ${a.location.city} · ` : ''}{dateText(a.startsOn)} to {dateText(a.endsOn)} · visits in {(a.visitMonths ?? []).map(m => MONTHS[Number(m) - 1]).filter(Boolean).join(', ') || 'no months set'} · {a.events.filter(e => e.status === 'open').length} open, {a.events.filter(e => e.status === 'booked').length} booked</Meta>
-              <Meta>{a.scope}</Meta>
+              {a.scope ? <div><Meta>{a.scope}</Meta></div> : null}
               {can ? (
                 <div className="flex flex-wrap gap-2">
                   {a.status === 'draft' ? <ActionButton op="activateServiceAgreement" vars={{ agreementId: a.id }} confirm="Start this agreement? Its visits are added to Due for service." paths={paths}>Start agreement</ActionButton> : null}

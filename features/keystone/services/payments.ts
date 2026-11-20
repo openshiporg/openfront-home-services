@@ -77,10 +77,9 @@ export async function recordInvoicePayment(db: Db, actor: Actor, args: RecordInv
     const receivedAt = args.receivedAt ? new Date(args.receivedAt) : uow.now
     if (Number.isNaN(receivedAt.getTime()) || receivedAt.getTime() > uow.now.getTime()) throw new DomainError(Codes.INVALID_INPUT, 'When was it received? Not in the future.', { field: 'receivedAt' })
 
-    if (['card', 'ach'].includes(args.method)) {
-      const blocked = await tx.paymentAttempt.findFirst({ where: { invoiceId: invoice.id, status: 'unknown', ...(args.attemptId ? { id: { not: args.attemptId } } : {}) }, select: { intentKey: true } })
-      if (blocked) throw new DomainError(Codes.GUARD_FAILED, 'An earlier card or ACH try on this invoice has an unknown outcome. Resolve it before taking another payment (I-M5).', { reason: 'unknown_attempt', intentKey: blocked.intentKey })
-    }
+    // Any method: cash or a check taken while a card try may have charged would pay the invoice twice.
+    const blocked = await tx.paymentAttempt.findFirst({ where: { invoiceId: invoice.id, status: 'unknown', ...(args.attemptId ? { id: { not: args.attemptId } } : {}) }, select: { intentKey: true } })
+    if (blocked) throw new DomainError(Codes.GUARD_FAILED, 'An earlier card or ACH try on this invoice has an unknown outcome. Resolve it before taking another payment (I-M5).', { reason: 'unknown_attempt', intentKey: blocked.intentKey })
     let attempt = null as null | { id: string; version: number; status: string; amountMinor: bigint; invoiceId: string | null }
     if (args.attemptId) {
       attempt = await lockRow<{ id: string; version: number; status: string; amountMinor: bigint; invoiceId: string | null }>(tx, 'PaymentAttempt', args.attemptId)

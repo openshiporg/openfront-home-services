@@ -23,6 +23,9 @@ export default async function BillingRunsPage() {
   const y = Number(today.slice(0, 4)), m = Number(today.slice(5, 7));
   const periods = [0, 1, -1, -2].map(off => { const dt = new Date(Date.UTC(y, m - 1 + off, 1)); const p = dt.toISOString().slice(0, 7); return { value: p, label: monthName(p) }; });
   const paths = ['/dashboard/platform/billing-runs'];
+  // A press that found nothing new to charge adds nothing worth a row; it is counted instead.
+  const shown = d.membershipBillingRuns.filter(r => r.queuedCount > 0 || r.chargedCount > 0 || r.status === 'running');
+  const quiet = d.membershipBillingRuns.length - shown.length;
   return (
     <Page title="Billing runs">
       <Section title="Run billing">
@@ -43,8 +46,9 @@ export default async function BillingRunsPage() {
           ))}
         </Section>
       ) : null}
-      <Section title={`Past runs · ${d.membershipBillingRuns.length}`}>
-        {d.membershipBillingRuns.length ? d.membershipBillingRuns.map(r => (
+      <Section title={`Past runs · ${shown.length}`}>
+        {quiet ? <Meta>{quiet} {quiet === 1 ? 'run' : 'runs'} that found nothing new to charge {quiet === 1 ? 'is' : 'are'} not listed.</Meta> : null}
+        {shown.length ? shown.map(r => (
           <Row key={r.id}>
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-x-3"><span className="font-medium">{monthName(r.period)}</span><Status value={r.status} /><span className="ml-auto text-sm tabular-nums">{money(r.chargedMinor)} charged</span></div>

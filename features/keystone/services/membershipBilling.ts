@@ -198,6 +198,8 @@ export async function runMembershipBilling(db: Db, actor: Actor, args: { period:
   await authorizeOperation(db, actor, 'membership.billing_run', BILLING, args)
   if (!PERIOD.test(args.period ?? '')) throw new DomainError(Codes.INVALID_INPUT, 'Choose a month to bill.', { field: 'period' })
   const now = args.now ?? new Date()
+  // A run whose process died mid-way is never finished by its own request: the next press closes it as partial (its attempts stay open and are picked up below).
+  await db.membershipBillingRun.updateMany({ where: { status: 'running', startedAt: { lt: new Date(now.getTime() - 15 * 60_000) } }, data: { status: 'partial', completedAt: now } })
   const { idempotencyKey, now: _now, ...params } = args
   const prepared = await command(db, { name: 'membership.billing_run', actor, idempotencyKey, params, now }, async uow => {
     const { tx } = uow

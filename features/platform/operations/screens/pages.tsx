@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { keystoneContext } from '@/features/keystone/context';
 import { stockSummary } from '@/features/keystone/services/inventory';
@@ -137,7 +138,7 @@ export async function ClaimsPage() {
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-x-3"><span className="font-medium">{c.equipment?.manufacturer} {c.equipment?.modelNumber}</span><Status value={c.status} /><Meta>{c.ref}</Meta></div>
               <Meta>{c.failedPart || 'Failed part not entered'} · claimed {money(String(c.claimedMinor))} · recovered {money(String(c.recoveredMinor))}{c.externalClaimNumber ? ` · maker claim ${c.externalClaimNumber}` : ''}{c.deadline ? ` · file by ${dateText(ymd(c.deadline))}` : ''}</Meta>
-              <ClaimPhotos claimId={c.id} photos={c.evidence.map((m: any) => ({ id: m.id, name: String(m.storageKey).split('/').pop() ?? 'photo' }))} canAdd={['draft', 'info_requested'].includes(c.status)} />
+              <ClaimPhotos claimId={c.id} photos={c.evidence.map((m: any) => ({ id: m.id, name: (String(m.storageKey).split('/').pop() ?? 'photo').replace(/^[0-9a-f]{16}-/, '') }))} canAdd={['draft', 'info_requested'].includes(c.status)} />
               {['draft', 'ready', 'info_requested'].includes(c.status) ? (
                 <CommandForm op="saveWarrantyClaimDraft" fixed={{ claimId: c.id, expectedVersion: c.version }} submit="Save claim details" paths={paths}
                   nest={{ draft: ['failedPart', 'failureDate', 'replacementSerial', 'laborHours', 'claimedMinor'] }}
@@ -146,7 +147,7 @@ export async function ClaimsPage() {
                     { name: 'failureDate', label: 'Failure date', kind: 'date', width: 'sm', defaultValue: ymd(c.failureDate) ?? '' },
                     { name: 'replacementSerial', label: 'Replacement serial', width: 'sm', defaultValue: c.replacementSerial ?? '' },
                     { name: 'laborHours', label: 'Labour hours', width: 'sm', defaultValue: c.laborHours ? String(c.laborHours) : '' },
-                    { name: 'claimedMinor', label: 'Claimed (cents)', width: 'sm', defaultValue: c.claimedMinor ? String(c.claimedMinor) : '' },
+                    { name: 'claimedMinor', label: 'Claimed ($)', width: 'sm', money: true, defaultValue: c.claimedMinor ? (Number(c.claimedMinor) / 100).toFixed(2) : '' },
                   ]} />
               ) : null}
               <div className="flex flex-wrap gap-2">
@@ -160,7 +161,7 @@ export async function ClaimsPage() {
               {['submitted', 'info_requested'].includes(c.status) ? (
                 <CommandForm op="recordWarrantyClaimDecision" fixed={{ claimId: c.id, expectedVersion: c.version }} submit="Record maker's decision" paths={paths} fields={[
                   { name: 'decision', label: 'Decision', kind: 'select', required: true, options: CLAIM_DECISIONS },
-                  { name: 'recoveredMinor', label: 'They pay (cents)', width: 'sm' }, { name: 'note', label: 'Note' },
+                  { name: 'recoveredMinor', label: 'They pay ($)', width: 'sm', money: true }, { name: 'note', label: 'Note' },
                 ]} />
               ) : null}
             </div>
@@ -190,7 +191,7 @@ export async function HomeWarrantyPage() {
     <Page title="Home warranty">
       <Section title="Log a dispatch from a home-warranty company">
         <CommandForm op="receiveHomeWarrantyDispatch" submit="Log dispatch" paths={paths} fields={[
-          { name: 'payerId', label: 'Company', kind: 'select', required: true, options: opt(payers) }, { name: 'externalDispatchNumber', label: 'Their dispatch number', required: true }, { name: 'serviceFeeMinor', label: 'Service fee (cents)', width: 'sm' },
+          { name: 'payerId', label: 'Company', kind: 'select', required: true, options: opt(payers) }, { name: 'externalDispatchNumber', label: 'Their dispatch number', required: true }, { name: 'serviceFeeMinor', label: 'Service fee ($)', width: 'sm', money: true },
         ]} />
       </Section>
       <Section title={`Dispatches · ${rows.length}`}>
@@ -201,7 +202,7 @@ export async function HomeWarrantyPage() {
               <Meta>Service fee {money(String(d.serviceFeeMinor))} · authorized {money(String(d.authorizedMinor))}{d.note ? ` · ${d.note}` : ''}</Meta>
               <div className="flex flex-wrap gap-2">
                 {(HW_STEPS[d.status] ?? []).map(([to, text, extra]) => extra === 'amount'
-                  ? <CommandForm key={to} op="advanceHomeWarrantyDispatch" fixed={{ dispatchId: d.id, to, expectedVersion: d.version }} submit={text} paths={paths} fields={[{ name: 'authorizedMinor', label: 'Authorised (cents)', required: true, width: 'sm' }]} />
+                  ? <CommandForm key={to} op="advanceHomeWarrantyDispatch" fixed={{ dispatchId: d.id, to, expectedVersion: d.version }} submit={text} paths={paths} fields={[{ name: 'authorizedMinor', label: 'Authorised ($)', required: true, width: 'sm', money: true }]} />
                   : <ActionButton key={to} op="advanceHomeWarrantyDispatch" vars={{ dispatchId: d.id, to, expectedVersion: d.version }} ask={extra === 'ask' ? 'Why?' : undefined} paths={paths}>{text}</ActionButton>)}
               </div>
             </div>
@@ -274,6 +275,8 @@ export async function TruckPage({ id }: { id: string }) {
 export async function ReplenishmentPage() {
   await gate('canManageInventory', 'canPurchase');
   const rows = await db().replenishmentRequest.findMany({ where: { status: { in: ['proposed', 'approved'] } }, orderBy: { createdAt: 'desc' }, take: 100, select: { id: true, ref: true, status: true, version: true, lines: true, location: { select: { name: true } } } });
+  // Filled requests that the warehouse could not fully cover: the rest is bought on a purchase order, so they stay in sight for two weeks.
+  const toBuy = await db().replenishmentRequest.findMany({ where: { status: 'ordered', updatedAt: { gte: new Date(Date.now() - 14 * 86_400_000) } }, orderBy: { updatedAt: 'desc' }, take: 50, select: { id: true, ref: true, status: true, lines: true, location: { select: { name: true } } } });
   const items = new Map<string, string>((await db().item.findMany({ select: { id: true, name: true } })).map((i: any) => [i.id, i.name]));
   const paths = ['/dashboard/platform/replenishment'];
   return (
@@ -295,6 +298,19 @@ export async function ReplenishmentPage() {
           </Row>
         )) : <Empty>Everything is at or above its minimum.</Empty>}
       </Section>
+      {toBuy.length ? (
+        <Section title={`Needs a purchase order · ${toBuy.length}`} aside={<Link className="inline-flex h-8 items-center rounded-md border bg-background px-3 text-sm font-medium shadow-sm" href="/dashboard/platform/purchase-orders">Purchase orders</Link>}>
+          <Meta>The warehouse moved what it had; the rest of these lines has no stock to move and is not ordered yet. Raise a purchase order for it.</Meta>
+          {toBuy.map((r: any) => (
+            <Row key={r.id}>
+              <div className="min-w-0 flex-1 space-y-1">
+                <div className="flex flex-wrap items-center gap-x-3"><span className="font-medium">{r.location?.name}</span><Status value={r.status} /><Meta>{r.ref}</Meta></div>
+                <Meta>{((r.lines ?? []) as { itemId: string; need: string }[]).map(l => `${items.get(l.itemId) ?? 'Item'} × ${l.need}`).join(' · ')}</Meta>
+              </div>
+            </Row>
+          ))}
+        </Section>
+      ) : null}
     </Page>
   );
 }
@@ -371,7 +387,7 @@ export async function PurchaseOrdersPage({ receiving = false }: { receiving?: bo
               ...Array.from({ length: PO_LINES }, (_, i) => [
                 { name: `lines.${i}.itemId`, label: `Line ${i + 1} item`, kind: 'select' as const, required: i === 0, width: 'lg' as const, options: itemOptions },
                 { name: `lines.${i}.quantity`, label: 'Qty', width: 'sm' as const, required: i === 0 },
-                { name: `lines.${i}.unitCostMinor`, label: 'Unit cost (cents, blank = list)', width: 'sm' as const },
+                { name: `lines.${i}.unitCostMinor`, label: 'Unit cost ($, blank = list)', width: 'sm' as const, money: true },
               ]).flat(),
             ]} />
         </Section>
@@ -398,7 +414,7 @@ export async function PurchaseOrdersPage({ receiving = false }: { receiving?: bo
               </div>
               {!receiving && bill && ['partially_received', 'received', 'billed'].includes(p.status) ? (
                 <CommandForm op="recordVendorBill" fixed={{ purchaseOrderId: p.id }} submit="Record bill" paths={paths} fields={[
-                  { name: 'billNumber', label: 'Bill number', required: true, width: 'sm' }, { name: 'totalMinor', label: 'Bill total (cents)', required: true, width: 'sm' },
+                  { name: 'billNumber', label: 'Bill number', required: true, width: 'sm' }, { name: 'totalMinor', label: 'Bill total ($)', required: true, width: 'sm', money: true },
                 ]} />
               ) : null}
             </div>
@@ -424,7 +440,7 @@ export async function PermitsPage() {
         <Section title="Open a permit">
           <CommandForm op="openPermit" submit="Open permit" paths={paths} fields={[
             { name: 'jobId', label: 'Job', kind: 'select', required: true, width: 'lg', options: finishing.map((j: any) => ({ value: j.id, label: `${j.ref} · ${label(j.status)}${j.summary ? ` · ${j.summary.slice(0, 40)}` : ''}` })) },
-            { name: 'ahj', label: 'Authority (city/county)', required: true }, { name: 'permitType', label: 'Permit type', required: true, width: 'sm' }, { name: 'feeMinor', label: 'Fee (cents)', width: 'sm' },
+            { name: 'ahj', label: 'Authority (city/county)', required: true }, { name: 'permitType', label: 'Permit type', required: true, width: 'sm' }, { name: 'feeMinor', label: 'Fee ($)', width: 'sm', money: true },
           ]} />
         </Section>
       ) : null}
@@ -467,6 +483,9 @@ export async function RefrigerantPage() {
   const entries = await db().refrigerantLogEntry.findMany({ where: forOthers ? {} : { technician: { userId: me.id } }, orderBy: { occurredAt: 'desc' }, take: 100, select: { id: true, kind: true, refrigerantType: true, quantityLb: true, occurredAt: true, technician: { select: { displayName: true } }, equipment: { select: { ref: true, modelNumber: true } }, cylinder: { select: { serialOrTag: true } }, job: { select: { ref: true } } } });
   const cylinders = await db().refrigerantCylinder.findMany({ where: { status: 'in_service', ...(forOthers ? {} : { location: { employee: { userId: me.id } } }) }, take: 100, select: { id: true, serialOrTag: true, refrigerantType: true } });
   const techs = await db().employee.findMany({ where: { kind: { in: ['technician', 'apprentice'] }, ...(forOthers ? {} : { userId: me.id }) }, orderBy: { displayName: 'asc' }, select: { id: true, displayName: true } });
+  // Pickers instead of raw ids: recent open jobs (a technician's own) and active equipment with refrigerant.
+  const jobs = await db().job.findMany({ where: { status: { notIn: ['draft', 'closed', 'cancelled'] }, ...(forOthers ? {} : { visits: { some: { assignments: { some: { active: true, employee: { userId: me.id } } } } } }) }, orderBy: { createdAt: 'desc' }, take: 100, select: { id: true, ref: true, summary: true } });
+  const equipment = await db().installedEquipment.findMany({ where: { status: 'active', refrigerantType: { not: '' } }, orderBy: { createdAt: 'desc' }, take: 200, select: { id: true, ref: true, manufacturer: true, modelNumber: true, location: { select: { address1: true } } } });
   const leaks = forOthers ? await db().leakRateEvaluation.findMany({ where: { status: { in: ['open', 'repair_due'] } }, orderBy: { createdAt: 'desc' }, take: 50, select: { id: true, status: true, version: true, leakRatePct: true, threshold: true, repairDueBy: true, equipment: { select: { ref: true, manufacturer: true, modelNumber: true } } } }) : [];
   const paths = ['/dashboard/platform/refrigerant'];
   return (
@@ -479,7 +498,8 @@ export async function RefrigerantPage() {
             { name: 'technicianId', label: 'Technician', kind: 'select', required: true, options: techs.map((t: any) => ({ value: t.id, label: t.displayName })) },
             { name: 'refrigerantType', label: 'Refrigerant', required: true, width: 'sm', defaultValue: 'R-410A' }, { name: 'quantityLb', label: 'Pounds', required: true, width: 'sm' },
             { name: 'cylinderId', label: 'Cylinder', kind: 'select', options: [{ value: '', label: '—' }, ...cylinders.map((c: any) => ({ value: c.id, label: `${c.serialOrTag} · ${c.refrigerantType}` }))] },
-            { name: 'jobId', label: 'Job id', width: 'sm' }, { name: 'equipmentId', label: 'Equipment id', width: 'sm' },
+            { name: 'jobId', label: 'Job', kind: 'select', options: [{ value: '', label: '—' }, ...jobs.map((j: any) => ({ value: j.id, label: `${j.ref}${j.summary ? ` · ${j.summary.slice(0, 40)}` : ''}` }))] },
+            { name: 'equipmentId', label: 'Equipment', kind: 'select', options: [{ value: '', label: '—' }, ...equipment.map((e: any) => ({ value: e.id, label: `${e.manufacturer} ${e.modelNumber}${e.location?.address1 ? ` · ${e.location.address1}` : ''}` }))] },
           ]} />
         ) : <Empty>You have no technician record, so there is no one to log under.</Empty>}
         {forOthers ? <CommandForm className="mt-2" op="saveRefrigerantCylinder" submit="Add cylinder" paths={paths} fields={[{ name: 'serialOrTag', label: 'Cylinder tag', required: true, width: 'sm' }, { name: 'refrigerantType', label: 'Refrigerant', required: true, width: 'sm' }, { name: 'kind', label: 'Kind', kind: 'select', options: [{ value: 'virgin', label: 'Virgin' }, { value: 'recovery', label: 'Recovery' }] }]} /> : null}

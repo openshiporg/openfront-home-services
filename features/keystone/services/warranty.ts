@@ -479,12 +479,23 @@ export async function mayUseClaimPhotos(db: Db | Tx, actor: Actor, claimId: stri
   return own > 0
 }
 
+/** The file's first bytes must match its declared type: a text file named .png is refused. */
+export function looksLikePhoto(b: Buffer, mime: string) {
+  const ascii = (from: number, to: number) => b.subarray(from, to).toString('latin1')
+  if (mime === 'image/jpeg') return b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff
+  if (mime === 'image/png') return ascii(0, 8) === '\x89PNG\r\n\x1a\n'
+  if (mime === 'image/webp') return ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP'
+  if (mime === 'image/heic') return ascii(4, 8) === 'ftyp' && /^(heic|heix|hevc|hevx|mif1|msf1|heim|heis)$/.test(ascii(8, 12))
+  return false
+}
+
 /** Attach one photo to a claim. The same photo sent twice is attached once. Only a draft or info-requested claim takes photos. */
 export async function attachClaimPhoto(db: Db, actor: Actor, args: { claimId: string; filename: string; mimeType: string; bytes: Buffer; now?: Date }) {
   if (actor.kind !== 'user') throw new DomainError(Codes.NOT_AUTHORIZED, 'Photos are attached by a person.')
   if (!(await mayUseClaimPhotos(db, actor, args.claimId))) throw new DomainError(Codes.NOT_AUTHORIZED, 'You can attach photos to claims on your own jobs.')
   if (!(CLAIM_PHOTO_TYPES as readonly string[]).includes(args.mimeType)) throw new DomainError(Codes.INVALID_INPUT, 'A photo is a JPEG, PNG, WebP or HEIC file.', { field: 'file' })
   if (!args.bytes.length) throw new DomainError(Codes.INVALID_INPUT, 'That file is empty.', { field: 'file' })
+  if (!looksLikePhoto(args.bytes, args.mimeType)) throw new DomainError(Codes.INVALID_INPUT, 'That file is not a JPEG, PNG, WebP or HEIC photo.', { field: 'file' })
   if (args.bytes.length > CLAIM_PHOTO_MAX_BYTES) throw new DomainError(Codes.INVALID_INPUT, 'That photo is over 5 MB. Send a smaller one.', { field: 'file' })
   const sha = createHash('sha256').update(args.bytes).digest('hex')
   const idempotencyKey = `claim-photo:${args.claimId}:${sha}`

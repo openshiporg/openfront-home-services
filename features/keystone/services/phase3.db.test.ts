@@ -137,6 +137,8 @@ describe.skipIf(!hasTestDatabase)('Phase 3: invoices, payments, financing, AR an
     const cur = await prisma.paymentAttempt.findUniqueOrThrow({ where: { id: a.attemptId } })
     const u = await markAttemptUnknown(prisma, biller, { attemptId: a.attemptId, expectedVersion: cur.version, note: 'terminal timed out', idempotencyKey: k() })
     expect(await reason(recordInvoicePayment(prisma, biller, { invoiceId: p.invoiceId, amountMinor: '3000', method: 'card', idempotencyKey: k() }))).toBe('unknown_attempt')
+    // Cash taken while the card may have charged would pay the invoice twice.
+    expect(await reason(recordInvoicePayment(prisma, biller, { invoiceId: p.invoiceId, amountMinor: '3000', method: 'cash', idempotencyKey: k() }))).toBe('unknown_attempt')
     expect(await reason(startPaymentAttempt(prisma, biller, { invoiceId: p.invoiceId, amountMinor: '3000', method: 'card', idempotencyKey: k() }))).toBe('attempt_open')
     expect(await reason(resolveAttemptFailed(prisma, biller, { attemptId: a.attemptId, expectedVersion: u.version, evidence: 'ok', idempotencyKey: k() }))).toBe('INVALID_INPUT')
     await resolveAttemptFailed(prisma, biller, { attemptId: a.attemptId, expectedVersion: u.version, evidence: 'Processor dashboard shows no charge at 10:42', idempotencyKey: k() })

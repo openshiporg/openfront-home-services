@@ -58,7 +58,7 @@ export function RefundForm({ noticeId, expectedVersion, dueMinor, dueText }: { n
       paths={PATHS(noticeId)}
       fields={nothing ? [] : [
         { name: 'method', label: 'Refunded by', kind: 'select', width: 'md', options: [{ value: 'processor_refund', label: 'Card refund' }, { value: 'check', label: 'Check' }] },
-        { name: 'reference', label: 'Refund or check number', required: true, width: 'md' },
+        { name: 'reference', label: 'Card refund id (from the processor) or check number', required: true, width: 'md' },
       ]}
       shape={(v) => ({ noticeId, expectedVersion, evidence: nothing ? { method: 'nothing_paid', amountMinor: '0' } : { method: v.method, reference: v.reference, amountMinor: dueMinor } })}
     />

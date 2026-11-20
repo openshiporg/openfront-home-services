@@ -37,7 +37,7 @@ export default async function PoliciesPage() {
             <Row key={v.id}>
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2"><span className="font-medium">Version {v.versionNumber}</span><Status value={v.status} /></div>
-                <Meta>From {dateText(v.effectiveFrom)}{v.effectiveTo ? ` to ${dateText(v.effectiveTo)}` : ''} · hash <span className="font-mono">{v.contentHash.slice(0, 12)}</span>{v.verifiedAt ? ` · verified ${when(v.verifiedAt, tz, 'day')}` : ''}</Meta>
+                <Meta>From {dateText(v.effectiveFrom)}{v.effectiveTo ? ` to ${dateText(v.effectiveTo)}` : ''} · hash <span className="font-mono">{v.contentHash.slice(0, 12)}</span>{v.verifiedAt ? ` · content unchanged since ${when(v.verifiedAt, tz, 'day')}` : ''}</Meta>
                 {(v.rules?.rules ?? []).flatMap(r => (r.assumptions ?? []).map(a => (
                   <p key={`${r.code}-${a.code}`} className="break-words rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"><span className="font-medium">Assumption, counsel to confirm.</span> {a.statement}</p>
                 )))}

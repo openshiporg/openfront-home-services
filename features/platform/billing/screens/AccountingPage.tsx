@@ -16,6 +16,7 @@ export default async function AccountingPage() {
     arPeriods(orderBy: [{ month: desc }], take: 12) { id month status version }
   }`);
   const paths = ['/dashboard/platform/accounting'];
+  const seesPeriods = ['canManageInvoices', 'canPostInvoices', 'canManageAccounting', 'canCloseAr', 'canApproveArClose'].some(p => me.can(p));
   return (
     <Page title="Accounting">
       <Section title="Export journal entries">
@@ -42,7 +43,7 @@ export default async function AccountingPage() {
               {p.status === 'closed' && me.can('canCloseAr') ? <ActionButton op="reopenArPeriod" vars={{ periodId: p.id, expectedVersion: p.version }} ask="Why reopen this period?" paths={paths}>Reopen</ActionButton> : null}
             </div>
           </Row>
-        )) : <Empty>No periods yet; the first opens with the first posted invoice.</Empty>}
+        )) : <Empty>{seesPeriods ? 'No periods yet; the first opens with the first posted invoice.' : 'Receivable periods are not visible to your role.'}</Empty>}
       </Section>
     </Page>
   );

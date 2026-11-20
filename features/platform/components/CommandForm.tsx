@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { runCommand } from '../actions/commands';
 import { pillClass } from './ActionButton';
+import { centsFromDollars } from '../lib/moneyInput';
 
 export type FormField =
-  | { name: string; label: string; kind?: 'text' | 'tel' | 'email' | 'date' | 'datetime-local' | 'password' | 'hidden'; required?: boolean; placeholder?: string; defaultValue?: string; width?: 'sm' | 'md' | 'lg' }
+  | { name: string; label: string; kind?: 'text' | 'tel' | 'email' | 'date' | 'datetime-local' | 'password' | 'hidden'; required?: boolean; placeholder?: string; defaultValue?: string; width?: 'sm' | 'md' | 'lg'; /** Typed in dollars, sent as whole cents. */ money?: boolean }
   | { name: string; label: string; kind: 'select'; options: { value: string; label: string }[]; required?: boolean; defaultValue?: string; width?: 'sm' | 'md' | 'lg' };
 
 export const inputClass = 'h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -78,7 +79,7 @@ export function CommandForm({ op, fields, fixed = {}, nest, rows, shape, submit,
       onSubmit={(e) => {
         e.preventDefault();
         const form = new FormData(e.currentTarget);
-        const values = Object.fromEntries(fields.map((f) => [f.name, String(form.get(f.name) ?? '').trim()]));
+        const values = Object.fromEntries(fields.map((f) => { const v = String(form.get(f.name) ?? '').trim(); return [f.name, f.kind !== 'select' && f.money && v ? centsFromDollars(v) : v]; }));
         const flat = rows ? Object.fromEntries(Object.entries(values).filter(([k]) => !Object.keys(rows).some(g => k.startsWith(`${g}.`)))) : values;
         const variables = { ...fixed, ...(shape ? shape(values) : nest ? nestValues(nest, values) : flat), ...(rows ? rowValues(rows, values) : {}) };
         const body = JSON.stringify(variables);
@@ -102,7 +103,7 @@ export function CommandForm({ op, fields, fixed = {}, nest, rows, shape, submit,
               {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           ) : (
-            <input name={f.name} type={f.kind ?? 'text'} required={f.required} placeholder={f.placeholder} defaultValue={f.defaultValue} className={inputClass} autoComplete="off" />
+            <input name={f.name} type={f.kind ?? 'text'} required={f.required} placeholder={f.placeholder ?? (f.money ? '$0.00' : undefined)} inputMode={f.money ? 'decimal' : undefined} defaultValue={f.defaultValue} className={inputClass} autoComplete="off" />
           )}
         </label>
       ))}

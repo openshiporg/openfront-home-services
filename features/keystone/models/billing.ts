@@ -106,8 +106,9 @@ export const Invoice = list({
     snapshot: json({ ...readOnly }),
     pdf: relationship({ ref: 'Document', ...readOnly }),
     lines: relationship({ ref: 'InvoiceLine.invoice', many: true, ...readOnly }),
-    allocations: relationship({ ref: 'PaymentAllocation.invoice', many: true, ...readOnly }),
-    arEntries: relationship({ ref: 'ArEntry.invoice', many: true, ...readOnly }),
+    // Ledger rows are office-only; a where filter through them must not reveal them to counter staff.
+    allocations: relationship({ ref: 'PaymentAllocation.invoice', many: true, ...readOnly, isFilterable: officeOnlyQuery, isOrderable: officeOnlyQuery }),
+    arEntries: relationship({ ref: 'ArEntry.invoice', many: true, ...readOnly, isFilterable: officeOnlyQuery, isOrderable: officeOnlyQuery }),
     creditMemos: relationship({ ref: 'CreditMemo.invoice', many: true, ...readOnly }),
     postedAt: timestamp({ ...readOnly }),
     postedBy: relationship({ ref: 'User', ...readOnly }),

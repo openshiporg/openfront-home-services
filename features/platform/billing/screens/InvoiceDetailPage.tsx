@@ -40,6 +40,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const bills = me.can('canManageInvoices') || me.can('canPostInvoices');
   const takes = me.can('canManagePayments') || me.can('canTakePayments');
   const live = ['posted', 'partially_paid'].includes(i.status);
+  // Payment allocations are office rows; counter staff and technicians cannot read them.
+  const seesLedger = ['canManageInvoices', 'canPostInvoices', 'canManagePayments', 'canIssueRefunds', 'canApproveWriteOff', 'canApproveCredits', 'canApproveRefunds', 'canManageAccounting', 'canCloseAr', 'canApproveArClose'].some(p => me.can(p));
   const applied = i.allocations.filter(a => a.kind === 'apply' && a.payment);
   // Membership invoices: a refund credits the invoice (paid, then refunded); it is never owed again.
   const membership = i.lines.some(l => l.taxCategory === 'membership');
@@ -82,7 +84,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </Section>
       ) : null}
       {live && takes && !reopenedByRefund ? <Section title="Take a payment"><div className="flex flex-wrap gap-2"><CardButton kind="invoice" id={i.id}>Pay by card</CardButton><CardButton kind="check" id={i.id}>Check card payment</CardButton></div><Meta>Cash, check or a payment taken elsewhere: record it below.</Meta><PaymentForm invoiceId={i.id} balanceMinor={i.balanceMinor} /></Section> : null}
-      <Section title={`Payments and credits · ${i.allocations.length}`}>
+      <Section title={seesLedger ? `Payments and credits · ${i.allocations.length}` : 'Payments and credits'}>
         {i.allocations.length ? i.allocations.map(a => (
           <Row key={a.id}>
             <div className="min-w-0 flex-1 space-y-1">
@@ -91,7 +93,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               {a.kind === 'apply' && a.payment && me.can('canIssueRefunds') ? <RefundRequestForm invoiceId={i.id} paymentId={a.payment.id} max={a.amountMinor} /> : null}
             </div>
           </Row>
-        )) : <Empty>No payments yet.</Empty>}
+        )) : <Empty>{seesLedger ? 'No payments yet.' : 'Payments and credits are not visible to your role; the balance above is current.'}</Empty>}
       </Section>
       {(live || i.status === 'paid') && bills ? <Section title="Credit memo"><CreditMemoForm invoiceId={i.id} /></Section> : null}
       {i.creditMemos.length ? <Section title={`Credit memos · ${i.creditMemos.length}`}>{i.creditMemos.map(c => <Row key={c.id}><div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3"><span className="font-medium">{c.ref} · {label(c.reason).toLowerCase()}</span><Status value={c.status} /><span className="ml-auto font-mono text-sm tabular-nums">{money(c.totalMinor)}</span></div></Row>)}</Section> : null}
